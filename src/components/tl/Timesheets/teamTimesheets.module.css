@@ -1,0 +1,386 @@
+.container {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  animation: fadeIn 0.3s ease-out;
+  background-color: #f1f5f9;
+  min-height: 100%;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.topBar {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.btnBack {
+  background: white;
+  color: #3b82f6;
+  border: 1px solid #3b82f6;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.btnBack:hover {
+  background: #eff6ff;
+}
+
+.mainContent {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.tabsContainer {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  padding: 8px 24px;
+  gap: 32px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.tab {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.tab.active {
+  color: #0f172a;
+  border-bottom-color: #0f172a;
+}
+
+.tab:hover:not(.active) {
+  color: #334155;
+}
+
+.tabIcon {
+  width: 18px;
+  height: 18px;
+}
+
+.card {
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  padding: 32px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.cardTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.searchInput {
+  padding: 8px 12px 8px 36px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 14px;
+  width: 250px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E") no-repeat 10px center;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  text-align: left;
+  padding: 16px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.table td {
+  padding: 16px 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.statusBadge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  display: inline-block;
+}
+
+.statusSubmitted { color: #0f172a; }
+.statusApproved { color: #0f172a; }
+.statusDraft { 
+  background: #f1f5f9; 
+  color: #94a3b8; 
+}
+.statusRejected { color: #0f172a; }
+
+.btnReview {
+  background: white;
+  border: 1px solid #cbd5e1;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+}
+
+.btnReview:hover {
+  background: #f8fafc;
+}
+
+.reviewerContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Detail Reviewer Styles */
+.reviewerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.reviewerTitleSub {
+  font-size: 14px;
+  color: #475569;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.reviewerTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.actionGroup {
+  display: flex;
+  gap: 12px;
+}
+
+.btnReject {
+  background: white;
+  border: 1px solid #cbd5e1;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  color: #0f172a;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.btnReject:hover { background: #f8fafc; }
+
+.btnApprove {
+  background: white;
+  border: 1px solid #cbd5e1;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  color: #0f172a;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.btnApprove:hover { background: #f8fafc; }
+
+.dailyBlock {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  background: white;
+}
+
+.dailyBlockHeader {
+  background: #f8fafc;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.dailyBlockDate {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.dailyBlockTotal {
+  font-size: 14px;
+  color: #475569;
+  font-weight: 600;
+}
+
+.taskItem {
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e2e8f0;
+  background: white;
+}
+.taskItem:last-child {
+  border-bottom: none;
+}
+
+.taskInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.taskId {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.taskTitle {
+  font-size: 14px;
+  color: #475569;
+}
+
+.taskMeta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.gitStatus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.gitMatched { color: #0f172a; }
+.gitNoCommits { color: #0f172a; }
+
+.taskHours {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* Audit Panel Styles */
+.auditSubtext {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.auditGrid {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.auditCol {
+  flex: 1;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.auditColHeader {
+  padding: 16px 20px;
+  font-weight: 700;
+  color: #0f172a;
+  border-bottom: 1px solid #e2e8f0;
+  background: white;
+}
+
+.auditColBody {
+  padding: 20px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auditRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #fef2f2;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #0f172a;
+  font-weight: 500;
+}
+
+.auditRow.matched {
+  background: #f8fafc;
+}
+
+.auditHours {
+  font-weight: 700;
+}
+
+.alertBanner {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  padding: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: #92400e;
+  font-size: 14px;
+}
+.alertBanner strong {
+  font-weight: 700;
+}

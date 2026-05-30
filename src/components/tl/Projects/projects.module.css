@@ -1,0 +1,782 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.topToolbar {
+  background: var(--bg-card);
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border-card);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+}
+
+.navHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.headerIcon {
+  color: #4f46e5;
+}
+
+.headerTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.projectNav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.backBtn {
+  background: #f1f5f9;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.backBtn:hover {
+  background: #e2e8f0;
+}
+
+.projectNameDivider {
+  color: #cbd5e1;
+  font-size: 18px;
+}
+
+.navTabs {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.navTab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.navTab:hover {
+  background: #f1f5f9;
+  color: var(--text-main);
+}
+
+.navTab.activeTab {
+  background: #eff6ff;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.contentArea {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ==================
+   VIEW 1: BOARD
+   ================== */
+.boardContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.filtersBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border-card);
+  box-shadow: var(--shadow-sm);
+}
+
+.filterTabs {
+  display: flex;
+  gap: 8px;
+}
+
+.filterBtn {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filterBtn:hover {
+  background: #f1f5f9;
+}
+
+.filterBtn.activeFilter {
+  background: #4f46e5; /* Hardcode primary blue */
+  color: white;
+}
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8fafc;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.searchIcon {
+  color: var(--text-light);
+}
+
+.searchBox input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  color: var(--text-main);
+  width: 200px;
+}
+
+.selectionPrompt {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid var(--border-card);
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.selectionPrompt h3 {
+  color: var(--text-main);
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.projectListSelection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.projectCardSelection {
+  background: white;
+  padding: 16px 24px;
+  border-radius: 12px;
+  border: 1px solid var(--border-card);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.projectCardSelection:hover {
+  transform: translateX(4px);
+  box-shadow: var(--shadow-md);
+  border-color: #cbd5e1;
+}
+
+.pcsInfo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 250px;
+}
+
+.pcsTitle {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.pSelectHint {
+  margin: 0;
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4f46e5;
+}
+
+.projectGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 20px;
+}
+
+.projectCard {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid var(--border-card);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.projectCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.pCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pBadge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pBadge.active { background: #dcfce7; color: #166534; }
+.pBadge.onhold { background: #fef9c3; color: #854d0e; }
+.pBadge.completed { background: #dbeafe; color: #1e40af; }
+
+.pClient {
+  font-size: 12px;
+  color: var(--text-light);
+  font-weight: 500;
+}
+
+.pTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.pStats {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.pStatItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pProgressBox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pProgressText {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.pProgressText strong {
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.pProgressBar {
+  height: 8px;
+  background: #f1f5f9;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.pProgressFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary) 0%, #818cf8 100%);
+  border-radius: 4px;
+}
+
+.pActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.pBtnAction {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pBtnAction:hover { 
+  background: #f1f5f9; 
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+
+/* ==================
+   VIEW 2: CREATE SPRINT
+   ================== */
+.createSprintContainer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.sprintFormSection, .backlogSection {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid var(--border-card);
+  box-shadow: var(--shadow-sm);
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 20px;
+}
+
+.sprintForm {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.formGroup label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.formGroup input, .formGroup textarea {
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  outline: none;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text-main);
+  transition: border 0.2s;
+}
+
+.formGroup input:focus, .formGroup textarea:focus {
+  border-color: var(--primary);
+  background: white;
+}
+
+.startSprintBtn {
+  margin-top: 10px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.startSprintBtn:hover {
+  background: var(--primary-hover);
+}
+
+.backlogHeader {
+  margin-bottom: 20px;
+}
+
+.backlogHeader .sectionTitle {
+  margin-bottom: 4px;
+}
+
+.backlogHelp {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.backlogList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.backlogItem {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 16px;
+  border-radius: 8px;
+  cursor: grab;
+  transition: border 0.2s, box-shadow 0.2s;
+}
+
+.backlogItem:active {
+  cursor: grabbing;
+}
+
+.backlogItem:hover {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.bItemHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.bItemTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.dragIcon {
+  color: #94a3b8;
+  cursor: grab;
+}
+
+.bItemMeta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.bItemPoints {
+  background: #e2e8f0;
+  color: #475569;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.bItemOkr {
+  color: var(--primary);
+  background: #eff6ff;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+
+/* ==================
+   VIEW 3: KANBAN BOARD
+   ================== */
+.kanbanContainer {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+}
+
+.kanbanColumn {
+  flex: 1;
+  min-width: 280px;
+  background: #f1f5f9;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: fit-content;
+}
+
+.kanbanColHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kanbanColHeader h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.kanbanCount {
+  background: #e2e8f0;
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.kanbanTasks {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 100px; /* target area for drop */
+}
+
+.kTaskCard {
+  background: white;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  cursor: grab;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.kTaskCard:active {
+  cursor: grabbing;
+}
+
+.kTaskCard:hover {
+  border-color: #cbd5e1;
+  box-shadow: var(--shadow-sm);
+}
+
+.blockedTask {
+  border: 1px solid #fca5a5;
+  background: #fef2f2;
+}
+
+.blockedTask:hover {
+  border-color: #ef4444;
+}
+
+.blockerFlag {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ef4444;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 2px 4px rgba(239,68,68,0.3);
+}
+
+.kTaskTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+  line-height: 1.4;
+}
+
+.kTaskMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.kPriority {
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.kPoints {
+  color: var(--text-secondary);
+}
+
+.kTaskFooter {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 10px;
+}
+
+.kAssignee {
+  width: 24px;
+  height: 24px;
+  background: var(--primary);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+
+/* ==================
+   VIEW 4: TIMELINE
+   ================== */
+.timelineContainer {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid var(--border-card);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.timelineHeaderRow {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr;
+  padding: 16px 24px;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--border-card);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.timelineList {
+  display: flex;
+  flex-direction: column;
+}
+
+.timelineRow {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr;
+  padding: 16px 24px;
+  align-items: center;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.2s;
+}
+
+.timelineRow:last-child {
+  border-bottom: none;
+}
+
+.timelineRow:hover {
+  background: #f8fafc;
+}
+
+.tlColName {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.milestoneIcon {
+  width: 32px;
+  height: 32px;
+  background: #eff6ff;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+}
+
+.tlColDate {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.mStatusBadge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 12px;
+  text-transform: uppercase;
+}
+
+.mStatusBadge.completed { background: #dcfce7; color: #166534; }
+.mStatusBadge.in-progress { background: #dbeafe; color: #1e40af; }
+.mStatusBadge.pending { background: #f1f5f9; color: #64748b; }
+
+.tlColTasks {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.tlColProgress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mProgressBar {
+  flex: 1;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.mProgressFill {
+  height: 100%;
+  border-radius: 3px;
+}
+
+.mProgressText {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  width: 32px;
+}

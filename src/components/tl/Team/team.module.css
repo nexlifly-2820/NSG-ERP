@@ -1,0 +1,321 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 0;
+  color: var(--text-main);
+  animation: fadeIn 0.4s ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.topToolbar {
+  background: white;
+  padding: 16px 24px;
+  border-radius: 12px;
+  border: 1px solid var(--border-card);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.navTab {
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.navTab:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.activeTab {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.viewContainer {
+  background: white;
+  padding: 32px;
+  border-radius: 12px;
+  border: 1px solid var(--border-card);
+  box-shadow: var(--shadow-sm);
+  min-height: 400px;
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* --- Profile Card Grid (View 1) --- */
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.teamCard {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.teamCard:hover {
+  border-color: #cbd5e1;
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 16px;
+  border: 3px solid white;
+  box-shadow: var(--shadow-sm);
+}
+
+.empName {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.empRole {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.currentTask {
+  background: white;
+  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text-main);
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.utilizationWrap {
+  width: 100%;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.utilizationLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.utilBarBg {
+  width: 100%;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.utilBarFill {
+  height: 100%;
+  border-radius: 4px;
+}
+
+.skillsWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.skillTag {
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+/* --- Calendar View (View 2) --- */
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+.calHeader {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  padding: 8px 0;
+}
+
+.calCell {
+  min-height: 80px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.calDayNum {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+.overlapWarning {
+  background: #fff1f2;
+  color: #e11d48;
+  border: 1px solid #fda4af;
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.calBadge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.calBadge.leave { background: #f3e8ff; color: #9333ea; }
+.calBadge.wfh { background: #e0f2fe; color: #0284c7; }
+.calBadge.holiday { background: #f1f5f9; color: #475569; }
+
+/* --- Workload View (View 3) --- */
+.workloadList {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.workloadItem {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wlHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wlName {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.wlStats {
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 16px;
+}
+
+.wlBarBg {
+  width: 100%;
+  height: 12px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.wlBarFill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.5s ease;
+}
+
+/* --- Skill Matrix (View 4) --- */
+.matrixTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.matrixTable th {
+  padding: 16px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  border-bottom: 2px solid #f1f5f9;
+  cursor: pointer;
+}
+
+.matrixTable th:hover {
+  color: var(--primary);
+}
+
+.matrixTable td {
+  padding: 16px;
+  font-size: 14px;
+  color: var(--text-main);
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.skillScore {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e2e8f0;
+}
+
+.dot.active {
+  background: var(--primary);
+}

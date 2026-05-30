@@ -1,16 +1,24 @@
 import React from 'react';
-import { LayoutDashboard } from 'lucide-react';
+import { LayoutDashboard, Users, Briefcase, CheckSquare, Calendar, Clock, FileText, AlertTriangle, MessageSquare } from 'lucide-react';
 
 export default function TlSidebar({ activeTab, setActiveTab }) {
-  const isActive = activeTab === 'dashboard';
+  const isDashboardActive = activeTab === 'dashboard';
+  const isTeamActive = activeTab === 'team';
+  const isProjectsActive = activeTab === 'projects';
+  const isTasksActive = activeTab === 'tasks';
+  const isAttendanceActive = activeTab === 'attendance';
+  const isTimesheetsActive = activeTab === 'timesheets';
+  const isReportsActive = activeTab === 'reports';
+  const isEscalationsActive = activeTab === 'escalations';
+  const isMessagingActive = activeTab === 'messaging';
 
   return (
     <div className="nav-group">
       <span className="nav-group-title">TL Modules</span>
       <button
-        className={`nav-link ${isActive ? 'active' : ''}`}
+        className={`nav-link ${isDashboardActive ? 'active' : ''}`}
         onClick={() => setActiveTab('dashboard')}
-        style={isActive ? { 
+        style={isDashboardActive ? { 
           color: '#3b82f6',
           borderLeftColor: '#3b82f6',
           backgroundColor: 'rgba(59, 130, 246, 0.05)' 
@@ -18,6 +26,110 @@ export default function TlSidebar({ activeTab, setActiveTab }) {
       >
         <LayoutDashboard size={18} />
         <span>Dashboard</span>
+      </button>
+
+      <button
+        className={`nav-link ${isTeamActive ? 'active' : ''}`}
+        onClick={() => setActiveTab('team')}
+        style={isTeamActive ? { 
+          color: '#3b82f6',
+          borderLeftColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.05)' 
+        } : {}}
+      >
+        <Users size={18} />
+        <span>Team</span>
+      </button>
+
+      <button
+        className={`nav-link ${isProjectsActive ? 'active' : ''}`}
+        onClick={() => setActiveTab('projects')}
+        style={isProjectsActive ? { 
+          color: '#3b82f6',
+          borderLeftColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.05)' 
+        } : {}}
+      >
+        <Briefcase size={18} />
+        <span>Projects</span>
+      </button>
+
+      <button
+        className={`nav-link ${isTasksActive ? 'active' : ''}`}
+        onClick={() => setActiveTab('tasks')}
+        style={isTasksActive ? { 
+          color: '#3b82f6',
+          borderLeftColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.05)' 
+        } : {}}
+      >
+        <CheckSquare size={18} />
+        <span>Tasks</span>
+      </button>
+
+      <button
+        className={`nav-link ${isAttendanceActive ? 'active' : ''}`}
+        onClick={() => setActiveTab('attendance')}
+        style={isAttendanceActive ? { 
+          color: '#3b82f6',
+          borderLeftColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.05)' 
+        } : {}}
+      >
+        <Calendar size={18} />
+        <span>Attendance</span>
+      </button>
+
+      <button
+        className={`nav-link ${isTimesheetsActive ? 'active' : ''}`}
+        onClick={() => setActiveTab('timesheets')}
+        style={isTimesheetsActive ? { 
+          color: '#3b82f6',
+          borderLeftColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.05)' 
+        } : {}}
+      >
+        <Clock size={18} />
+        <span>Timesheets</span>
+      </button>
+
+      <button
+        className={`nav-link ${isReportsActive ? 'active' : ''}`}
+        onClick={() => setActiveTab('reports')}
+        style={isReportsActive ? { 
+          color: '#3b82f6',
+          borderLeftColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.05)' 
+        } : {}}
+      >
+        <FileText size={18} />
+        <span>Reports</span>
+      </button>
+
+      <button
+        className={`nav-link ${isEscalationsActive ? 'active' : ''}`}
+        onClick={() => setActiveTab('escalations')}
+        style={isEscalationsActive ? { 
+          color: '#3b82f6',
+          borderLeftColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.05)' 
+        } : {}}
+      >
+        <AlertTriangle size={18} />
+        <span>Escalations</span>
+      </button>
+
+      <button
+        className={`nav-link ${isMessagingActive ? 'active' : ''}`}
+        onClick={() => setActiveTab('messaging')}
+        style={isMessagingActive ? { 
+          color: '#3b82f6',
+          borderLeftColor: '#3b82f6',
+          backgroundColor: 'rgba(59, 130, 246, 0.05)' 
+        } : {}}
+      >
+        <MessageSquare size={18} />
+        <span>Messaging & Meet</span>
       </button>
     </div>
   );

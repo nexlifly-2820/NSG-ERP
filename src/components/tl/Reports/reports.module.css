@@ -1,0 +1,323 @@
+:root {
+  --primary: #4f46e5;
+  --primary-light: #eef2ff;
+  --primary-hover: #4338ca;
+  --success: #10b981;
+  --info: #3b82f6;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --text-main: #0f172a;
+  --text-secondary: #475569;
+  --text-light: #94a3b8;
+  --border-color: #e2e8f0;
+  --border-card: #f1f5f9;
+  --bg-hover: #f8fafc;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.reportsLayout {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.chartCard {
+  background: white;
+  padding: 24px 32px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+}
+
+.tableCard {
+  background: white;
+  padding: 24px 32px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+  margin-top: 8px;
+}
+
+.chartCard:hover, .tableCard:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 0;
+  color: var(--text-main);
+  animation: fadeIn 0.4s ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.topToolbar {
+  background: white;
+  padding: 16px 24px;
+  border-radius: 12px;
+  border: 1px solid var(--border-card);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.navTab {
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.navTab:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.activeTab {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.viewContainer {
+  background: white;
+  padding: 32px;
+  border-radius: 12px;
+  border: 1px solid var(--border-card);
+  box-shadow: var(--shadow-sm);
+  min-height: 400px;
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* --- SVG Charts --- */
+.svgChart {
+  width: 100%;
+  max-width: 700px;
+  height: auto;
+  overflow: visible;
+  font-family: inherit;
+}
+
+.lineActual {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.linePlanned {
+  fill: none;
+  stroke: #94a3b8;
+  stroke-width: 2;
+  stroke-dasharray: 6 6;
+}
+
+.lineAverage {
+  fill: none;
+  stroke: var(--success);
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+}
+
+.chartPoint {
+  fill: white;
+  stroke: var(--primary);
+  stroke-width: 2;
+}
+
+.chartLabel {
+  font-size: 12px;
+  fill: var(--text-secondary);
+  text-anchor: middle;
+}
+
+.chartAxis {
+  stroke: var(--border-color);
+  stroke-width: 1;
+}
+
+/* --- Productivity Table --- */
+.prodTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.prodTable th {
+  padding: 16px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  border-bottom: 2px solid #f1f5f9;
+}
+
+.prodTable td {
+  padding: 16px;
+  font-size: 14px;
+  color: var(--text-main);
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.userCell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary-light);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+/* --- Donut Chart Widget --- */
+.donutGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  align-items: center;
+}
+
+.donutSvg {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  transform: rotate(-90deg);
+}
+
+.donutSegment {
+  fill: none;
+  stroke-width: 30;
+  stroke-linecap: round;
+  transition: all 0.5s ease;
+}
+
+.donutSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.donutLegendItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.legendColor {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.legendLabel {
+  font-weight: 600;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.legendValue {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+/* --- Calendar Export --- */
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.calHeader {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  padding: 8px 0;
+}
+
+.calCell {
+  min-height: 80px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px;
+  background: white;
+}
+
+.calDayNum {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+.leaveBadge {
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #f3e8ff;
+  color: #9333ea;
+  display: inline-block;
+}
+
+.exportBtn {
+  background: white;
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.exportBtn:hover {
+  background: var(--bg-hover);
+  border-color: #cbd5e1;
+}
