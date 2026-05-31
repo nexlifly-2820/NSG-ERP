@@ -4,7 +4,7 @@ import {
   BarChart2, Download, Filter, Calendar, Settings, ChevronRight, 
   Users, Briefcase, IndianRupee, PieChart, Target, ShieldCheck, 
   TrendingUp, TrendingDown, Clock, Sparkles, CheckCircle, Search,
-  AlignLeft, Play, X
+  AlignLeft, Play, X, Zap
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -15,15 +15,13 @@ import '../CEO.css';
 // ==========================================
 // MOCK DATA
 // ==========================================
-const kpiData = [
-  { title: "Total Employees", value: "842", trend: "up", percent: "5%", comp: "vs last quarter", icon: <Users size={20} color="#93C5FD" />, color: "info" },
-  { title: "Active Projects", value: "34", trend: "up", percent: "12%", comp: "YTD", icon: <Briefcase size={20} color="#FCD34D" />, color: "warning" },
-  { title: "Monthly Revenue", value: "₹42.5M", trend: "up", percent: "8%", comp: "vs last month", icon: <IndianRupee size={20} color="#86EFAC" />, color: "success" },
-  { title: "Payroll Cost", value: "₹18.4M", trend: "flat", percent: "0%", comp: "vs last month", icon: <PieChart size={20} color="#C4B5FD" />, color: "purple" },
-  { title: "OKR Achievement", value: "85%", trend: "up", percent: "4%", comp: "vs Q1", icon: <Target size={20} color="#86EFAC" />, color: "success" },
-  { title: "Budget Utilization", value: "72%", trend: "down", percent: "5%", comp: "of planned", icon: <TrendingDown size={20} color="#86EFAC" />, color: "success" },
-  { title: "Retention Rate", value: "94%", trend: "flat", percent: "0%", comp: "industry avg: 88%", icon: <Users size={20} color="#86EFAC" />, color: "success" },
-  { title: "Compliance Score", value: "98/100", trend: "up", percent: "2 pts", comp: "vs last audit", icon: <ShieldCheck size={20} color="#86EFAC" />, color: "success" },
+const kpiStripData = [
+  { title: "Generated Reports", value: "24", trend: "up", percent: "5%", color: "#2563EB" },
+  { title: "Data Health", value: "98%", trend: "up", percent: "1%", color: "#10B981" },
+  { title: "Scheduled Runs", value: "14", trend: "flat", percent: "0%", color: "#F59E0B" },
+  { title: "System Sync", value: "Live", trend: "flat", percent: "-", color: "#8B5CF6" },
+  { title: "Queries Today", value: "842", trend: "up", percent: "12%", color: "#2563EB" },
+  { title: "Avg Load Time", value: "1.2s", trend: "down", percent: "0.4s", color: "#10B981" },
 ];
 
 const insights = [
@@ -37,12 +35,6 @@ const scheduledReports = [
   { name: "Monthly Financial Rollup", freq: "Monthly (1st)", recipients: "CEO, CFO", next: "01 Jul 2026" },
   { name: "Weekly Workforce Health", freq: "Weekly (Mon)", recipients: "CEO, HR Head", next: "08 Jun 2026" },
   { name: "Quarterly OKR Status", freq: "Quarterly", recipients: "Board of Directors", next: "01 Oct 2026" },
-];
-
-const timeline = [
-  { time: "Today, 10:45 AM", user: "System", action: "Generated 'Monthly Financial Rollup'", type: "Financial" },
-  { time: "Yesterday, 3:30 PM", user: "Vivek C.", action: "Exported 'Workforce Health' to PDF", type: "Workforce" },
-  { time: "28 May 2026", user: "Finance Team", action: "Updated Scheduled 'Q3 Forecast'", type: "Financial" },
 ];
 
 const tableData = [
@@ -85,7 +77,7 @@ export default function Reports() {
   const [filterOpen, setFilterOpen] = useState(false);
 
   return (
-    <div style={{ padding: '0 32px 32px 32px', maxWidth: '1600px', margin: '0 auto', color: 'var(--ceo-text-primary)' }}>
+    <div style={{ padding: '0 32px 32px 32px', maxWidth: '1800px', margin: '0 auto', color: 'var(--ceo-text-primary)' }}>
       
       {/* SECTION 1: Executive Reports Header */}
       <motion.div 
@@ -94,251 +86,190 @@ export default function Reports() {
       >
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-            <span className="ceo-badge neutral">Executive Portal</span>
+            <span className="ceo-badge neutral">Enterprise Intelligence</span>
             <ChevronRight size={14} color="var(--ceo-text-muted)" />
-            <span style={{ fontSize: '12px', color: 'var(--ceo-text-muted)', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}>Business Intelligence</span>
+            <span style={{ fontSize: '12px', color: 'var(--ceo-text-muted)', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}>Data & Reports Center</span>
           </div>
-          <h1 style={{ fontSize: '32px', fontWeight: 700, margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>Executive Reports Center</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}>Q2 FY 2026-27</span>
-            <div style={{ width: '1px', height: '12px', background: 'var(--ceo-border)' }}></div>
-            <span style={{ fontSize: '13px', color: '#10B981', fontWeight: 600 }}>Data is Live</span>
-            <div style={{ width: '1px', height: '12px', background: 'var(--ceo-border)' }}></div>
-            <span style={{ fontSize: '13px', color: 'var(--ceo-text-muted)' }}>Last refreshed: Just now</span>
-            <div style={{ width: '1px', height: '12px', background: 'var(--ceo-border)' }}></div>
-            <span className="ceo-badge success" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><CheckCircle size={12} /> BI System Healthy</span>
-          </div>
+          <h1 style={{ fontSize: '32px', fontWeight: 700, margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>Business Intelligence Center</h1>
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'transparent', border: '1px solid var(--ceo-border)', color: 'var(--ceo-text-primary)', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }} className="ceo-btn-hover">
-            <Settings size={16} /> Analytics Settings
-          </button>
-          <button style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'transparent', border: '1px solid var(--ceo-border)', color: 'var(--ceo-text-primary)', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }} className="ceo-btn-hover">
-            <Clock size={16} /> Schedule Reports
-          </button>
-          <button style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'transparent', border: '1px solid var(--ceo-border)', color: 'var(--ceo-text-primary)', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }} className="ceo-btn-hover">
-            <Download size={16} /> Export Reports
-          </button>
-          <button style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#3B82F6', border: 'none', color: 'white', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
-            <BarChart2 size={16} /> Generate Report
-          </button>
+          <button className="ceo-btn"><Settings size={16} /> Data Settings</button>
+          <button className="ceo-btn"><Clock size={16} /> Schedules</button>
+          <button className="ceo-btn"><Download size={16} /> Export View</button>
+          <button className="ceo-btn ceo-btn-primary"><BarChart2 size={16} /> Custom Query</button>
         </div>
       </motion.div>
 
-      <motion.div variants={containerVariants} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+      <motion.div variants={containerVariants} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         
-        {/* SECTION 2: Executive KPI Dashboard */}
-        <div className="ceo-kpi-grid">
-          {kpiData.map((kpi, idx) => (
-            <motion.div key={idx} variants={itemVariants} className="ceo-dash-card" style={{ padding: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                <span style={{ fontSize: '13px', color: 'var(--ceo-text-secondary)', fontWeight: 500 }}>{kpi.title}</span>
-                <div style={{ padding: '6px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>{kpi.icon}</div>
-              </div>
-              <div className="ceo-kpi-value">{kpi.value}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
-                <span style={{ display: 'flex', alignItems: 'center', color: kpi.trend === 'up' && kpi.color === 'success' ? '#34D399' : kpi.trend === 'down' && kpi.color === 'success' ? '#34D399' : kpi.trend === 'up' && kpi.color === 'critical' ? '#F87171' : '#94A3B8', fontWeight: 600 }}>
+        {/* SECTION 2: BI KPI Strip */}
+        <motion.div variants={itemVariants} className="ceo-kpi-strip">
+          {kpiStripData.map((kpi, idx) => (
+            <div key={idx} className="ceo-kpi-strip-item">
+              <span style={{ fontSize: '12px', color: 'var(--ceo-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{kpi.title}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '28px', fontWeight: 700, letterSpacing: '-0.5px', color: 'var(--ceo-text-primary)' }}>{kpi.value}</span>
+                <span style={{ display: 'flex', alignItems: 'center', color: kpi.color, fontSize: '12px', fontWeight: 600, background: `${kpi.color}15`, padding: '2px 6px', borderRadius: '4px' }}>
                   {kpi.trend === 'up' ? '↗' : kpi.trend === 'down' ? '↘' : '→'} {kpi.percent}
                 </span>
-                <span style={{ color: 'var(--ceo-text-muted)' }}>{kpi.comp}</span>
               </div>
-            </motion.div>
+            </div>
           ))}
-        </div>
+        </motion.div>
 
-        {/* SECTION 15: Executive Insights Panel */}
-        <motion.div variants={itemVariants} className="ceo-dash-card" style={{ borderLeft: '4px solid #8B5CF6' }}>
-          <div className="ceo-dash-card-header">
-            <div className="ceo-dash-card-title"><Sparkles size={18} color="#8B5CF6" /> AI Executive Insights & Observations</div>
+        {/* SECTION 3: Executive Insights Matrix */}
+        <motion.div variants={itemVariants} className="ceo-command-panel" style={{ borderLeft: '4px solid var(--ceo-purple)' }}>
+          <div className="ceo-command-header" style={{ padding: '16px 24px' }}>
+            <div className="ceo-dash-card-title"><Sparkles size={18} color="var(--ceo-purple)" /> AI-Generated Executive Insights</div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+          <div className="ceo-matrix-grid" style={{ padding: '20px 24px' }}>
             {insights.map((ins, i) => (
-              <div key={i} style={{ padding: '16px', background: ins.type === 'critical' ? 'rgba(239, 68, 68, 0.05)' : ins.type === 'warning' ? 'rgba(245, 158, 11, 0.05)' : 'rgba(16, 185, 129, 0.05)', border: `1px solid ${ins.type === 'critical' ? 'rgba(239, 68, 68, 0.2)' : ins.type === 'warning' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`, borderRadius: '8px', fontSize: '13px', lineHeight: '1.5', color: ins.type === 'critical' ? '#FCA5A5' : ins.type === 'warning' ? '#FCD34D' : '#6EE7B7' }}>
-                {ins.msg}
+              <div key={i} className="ceo-matrix-cell" style={{ background: ins.type === 'critical' ? '#FEF2F2' : ins.type === 'warning' ? '#FFFBEB' : '#F0FDF4', borderColor: ins.type === 'critical' ? '#FECACA' : ins.type === 'warning' ? '#FDE68A' : '#A7F3D0' }}>
+                <div style={{ fontSize: '13px', lineHeight: '1.5', color: ins.type === 'critical' ? '#B91C1C' : ins.type === 'warning' ? '#B45309' : '#047857' }}>
+                  {ins.msg}
+                </div>
               </div>
             ))}
           </div>
         </motion.div>
 
-        {/* SECTION 3 & 4: Report Type Center & Filter Panel */}
-        <motion.div variants={itemVariants}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--ceo-border)', paddingBottom: '16px', marginBottom: '24px' }}>
-            <div style={{ display: 'flex', gap: '24px' }}>
-              {["Workforce Reports", "Payroll Reports", "Attendance Reports", "Project Reports", "Financial Reports", "OKR Reports", "Compliance Reports"].map(tab => (
-                <div key={tab} onClick={() => setActiveTab(tab)} style={{ fontSize: '13px', fontWeight: 600, color: activeTab === tab ? '#3B82F6' : 'var(--ceo-text-muted)', cursor: 'pointer', transition: 'all 0.2s', position: 'relative' }}>
-                  {tab}
-                  {activeTab === tab && <motion.div layoutId="activeRptTab" style={{ position: 'absolute', bottom: '-17px', left: 0, right: 0, height: '2px', background: '#3B82F6' }}></motion.div>}
-                </div>
-              ))}
-            </div>
-            <button onClick={() => setFilterOpen(!filterOpen)} style={{ background: filterOpen ? '#3B82F6' : 'transparent', color: filterOpen ? 'white' : 'var(--ceo-text-primary)', border: '1px solid var(--ceo-border)', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }}>
-              <Filter size={14} /> Advanced Filters
-            </button>
-          </div>
-
-          <AnimatePresence>
-            {filterOpen && (
-              <motion.div 
-                initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                style={{ overflow: 'hidden', marginBottom: '24px' }}
-              >
-                <div style={{ background: 'var(--ceo-card-bg)', border: '1px solid var(--ceo-border)', borderRadius: '12px', padding: '24px', display: 'grid', gridTemplateColumns: 'repeat(5, 1fr) auto', gap: '16px', alignItems: 'end' }}>
-                  <div className="ceo-form-group" style={{ margin: 0 }}>
-                    <label>Date Range</label>
-                    <select className="ceo-form-input"><option>This Quarter</option><option>This Year</option></select>
-                  </div>
-                  <div className="ceo-form-group" style={{ margin: 0 }}>
-                    <label>Department</label>
-                    <select className="ceo-form-input"><option>All Departments</option><option>Engineering</option></select>
-                  </div>
-                  <div className="ceo-form-group" style={{ margin: 0 }}>
-                    <label>Location</label>
-                    <select className="ceo-form-input"><option>All Locations</option><option>HQ</option></select>
-                  </div>
-                  <div className="ceo-form-group" style={{ margin: 0 }}>
-                    <label>Employee Type</label>
-                    <select className="ceo-form-input"><option>All</option><option>Full-Time</option></select>
-                  </div>
-                  <div className="ceo-form-group" style={{ margin: 0 }}>
-                    <label>Project</label>
-                    <select className="ceo-form-input"><option>All Projects</option></select>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--ceo-border)', color: 'white', padding: '10px 16px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>Clear</button>
-                    <button style={{ background: '#3B82F6', border: 'none', color: 'white', padding: '10px 16px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>Apply</button>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-
-        {/* DYNAMIC CONTENT AREA BASED ON TAB */}
-        {/* Sections 5-11 are merged into a visual representation controlled by the Tab */}
-        
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px' }}>
+        {/* SECTION 4: Split Layout for Analytics and Schedule */}
+        <div className="ceo-split-layout">
           
-          {/* SECTION 12: Dynamic Analytics Canvas */}
-          <motion.div variants={itemVariants} className="ceo-dash-card">
-            <div className="ceo-dash-card-header">
-              <div className="ceo-dash-card-title"><BarChart2 size={18} color="#3B82F6" /> {activeTab} Overview Canvas</div>
-              <div style={{ display: 'flex', gap: '16px', fontSize: '12px', fontWeight: 500 }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '12px', height: '12px', background: '#3B82F6', borderRadius: '2px' }}></div> Primary Metric</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '12px', height: '12px', background: '#10B981', borderRadius: '2px' }}></div> Secondary Metric</span>
+          <motion.div variants={itemVariants} className="ceo-command-panel ceo-split-left" style={{ flex: 2 }}>
+            <div className="ceo-command-header">
+              <div style={{ display: 'flex', gap: '24px' }}>
+                {["Workforce", "Financial", "Project", "Compliance"].map(tab => (
+                  <div key={tab} onClick={() => setActiveTab(tab)} style={{ fontSize: '13px', fontWeight: 600, color: activeTab === tab ? 'var(--ceo-primary)' : 'var(--ceo-text-muted)', cursor: 'pointer', transition: 'all 0.2s', position: 'relative' }}>
+                    {tab} Data
+                    {activeTab === tab && <motion.div layoutId="activeRptTab" style={{ position: 'absolute', bottom: '-21px', left: 0, right: 0, height: '2px', background: 'var(--ceo-primary)' }}></motion.div>}
+                  </div>
+                ))}
               </div>
+              <button onClick={() => setFilterOpen(!filterOpen)} className="ceo-btn" style={{ background: filterOpen ? 'var(--ceo-primary)' : 'transparent', color: filterOpen ? 'white' : 'var(--ceo-text-primary)' }}>
+                <Filter size={14} /> Filters
+              </button>
             </div>
-            <div style={{ height: '350px', width: '100%', marginTop: '20px' }}>
+            
+            <AnimatePresence>
+              {filterOpen && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                  style={{ overflow: 'hidden' }}
+                >
+                  <div style={{ padding: '20px 24px', background: 'var(--ceo-bg)', borderBottom: '1px solid var(--ceo-border)', display: 'grid', gridTemplateColumns: 'repeat(5, 1fr) auto', gap: '16px', alignItems: 'end' }}>
+                    <div className="ceo-form-group" style={{ margin: 0 }}>
+                      <label>Date Range</label>
+                      <select className="ceo-form-input" style={{ padding: '8px', fontSize: '12px' }}><option>This Quarter</option><option>This Year</option></select>
+                    </div>
+                    <div className="ceo-form-group" style={{ margin: 0 }}>
+                      <label>Department</label>
+                      <select className="ceo-form-input" style={{ padding: '8px', fontSize: '12px' }}><option>All</option><option>Engineering</option></select>
+                    </div>
+                    <div className="ceo-form-group" style={{ margin: 0 }}>
+                      <label>Location</label>
+                      <select className="ceo-form-input" style={{ padding: '8px', fontSize: '12px' }}><option>All</option><option>HQ</option></select>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button className="ceo-btn ceo-btn-primary" style={{ padding: '8px 16px' }}>Apply</button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="ceo-command-content" style={{ height: '300px' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorVal1" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="var(--ceo-primary)" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="var(--ceo-primary)" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                  <XAxis dataKey="name" stroke="#64748B" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#64748B" fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={{ backgroundColor: '#0B1220', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '8px' }} itemStyle={{ color: '#F8FAFC' }} />
-                  <Area type="monotone" dataKey="val1" stroke="#3B82F6" strokeWidth={2} fillOpacity={1} fill="url(#colorVal1)" />
-                  <Bar dataKey="val2" fill="#10B981" radius={[4, 4, 0, 0]} barSize={20} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--ceo-border)" vertical={false} />
+                  <XAxis dataKey="name" stroke="var(--ceo-text-muted)" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="var(--ceo-text-muted)" fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={{ backgroundColor: 'var(--ceo-card-bg)', borderColor: 'var(--ceo-border)', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }} itemStyle={{ color: 'var(--ceo-text-primary)' }} cursor={{ fill: 'var(--ceo-bg)' }} />
+                  <Area type="monotone" dataKey="val1" stroke="var(--ceo-primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorVal1)" />
+                  <Bar dataKey="val2" fill="var(--ceo-success)" radius={[4, 4, 0, 0]} barSize={24} />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
           </motion.div>
 
-          {/* RIGHT SIDEBAR: Sections 14 & 16 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-            
-            {/* SECTION 14: Scheduled Reports Center */}
-            <motion.div variants={itemVariants} className="ceo-dash-card">
-              <div className="ceo-dash-card-header">
-                <div className="ceo-dash-card-title"><Calendar size={18} color="#F59E0B" /> Scheduled Reports</div>
-                <button style={{ background: 'transparent', border: 'none', color: '#F59E0B', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>+ New Schedule</button>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <motion.div variants={itemVariants} className="ceo-command-panel ceo-split-right" style={{ flex: 1 }}>
+            <div className="ceo-command-header">
+              <div className="ceo-dash-card-title"><Calendar size={18} color="var(--ceo-warning)" /> Scheduled Dispatch</div>
+              <button style={{ background: 'transparent', border: 'none', color: 'var(--ceo-warning)', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>+ New</button>
+            </div>
+            <div className="ceo-command-content" style={{ padding: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {scheduledReports.map((sch, i) => (
-                  <div key={i} style={{ padding: '12px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--ceo-border)', borderRadius: '8px' }}>
+                  <div key={i} style={{ padding: '12px', background: 'var(--ceo-bg)', border: '1px solid var(--ceo-border)', borderRadius: '8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                       <div style={{ fontSize: '13px', fontWeight: 600 }}>{sch.name}</div>
                       <span className="ceo-badge neutral">{sch.freq}</span>
                     </div>
                     <div style={{ fontSize: '11px', color: 'var(--ceo-text-muted)', marginBottom: '8px' }}>Recipients: {sch.recipients}</div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontSize: '11px', color: '#10B981', fontWeight: 600 }}>Next: {sch.next}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--ceo-success)', fontWeight: 600 }}>Next: {sch.next}</div>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <button style={{ background: 'transparent', border: 'none', color: 'var(--ceo-text-secondary)', cursor: 'pointer' }}><Play size={14} /></button>
-                        <button style={{ background: 'transparent', border: 'none', color: 'var(--ceo-text-secondary)', cursor: 'pointer' }}><Settings size={14} /></button>
+                        <Play size={14} color="var(--ceo-text-muted)" style={{ cursor: 'pointer' }} />
+                        <Settings size={14} color="var(--ceo-text-muted)" style={{ cursor: 'pointer' }} />
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-            </motion.div>
+            </div>
+          </motion.div>
 
-            {/* SECTION 16: Report Activity Timeline */}
-            <motion.div variants={itemVariants} className="ceo-dash-card" style={{ flex: 1 }}>
-              <div className="ceo-dash-card-header">
-                <div className="ceo-dash-card-title"><Clock size={18} color="#8B5CF6" /> BI Activity Feed</div>
-              </div>
-              <div style={{ marginTop: '8px' }}>
-                {timeline.map((log, i) => (
-                  <div key={i} className="ceo-timeline-item" style={{ paddingBottom: '16px' }}>
-                    <div className="ceo-timeline-dot" style={{ borderColor: '#3B82F6' }}></div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                      <div className="ceo-timeline-time" style={{ margin: 0 }}>{log.time}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--ceo-text-muted)' }}>{log.user}</div>
-                    </div>
-                    <div style={{ fontSize: '13px', color: 'var(--ceo-text-primary)' }}>{log.action}</div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
-          </div>
         </div>
 
-        {/* SECTION 13: Report Data Preview Table */}
-        <motion.div variants={itemVariants} className="ceo-dash-card" style={{ padding: '0' }}>
-          <div className="ceo-dash-card-header" style={{ padding: '24px 24px 0 24px', marginBottom: '16px' }}>
-            <div className="ceo-dash-card-title"><AlignLeft size={18} color="#10B981" /> Data Grid Preview ({activeTab})</div>
+        {/* SECTION 5: Enterprise Data Grid Preview */}
+        <motion.div variants={itemVariants} className="ceo-command-panel">
+          <div className="ceo-command-header">
+            <div className="ceo-dash-card-title"><AlignLeft size={18} color="var(--ceo-success)" /> Data Grid Explorer</div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <div style={{ position: 'relative' }}>
                 <Search size={14} color="var(--ceo-text-muted)" style={{ position: 'absolute', left: '10px', top: '8px' }} />
-                <input type="text" placeholder="Search..." style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--ceo-border)', borderRadius: '6px', padding: '6px 12px 6px 30px', color: 'white', fontSize: '12px', width: '150px' }} />
+                <input type="text" placeholder="Search data..." className="ceo-form-input" style={{ width: '200px', padding: '6px 12px 6px 30px' }} />
               </div>
+              <button className="ceo-btn" style={{ padding: '6px 12px' }}><Download size={14} /> CSV</button>
             </div>
           </div>
           
-          <div className="ceo-approval-header" style={{ gridTemplateColumns: '1fr 1.5fr 1fr 1fr 1fr 1fr', padding: '16px 24px 12px 24px' }}>
-            <div>ID</div>
-            <div>Department Segment</div>
-            <div>Metric 1 (Count)</div>
-            <div>Metric 2 (Score)</div>
-            <div>Metric 3 (Value)</div>
-            <div style={{ textAlign: 'right' }}>Status</div>
-          </div>
-          
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {tableData.map((row, i) => (
-              <div key={i} className="ceo-approval-row" style={{ gridTemplateColumns: '1fr 1.5fr 1fr 1fr 1fr 1fr', padding: '12px 24px' }}>
-                <div style={{ fontSize: '12px', fontFamily: 'monospace', color: 'var(--ceo-text-muted)' }}>{row.id}</div>
-                <div style={{ fontSize: '13px', fontWeight: 600 }}>{row.dept}</div>
-                <div style={{ fontSize: '13px' }}>{row.metric1}</div>
-                <div style={{ fontSize: '13px' }}>{row.metric2}</div>
-                <div style={{ fontSize: '13px', fontFamily: 'monospace', color: 'var(--ceo-text-secondary)' }}>{row.metric3}</div>
-                <div style={{ textAlign: 'right' }}><span className={`ceo-badge ${row.status === 'Healthy' ? 'success' : row.status === 'Warning' ? 'warning' : 'critical'}`}>{row.status}</span></div>
-              </div>
-            ))}
-          </div>
-          
-          <div style={{ padding: '16px 24px', borderTop: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '12px', color: 'var(--ceo-text-muted)' }}>Showing 1-5 of 142 records</span>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--ceo-border)', color: 'white', padding: '6px 12px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}>Previous</button>
-              <button style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--ceo-border)', color: 'white', padding: '6px 12px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}>Next</button>
-            </div>
+          <div className="ceo-erp-table-container" style={{ border: 'none', borderRadius: '0' }}>
+            <table className="ceo-erp-table">
+              <thead>
+                <tr>
+                  <th>Record ID</th>
+                  <th>Department Segment</th>
+                  <th>Metric A (Count)</th>
+                  <th>Metric B (Score)</th>
+                  <th>Metric C (Value)</th>
+                  <th style={{ textAlign: 'right' }}>Status Indicator</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tableData.map((row, i) => (
+                  <tr key={i}>
+                    <td style={{ fontFamily: 'monospace', color: 'var(--ceo-text-muted)' }}>{row.id}</td>
+                    <td style={{ fontWeight: 600 }}>{row.dept}</td>
+                    <td>{row.metric1}</td>
+                    <td>{row.metric2}</td>
+                    <td style={{ fontFamily: 'monospace' }}>{row.metric3}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <span className={`ceo-badge ${row.status === 'Healthy' ? 'success' : row.status === 'Warning' ? 'warning' : 'critical'}`}>
+                        {row.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </motion.div>
 

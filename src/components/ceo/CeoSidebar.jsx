@@ -9,16 +9,17 @@ export default function CeoSidebar({ activeTab, setActiveTab }) {
   
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+    { id: 'companySetup', label: 'Company Setup', icon: <Building size={18} /> },
     { id: 'finance', label: 'Finance', icon: <DollarSign size={18} /> },
     { id: 'approvals', label: 'Approvals', icon: <CheckSquare size={18} /> },
     { id: 'projects', label: 'Projects', icon: <Briefcase size={18} /> },
+    { id: 'reports', label: 'Reports', icon: <BarChart2 size={18} /> },
+    { id: 'settings', label: 'Settings', icon: <Settings size={18} /> },
+    { id: 'announcements', label: 'Announcements', icon: <Megaphone size={18} /> },
     { id: 'strategyOKRs', label: 'Strategy & OKRs', icon: <Target size={18} /> },
     { id: 'people', label: 'People', icon: <Users size={18} /> },
-    { id: 'reports', label: 'Reports', icon: <BarChart2 size={18} /> },
-    { id: 'announcements', label: 'Announcements', icon: <Megaphone size={18} /> },
     { id: 'messaging', label: 'Messaging', icon: <MessageSquare size={18} /> },
-    { id: 'companySetup', label: 'Company Setup', icon: <Building size={18} /> },
-    { id: 'settings', label: 'Settings', icon: <Settings size={18} /> },
+   
   ];
 
   return (

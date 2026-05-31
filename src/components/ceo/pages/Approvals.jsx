@@ -1,75 +1,40 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  CheckSquare, Clock, AlertTriangle, FileText, Download, 
-  BarChart2, ShieldCheck, History, Search, Filter, 
-  ChevronRight, X, CheckCircle, AlertOctagon, CornerUpRight,
-  User, Building, Briefcase, FileSignature, PieChart, Activity
+  CheckSquare, XSquare, Clock, Filter, Search, ChevronRight, 
+  FileText, ShieldCheck, AlertTriangle, AlertOctagon, CheckCircle,
+  FileSignature, DollarSign, Briefcase, Zap, User, ArrowRight, Settings, BarChart2
 } from 'lucide-react';
 import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import '../CEO.css';
 
 // ==========================================
 // MOCK DATA
 // ==========================================
-const kpiData = [
-  { title: "Pending Approvals", value: "24", trend: "down", percent: "12%", comp: "vs last week", icon: <Clock size={20} color="#FCD34D" />, color: "warning" },
-  { title: "Approved Today", value: "18", trend: "up", percent: "5%", comp: "vs yesterday", icon: <CheckCircle size={20} color="#86EFAC" />, color: "success" },
-  { title: "Rejected Today", value: "2", trend: "flat", percent: "0%", comp: "vs yesterday", icon: <AlertOctagon size={20} color="#FCA5A5" />, color: "critical" },
-  { title: "Escalated Requests", value: "5", trend: "up", percent: "2%", comp: "vs last week", icon: <AlertTriangle size={20} color="#FCA5A5" />, color: "critical" },
-  { title: "Payroll Approvals", value: "1", trend: "flat", percent: "0%", comp: "monthly cycle", icon: <Briefcase size={20} color="#93C5FD" />, color: "info" },
-  { title: "Budget Requests", value: "4", trend: "down", percent: "8%", comp: "vs last week", icon: <PieChart size={20} color="#C4B5FD" />, color: "purple" },
-  { title: "Policy Changes", value: "2", trend: "up", percent: "1%", comp: "vs last month", icon: <FileSignature size={20} color="#93C5FD" />, color: "info" },
-  { title: "Avg Processing Time", value: "4.2h", trend: "down", percent: "15%", comp: "vs last month", icon: <Activity size={20} color="#86EFAC" />, color: "success" },
+const kpiStripData = [
+  { title: "Pending Approvals", value: "14", trend: "down", percent: "2", color: "#F59E0B" },
+  { title: "Avg Resolution Time", value: "4.2h", trend: "up", percent: "1.1h", color: "#10B981" },
+  { title: "Approved (This Wk)", value: "86", trend: "up", percent: "12%", color: "#2563EB" },
+  { title: "Rejected (This Wk)", value: "5", trend: "down", percent: "1%", color: "#EF4444" },
+  { title: "Capital Allocation", value: "₹18.4M", trend: "up", percent: "4%", color: "#8B5CF6" },
 ];
 
-const inboxApprovals = [
-  { id: "REQ-901", type: "Budget", by: "Sarah Connor", dept: "Marketing", date: "Today, 09:30 AM", priority: "High", status: "Pending" },
-  { id: "REQ-902", type: "Promotion", by: "Mike Ross", dept: "Legal", date: "Yesterday, 2:15 PM", priority: "Normal", status: "Under Review" },
-  { id: "REQ-903", type: "Capex", by: "John Doe", dept: "IT Infra", date: "28 May 2026", priority: "Critical", status: "Pending" },
-  { id: "REQ-904", type: "Exit Request", by: "Jane Smith", dept: "Sales", date: "27 May 2026", priority: "High", status: "Escalated" },
-  { id: "REQ-905", type: "Policy", by: "HR Admin", dept: "HR", date: "26 May 2026", priority: "Normal", status: "Pending" },
-];
-
-const payrollBatches = [
-  { cycle: "May 2026", amount: "₹8,650,000", count: 245, processor: "Finance Team", status: "Verified" },
-];
-
-const budgets = [
-  { dept: "Marketing", req: "₹450,000", alloc: "₹2,000,000", util: 85, by: "Sarah Connor" },
-  { dept: "IT Infra", req: "₹1,200,000", alloc: "₹5,000,000", util: 92, by: "John Doe" },
-];
-
-const policies = [
-  { name: "Remote Work Guidelines V2", summary: "Added IP restrictions for VPN access", impact: "High", by: "HR Head", date: "01 Jun 2026" },
-  { name: "Travel Allowance 2026", summary: "Increased per-diem by 15%", impact: "Medium", by: "Finance", date: "15 Jun 2026" },
-];
-
-const lifecycle = [
-  { name: "David Miller", dept: "Engineering", current: "SDE II", proposed: "Senior SDE", date: "01 Jun 2026" },
-  { name: "Emma Watson", dept: "Marketing", current: "Marketing Exec", proposed: "Transfer to Sales", date: "15 Jun 2026" },
-];
-
-const escalations = [
-  { reason: "Budget Exceeded by 12%", dept: "Operations", status: "System Blocked", action: "Override Block" },
-  { reason: "Exception to Notice Period", dept: "Sales", status: "HR Rejected", action: "Override Rejection" },
-];
-
-const timeline = [
-  { time: "Today, 10:45 AM", user: "Vivek C.", action: "Approved Payroll Batch (May)", impact: "Critical" },
-  { time: "Yesterday, 4:20 PM", user: "Vivek C.", action: "Rejected Marketing Ad Spend Request", impact: "Medium" },
-  { time: "28 May 2026", user: "System", action: "Escalated IT Infra Capex Request", impact: "High" },
+const approvalsList = [
+  { id: "REQ-2041", type: "Capex Request", amount: "₹4.5M", dept: "IT Infra", reqBy: "Sarah Connor", date: "Today, 10:30 AM", priority: "High", urgency: "critical" },
+  { id: "REQ-2042", type: "New Hire VP", amount: "₹2.4M (CTC)", dept: "Marketing", reqBy: "Jane Smith", date: "Yesterday", priority: "Normal", urgency: "normal" },
+  { id: "REQ-2043", type: "Vendor Contract", amount: "₹1.2M", dept: "Legal", reqBy: "Harvey Specter", date: "28 May 2026", priority: "High", urgency: "high" },
+  { id: "REQ-2044", type: "Budget Revision", amount: "+15%", dept: "Sales", reqBy: "Mike Ross", date: "27 May 2026", priority: "Normal", urgency: "normal" },
+  { id: "REQ-2045", type: "Travel Approval", amount: "₹0.8M", dept: "Executive", reqBy: "John Doe", date: "25 May 2026", priority: "Low", urgency: "normal" },
 ];
 
 const chartData = [
-  { name: 'Mon', vol: 45, time: 2.1 },
-  { name: 'Tue', vol: 52, time: 2.4 },
-  { name: 'Wed', vol: 38, time: 1.8 },
-  { name: 'Thu', vol: 65, time: 3.2 },
-  { name: 'Fri', vol: 48, time: 2.5 },
+  { name: 'Mon', approved: 24, rejected: 1 },
+  { name: 'Tue', approved: 18, rejected: 2 },
+  { name: 'Wed', approved: 35, rejected: 0 },
+  { name: 'Thu', approved: 12, rejected: 1 },
+  { name: 'Fri', approved: 28, rejected: 3 },
 ];
 
 // ==========================================
@@ -90,25 +55,20 @@ const itemVariants = {
 // ==========================================
 
 export default function Approvals() {
-  const [activeTab, setActiveTab] = useState("All");
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedReq, setSelectedReq] = useState(null);
-  const [rejectReason, setRejectReason] = useState("");
+  const [selectedReq, setSelectedReq] = useState(approvalsList[0]);
 
-  const toggleSelect = (id) => {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  };
-
-  const openDrawer = (req) => {
-    setSelectedReq(req);
-    setDrawerOpen(true);
+  const getUrgencyBadge = (urgency, priority) => {
+    switch(urgency) {
+      case 'critical': return <span className="ceo-badge critical">{priority}</span>;
+      case 'high': return <span className="ceo-badge warning">{priority}</span>;
+      default: return <span className="ceo-badge neutral">{priority}</span>;
+    }
   };
 
   return (
-    <div style={{ padding: '0 32px 32px 32px', maxWidth: '1600px', margin: '0 auto', color: 'var(--ceo-text-primary)', position: 'relative' }}>
+    <div style={{ padding: '0 32px 32px 32px', maxWidth: '1800px', margin: '0 auto', color: 'var(--ceo-text-primary)' }}>
       
-      {/* SECTION 1: Executive Approval Header */}
+      {/* SECTION 1: Executive Header */}
       <motion.div 
         initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px', borderBottom: '1px solid var(--ceo-border)', paddingBottom: '24px' }}
@@ -117,408 +77,168 @@ export default function Approvals() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
             <span className="ceo-badge neutral">Executive Portal</span>
             <ChevronRight size={14} color="var(--ceo-text-muted)" />
-            <span style={{ fontSize: '12px', color: 'var(--ceo-text-muted)', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}>Approval Command Center</span>
+            <span style={{ fontSize: '12px', color: 'var(--ceo-text-muted)', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}>Workflow Operations</span>
           </div>
-          <h1 style={{ fontSize: '32px', fontWeight: 700, margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>Executive Approvals</h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}>24 Pending</span>
-            <div style={{ width: '1px', height: '12px', background: 'var(--ceo-border)' }}></div>
-            <span style={{ fontSize: '13px', color: '#EF4444', fontWeight: 600 }}>5 Critical</span>
-            <div style={{ width: '1px', height: '12px', background: 'var(--ceo-border)' }}></div>
-            <span style={{ fontSize: '13px', color: 'var(--ceo-text-muted)' }}>Avg Time: 4.2h</span>
-            <div style={{ width: '1px', height: '12px', background: 'var(--ceo-border)' }}></div>
-            <span className="ceo-badge warning" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><AlertTriangle size={12} /> Attention Required</span>
-          </div>
+          <h1 style={{ fontSize: '32px', fontWeight: 700, margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>Approval Command Center</h1>
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'transparent', border: '1px solid var(--ceo-border)', color: 'var(--ceo-text-primary)', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }} className="ceo-btn-hover">
-            <History size={16} /> Audit History
-          </button>
-          <button style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'transparent', border: '1px solid var(--ceo-border)', color: 'var(--ceo-text-primary)', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }} className="ceo-btn-hover">
-            <ShieldCheck size={16} /> Policies
-          </button>
-          <button style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'transparent', border: '1px solid var(--ceo-border)', color: 'var(--ceo-text-primary)', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }} className="ceo-btn-hover">
-            <BarChart2 size={16} /> Analytics
-          </button>
-          <button style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#3B82F6', border: 'none', color: 'white', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>
-            <Download size={16} /> Export Report
-          </button>
+          <button className="ceo-btn"><Settings size={16} /> Workflow Rules</button>
+          <button className="ceo-btn ceo-btn-primary"><CheckCircle size={16} /> Bulk Approve (14)</button>
         </div>
       </motion.div>
 
-      <motion.div variants={containerVariants} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+      <motion.div variants={containerVariants} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         
-        {/* SECTION 2: Approval KPI Dashboard */}
-        <div className="ceo-kpi-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-          {kpiData.map((kpi, idx) => (
-            <motion.div key={idx} variants={itemVariants} className="ceo-dash-card" style={{ padding: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                <span style={{ fontSize: '13px', color: 'var(--ceo-text-secondary)', fontWeight: 500 }}>{kpi.title}</span>
-                <div style={{ padding: '6px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>{kpi.icon}</div>
-              </div>
-              <div className="ceo-kpi-value">{kpi.value}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
-                <span style={{ display: 'flex', alignItems: 'center', color: kpi.trend === 'up' && kpi.color === 'success' ? '#34D399' : kpi.trend === 'down' && kpi.color === 'warning' ? '#34D399' : kpi.trend === 'up' && kpi.color === 'critical' ? '#F87171' : '#94A3B8', fontWeight: 600 }}>
+        {/* SECTION 2: Approvals KPI Strip */}
+        <motion.div variants={itemVariants} className="ceo-kpi-strip">
+          {kpiStripData.map((kpi, idx) => (
+            <div key={idx} className="ceo-kpi-strip-item">
+              <span style={{ fontSize: '12px', color: 'var(--ceo-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{kpi.title}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '28px', fontWeight: 700, letterSpacing: '-0.5px', color: 'var(--ceo-text-primary)' }}>{kpi.value}</span>
+                <span style={{ display: 'flex', alignItems: 'center', color: kpi.color, fontSize: '12px', fontWeight: 600, background: `${kpi.color}15`, padding: '2px 6px', borderRadius: '4px' }}>
                   {kpi.trend === 'up' ? '↗' : kpi.trend === 'down' ? '↘' : '→'} {kpi.percent}
                 </span>
-                <span style={{ color: 'var(--ceo-text-muted)' }}>{kpi.comp}</span>
               </div>
-            </motion.div>
+            </div>
           ))}
-        </div>
+        </motion.div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '32px' }}>
+        {/* SECTION 3: Split Screen - Approvals Queue & Request Details */}
+        <div className="ceo-split-layout">
           
-          {/* SECTION 3: Approval Inbox */}
-          <motion.div variants={itemVariants} className="ceo-dash-card" style={{ padding: '0' }}>
-            <div className="ceo-dash-card-header" style={{ padding: '24px 24px 0 24px', marginBottom: '16px' }}>
-              <div className="ceo-dash-card-title"><CheckSquare size={18} color="#3B82F6" /> Executive Approval Inbox</div>
+          <motion.div variants={itemVariants} className="ceo-command-panel ceo-split-left" style={{ flex: 1.2 }}>
+            <div className="ceo-command-header">
+              <div className="ceo-dash-card-title"><Clock size={18} color="var(--ceo-warning)" /> Pending Request Queue</div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <div style={{ position: 'relative' }}>
                   <Search size={14} color="var(--ceo-text-muted)" style={{ position: 'absolute', left: '10px', top: '8px' }} />
-                  <input type="text" placeholder="Search ID..." style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--ceo-border)', borderRadius: '6px', padding: '6px 12px 6px 30px', color: 'white', fontSize: '12px', width: '150px' }} />
+                  <input type="text" placeholder="Search ID..." className="ceo-form-input" style={{ width: '120px', padding: '6px 12px 6px 30px' }} />
                 </div>
-                <button style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--ceo-border)', color: 'white', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}><Filter size={14} /> Filter</button>
+                <button className="ceo-btn" style={{ padding: '6px 12px' }}><Filter size={14} /> Filter</button>
               </div>
             </div>
-
-            <div style={{ display: 'flex', borderBottom: '1px solid var(--ceo-border)', padding: '0 24px', gap: '24px' }}>
-              {["All", "Payroll", "Budget", "Policy", "Promotions", "Exit Requests"].map(tab => (
-                <div key={tab} onClick={() => setActiveTab(tab)} style={{ padding: '12px 0', fontSize: '13px', fontWeight: 600, color: activeTab === tab ? '#3B82F6' : 'var(--ceo-text-muted)', borderBottom: activeTab === tab ? '2px solid #3B82F6' : '2px solid transparent', cursor: 'pointer', transition: 'all 0.2s' }}>
-                  {tab}
-                </div>
-              ))}
-            </div>
             
-            <div className="ceo-approval-header" style={{ gridTemplateColumns: '40px 1fr 1fr 1.5fr 1fr 1fr 1fr 1fr', padding: '16px 24px 12px 24px' }}>
-              <div><input type="checkbox" onChange={(e) => setSelectedIds(e.target.checked ? inboxApprovals.map(a => a.id) : [])} checked={selectedIds.length === inboxApprovals.length} style={{ cursor: 'pointer' }}/></div>
-              <div>ID</div>
-              <div>Type</div>
-              <div>Requested By</div>
-              <div>Dept</div>
-              <div>Date</div>
-              <div>Priority</div>
-              <div style={{ textAlign: 'right' }}>Status</div>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {inboxApprovals.map((app, i) => (
-                <div key={i} className="ceo-approval-row" style={{ gridTemplateColumns: '40px 1fr 1fr 1.5fr 1fr 1fr 1fr 1fr', padding: '12px 24px', cursor: 'pointer' }} onClick={() => openDrawer(app)}>
-                  <div onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedIds.includes(app.id)} onChange={() => toggleSelect(app.id)} style={{ cursor: 'pointer' }}/></div>
-                  <div style={{ fontSize: '12px', fontFamily: 'monospace', color: 'var(--ceo-text-muted)' }}>{app.id}</div>
-                  <div style={{ fontSize: '13px', fontWeight: 600 }}>{app.type}</div>
-                  <div style={{ fontSize: '13px', color: 'var(--ceo-text-primary)' }}>{app.by}</div>
-                  <div style={{ fontSize: '12px' }}><span className="ceo-badge neutral">{app.dept}</span></div>
-                  <div style={{ fontSize: '12px', color: 'var(--ceo-text-muted)' }}>{app.date}</div>
-                  <div><span className={`ceo-badge ${app.priority === 'Critical' ? 'critical' : app.priority === 'High' ? 'warning' : 'neutral'}`}>{app.priority}</span></div>
-                  <div style={{ textAlign: 'right' }}><span className={`ceo-badge ${app.status === 'Pending' ? 'warning' : app.status === 'Escalated' ? 'critical' : 'neutral'}`}>{app.status}</span></div>
+            <div className="ceo-command-content" style={{ padding: 0, overflowY: 'auto', height: '600px' }}>
+              {approvalsList.map((req, i) => (
+                <div 
+                  key={i} 
+                  onClick={() => setSelectedReq(req)}
+                  style={{ 
+                    padding: '20px 24px', 
+                    borderBottom: '1px solid var(--ceo-border)', 
+                    cursor: 'pointer', 
+                    background: selectedReq?.id === req.id ? 'var(--ceo-bg)' : 'transparent',
+                    borderLeft: selectedReq?.id === req.id ? '4px solid var(--ceo-primary)' : '4px solid transparent',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--ceo-text-muted)' }}>{req.id}</span>
+                      {getUrgencyBadge(req.urgency, req.priority)}
+                    </div>
+                    <span style={{ fontSize: '11px', color: 'var(--ceo-text-muted)' }}>{req.date}</span>
+                  </div>
+                  <div style={{ fontSize: '15px', fontWeight: 600, marginBottom: '8px' }}>{req.type} - {req.dept}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--ceo-text-secondary)' }}>
+                      <User size={12} /> {req.reqBy}
+                    </div>
+                    <div style={{ fontSize: '14px', fontFamily: 'monospace', fontWeight: 600, color: 'var(--ceo-text-primary)' }}>{req.amount}</div>
+                  </div>
                 </div>
               ))}
             </div>
           </motion.div>
 
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-          
-          {/* SECTION 5: Payroll Approval Center */}
-          <motion.div variants={itemVariants} className="ceo-dash-card">
-            <div className="ceo-dash-card-header">
-              <div className="ceo-dash-card-title"><Briefcase size={18} color="#10B981" /> Payroll Approval Center</div>
+          <motion.div variants={itemVariants} className="ceo-command-panel ceo-split-right" style={{ flex: 1.8 }}>
+            <div className="ceo-command-header">
+              <div className="ceo-dash-card-title"><FileSignature size={18} color="var(--ceo-purple)" /> Request Details</div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {payrollBatches.map((batch, i) => (
-                <div key={i} style={{ padding: '16px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--ceo-border)', borderRadius: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-                    <div>
-                      <div style={{ fontSize: '12px', color: 'var(--ceo-text-muted)', textTransform: 'uppercase' }}>Payroll Cycle</div>
-                      <div style={{ fontSize: '16px', fontWeight: 700 }}>{batch.cycle}</div>
+            
+            {selectedReq ? (
+              <div className="ceo-command-content" style={{ display: 'flex', flexDirection: 'column' }}>
+                
+                {/* Request Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: '24px', borderBottom: '1px solid var(--ceo-border)' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                      <span className="ceo-badge neutral">{selectedReq.id}</span>
+                      <span style={{ fontSize: '12px', color: 'var(--ceo-text-muted)' }}>Submitted: {selectedReq.date}</span>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '12px', color: 'var(--ceo-text-muted)', textTransform: 'uppercase' }}>Total Amount</div>
-                      <div style={{ fontSize: '18px', fontWeight: 700, color: '#10B981' }}>{batch.amount}</div>
+                    <h2 style={{ fontSize: '24px', fontWeight: 700, margin: '0 0 8px 0' }}>{selectedReq.type}</h2>
+                    <div style={{ fontSize: '14px', color: 'var(--ceo-text-secondary)' }}>Requested by {selectedReq.reqBy} • {selectedReq.dept}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--ceo-text-muted)', fontWeight: 600, marginBottom: '4px' }}>Requested Amount</div>
+                    <div style={{ fontSize: '28px', fontFamily: 'monospace', fontWeight: 700, color: 'var(--ceo-success)' }}>{selectedReq.amount}</div>
+                  </div>
+                </div>
+
+                {/* Justification & Details */}
+                <div style={{ padding: '24px 0', borderBottom: '1px solid var(--ceo-border)', flex: 1 }}>
+                  <h3 style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--ceo-text-muted)', fontWeight: 600, marginBottom: '12px' }}>Business Justification</h3>
+                  <p style={{ fontSize: '14px', lineHeight: '1.6', color: 'var(--ceo-text-primary)', marginBottom: '24px' }}>
+                    This capital expenditure is required to upgrade the primary database cluster in Region-2. The current infrastructure is operating at 92% capacity and risks throttling during the upcoming Q3 traffic spike.
+                  </p>
+                  
+                  <div className="ceo-matrix-grid">
+                    <div className="ceo-matrix-cell">
+                      <div style={{ fontSize: '11px', color: 'var(--ceo-text-secondary)', textTransform: 'uppercase', marginBottom: '4px' }}>Budget Impact</div>
+                      <div style={{ fontSize: '14px', fontWeight: 600 }}>Within Q2 IT Budget</div>
+                    </div>
+                    <div className="ceo-matrix-cell">
+                      <div style={{ fontSize: '11px', color: 'var(--ceo-text-secondary)', textTransform: 'uppercase', marginBottom: '4px' }}>ROI Projection</div>
+                      <div style={{ fontSize: '14px', fontWeight: 600 }}>14 Months</div>
+                    </div>
+                    <div className="ceo-matrix-cell">
+                      <div style={{ fontSize: '11px', color: 'var(--ceo-text-secondary)', textTransform: 'uppercase', marginBottom: '4px' }}>Alternative Considered</div>
+                      <div style={{ fontSize: '14px', fontWeight: 600 }}>Cloud Bursting (More Exp.)</div>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--ceo-text-secondary)', marginBottom: '20px' }}>
-                    <span>{batch.count} Employees</span>
-                    <span>Processed by: {batch.processor}</span>
-                    <span className="ceo-badge success">{batch.status}</span>
-                  </div>
+                </div>
+
+                {/* Attachments */}
+                <div style={{ padding: '24px 0', borderBottom: '1px solid var(--ceo-border)' }}>
+                  <h3 style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--ceo-text-muted)', fontWeight: 600, marginBottom: '12px' }}>Attachments & Supporting Docs</h3>
                   <div style={{ display: 'flex', gap: '12px' }}>
-                    <button style={{ flex: 1, background: '#10B981', border: 'none', color: 'white', padding: '10px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Approve Release</button>
-                    <button style={{ flex: 1, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#F87171', padding: '10px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Reject Batch</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* SECTION 6: Budget Approval Workspace */}
-          <motion.div variants={itemVariants} className="ceo-dash-card">
-            <div className="ceo-dash-card-header">
-              <div className="ceo-dash-card-title"><PieChart size={18} color="#F59E0B" /> Budget Review Workspace</div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {budgets.map((bdg, i) => (
-                <div key={i} style={{ padding: '16px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--ceo-border)', borderRadius: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <div>
-                      <div style={{ fontSize: '14px', fontWeight: 600 }}>{bdg.dept} <span style={{ fontSize: '12px', color: 'var(--ceo-text-muted)', fontWeight: 400 }}>via {bdg.by}</span></div>
-                      <div style={{ fontSize: '13px', color: '#F59E0B', fontWeight: 600, marginTop: '4px' }}>Requested: {bdg.req}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', background: 'var(--ceo-bg)', border: '1px solid var(--ceo-border)', borderRadius: '8px', cursor: 'pointer' }}>
+                      <FileText size={16} color="var(--ceo-primary)" />
+                      <span style={{ fontSize: '12px', fontWeight: 600 }}>Vendor_Quote_v2.pdf</span>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '11px', color: 'var(--ceo-text-muted)' }}>Current Util: {bdg.util}%</div>
-                      <div style={{ fontSize: '12px', color: 'var(--ceo-text-secondary)' }}>Allocated: {bdg.alloc}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px', background: 'var(--ceo-bg)', border: '1px solid var(--ceo-border)', borderRadius: '8px', cursor: 'pointer' }}>
+                      <BarChart2 size={16} color="var(--ceo-success)" />
+                      <span style={{ fontSize: '12px', fontWeight: 600 }}>Capacity_Forecast.xlsx</span>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                    <button style={{ flex: 1, background: 'rgba(16, 185, 129, 0.1)', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '6px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>Approve</button>
-                    <button style={{ flex: 1, background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '6px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>Reject</button>
-                    <button style={{ flex: 1, background: 'rgba(139, 92, 246, 0.1)', color: '#8B5CF6', border: '1px solid rgba(139, 92, 246, 0.3)', padding: '6px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>Override</button>
-                  </div>
                 </div>
-              ))}
-            </div>
-          </motion.div>
 
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-          
-          {/* SECTION 7: Policy Change Approvals */}
-          <motion.div variants={itemVariants} className="ceo-dash-card">
-            <div className="ceo-dash-card-header">
-              <div className="ceo-dash-card-title"><FileSignature size={18} color="#8B5CF6" /> Policy Change Approvals</div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {policies.map((pol, i) => (
-                <div key={i} style={{ paddingBottom: '16px', borderBottom: i !== policies.length - 1 ? '1px solid var(--ceo-border)' : 'none' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <div style={{ fontSize: '14px', fontWeight: 600 }}>{pol.name}</div>
-                    <span className={`ceo-badge ${pol.impact === 'High' ? 'warning' : 'neutral'}`}>{pol.impact} Impact</span>
-                  </div>
-                  <div style={{ fontSize: '13px', color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>{pol.summary}</div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '11px', color: 'var(--ceo-text-muted)' }}>By: {pol.by} • Effective: {pol.date}</div>
-                    <button style={{ background: 'transparent', border: '1px solid #3B82F6', color: '#3B82F6', padding: '4px 12px', borderRadius: '4px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Review</button>
-                  </div>
+                {/* Actions */}
+                <div style={{ paddingTop: '24px', display: 'flex', gap: '16px' }}>
+                  <button style={{ flex: 1, background: 'var(--ceo-success)', color: 'white', border: 'none', padding: '14px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <CheckSquare size={18} /> Approve Request
+                  </button>
+                  <button style={{ flex: 1, background: '#FEF2F2', color: 'var(--ceo-danger)', border: '1px solid #FECACA', padding: '14px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <XSquare size={18} /> Reject
+                  </button>
+                  <button style={{ background: 'var(--ceo-card-bg)', color: 'var(--ceo-text-primary)', border: '1px solid var(--ceo-border)', padding: '14px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}>
+                    Request Info
+                  </button>
                 </div>
-              ))}
-            </div>
-          </motion.div>
 
-          {/* SECTION 8: Employee Lifecycle Approvals */}
-          <motion.div variants={itemVariants} className="ceo-dash-card">
-            <div className="ceo-dash-card-header">
-              <div className="ceo-dash-card-title"><Users size={18} color="#EC4899" /> Employee Lifecycle Approvals</div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {lifecycle.map((lc, i) => (
-                <div key={i} style={{ paddingBottom: '16px', borderBottom: i !== lifecycle.length - 1 ? '1px solid var(--ceo-border)' : 'none' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <div>
-                      <div style={{ fontSize: '14px', fontWeight: 600 }}>{lc.name}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--ceo-text-muted)' }}>{lc.dept}</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '13px', color: '#10B981', fontWeight: 600 }}>{lc.proposed}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--ceo-text-muted)' }}>Current: {lc.current}</div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                    <button style={{ background: 'transparent', border: 'none', color: '#10B981', cursor: 'pointer' }}><CheckCircle size={18} /></button>
-                    <button style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer' }}><AlertOctagon size={18} /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '32px' }}>
-          
-          {/* SECTION 9: Escalation & Override Center */}
-          <motion.div variants={itemVariants} className="ceo-dash-card" style={{ borderLeft: '4px solid #EF4444' }}>
-            <div className="ceo-dash-card-header">
-              <div className="ceo-dash-card-title"><AlertOctagon size={18} color="#EF4444" /> Escalation & Override Center</div>
-              <span className="ceo-badge critical">CEO Exclusive</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {escalations.map((esc, i) => (
-                <div key={i} style={{ padding: '16px', background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px' }}>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#FCA5A5', marginBottom: '4px' }}>{esc.reason}</div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--ceo-text-muted)', marginBottom: '16px' }}>
-                    <span>{esc.dept}</span>
-                    <span>Status: {esc.status}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button style={{ flex: 1, background: '#EF4444', color: 'white', border: 'none', padding: '8px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>{esc.action}</button>
-                    <button style={{ flex: 1, background: 'transparent', color: 'white', border: '1px solid var(--ceo-border)', padding: '8px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>Delegate</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* SECTION 10 & 11 Combo Box */}
-          <div style={{ display: 'grid', gridTemplateRows: '1fr 1fr', gap: '32px' }}>
-            
-            {/* SECTION 10: Approval Analytics */}
-            <motion.div variants={itemVariants} className="ceo-dash-card">
-              <div className="ceo-dash-card-header">
-                <div className="ceo-dash-card-title"><BarChart2 size={18} color="#3B82F6" /> Approval Analytics (Last 5 Days)</div>
               </div>
-              <div style={{ height: '160px', width: '100%' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorVol" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                    <XAxis dataKey="name" stroke="#64748B" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#64748B" fontSize={11} tickLine={false} axisLine={false} />
-                    <Tooltip contentStyle={{ backgroundColor: '#0B1220', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '12px' }} itemStyle={{ color: '#F8FAFC' }} />
-                    <Area type="monotone" dataKey="vol" name="Volume" stroke="#3B82F6" strokeWidth={2} fillOpacity={1} fill="url(#colorVol)" />
-                  </AreaChart>
-                </ResponsiveContainer>
+            ) : (
+              <div className="ceo-command-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ceo-text-muted)' }}>
+                Select a request from the queue to view details
               </div>
-            </motion.div>
-
-            {/* SECTION 11: Audit Trail Timeline */}
-            <motion.div variants={itemVariants} className="ceo-dash-card">
-              <div className="ceo-dash-card-header">
-                <div className="ceo-dash-card-title"><History size={18} color="#10B981" /> Approval Audit Trail</div>
-              </div>
-              <div style={{ marginTop: '8px' }}>
-                {timeline.map((log, i) => (
-                  <div key={i} className="ceo-timeline-item" style={{ paddingBottom: '16px' }}>
-                    <div className="ceo-timeline-dot" style={{ borderColor: log.impact === 'Critical' ? '#EF4444' : log.impact === 'High' ? '#F59E0B' : '#3B82F6' }}></div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                      <div className="ceo-timeline-time" style={{ margin: 0 }}>{log.time}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--ceo-text-muted)' }}>{log.user}</div>
-                    </div>
-                    <div style={{ fontSize: '13px', color: 'var(--ceo-text-primary)' }}>{log.action}</div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
-          </div>
+            )}
+          </motion.div>
 
         </div>
 
       </motion.div>
-
-      {/* SECTION 4: Approval Detail Drawer (Slide-in) */}
-      <AnimatePresence>
-        {drawerOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 999 }}
-            onClick={() => setDrawerOpen(false)}
-          >
-            <motion.div 
-              initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '480px', background: 'var(--ceo-bg)', borderLeft: '1px solid var(--ceo-border)', boxShadow: '-10px 0 30px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div style={{ padding: '24px', borderBottom: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontSize: '18px', fontWeight: 700, marginBottom: '4px' }}>{selectedReq?.id} - {selectedReq?.type}</div>
-                  <div style={{ fontSize: '13px', color: 'var(--ceo-text-muted)' }}>Requested by {selectedReq?.by} ({selectedReq?.dept})</div>
-                </div>
-                <button onClick={() => setDrawerOpen(false)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: 'white', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><X size={16} /></button>
-              </div>
-              
-              <div style={{ padding: '24px', flex: 1, overflowY: 'auto' }}>
-                <h4 style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--ceo-text-muted)', letterSpacing: '1px', marginBottom: '16px' }}>Request Details</h4>
-                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '8px', border: '1px solid var(--ceo-border)', marginBottom: '24px' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <div>
-                      <div style={{ fontSize: '11px', color: 'var(--ceo-text-muted)' }}>Submitted</div>
-                      <div style={{ fontSize: '13px', fontWeight: 500 }}>{selectedReq?.date}</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '11px', color: 'var(--ceo-text-muted)' }}>Priority</div>
-                      <div><span className="ceo-badge warning">{selectedReq?.priority}</span></div>
-                    </div>
-                  </div>
-                  <div style={{ marginTop: '16px', fontSize: '13px', color: 'var(--ceo-text-secondary)', lineHeight: '1.5' }}>
-                    This request requires executive approval to proceed. All departmental checks have been cleared by the respective managers.
-                  </div>
-                </div>
-
-                <h4 style={{ fontSize: '12px', textTransform: 'uppercase', color: 'var(--ceo-text-muted)', letterSpacing: '1px', marginBottom: '16px' }}>Approval Chain</h4>
-                <div style={{ marginBottom: '24px' }}>
-                  <div className="ceo-timeline-item" style={{ paddingBottom: '16px' }}>
-                    <div className="ceo-timeline-dot" style={{ borderColor: '#10B981' }}></div>
-                    <div style={{ fontSize: '13px', color: 'var(--ceo-text-primary)' }}>Manager Approval <CheckCircle size={12} color="#10B981" style={{ display: 'inline', marginLeft: '4px' }}/></div>
-                    <div style={{ fontSize: '11px', color: 'var(--ceo-text-muted)' }}>Approved by John Smith</div>
-                  </div>
-                  <div className="ceo-timeline-item" style={{ paddingBottom: '16px' }}>
-                    <div className="ceo-timeline-dot" style={{ borderColor: '#10B981' }}></div>
-                    <div style={{ fontSize: '13px', color: 'var(--ceo-text-primary)' }}>Finance Verification <CheckCircle size={12} color="#10B981" style={{ display: 'inline', marginLeft: '4px' }}/></div>
-                    <div style={{ fontSize: '11px', color: 'var(--ceo-text-muted)' }}>Verified by Emma Finance</div>
-                  </div>
-                  <div className="ceo-timeline-item" style={{ paddingBottom: '0' }}>
-                    <div className="ceo-timeline-dot" style={{ borderColor: '#F59E0B' }}></div>
-                    <div style={{ fontSize: '13px', color: 'var(--ceo-text-primary)' }}>CEO Approval</div>
-                    <div style={{ fontSize: '11px', color: 'var(--ceo-text-muted)' }}>Pending your action</div>
-                  </div>
-                </div>
-
-                <div className="ceo-form-group">
-                  <label>Reject Reason (Required for Rejection)</label>
-                  <textarea 
-                    className="ceo-form-input" 
-                    rows="3" 
-                    placeholder="Enter reason for rejection or clarification..."
-                    value={rejectReason}
-                    onChange={(e) => setRejectReason(e.target.value)}
-                  ></textarea>
-                </div>
-              </div>
-
-              <div style={{ padding: '24px', borderTop: '1px solid var(--ceo-border)', background: 'var(--ceo-card-bg)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <button 
-                  disabled={!rejectReason}
-                  style={{ background: rejectReason ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255,255,255,0.05)', color: rejectReason ? '#F87171' : 'var(--ceo-text-muted)', border: rejectReason ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid transparent', padding: '12px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: rejectReason ? 'pointer' : 'not-allowed', transition: 'all 0.2s' }}
-                >
-                  Reject Request
-                </button>
-                <button style={{ background: '#10B981', color: 'white', border: 'none', padding: '12px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                  <CheckCircle size={16} /> Approve
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Bulk Action Bar */}
-      <AnimatePresence>
-        {selectedIds.length > 0 && (
-          <motion.div 
-            initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }}
-            style={{ position: 'fixed', bottom: '32px', left: '50%', transform: 'translateX(-50%)', background: '#1E293B', padding: '16px 24px', borderRadius: '12px', boxShadow: '0 10px 40px rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', gap: '24px', border: '1px solid var(--ceo-border)', zIndex: 900 }}
-          >
-            <div style={{ fontSize: '14px', fontWeight: 600, color: 'white' }}>{selectedIds.length} Requests Selected</div>
-            <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.2)' }}></div>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: 'white', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Export</button>
-              <button style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#F87171', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Bulk Reject</button>
-              <button style={{ background: '#10B981', border: 'none', color: 'white', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Bulk Approve</button>
-            </div>
-            <button onClick={() => setSelectedIds([])} style={{ background: 'transparent', border: 'none', color: 'var(--ceo-text-muted)', cursor: 'pointer', marginLeft: '12px' }}><X size={18} /></button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
     </div>
   );
 }

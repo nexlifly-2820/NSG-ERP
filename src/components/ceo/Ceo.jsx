@@ -8,31 +8,35 @@ import CompanySetup from './pages/CompanySetup';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Announcements from './pages/Announcements';
-import StrategyOKRs from './pages/OKRs';
+import StrategyOKRs from './pages/StrategyOKRs';
 import Messaging from './pages/Messaging';
+import CeoErrorBoundary from './CeoErrorBoundary';
 import './CEO.css';
 
 export default function Ceo({ activeTab }) {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard': return <Dashboard />;
-      case 'finance': return <Finance />;
-      case 'people': return <People />;
-      case 'projects': return <Projects />;
-      case 'approvals': return <Approvals />;
       case 'companySetup': return <CompanySetup />;
+      case 'finance': return <Finance />;
+      case 'approvals': return <Approvals />;
+      case 'projects': return <Projects />;
       case 'reports': return <Reports />;
       case 'settings': return <Settings />;
       case 'announcements': return <Announcements />;
       case 'strategyOKRs': return <StrategyOKRs />;
+      case 'people': return <People />;
       case 'messaging': return <Messaging />;
       default: return <Dashboard />;
     }
   };
 
   return (
-    <div className="component-container" style={{ padding: 0 }}>
-      {renderContent()}
+    <div className="ceo-module-container" style={{ padding: 0 }}>
+      <CeoErrorBoundary>
+        {renderContent()}
+      </CeoErrorBoundary>
     </div>
   );
 }
+
