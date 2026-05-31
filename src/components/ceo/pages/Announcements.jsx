@@ -1,174 +1,229 @@
 import React, { useState } from 'react';
 import { 
-  Megaphone, Send, Calendar, Save, 
-  Settings, Filter, Search, Plus, Eye, List
+  Megaphone, Send, Users, Calendar, AlertCircle, Eye,
+  Bold, Italic, List, Link2, CheckCircle, Clock
 } from 'lucide-react';
 import '../CEO.css';
 
 // ==========================================
 // MOCK DATA
 // ==========================================
-const kpiData = [
-  { label: "Published Broadcasts", value: "142", trend: "up", change: "+5", color: "#2563EB" },
-  { label: "Scheduled Drafts", value: "3", trend: "flat", change: "0", color: "#F59E0B" },
-  { label: "Drafts in Review", value: "2", trend: "down", change: "-1", color: "#8B5CF6" },
-  { label: "Global Read Rate", value: "94%", trend: "up", change: "+2%", color: "#10B981" },
-];
-
-const announcements = [
-  { id: 'BRD-01', title: 'Q3 Financial Performance Overview', audience: 'All Employees', priority: 'High', status: 'Published', views: '2,450', date: 'Oct 14, 2023' },
-  { id: 'BRD-02', title: 'New Enterprise Travel Policy', audience: 'Management', priority: 'Medium', status: 'Scheduled', views: '-', date: 'Oct 18, 2023' },
-  { id: 'BRD-03', title: 'Leadership Offsite Outcomes', audience: 'All Employees', priority: 'Standard', status: 'Draft', views: '-', date: '-' },
-  { id: 'BRD-04', title: 'Critical Security Infrastructure Update', audience: 'Engineering', priority: 'Critical', status: 'Published', views: '450', date: 'Oct 10, 2023' },
+const mockAnnouncements = [
+  { id: 1, title: 'Important Policy Update — April 2025', body: 'Please review the attached changes to the WFH policy, effective next month.', priority: 'Urgent', audience: 'All Employees', date: 'Just now', readPct: 45 },
+  { id: 2, title: 'Q1 Townhall Recording Available', body: 'Thank you to everyone who joined our all-hands. The recording is now available on the intranet.', priority: 'Normal', audience: 'All Employees', date: 'Yesterday', readPct: 92 },
+  { id: 3, title: 'New CRM Rollout for Sales Team', body: 'The new Salesforce integration is live. Please ensure you complete the training modules by Friday.', priority: 'Normal', audience: 'Sales & Marketing', date: 'May 28', readPct: 88 },
 ];
 
 export default function Announcements() {
-  const [view, setView] = useState('list'); // 'list' or 'create'
+  const [announcements, setAnnouncements] = useState(mockAnnouncements);
+  const [isSending, setIsSending] = useState(false);
+  const [isSent, setIsSent] = useState(false);
+  const [readDrawerId, setReadDrawerId] = useState(null);
+
+  // Form State
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [audience, setAudience] = useState('All Employees');
+  const [priority, setPriority] = useState('Normal');
+
+  const handlePost = (e) => {
+    e.preventDefault();
+    if (!title || !body) return;
+
+    setIsSending(true);
+    setTimeout(() => {
+      const newAnn = {
+        id: Date.now(),
+        title,
+        body,
+        audience,
+        priority,
+        date: 'Just now',
+        readPct: 0
+      };
+      setAnnouncements([newAnn, ...announcements]);
+      setIsSending(false);
+      setIsSent(true);
+      
+      setTimeout(() => {
+        setIsSent(false);
+        setTitle('');
+        setBody('');
+        setPriority('Normal');
+        setAudience('All Employees');
+      }, 2000);
+    }, 1000);
+  };
+
+  const activeDrawerAnn = announcements.find(a => a.id === readDrawerId);
 
   return (
-    <div className="ceo-layout-grid">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', paddingBottom: '32px', position: 'relative', overflow: 'hidden' }}>
       
-      {/* 1. PAGE HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <h1 className="ceo-typography-page-title">Executive Broadcast Center</h1>
-          <p className="ceo-typography-body" style={{ marginTop: '8px' }}>Official enterprise communications, policy updates, and corporate announcements.</p>
-        </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          {view === 'create' ? (
-            <button className="ceo-btn" onClick={() => setView('list')}><List size={16} /> View Broadcasts</button>
-          ) : (
-            <>
-              <div style={{ position: 'relative' }}>
-                <Search size={14} color="var(--ceo-text-muted)" style={{ position: 'absolute', left: '12px', top: '12px' }} />
-                <input type="text" placeholder="Search broadcasts..." className="ceo-form-input" style={{ paddingLeft: '32px', width: '250px' }} />
-              </div>
-              <button className="ceo-btn"><Filter size={16} /> Filter</button>
-              <button className="ceo-btn ceo-btn-primary" onClick={() => setView('create')}><Plus size={16} /> New Broadcast</button>
-            </>
-          )}
-        </div>
+      {/* HEADER */}
+      <div style={{ marginBottom: '24px' }}>
+        <h1 className="ceo-typography-page-title">Corporate Communications</h1>
+        <p className="ceo-typography-body" style={{ marginTop: '4px' }}>Broadcast announcements, track read receipts, and manage company-wide alerts.</p>
       </div>
 
-      {/* 2. KPI STRIP */}
-      {view === 'list' && (
-        <div className="ceo-kpi-strip">
-          {kpiData.map((kpi, i) => (
-            <div key={i} className="ceo-kpi-strip-item">
-              <span className="ceo-typography-meta" style={{ textTransform: 'uppercase' }}>{kpi.label}</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px' }}>
-                <span className="ceo-kpi-value">{kpi.value}</span>
-                <span className="ceo-badge neutral" style={{ color: kpi.color, background: `${kpi.color}15`, border: 'none' }}>
-                  {kpi.trend === 'up' ? '↗' : kpi.trend === 'down' ? '↘' : '→'} {kpi.change}
-                </span>
+      {/* CSS GRID LAYOUT */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: readDrawerId ? '400px 1fr 350px' : '400px 1fr',
+        gap: '24px',
+        flex: 1,
+        transition: 'grid-template-columns 0.3s ease'
+      }}>
+        
+        {/* COMPOSE PANEL */}
+        <div className="ceo-command-panel" style={{ height: 'fit-content' }}>
+          <div className="ceo-command-header">
+            <div className="ceo-typography-card-title"><Megaphone size={18} color="var(--ceo-primary)" /> Compose Announcement</div>
+          </div>
+          <div className="ceo-command-content">
+            {isSent ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '64px 0', color: 'var(--ceo-success)' }}>
+                <CheckCircle size={48} style={{ marginBottom: '16px' }} />
+                <div style={{ fontSize: '18px', fontWeight: 600 }}>Announcement Posted</div>
+              </div>
+            ) : (
+              <form onSubmit={handlePost} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div className="ceo-form-group" style={{ marginBottom: 0 }}>
+                  <label>Title</label>
+                  <input className="ceo-form-input" value={title} onChange={e => setTitle(e.target.value)} placeholder="Enter title..." required disabled={isSending} />
+                </div>
+
+                <div className="ceo-form-group" style={{ marginBottom: 0 }}>
+                  <label>Audience</label>
+                  <select className="ceo-form-input" value={audience} onChange={e => setAudience(e.target.value)} disabled={isSending}>
+                    <option>All Employees</option>
+                    <option>Engineering Team</option>
+                    <option>Sales & Marketing</option>
+                    <option>Executive Team</option>
+                  </select>
+                </div>
+
+                <div className="ceo-form-group" style={{ marginBottom: 0 }}>
+                  <label>Message Body</label>
+                  <div style={{ border: '1px solid var(--ceo-border)', borderRadius: '8px', overflow: 'hidden' }}>
+                    <div style={{ padding: '8px', borderBottom: '1px solid var(--ceo-border)', background: 'var(--ceo-bg)', display: 'flex', gap: '8px' }}>
+                      <button type="button" className="ceo-btn" style={{ padding: '4px', border: 'none', background: 'transparent' }}><Bold size={14}/></button>
+                      <button type="button" className="ceo-btn" style={{ padding: '4px', border: 'none', background: 'transparent' }}><Italic size={14}/></button>
+                      <button type="button" className="ceo-btn" style={{ padding: '4px', border: 'none', background: 'transparent' }}><List size={14}/></button>
+                      <button type="button" className="ceo-btn" style={{ padding: '4px', border: 'none', background: 'transparent' }}><Link2 size={14}/></button>
+                    </div>
+                    <textarea 
+                      className="ceo-form-input" 
+                      style={{ border: 'none', borderRadius: 0, resize: 'vertical' }} 
+                      rows={6} 
+                      value={body} 
+                      onChange={e => setBody(e.target.value)} 
+                      placeholder="Write your announcement..." 
+                      required 
+                      disabled={isSending}
+                    ></textarea>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--ceo-bg)', padding: '12px', borderRadius: '8px', border: '1px solid var(--ceo-border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AlertCircle size={16} color={priority === 'Urgent' ? 'var(--ceo-danger)' : 'var(--ceo-text-muted)'} />
+                    <span className="ceo-typography-meta" style={{ fontWeight: 600 }}>Urgent Priority</span>
+                  </div>
+                  <label className="switch" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={priority === 'Urgent'} onChange={e => setPriority(e.target.checked ? 'Urgent' : 'Normal')} disabled={isSending} style={{ width: '18px', height: '18px', accentColor: 'var(--ceo-danger)' }} />
+                  </label>
+                </div>
+
+                <div style={{ borderTop: '1px solid var(--ceo-border)', paddingTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                  <button type="button" className="ceo-btn" disabled={isSending}>
+                    <Calendar size={16} /> Schedule
+                  </button>
+                  <button type="submit" className="ceo-btn ceo-btn-primary" disabled={isSending}>
+                    {isSending ? <Clock size={16} className="spin" /> : <Send size={16} />} 
+                    {isSending ? 'Posting...' : 'Post Now'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+
+        {/* FEED PANEL */}
+        <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '4px' }}>
+          {announcements.map(ann => (
+            <div key={ann.id} className="ceo-command-panel" style={{ 
+              padding: '24px',
+              borderLeft: ann.priority === 'Urgent' ? '4px solid var(--ceo-danger)' : '1px solid var(--ceo-border)' 
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {ann.priority === 'Urgent' && <span className="ceo-badge critical">URGENT</span>}
+                  <span className="ceo-badge neutral"><Users size={12}/> {ann.audience}</span>
+                </div>
+                <span className="ceo-typography-meta">{ann.date}</span>
+              </div>
+              
+              <div className="ceo-typography-section-title" style={{ marginBottom: '8px' }}>{ann.title}</div>
+              <div className="ceo-typography-body" style={{ marginBottom: '24px' }}>{ann.body}</div>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'var(--ceo-bg)', borderRadius: '8px', border: '1px solid var(--ceo-border)' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span className="ceo-typography-meta">Read Receipt Tracking</span>
+                    <span className="ceo-typography-meta" style={{ fontWeight: 700, color: 'var(--ceo-primary)' }}>{ann.readPct}%</span>
+                  </div>
+                  <div style={{ height: '6px', background: 'var(--ceo-divider)', borderRadius: '3px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${ann.readPct}%`, background: 'var(--ceo-primary)' }}></div>
+                  </div>
+                </div>
+                <button 
+                  className="ceo-btn" 
+                  style={{ marginLeft: '24px' }}
+                  onClick={() => setReadDrawerId(ann.id)}
+                >
+                  <Eye size={16}/> Details
+                </button>
               </div>
             </div>
           ))}
         </div>
-      )}
 
-      {/* 3. CONTENT AREA */}
-      {view === 'list' ? (
-        <div className="ceo-command-panel">
-          <div className="ceo-command-header">
-            <div className="ceo-typography-card-title"><Megaphone size={18} color="var(--ceo-primary)" /> Broadcast Ledger</div>
-          </div>
-          <div className="ceo-erp-table-container" style={{ border: 'none', borderRadius: 0, boxShadow: 'none' }}>
-            <table className="ceo-erp-table">
-              <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Audience</th>
-                  <th>Priority</th>
-                  <th>Status</th>
-                  <th>Views</th>
-                  <th style={{ textAlign: 'right' }}>Publish Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {announcements.map((ann, i) => (
-                  <tr key={i}>
-                    <td style={{ fontWeight: 600 }}>{ann.title}</td>
-                    <td>{ann.audience}</td>
-                    <td>
-                      <span className={`ceo-badge ${ann.priority === 'Critical' ? 'critical' : ann.priority === 'High' ? 'warning' : 'neutral'}`}>
-                        {ann.priority}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`ceo-badge ${ann.status === 'Published' ? 'success' : ann.status === 'Scheduled' ? 'warning' : 'neutral'}`}>
-                        {ann.status}
-                      </span>
-                    </td>
-                    <td><div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Eye size={12} color="var(--ceo-text-muted)" /> {ann.views}</div></td>
-                    <td style={{ textAlign: 'right' }} className="ceo-typography-meta">{ann.date}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : (
-        <div className="ceo-split-layout">
-          <div className="ceo-command-panel" style={{ flex: 2 }}>
-            <div className="ceo-command-header">
-              <div className="ceo-typography-card-title">Compose Enterprise Broadcast</div>
-            </div>
-            <div className="ceo-command-content" style={{ padding: '32px' }}>
-              <div className="ceo-form-group">
-                <label>Broadcast Title</label>
-                <input type="text" className="ceo-form-input" placeholder="e.g. Q3 Financial Performance Overview" />
+        {/* READ RECEIPT DRAWER */}
+        {readDrawerId && activeDrawerAnn && (
+          <div className="ceo-command-panel" style={{ height: '100%', borderLeft: '1px solid var(--ceo-border)', boxShadow: '-4px 0 15px rgba(0,0,0,0.05)' }}>
+            <div className="ceo-command-header" style={{ padding: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                <div className="ceo-typography-card-title">Receipt Status</div>
+                <button className="ceo-btn" onClick={() => setReadDrawerId(null)} style={{ padding: '4px', border: 'none', background: 'transparent' }}>✕</button>
               </div>
+            </div>
+            <div className="ceo-command-content" style={{ padding: '24px', overflowY: 'auto' }}>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                <div className="ceo-form-group">
-                  <label>Target Audience</label>
-                  <select className="ceo-form-input">
-                    <option>All Global Employees</option>
-                    <option>Management & Executives</option>
-                    <option>Engineering Department</option>
-                  </select>
-                </div>
-                <div className="ceo-form-group">
-                  <label>Priority Level</label>
-                  <select className="ceo-form-input">
-                    <option>Standard</option>
-                    <option>High</option>
-                    <option>Critical</option>
-                  </select>
-                </div>
+              <div style={{ marginBottom: '24px' }}>
+                <div style={{ fontSize: '32px', fontWeight: 800, color: 'var(--ceo-primary)', textAlign: 'center' }}>{activeDrawerAnn.readPct}%</div>
+                <div className="ceo-typography-meta" style={{ textAlign: 'center', marginTop: '4px' }}>Overall Read Rate</div>
               </div>
 
-              <div className="ceo-form-group">
-                <label>Official Content</label>
-                <textarea className="ceo-form-input" rows={12} placeholder="Draft your enterprise communication here..." style={{ resize: 'vertical' }}></textarea>
+              <div className="ceo-typography-section-title" style={{ fontSize: '14px', marginBottom: '16px' }}>Not Read Yet (Action Required)</div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: 'var(--ceo-bg)', borderRadius: '8px', border: '1px solid var(--ceo-border)' }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '13px' }}>Employee {i}</div>
+                      <div className="ceo-typography-meta">Engineering Dept</div>
+                    </div>
+                    <button className="ceo-btn" style={{ padding: '4px 8px', fontSize: '12px' }}>Ping</button>
+                  </div>
+                ))}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px', paddingTop: '24px', borderTop: '1px solid var(--ceo-border)' }}>
-                <button className="ceo-btn" onClick={() => setView('list')}>Cancel</button>
-                <button className="ceo-btn"><Save size={16} /> Save as Draft</button>
-                <button className="ceo-btn"><Calendar size={16} /> Schedule</button>
-                <button className="ceo-btn ceo-btn-primary"><Send size={16} /> Publish Now</button>
-              </div>
             </div>
           </div>
-          
-          <div className="ceo-command-panel" style={{ flex: 1, height: 'fit-content' }}>
-            <div className="ceo-command-header">
-              <div className="ceo-typography-card-title">Broadcast Guidelines</div>
-            </div>
-            <div className="ceo-command-content">
-              <ul className="ceo-typography-body" style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <li>Ensure all financial figures match the audited Q3 report before publishing.</li>
-                <li>Critical priority broadcasts will send a push notification to all employee mobile devices.</li>
-                <li>Standard broadcasts are delivered via the internal dashboard feed only.</li>
-                <li>Drafts are visible to the CEO Office and Corporate Communications team for review.</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
 
+      </div>
     </div>
   );
 }

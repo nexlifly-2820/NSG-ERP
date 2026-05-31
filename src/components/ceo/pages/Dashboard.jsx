@@ -1,207 +1,244 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
-  IndianRupee, TrendingUp, AlertTriangle, ShieldCheck, Download, 
-  Settings, Filter, ArrowRight, BarChart2, CheckCircle, Clock 
+  TrendingUp, TrendingDown, Users, IndianRupee, AlertCircle, 
+  CheckCircle, Clock, Search, Layers, FileText
 } from 'lucide-react';
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, ComposedChart, Line
-} from 'recharts';
 import '../CEO.css';
 
 // ==========================================
-// DATA
+// MOCK DATA FOR ENTERPRISE SPEC
 // ==========================================
 const kpiData = [
-  { label: "Net Revenue (YTD)", value: "₹84.2M", trend: "up", change: "12%", color: "#2563EB" },
-  { label: "Operating Profit", value: "₹22.5M", trend: "up", change: "8%", color: "#10B981" },
-  { label: "Free Cash Flow", value: "₹14.8M", trend: "down", change: "2%", color: "#EF4444" },
-  { label: "Active Enterprise Projects", value: "34", trend: "flat", change: "0%", color: "#8B5CF6" },
-  { label: "Total Headcount", value: "842", trend: "up", change: "4%", color: "#F59E0B" },
-  { label: "CSAT Score", value: "4.8/5", trend: "up", change: "0.2", color: "#10B981" },
+  { id: 'hc', label: "Total Headcount", value: "842", trend: "up", trendValue: "+4%", icon: Users, color: "var(--ceo-primary)" },
+  { id: 'pr', label: "Monthly Payroll", value: "₹24.5M", trend: "up", trendValue: "+2%", icon: IndianRupee, color: "var(--ceo-danger)" },
+  { id: 'pj', label: "Active Projects", value: "34", trend: "flat", trendValue: "0", icon: Layers, color: "var(--ceo-purple)" },
+  { id: 'es', label: "Escalations", value: "3", trend: "down", trendValue: "-2", icon: AlertCircle, color: "var(--ceo-warning)" },
 ];
 
-const revenueData = [
-  { name: 'Q1', revenue: 14000, target: 12000, profit: 4200 },
-  { name: 'Q2', revenue: 18500, target: 16000, profit: 5800 },
-  { name: 'Q3', revenue: 22400, target: 21000, profit: 7100 },
-  { name: 'Q4 (Est)', revenue: 29300, target: 28000, profit: 9500 },
+const pendingApprovals = [
+  { id: "A-102", type: "Capex", by: "Rajiv S.", dept: "IT Infrastructure", urgency: "High", date: "2h ago" },
+  { id: "A-103", type: "Policy", by: "Anita M.", dept: "HR", urgency: "Normal", date: "4h ago" },
+  { id: "A-104", type: "Budget", by: "David L.", dept: "Marketing", urgency: "Normal", date: "1d ago" },
+  { id: "A-105", type: "Resignation", by: "Amit P.", dept: "Sales", urgency: "High", date: "1d ago" },
 ];
 
-const projectHealth = [
-  { name: "ERP Migration V2", status: "Healthy", progress: 85, owner: "Sarah C." },
-  { name: "Q3 Marketing Campaign", status: "At Risk", progress: 42, owner: "Mike R." },
-  { name: "Data Center Upgrade", status: "Warning", progress: 60, owner: "David L." },
+const escalations = [
+  { id: "E-401", severity: "CRITICAL", module: "Payroll", msg: "Payroll processing blocked by HR maker approval timeout.", time: "15m ago" },
+  { id: "E-402", severity: "HIGH", module: "Projects", msg: "Data Center Upgrade exceeded budget by 12%.", time: "1h ago" },
+  { id: "E-403", severity: "MEDIUM", module: "Attendance", msg: "Sales GPS compliance dropped below 80%.", time: "3h ago" },
 ];
 
-const alerts = [
-  { title: "Compliance Audit Deadline Approaching", type: "Warning", date: "2 Days" },
-  { title: "Server Overload in APAC Region", type: "Critical", date: "Immediate" },
-];
+const depts = ["IT", "Sales", "HR", "Mktg", "Ops"];
+const dates = Array.from({length: 14}, (_, i) => `May ${i+1}`);
+// Generate heatmap data: [deptIndex][dateIndex] = attendance %
+const heatmapData = depts.map(() => 
+  dates.map(() => Math.floor(Math.random() * 20) + 80) // 80-100%
+);
 
 // ==========================================
-// COMPONENT
+// DASHBOARD COMPONENT
 // ==========================================
 export default function Dashboard() {
+  const [selectedApprovals, setSelectedApprovals] = useState(new Set());
+  const [approvalsList, setApprovalsList] = useState(pendingApprovals);
+
+  const toggleApproval = (id) => {
+    const next = new Set(selectedApprovals);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedApprovals(next);
+  };
+
+  const toggleAll = () => {
+    if (selectedApprovals.size === approvalsList.length) {
+      setSelectedApprovals(new Set());
+    } else {
+      setSelectedApprovals(new Set(approvalsList.map(a => a.id)));
+    }
+  };
+
+  const handleApprove = (id) => {
+    setApprovalsList(prev => prev.filter(a => a.id !== id));
+    const next = new Set(selectedApprovals);
+    next.delete(id);
+    setSelectedApprovals(next);
+  };
+
+  const handleBulkApprove = () => {
+    setApprovalsList(prev => prev.filter(a => !selectedApprovals.has(a.id)));
+    setSelectedApprovals(new Set());
+  };
+
+  // Helper for heatmap colors based on %
+  const getHeatmapColor = (percent) => {
+    if (percent >= 95) return 'var(--ceo-success)';
+    if (percent >= 85) return 'var(--ceo-warning)';
+    return 'var(--ceo-danger)';
+  };
+
   return (
-    <div className="ceo-layout-grid">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', paddingBottom: '32px' }}>
       
-      {/* 1. PAGE HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <h1 className="ceo-typography-page-title">Executive Command Center</h1>
-          <p className="ceo-typography-body" style={{ marginTop: '8px' }}>Real-time enterprise telemetry and strategic performance overview.</p>
-        </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="ceo-btn"><Filter size={16} /> Filter View</button>
-          <button className="ceo-btn"><Download size={16} /> Export Board Report</button>
-          <button className="ceo-btn ceo-btn-primary"><Settings size={16} /> Dashboard Settings</button>
-        </div>
+      {/* HEADER */}
+      <div style={{ marginBottom: '24px' }}>
+        <h1 className="ceo-typography-page-title">Executive Command Center</h1>
+        <p className="ceo-typography-body" style={{ marginTop: '4px' }}>Real-time telemetry and enterprise oversight</p>
       </div>
 
-      {/* 2. EXECUTIVE KPI STRIP */}
-      <div className="ceo-kpi-strip">
-        {kpiData.map((kpi, i) => (
-          <div key={i} className="ceo-kpi-strip-item">
-            <span className="ceo-typography-meta" style={{ textTransform: 'uppercase' }}>{kpi.label}</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px' }}>
-              <span className="ceo-kpi-value">{kpi.value}</span>
-              <span className="ceo-badge neutral" style={{ color: kpi.color, background: `${kpi.color}15`, border: 'none' }}>
-                {kpi.trend === 'up' ? '↗' : kpi.trend === 'down' ? '↘' : '→'} {kpi.change}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* 3. MAIN BUSINESS CONTENT - SPLIT LAYOUT */}
-      <div className="ceo-split-layout">
+      {/* CSS GRID LAYOUT */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(4, 1fr)',
+        gridTemplateRows: 'auto 1fr auto',
+        gridTemplateAreas: `
+          "kpi  kpi  kpi  kpi"
+          "appr appr esc  esc"
+          "heat heat heat heat"
+        `,
+        gap: '24px',
+        flex: 1
+      }}>
         
-        {/* LEFT COLUMN */}
-        <div className="ceo-split-left">
-          
-          {/* Revenue & Profit Analytics */}
-          <div className="ceo-command-panel">
-            <div className="ceo-command-header">
-              <div className="ceo-typography-card-title"><IndianRupee size={18} color="var(--ceo-primary)" /> Revenue & Profit Trajectory</div>
-              <div style={{ display: 'flex', gap: '16px' }} className="ceo-typography-meta">
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width: 12, height: 12, background: 'var(--ceo-primary)', borderRadius: 2 }}></div> Revenue</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width: 12, height: 12, background: 'var(--ceo-success)', borderRadius: 2 }}></div> Profit</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width: 12, height: 2, background: 'var(--ceo-text-muted)' }}></div> Target</span>
+        {/* ZONE: KPI STRIP */}
+        <div style={{ gridArea: 'kpi', display: 'flex', gap: '24px' }}>
+          {kpiData.map(kpi => (
+            <div key={kpi.id} className="ceo-command-panel" style={{ flex: 1, padding: '20px 24px', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div className="ceo-typography-meta" style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>{kpi.label}</div>
+                <div style={{ fontSize: '28px', fontWeight: 800, marginTop: '8px', color: 'var(--ceo-text-primary)' }}>{kpi.value}</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                <kpi.icon size={24} color={kpi.color} />
+                <span className={`ceo-badge ${kpi.trend === 'up' ? 'success' : kpi.trend === 'down' ? 'critical' : 'neutral'}`}>
+                  {kpi.trend === 'up' ? <TrendingUp size={12}/> : kpi.trend === 'down' ? <TrendingDown size={12}/> : null}
+                  {kpi.trendValue}
+                </span>
               </div>
             </div>
-            <div className="ceo-command-content" style={{ height: '350px', paddingRight: '32px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={revenueData}>
-                  <defs>
-                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--ceo-primary)" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="var(--ceo-primary)" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--ceo-border)" vertical={false} />
-                  <XAxis dataKey="name" stroke="var(--ceo-text-muted)" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="var(--ceo-text-muted)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${v/1000}k`} />
-                  <Tooltip cursor={{ fill: 'var(--ceo-bg)' }} contentStyle={{ borderRadius: '8px', border: '1px solid var(--ceo-border)', boxShadow: 'var(--ceo-shadow)' }} />
-                  <Area type="monotone" dataKey="revenue" fillOpacity={1} fill="url(#colorRev)" stroke="var(--ceo-primary)" strokeWidth={3} />
-                  <Bar dataKey="profit" fill="var(--ceo-success)" barSize={32} radius={[4, 4, 0, 0]} />
-                  <Line type="monotone" dataKey="target" stroke="var(--ceo-text-muted)" strokeWidth={2} strokeDasharray="5 5" dot={false} />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+          ))}
+        </div>
 
-          {/* Department & Project Health Table */}
-          <div className="ceo-command-panel">
-            <div className="ceo-command-header">
-              <div className="ceo-typography-card-title"><BarChart2 size={18} color="var(--ceo-purple)" /> Strategic Initiative Health</div>
-              <button className="ceo-btn" style={{ padding: '6px 12px', fontSize: '12px' }}>View All Portfolios</button>
-            </div>
-            <div className="ceo-erp-table-container" style={{ border: 'none', borderRadius: 0, boxShadow: 'none' }}>
+        {/* ZONE: PENDING APPROVALS */}
+        <div className="ceo-command-panel" style={{ gridArea: 'appr', display: 'flex', flexDirection: 'column' }}>
+          <div className="ceo-command-header" style={{ padding: '16px 24px' }}>
+            <div className="ceo-typography-card-title">Pending Approvals ({approvalsList.length})</div>
+            {selectedApprovals.size > 0 && (
+              <button className="ceo-btn ceo-btn-primary" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={handleBulkApprove}>
+                Bulk Approve ({selectedApprovals.size})
+              </button>
+            )}
+          </div>
+          
+          <div style={{ overflowY: 'auto', flex: 1 }}>
+            {approvalsList.length === 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--ceo-text-muted)' }}>
+                <CheckCircle size={48} color="var(--ceo-success)" style={{ opacity: 0.2, marginBottom: '16px' }} />
+                <div className="ceo-typography-body">All caught up! No pending approvals.</div>
+              </div>
+            ) : (
               <table className="ceo-erp-table">
                 <thead>
                   <tr>
-                    <th>Initiative Name</th>
-                    <th>Executive Sponsor</th>
-                    <th>Progress</th>
-                    <th style={{ textAlign: 'right' }}>Status</th>
+                    <th style={{ width: '40px' }}>
+                      <input type="checkbox" checked={selectedApprovals.size === approvalsList.length} onChange={toggleAll} />
+                    </th>
+                    <th>Request</th>
+                    <th>Requested By</th>
+                    <th>Urgency</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {projectHealth.map((proj, i) => (
-                    <tr key={i}>
-                      <td style={{ fontWeight: 600 }}>{proj.name}</td>
-                      <td>{proj.owner}</td>
-                      <td style={{ width: '250px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{ flex: 1, height: '6px', background: 'var(--ceo-bg)', borderRadius: '3px', overflow: 'hidden' }}>
-                            <div style={{ width: `${proj.progress}%`, height: '100%', background: proj.status === 'At Risk' ? 'var(--ceo-danger)' : proj.status === 'Warning' ? 'var(--ceo-warning)' : 'var(--ceo-success)' }}></div>
-                          </div>
-                          <span className="ceo-typography-meta" style={{ minWidth: '30px' }}>{proj.progress}%</span>
-                        </div>
+                  {approvalsList.map(item => (
+                    <tr key={item.id} style={{ background: selectedApprovals.has(item.id) ? 'var(--ceo-hover)' : '' }}>
+                      <td>
+                        <input type="checkbox" checked={selectedApprovals.has(item.id)} onChange={() => toggleApproval(item.id)} />
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 600 }}>{item.type}</div>
+                        <div className="ceo-typography-meta">{item.date}</div>
+                      </td>
+                      <td>
+                        <div>{item.by}</div>
+                        <div className="ceo-typography-meta">{item.dept}</div>
+                      </td>
+                      <td>
+                        <span className={`ceo-badge ${item.urgency === 'High' ? 'critical' : 'neutral'}`}>{item.urgency}</span>
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <span className={`ceo-badge ${proj.status === 'At Risk' ? 'critical' : proj.status === 'Warning' ? 'warning' : 'success'}`}>
-                          {proj.status}
-                        </span>
+                        <button className="ceo-btn" style={{ padding: '4px 8px', fontSize: '12px' }} onClick={() => handleApprove(item.id)}>Approve</button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
+            )}
           </div>
         </div>
 
-        {/* RIGHT COLUMN */}
-        <div className="ceo-split-right">
-          
-          {/* Executive Alerts */}
-          <div className="ceo-command-panel" style={{ borderTop: '4px solid var(--ceo-danger)' }}>
-            <div className="ceo-command-header" style={{ borderBottom: 'none' }}>
-              <div className="ceo-typography-card-title"><AlertTriangle size={18} color="var(--ceo-danger)" /> Executive Alerts</div>
-            </div>
-            <div className="ceo-command-content" style={{ paddingTop: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {alerts.map((alert, i) => (
-                <div key={i} style={{ padding: '16px', background: alert.type === 'Critical' ? '#FEF2F2' : '#FFFBEB', border: `1px solid ${alert.type === 'Critical' ? '#FECACA' : '#FDE68A'}`, borderRadius: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span className={`ceo-badge ${alert.type === 'Critical' ? 'critical' : 'warning'}`}>{alert.type}</span>
-                    <span className="ceo-typography-meta">{alert.date}</span>
+        {/* ZONE: ESCALATION PANEL */}
+        <div className="ceo-command-panel" style={{ gridArea: 'esc', display: 'flex', flexDirection: 'column' }}>
+          <div className="ceo-command-header" style={{ padding: '16px 24px' }}>
+            <div className="ceo-typography-card-title">Executive Escalations</div>
+          </div>
+          <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
+            {escalations.map(esc => (
+              <div key={esc.id} style={{ 
+                padding: '16px', 
+                background: esc.severity === 'CRITICAL' ? '#FEF2F2' : esc.severity === 'HIGH' ? '#FFFBEB' : '#F8FAFC',
+                borderLeft: `4px solid ${esc.severity === 'CRITICAL' ? 'var(--ceo-danger)' : esc.severity === 'HIGH' ? 'var(--ceo-warning)' : 'var(--ceo-border)'}`,
+                borderTop: '1px solid var(--ceo-border)',
+                borderRight: '1px solid var(--ceo-border)',
+                borderBottom: '1px solid var(--ceo-border)',
+                borderRadius: '8px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span className={`ceo-badge ${esc.severity === 'CRITICAL' ? 'critical' : esc.severity === 'HIGH' ? 'warning' : 'neutral'}`}>{esc.severity}</span>
+                    <span className="ceo-typography-meta">{esc.module}</span>
                   </div>
-                  <div className="ceo-typography-body" style={{ color: alert.type === 'Critical' ? '#B91C1C' : '#B45309', fontWeight: 600 }}>
-                    {alert.title}
-                  </div>
+                  <span className="ceo-typography-meta"><Clock size={12} style={{ display: 'inline', marginRight: '4px' }}/>{esc.time}</span>
                 </div>
+                <div className="ceo-typography-body" style={{ fontWeight: 500, color: 'var(--ceo-text-primary)' }}>{esc.msg}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ZONE: ATTENDANCE HEATMAP */}
+        <div className="ceo-command-panel" style={{ gridArea: 'heat' }}>
+          <div className="ceo-command-header" style={{ padding: '12px 24px' }}>
+            <div className="ceo-typography-card-title">Attendance Heatmap (Last 14 Days)</div>
+          </div>
+          <div style={{ padding: '16px 24px', overflowX: 'auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `80px repeat(${dates.length}, 1fr)`, gap: '4px' }}>
+              {/* Header Row */}
+              <div></div>
+              {dates.map((d, i) => (
+                <div key={i} className="ceo-typography-meta" style={{ textAlign: 'center', fontSize: '10px' }}>{d}</div>
+              ))}
+              
+              {/* Data Rows */}
+              {depts.map((dept, dIdx) => (
+                <React.Fragment key={dept}>
+                  <div className="ceo-typography-meta" style={{ alignSelf: 'center', fontWeight: 600 }}>{dept}</div>
+                  {heatmapData[dIdx].map((pct, pIdx) => (
+                    <div key={pIdx} title={`${dept} - ${dates[pIdx]}: ${pct}%`} style={{
+                      backgroundColor: getHeatmapColor(pct),
+                      opacity: pct / 100,
+                      height: '24px',
+                      borderRadius: '4px',
+                      transition: 'transform 0.1s',
+                      cursor: 'pointer',
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                    onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    />
+                  ))}
+                </React.Fragment>
               ))}
             </div>
           </div>
-
-          {/* Decision Timeline */}
-          <div className="ceo-command-panel">
-            <div className="ceo-command-header">
-              <div className="ceo-typography-card-title"><Clock size={18} color="var(--ceo-warning)" /> Pending Executive Decisions</div>
-            </div>
-            <div className="ceo-command-content" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ padding: '16px', border: '1px solid var(--ceo-border)', borderRadius: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span className="ceo-typography-meta" style={{ fontWeight: 600, color: 'var(--ceo-text-primary)' }}>Capex Approval</span>
-                  <span className="ceo-typography-meta" style={{ color: 'var(--ceo-danger)' }}>High Priority</span>
-                </div>
-                <div className="ceo-typography-body" style={{ marginBottom: '12px' }}>Approve ₹4.5M for IT Infrastructure Upgrade across APAC regions.</div>
-                <button className="ceo-btn ceo-btn-primary" style={{ width: '100%' }}>Review Request</button>
-              </div>
-              
-              <div style={{ padding: '16px', border: '1px solid var(--ceo-border)', borderRadius: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span className="ceo-typography-meta" style={{ fontWeight: 600, color: 'var(--ceo-text-primary)' }}>Policy Override</span>
-                  <span className="ceo-typography-meta">Standard</span>
-                </div>
-                <div className="ceo-typography-body" style={{ marginBottom: '12px' }}>Approve WFH policy exception for the London Operations Team.</div>
-                <button className="ceo-btn" style={{ width: '100%' }}>Review Request</button>
-              </div>
-            </div>
-          </div>
-
         </div>
 
       </div>

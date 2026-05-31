@@ -1,157 +1,169 @@
 import React, { useState } from 'react';
 import { 
-  Megaphone, ShieldAlert, Pin, Clock, 
-  Send, Users, Briefcase, FileText, Settings, Search, Edit3
+  MessageSquare, Search, Phone, Video, MoreVertical, 
+  Send, Paperclip, Smile, Image as ImageIcon
 } from 'lucide-react';
 import '../CEO.css';
 
 // ==========================================
 // MOCK DATA
 // ==========================================
-const commChannels = [
-  { id: 'exec', label: 'Executive Directives', icon: <Megaphone size={16} /> },
-  { id: 'board', label: 'Board Communications', icon: <Briefcase size={16} /> },
-  { id: 'dept', label: 'Department Updates', icon: <Users size={16} /> },
-  { id: 'alerts', label: 'System Alerts', icon: <ShieldAlert size={16} /> },
+const mockThreads = [
+  { id: 1, name: 'Executive Team', lastMsg: 'The Q3 board slides are ready for review.', time: '10:45 AM', unread: 2, group: true },
+  { id: 2, name: 'Priya Patel (HR)', lastMsg: 'I have scheduled the final round interview for the VP of Sales role.', time: '09:30 AM', unread: 0, group: false },
+  { id: 3, name: 'David Lee (Marketing)', lastMsg: 'Campaign metrics are looking good.', time: 'Yesterday', unread: 0, group: false },
+  { id: 4, name: 'Finance Committee', lastMsg: 'Please approve the updated budget.', time: 'Yesterday', unread: 0, group: true },
+  { id: 5, name: 'Sarah Connor (IT)', lastMsg: 'Server migration completed successfully.', time: 'May 28', unread: 0, group: false }
 ];
 
-const messages = [
-  { id: 1, title: 'Q3 Earnings Call Prep', channel: 'Executive Directives', sender: 'CEO Office', date: 'Oct 14, 2023', priority: 'High', pinned: true },
-  { id: 2, title: 'Board Resolution: Mergers', channel: 'Board Communications', sender: 'Legal', date: 'Oct 12, 2023', priority: 'Critical', pinned: true },
-  { id: 3, title: 'Data Center Migration Schedule', channel: 'System Alerts', sender: 'IT Ops', date: 'Oct 10, 2023', priority: 'High', pinned: false },
-  { id: 4, title: 'New VP of Sales Announced', channel: 'Department Updates', sender: 'HR', date: 'Oct 08, 2023', priority: 'Standard', pinned: false },
+const mockMessages = [
+  { id: 101, sender: 'Priya Patel', text: 'Hi Vivek, just a quick update on the hiring pipeline.', time: '10:30 AM', isMe: false },
+  { id: 102, sender: 'Priya Patel', text: 'The VP of Sales candidates have been shortlisted to the final 2.', time: '10:31 AM', isMe: false },
+  { id: 103, sender: 'Vivek', text: 'Excellent. When are the final rounds?', time: '10:35 AM', isMe: true },
+  { id: 104, sender: 'Priya Patel', text: 'I have scheduled the final round interview for the VP of Sales role for Thursday morning.', time: '10:45 AM', isMe: false }
 ];
 
 export default function Messaging() {
-  const [activeChannel, setActiveChannel] = useState('exec');
+  const [activeThreadId, setActiveThreadId] = useState(2);
+  const [msgInput, setMsgInput] = useState('');
+  
+  const activeThread = mockThreads.find(t => t.id === activeThreadId);
 
   return (
-    <div className="ceo-layout-grid">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', paddingBottom: '32px' }}>
       
-      {/* 1. PAGE HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <h1 className="ceo-typography-page-title">Executive Communication Hub</h1>
-          <p className="ceo-typography-body" style={{ marginTop: '8px' }}>Centralized broadcast center for board, executive, and enterprise-wide directives.</p>
-        </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="ceo-btn"><Settings size={16} /> Comm Policies</button>
-          <button className="ceo-btn ceo-btn-primary"><Edit3 size={16} /> New Broadcast</button>
-        </div>
+      {/* HEADER */}
+      <div style={{ marginBottom: '24px' }}>
+        <h1 className="ceo-typography-page-title">Executive Communications</h1>
+        <p className="ceo-typography-body" style={{ marginTop: '4px' }}>Secure, encrypted internal messaging channels.</p>
       </div>
 
-      {/* 2. SPLIT LAYOUT */}
-      <div className="ceo-split-layout">
+      {/* CSS GRID LAYOUT */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '320px 1fr',
+        gap: '24px',
+        flex: 1
+      }}>
         
-        {/* LEFT COLUMN - NAV */}
-        <div style={{ width: '280px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          
-          <div className="ceo-command-panel">
-            <div className="ceo-command-header">
-              <div className="ceo-typography-card-title">Communication Channels</div>
-            </div>
-            <div className="ceo-command-content" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {commChannels.map(ch => (
-                <div 
-                  key={ch.id} 
-                  onClick={() => setActiveChannel(ch.id)}
-                  style={{
-                    padding: '12px 16px', borderRadius: 'var(--ceo-radius-btn)', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: '12px',
-                    background: activeChannel === ch.id ? 'var(--ceo-hover)' : 'transparent',
-                    color: activeChannel === ch.id ? 'var(--ceo-primary)' : 'var(--ceo-text-secondary)',
-                    fontWeight: activeChannel === ch.id ? 600 : 500,
-                    borderLeft: activeChannel === ch.id ? '3px solid var(--ceo-primary)' : '3px solid transparent'
-                  }}
-                >
-                  {ch.icon}
-                  <span style={{ fontSize: '14px' }}>{ch.label}</span>
-                </div>
-              ))}
+        {/* LEFT: THREADS */}
+        <div className="ceo-command-panel" style={{ display: 'flex', flexDirection: 'column' }}>
+          <div className="ceo-command-header" style={{ padding: '16px' }}>
+            <div style={{ position: 'relative', width: '100%' }}>
+              <Search size={16} color="var(--ceo-text-muted)" style={{ position: 'absolute', left: '12px', top: '10px' }} />
+              <input type="text" className="ceo-form-input" placeholder="Search messages..." style={{ paddingLeft: '36px', height: '36px', padding: '8px' }} />
             </div>
           </div>
-
-          <div className="ceo-command-panel">
-            <div className="ceo-command-header">
-              <div className="ceo-typography-card-title">Scheduled Broadcasts</div>
-            </div>
-            <div className="ceo-command-content" style={{ padding: '16px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ padding: '12px', background: 'var(--ceo-bg)', borderRadius: '8px', border: '1px solid var(--ceo-border)' }}>
-                  <div className="ceo-typography-meta" style={{ marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><Clock size={12}/> Tomorrow, 09:00 AM</div>
-                  <div className="ceo-typography-body" style={{ fontWeight: 600, color: 'var(--ceo-text-primary)' }}>Q3 Townhall Invite</div>
+          
+          <div style={{ overflowY: 'auto', flex: 1, padding: '8px' }}>
+            {mockThreads.map(thread => (
+              <div 
+                key={thread.id} 
+                onClick={() => setActiveThreadId(thread.id)}
+                style={{ 
+                  display: 'flex', gap: '12px', padding: '12px', 
+                  borderRadius: '8px', cursor: 'pointer',
+                  background: activeThreadId === thread.id ? 'var(--ceo-hover)' : 'transparent',
+                  borderLeft: activeThreadId === thread.id ? '3px solid var(--ceo-primary)' : '3px solid transparent'
+                }}
+              >
+                <div style={{ position: 'relative' }}>
+                  <img src={`https://ui-avatars.com/api/?name=${thread.name}&background=${thread.group ? '2563EB' : '10B981'}&color=fff`} alt={thread.name} style={{ width: '48px', height: '48px', borderRadius: '24px' }} />
+                  {thread.unread > 0 && (
+                    <div style={{ position: 'absolute', top: '-2px', right: '-2px', background: 'var(--ceo-danger)', color: '#fff', fontSize: '10px', fontWeight: 700, width: '18px', height: '18px', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--ceo-card-bg)' }}>
+                      {thread.unread}
+                    </div>
+                  )}
+                </div>
+                <div style={{ flex: 1, overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <div style={{ fontWeight: 600, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{thread.name}</div>
+                    <div className="ceo-typography-meta" style={{ fontSize: '11px' }}>{thread.time}</div>
+                  </div>
+                  <div className="ceo-typography-meta" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: thread.unread > 0 ? 'var(--ceo-text-primary)' : 'var(--ceo-text-muted)', fontWeight: thread.unread > 0 ? 600 : 400 }}>
+                    {thread.lastMsg}
+                  </div>
                 </div>
               </div>
-            </div>
+            ))}
           </div>
-
         </div>
 
-        {/* RIGHT COLUMN - CONTENT */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          
-          {/* SEARCH & FILTER */}
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <div style={{ position: 'relative', flex: 1 }}>
-              <Search size={14} color="var(--ceo-text-muted)" style={{ position: 'absolute', left: '12px', top: '12px' }} />
-              <input type="text" placeholder="Search directives, alerts, and board minutes..." className="ceo-form-input" style={{ paddingLeft: '32px' }} />
-            </div>
-          </div>
-
-          {/* MESSAGE FEED */}
-          <div className="ceo-command-panel">
-            <div className="ceo-command-header">
-              <div className="ceo-typography-card-title">Recent Communications</div>
-            </div>
-            <div className="ceo-command-content" style={{ padding: 0 }}>
-              {messages.map((msg, i) => (
-                <div key={msg.id} style={{ 
-                  padding: '24px', 
-                  borderBottom: i === messages.length - 1 ? 'none' : '1px solid var(--ceo-border)',
-                  background: msg.pinned ? 'var(--ceo-hover)' : 'transparent'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {msg.pinned && <Pin size={14} color="var(--ceo-primary)" style={{ transform: 'rotate(45deg)' }} />}
-                      <span className="ceo-typography-section-title">{msg.title}</span>
-                    </div>
-                    <span className={`ceo-badge ${msg.priority === 'Critical' ? 'critical' : msg.priority === 'High' ? 'warning' : 'neutral'}`}>
-                      {msg.priority}
-                    </span>
-                  </div>
-                  
-                  <div style={{ display: 'flex', gap: '24px', marginBottom: '16px' }}>
-                    <div>
-                      <div className="ceo-typography-meta">Sender</div>
-                      <div className="ceo-typography-body" style={{ fontWeight: 600 }}>{msg.sender}</div>
-                    </div>
-                    <div>
-                      <div className="ceo-typography-meta">Channel</div>
-                      <div className="ceo-typography-body">{msg.channel}</div>
-                    </div>
-                    <div>
-                      <div className="ceo-typography-meta">Date Published</div>
-                      <div className="ceo-typography-body">{msg.date}</div>
-                    </div>
-                  </div>
-
-                  <p className="ceo-typography-body" style={{ marginBottom: '24px', maxWidth: '800px', lineHeight: '1.6' }}>
-                    This is a preview of the official communication. Executive directives contain highly sensitive structural and financial data intended only for the designated leadership distribution list. Please click below to read the full document and acknowledge receipt.
-                  </p>
-
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                    <button className="ceo-btn ceo-btn-primary"><FileText size={16} /> Read Full Document</button>
-                    <button className="ceo-btn"><Send size={16} /> Forward to Dept Head</button>
+        {/* RIGHT: CHAT AREA */}
+        <div className="ceo-command-panel" style={{ display: 'flex', flexDirection: 'column' }}>
+          {activeThread ? (
+            <>
+              {/* CHAT HEADER */}
+              <div className="ceo-command-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px' }}>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                  <img src={`https://ui-avatars.com/api/?name=${activeThread.name}&background=${activeThread.group ? '2563EB' : '10B981'}&color=fff`} alt={activeThread.name} style={{ width: '40px', height: '40px', borderRadius: '20px' }} />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '16px' }}>{activeThread.name}</div>
+                    <div className="ceo-typography-meta">{activeThread.group ? '3 Members' : 'Online'}</div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button className="ceo-btn" style={{ padding: '8px' }}><Phone size={18} color="var(--ceo-text-secondary)" /></button>
+                  <button className="ceo-btn" style={{ padding: '8px' }}><Video size={18} color="var(--ceo-text-secondary)" /></button>
+                  <button className="ceo-btn" style={{ padding: '8px' }}><MoreVertical size={18} color="var(--ceo-text-secondary)" /></button>
+                </div>
+              </div>
 
+              {/* MESSAGES AREA */}
+              <div className="ceo-command-content" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px', background: 'var(--ceo-bg)' }}>
+                {mockMessages.map(msg => (
+                  <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.isMe ? 'flex-end' : 'flex-start' }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', flexDirection: msg.isMe ? 'row-reverse' : 'row' }}>
+                      {!msg.isMe && <img src={`https://ui-avatars.com/api/?name=${msg.sender}&background=10B981&color=fff`} alt={msg.sender} style={{ width: '28px', height: '28px', borderRadius: '14px' }} />}
+                      <div style={{ 
+                        background: msg.isMe ? 'var(--ceo-primary)' : 'var(--ceo-card-bg)', 
+                        color: msg.isMe ? '#fff' : 'var(--ceo-text-primary)',
+                        padding: '12px 16px', 
+                        borderRadius: msg.isMe ? '16px 16px 0 16px' : '16px 16px 16px 0',
+                        border: msg.isMe ? 'none' : '1px solid var(--ceo-border)',
+                        maxWidth: '500px',
+                        boxShadow: 'var(--ceo-shadow)',
+                        fontSize: '14px',
+                        lineHeight: '1.5'
+                      }}>
+                        {msg.text}
+                      </div>
+                    </div>
+                    <div className="ceo-typography-meta" style={{ marginTop: '4px', [msg.isMe ? 'marginRight' : 'marginLeft']: '40px', fontSize: '11px' }}>
+                      {msg.time}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* INPUT AREA */}
+              <div style={{ padding: '16px 24px', borderTop: '1px solid var(--ceo-border)', background: 'var(--ceo-card-bg)', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <button className="ceo-btn" style={{ padding: '8px', border: 'none', background: 'transparent' }}><Paperclip size={20} color="var(--ceo-text-secondary)" /></button>
+                <button className="ceo-btn" style={{ padding: '8px', border: 'none', background: 'transparent' }}><ImageIcon size={20} color="var(--ceo-text-secondary)" /></button>
+                
+                <input 
+                  type="text" 
+                  className="ceo-form-input" 
+                  placeholder="Type a message..." 
+                  value={msgInput}
+                  onChange={(e) => setMsgInput(e.target.value)}
+                  style={{ flex: 1, borderRadius: '24px', padding: '12px 20px', background: 'var(--ceo-bg)' }} 
+                />
+                
+                <button className="ceo-btn" style={{ padding: '8px', border: 'none', background: 'transparent' }}><Smile size={20} color="var(--ceo-text-secondary)" /></button>
+                <button className="ceo-btn ceo-btn-primary" style={{ padding: '10px', borderRadius: '20px' }}>
+                  <Send size={18} />
+                </button>
+              </div>
+            </>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--ceo-text-muted)' }}>
+              Select a conversation to start messaging
+            </div>
+          )}
         </div>
 
       </div>
-
     </div>
   );
 }

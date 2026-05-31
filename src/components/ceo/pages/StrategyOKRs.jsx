@@ -1,198 +1,251 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
-  Target, Crosshair, Flag, Settings, ChevronRight, Activity, 
-  AlertOctagon, Plus, Search, Filter, TrendingUp, Compass
+  Target, ChevronRight, CheckCircle, AlertTriangle, Link, 
+  BarChart, Calendar
 } from 'lucide-react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
-} from 'recharts';
 import '../CEO.css';
 
 // ==========================================
 // MOCK DATA
 // ==========================================
-const kpiData = [
-  { label: "Strategic Score", value: "88/100", trend: "up", change: "+4", color: "#8B5CF6" },
-  { label: "Alignment Score", value: "92%", trend: "up", change: "+2%", color: "#2563EB" },
-  { label: "On Track OKRs", value: "24", trend: "flat", change: "0", color: "#10B981" },
-  { label: "At Risk OKRs", value: "3", trend: "up", change: "+1", color: "#F59E0B" },
-  { label: "Blocked OKRs", value: "1", trend: "down", change: "-1", color: "#EF4444" },
-];
-
-const alignmentData = [
-  { dept: 'Sales', score: 95 },
-  { dept: 'Engineering', score: 92 },
-  { dept: 'Marketing', score: 88 },
-  { dept: 'Operations', score: 85 },
-];
-
-const objectives = [
+const mockOKRs = [
   { 
-    id: 'OBJ-01', 
-    title: 'Achieve Market Leadership in Enterprise ERP', 
-    owner: 'Vivek C. (CEO)', 
-    progress: 75, 
-    status: 'On Track',
-    keyResults: [
-      { title: 'Increase Enterprise Market Share by 15%', progress: 80 },
-      { title: 'Launch AI-Powered Analytics Module', progress: 100 },
-      { title: 'Reduce Customer Churn to < 2%', progress: 45 }
+    id: 1, 
+    title: 'Launch Client Portal MVP', 
+    status: 'On Track', 
+    progress: 75,
+    owner: 'Product Team',
+    krs: [
+      { id: 11, title: 'Achieve 95% test coverage', target: 95, current: 80, unit: '%' },
+      { id: 12, title: 'Onboard 5 beta clients', target: 5, current: 4, unit: 'clients' },
+      { id: 13, title: 'Release production build', target: 100, current: 100, unit: '%' }
     ]
   },
   { 
-    id: 'OBJ-02', 
-    title: 'Operational Excellence & Margin Expansion', 
-    owner: 'Elena R. (CFO)', 
-    progress: 42, 
-    status: 'At Risk',
-    keyResults: [
-      { title: 'Reduce Cloud Infrastructure Costs by 20%', progress: 30 },
-      { title: 'Automate 80% of Manual Finance Workflows', progress: 55 }
+    id: 2, 
+    title: 'Reduce Churn Rate to < 2%', 
+    status: 'At Risk', 
+    progress: 45,
+    owner: 'Customer Success',
+    krs: [
+      { id: 21, title: 'Conduct 50 check-in calls', target: 50, current: 12, unit: 'calls' },
+      { id: 22, title: 'Implement automated health score', target: 100, current: 60, unit: '%' }
+    ]
+  },
+  { 
+    id: 3, 
+    title: 'Expand to European Market', 
+    status: 'Behind', 
+    progress: 15,
+    owner: 'Sales & Marketing',
+    krs: [
+      { id: 31, title: 'Hire Regional Director', target: 1, current: 0, unit: 'hire' },
+      { id: 32, title: 'Secure 3 partner agencies', target: 3, current: 1, unit: 'partners' }
     ]
   }
 ];
 
-export default function StrategyOKRs() {
+// Helper for SVG Progress Ring
+const ProgressRing = ({ progress, color, size = 64, strokeWidth = 6 }) => {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (progress / 100) * circumference;
+
   return (
-    <div className="ceo-layout-grid">
+    <div style={{ position: 'relative', width: size, height: size }}>
+      <svg width={size} height={size}>
+        <circle
+          stroke="var(--ceo-divider)"
+          strokeWidth={strokeWidth}
+          fill="transparent"
+          r={radius}
+          cx={size / 2}
+          cy={size / 2}
+        />
+        <circle
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeDasharray={`${circumference} ${circumference}`}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          fill="transparent"
+          r={radius}
+          cx={size / 2}
+          cy={size / 2}
+          style={{ transition: 'stroke-dashoffset 0.5s ease-out' }}
+        />
+      </svg>
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: '14px', fontWeight: 700, color: 'var(--ceo-text-primary)'
+      }}>
+        {progress}%
+      </div>
+    </div>
+  );
+};
+
+export default function StrategyOKRs() {
+  const [selectedOkrId, setSelectedOkrId] = useState(mockOKRs[0].id);
+  const [quarter, setQuarter] = useState('Q3');
+
+  const selectedOkr = mockOKRs.find(o => o.id === selectedOkrId);
+
+  const getStatusColor = (status) => {
+    if (status === 'On Track') return 'var(--ceo-success)';
+    if (status === 'At Risk') return 'var(--ceo-warning)';
+    if (status === 'Behind') return 'var(--ceo-danger)';
+    return 'var(--ceo-primary)';
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', paddingBottom: '32px' }}>
       
-      {/* 1. PAGE HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <h1 className="ceo-typography-page-title">Strategy & OKRs</h1>
-          <p className="ceo-typography-body" style={{ marginTop: '8px' }}>Executive alignment, objective tracking, and strategic goal progression.</p>
-        </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <div style={{ position: 'relative' }}>
-            <Search size={14} color="var(--ceo-text-muted)" style={{ position: 'absolute', left: '12px', top: '12px' }} />
-            <input type="text" placeholder="Search objectives..." className="ceo-form-input" style={{ paddingLeft: '32px', width: '250px' }} />
-          </div>
-          <button className="ceo-btn"><Filter size={16} /> Filter Dept</button>
-          <button className="ceo-btn ceo-btn-primary"><Plus size={16} /> New Objective</button>
-        </div>
+      {/* HEADER */}
+      <div style={{ marginBottom: '24px' }}>
+        <h1 className="ceo-typography-page-title">Strategy & OKRs</h1>
+        <p className="ceo-typography-body" style={{ marginTop: '4px' }}>Align enterprise execution with strategic objectives.</p>
       </div>
 
-      {/* 2. KPI STRIP */}
-      <div className="ceo-kpi-strip">
-        {kpiData.map((kpi, i) => (
-          <div key={i} className="ceo-kpi-strip-item">
-            <span className="ceo-typography-meta" style={{ textTransform: 'uppercase' }}>{kpi.label}</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px' }}>
-              <span className="ceo-kpi-value">{kpi.value}</span>
-              <span className="ceo-badge neutral" style={{ color: kpi.color, background: `${kpi.color}15`, border: 'none' }}>
-                {kpi.trend === 'up' ? '↗' : kpi.trend === 'down' ? '↘' : '→'} {kpi.change}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* 3. SPLIT LAYOUT */}
-      <div className="ceo-split-layout">
+      {/* CSS GRID LAYOUT */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '340px 1fr',
+        gridTemplateRows: '52px 1fr',
+        gridTemplateAreas: `
+          "qselect qselect"
+          "okrlist okrdetail"
+        `,
+        gap: '24px',
+        flex: 1
+      }}>
         
-        {/* LEFT COLUMN */}
-        <div className="ceo-split-left">
-          
-          <div className="ceo-command-panel">
-            <div className="ceo-command-header">
-              <div className="ceo-typography-card-title"><Target size={18} color="var(--ceo-primary)" /> Corporate Objectives</div>
+        {/* QUARTER SELECTOR */}
+        <div style={{ gridArea: 'qselect', display: 'flex', gap: '8px', borderBottom: '1px solid var(--ceo-border)' }}>
+          {['Q1', 'Q2', 'Q3', 'Q4'].map(q => (
+            <button
+              key={q}
+              onClick={() => setQuarter(q)}
+              style={{
+                padding: '12px 24px',
+                background: quarter === q ? 'var(--tab-active-bg)' : 'transparent',
+                color: quarter === q ? 'var(--ceo-primary)' : 'var(--ceo-text-secondary)',
+                border: 'none',
+                borderBottom: quarter === q ? '2px solid var(--ceo-primary)' : '2px solid transparent',
+                borderRadius: '4px 4px 0 0',
+                fontWeight: 600,
+                fontSize: '14px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              {q} 2025
+            </button>
+          ))}
+          <div style={{ flex: 1 }}></div>
+          <button className="ceo-btn ceo-btn-primary" style={{ padding: '6px 16px', height: '36px', alignSelf: 'center' }}>
+            <Target size={16}/> New Objective
+          </button>
+        </div>
+
+        {/* OKR LIST */}
+        <div style={{ gridArea: 'okrlist', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto', paddingRight: '4px' }}>
+          {mockOKRs.map(okr => (
+            <div 
+              key={okr.id}
+              onClick={() => setSelectedOkrId(okr.id)}
+              style={{
+                background: selectedOkrId === okr.id ? 'var(--ceo-hover)' : 'var(--ceo-card-bg)',
+                border: selectedOkrId === okr.id ? '1px solid var(--ceo-primary)' : '1px solid var(--ceo-border)',
+                borderRadius: '12px',
+                padding: '20px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: selectedOkrId === okr.id ? '0 4px 12px rgba(37, 99, 235, 0.1)' : 'var(--ceo-shadow)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                <span className={`ceo-badge ${okr.status === 'On Track' ? 'success' : okr.status === 'At Risk' ? 'warning' : 'critical'}`}>
+                  {okr.status}
+                </span>
+                <ProgressRing progress={okr.progress} color={getStatusColor(okr.status)} size={48} strokeWidth={4} />
+              </div>
+              <div className="ceo-typography-section-title" style={{ fontSize: '15px', lineHeight: 1.3 }}>{okr.title}</div>
+              <div className="ceo-typography-meta" style={{ marginTop: '8px' }}>Owner: {okr.owner}</div>
             </div>
-            <div className="ceo-command-content" style={{ padding: 0 }}>
-              {objectives.map((obj, i) => (
-                <div key={obj.id} style={{ padding: '24px', borderBottom: i === objectives.length - 1 ? 'none' : '1px solid var(--ceo-border)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                    <div>
-                      <div className="ceo-typography-meta" style={{ fontFamily: 'monospace', marginBottom: '4px' }}>{obj.id}</div>
-                      <div className="ceo-typography-section-title">{obj.title}</div>
-                      <div className="ceo-typography-body" style={{ marginTop: '4px' }}>Owner: {obj.owner}</div>
-                    </div>
-                    <span className={`ceo-badge ${obj.status === 'At Risk' ? 'warning' : 'success'}`}>
-                      {obj.status}
-                    </span>
-                  </div>
+          ))}
+        </div>
 
-                  {/* Objective Progress Bar */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-                    <div style={{ flex: 1, height: '8px', background: 'var(--ceo-bg)', borderRadius: '4px', overflow: 'hidden' }}>
-                      <div style={{ width: `${obj.progress}%`, height: '100%', background: 'var(--ceo-primary)' }}></div>
-                    </div>
-                    <span className="ceo-typography-meta" style={{ fontWeight: 600 }}>{obj.progress}% Overall</span>
-                  </div>
+        {/* OKR DETAIL */}
+        <div className="ceo-command-panel" style={{ gridArea: 'okrdetail', display: 'flex', flexDirection: 'column' }}>
+          {selectedOkr ? (
+            <>
+              <div className="ceo-command-header" style={{ padding: '32px 32px 24px 32px', display: 'flex', gap: '32px', alignItems: 'center' }}>
+                <ProgressRing progress={selectedOkr.progress} color={getStatusColor(selectedOkr.status)} size={100} strokeWidth={8} />
+                <div style={{ flex: 1 }}>
+                  <span className={`ceo-badge ${selectedOkr.status === 'On Track' ? 'success' : selectedOkr.status === 'At Risk' ? 'warning' : 'critical'}`} style={{ marginBottom: '12px' }}>
+                    {selectedOkr.status}
+                  </span>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--ceo-text-primary)', marginBottom: '8px' }}>{selectedOkr.title}</div>
+                  <div className="ceo-typography-body">Owned by {selectedOkr.owner}</div>
+                </div>
+              </div>
 
-                  {/* Key Results */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingLeft: '16px', borderLeft: '2px solid var(--ceo-border)' }}>
-                    {obj.keyResults.map((kr, k) => (
-                      <div key={k}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <span className="ceo-typography-body" style={{ fontSize: '13px' }}>{kr.title}</span>
-                          <span className="ceo-typography-meta">{kr.progress}%</span>
+              <div className="ceo-command-content" style={{ padding: '0 32px 32px 32px', overflowY: 'auto' }}>
+                <div className="ceo-typography-section-title" style={{ fontSize: '14px', marginBottom: '24px', color: 'var(--ceo-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Key Results ({selectedOkr.krs.length})
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  {selectedOkr.krs.map(kr => {
+                    const pct = Math.min(100, (kr.current / kr.target) * 100);
+                    const isCompleted = pct === 100;
+                    return (
+                      <div key={kr.id} style={{ 
+                        background: 'var(--ceo-bg)', 
+                        border: '1px solid var(--ceo-border)', 
+                        padding: '24px', 
+                        borderRadius: '12px' 
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', alignItems: 'flex-start' }}>
+                          <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}>{kr.title}</div>
+                          <div style={{ fontSize: '14px', fontWeight: 700, color: isCompleted ? 'var(--ceo-success)' : 'var(--ceo-text-primary)', background: 'var(--ceo-card-bg)', padding: '4px 12px', borderRadius: '16px', border: '1px solid var(--ceo-border)' }}>
+                            {kr.current} / {kr.target} <span style={{ color: 'var(--ceo-text-muted)', fontWeight: 500 }}>{kr.unit}</span>
+                          </div>
                         </div>
-                        <div style={{ height: '4px', background: 'var(--ceo-bg)', borderRadius: '2px', overflow: 'hidden' }}>
-                          <div style={{ width: `${kr.progress}%`, height: '100%', background: kr.progress === 100 ? 'var(--ceo-success)' : 'var(--ceo-info)' }}></div>
+
+                        {/* KR Progress Bar */}
+                        <div style={{ height: '12px', background: 'var(--ceo-divider)', borderRadius: '6px', overflow: 'hidden', marginBottom: '16px' }}>
+                          <div style={{ 
+                            height: '100%', width: `${pct}%`, 
+                            background: isCompleted ? 'var(--ceo-success)' : 'var(--ceo-primary)',
+                            borderRadius: '6px', transition: 'width 0.5s ease-out'
+                          }}></div>
+                        </div>
+
+                        {/* Cascade Link */}
+                        <div style={{ borderTop: '1px dashed var(--ceo-divider)', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ceo-text-secondary)', fontSize: '13px', fontWeight: 500 }}>
+                            <Link size={14} color="var(--ceo-text-muted)" />
+                            {isCompleted ? 'Cascade complete' : 'Cascaded to Engineering Sprint 42'}
+                          </div>
+                          {!isCompleted && <button className="ceo-btn" style={{ padding: '4px 12px', fontSize: '12px' }}>Update Progress</button>}
                         </div>
                       </div>
-                    ))}
-                  </div>
-
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          </div>
-
-        </div>
-
-        {/* RIGHT COLUMN */}
-        <div className="ceo-split-right">
-          
-          <div className="ceo-command-panel">
-            <div className="ceo-command-header">
-              <div className="ceo-typography-card-title"><Compass size={18} color="var(--ceo-purple)" /> Vision & Mission</div>
-            </div>
-            <div className="ceo-command-content">
-              <h4 className="ceo-typography-meta" style={{ textTransform: 'uppercase', marginBottom: '4px' }}>Vision</h4>
-              <p className="ceo-typography-body" style={{ marginBottom: '16px', color: 'var(--ceo-text-primary)' }}>To be the undisputed global leader in AI-driven enterprise planning.</p>
-              
-              <h4 className="ceo-typography-meta" style={{ textTransform: 'uppercase', marginBottom: '4px' }}>Mission</h4>
-              <p className="ceo-typography-body" style={{ color: 'var(--ceo-text-primary)' }}>Empower Fortune 500 companies with real-time operational telemetry and flawless execution capabilities.</p>
-            </div>
-          </div>
-
-          <div className="ceo-command-panel">
-            <div className="ceo-command-header">
-              <div className="ceo-typography-card-title"><Crosshair size={18} color="var(--ceo-primary)" /> Department Alignment</div>
-            </div>
-            <div className="ceo-command-content" style={{ height: '250px', paddingRight: '32px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={alignmentData} layout="vertical" margin={{ top: 0, right: 0, left: 30, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--ceo-border)" horizontal={false} />
-                  <XAxis type="number" domain={[0, 100]} stroke="var(--ceo-text-muted)" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis type="category" dataKey="dept" stroke="var(--ceo-text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip cursor={{ fill: 'var(--ceo-bg)' }} contentStyle={{ borderRadius: '8px', border: '1px solid var(--ceo-border)' }} />
-                  <Bar dataKey="score" fill="var(--ceo-primary)" barSize={20} radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="ceo-command-panel" style={{ borderTop: '4px solid var(--ceo-danger)' }}>
-            <div className="ceo-command-header" style={{ borderBottom: 'none' }}>
-              <div className="ceo-typography-card-title"><AlertOctagon size={18} color="var(--ceo-danger)" /> Blocked Objectives</div>
-            </div>
-            <div className="ceo-command-content" style={{ paddingTop: 0 }}>
-              <div style={{ padding: '16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span className="ceo-typography-meta" style={{ fontWeight: 600, color: 'var(--ceo-text-primary)' }}>OBJ-04</span>
-                  <span className="ceo-badge critical">Blocked</span>
-                </div>
-                <div className="ceo-typography-body" style={{ color: '#B91C1C', fontWeight: 600 }}>Launch EU Operations. Blocked due to pending regulatory clearance.</div>
               </div>
+            </>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--ceo-text-muted)' }}>
+              Select an Objective to view Key Results
             </div>
-          </div>
-
+          )}
         </div>
 
       </div>
-
     </div>
   );
 }

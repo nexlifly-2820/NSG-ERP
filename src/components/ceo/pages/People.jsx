@@ -1,163 +1,213 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
-  Users, UserPlus, UserMinus, ShieldAlert, 
-  MapPin, Settings, Download, Filter, Target, Award
+  Search, Filter, Plus, Download, UserPlus, XCircle, 
+  Mail, Phone, MapPin, Briefcase, Calendar, Shield
 } from 'lucide-react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
-} from 'recharts';
 import '../CEO.css';
 
 // ==========================================
 // MOCK DATA
 // ==========================================
-const kpiData = [
-  { label: "Total Headcount", value: "842", trend: "up", change: "+12", color: "#2563EB" },
-  { label: "New Hires (YTD)", value: "124", trend: "up", change: "+5%", color: "#10B981" },
-  { label: "Attrition Rate", value: "8.4%", trend: "down", change: "-1.2%", color: "#10B981" },
-  { label: "Avg Attendance", value: "94%", trend: "flat", change: "0%", color: "#8B5CF6" },
-  { label: "Top Performers", value: "18%", trend: "up", change: "+2%", color: "#F59E0B" },
-  { label: "Engagement Score", value: "82/100", trend: "up", change: "+4", color: "#2563EB" },
+const mockEmployees = [
+  { id: 'EMP-104', name: 'Rajiv Sharma', dept: 'Engineering', role: 'Senior Frontend Dev', status: 'Active', join: '2021-04-12', avatar: 'https://ui-avatars.com/api/?name=Rajiv+Sharma&background=2563EB&color=fff', email: 'rajiv.s@nsg.com', phone: '+91 98765 43210', location: 'Mumbai HQ' },
+  { id: 'EMP-105', name: 'Priya Patel', dept: 'HR', role: 'HR Manager', status: 'Active', join: '2020-08-01', avatar: 'https://ui-avatars.com/api/?name=Priya+Patel&background=10B981&color=fff', email: 'priya.p@nsg.com', phone: '+91 98765 43211', location: 'Mumbai HQ' },
+  { id: 'EMP-106', name: 'Amit Singh', dept: 'Sales', role: 'VP Sales', status: 'On Leave', join: '2019-11-15', avatar: 'https://ui-avatars.com/api/?name=Amit+Singh&background=F59E0B&color=fff', email: 'amit.s@nsg.com', phone: '+91 98765 43212', location: 'Delhi Branch' },
+  { id: 'EMP-107', name: 'Sarah Connor', dept: 'IT', role: 'Systems Admin', status: 'Active', join: '2023-01-10', avatar: 'https://ui-avatars.com/api/?name=Sarah+Connor&background=8B5CF6&color=fff', email: 'sarah.c@nsg.com', phone: '+91 98765 43213', location: 'Remote' },
+  { id: 'EMP-108', name: 'David Lee', dept: 'Marketing', role: 'Marketing Director', status: 'Notice Period', join: '2022-05-22', avatar: 'https://ui-avatars.com/api/?name=David+Lee&background=EF4444&color=fff', email: 'david.l@nsg.com', phone: '+91 98765 43214', location: 'Remote' }
 ];
 
-const distributionData = [
-  { dept: 'Engineering', count: 340 },
-  { dept: 'Operations', count: 180 },
-  { dept: 'Sales', count: 120 },
-  { dept: 'Support', count: 95 },
-  { dept: 'HR & Admin', count: 42 },
-  { dept: 'Finance', count: 35 },
-];
-
-const talentRisks = [
-  { name: 'Sarah Connor', role: 'VP Engineering', risk: 'High Flight Risk', impact: 'Critical' },
-  { name: 'David Lee', role: 'Lead Architect', risk: 'Burnout Warning', impact: 'High' },
-  { name: 'Operations Team APAC', role: 'Group', risk: 'Low Engagement', impact: 'Medium' },
-];
+const PROFILE_TABS = ['Info', 'Documents', 'Leave Balance', 'Payroll'];
 
 export default function People() {
+  const [selectedEmp, setSelectedEmp] = useState(null);
+  const [profileTab, setProfileTab] = useState('Info');
+
   return (
-    <div className="ceo-layout-grid">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', paddingBottom: '32px', position: 'relative', overflow: 'hidden' }}>
       
-      {/* 1. PAGE HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <h1 className="ceo-typography-page-title">Workforce Intelligence</h1>
-          <p className="ceo-typography-body" style={{ marginTop: '8px' }}>Executive overview of human capital, organizational health, and talent retention.</p>
-        </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="ceo-btn"><Filter size={16} /> Filter Dept</button>
-          <button className="ceo-btn"><Download size={16} /> HR Report</button>
-          <button className="ceo-btn ceo-btn-primary"><Settings size={16} /> Workforce Planning</button>
-        </div>
+      {/* HEADER */}
+      <div style={{ marginBottom: '24px' }}>
+        <h1 className="ceo-typography-page-title">Enterprise Directory</h1>
+        <p className="ceo-typography-body" style={{ marginTop: '4px' }}>Manage workforce profiles, access controls, and employee records.</p>
       </div>
 
-      {/* 2. KPI STRIP */}
-      <div className="ceo-kpi-strip">
-        {kpiData.map((kpi, i) => (
-          <div key={i} className="ceo-kpi-strip-item">
-            <span className="ceo-typography-meta" style={{ textTransform: 'uppercase' }}>{kpi.label}</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px' }}>
-              <span className="ceo-kpi-value">{kpi.value}</span>
-              <span className="ceo-badge neutral" style={{ color: kpi.color, background: `${kpi.color}15`, border: 'none' }}>
-                {kpi.trend === 'up' ? '↗' : kpi.trend === 'down' ? '↘' : '→'} {kpi.change}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* 3. SPLIT LAYOUT */}
-      <div className="ceo-split-layout">
+      {/* CSS GRID LAYOUT */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: selectedEmp ? '1fr 380px' : '1fr',
+        gridTemplateRows: '60px 1fr',
+        gridTemplateAreas: selectedEmp ? `
+          "search search"
+          "table profile"
+        ` : `
+          "search"
+          "table"
+        `,
+        gap: '24px',
+        flex: 1,
+        transition: 'all 0.3s ease'
+      }}>
         
-        {/* LEFT COLUMN */}
-        <div className="ceo-split-left">
+        {/* SEARCH & FILTER BAR */}
+        <div style={{ gridArea: 'search', display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <div style={{ position: 'relative', width: '350px' }}>
+            <Search size={16} color="var(--ceo-text-muted)" style={{ position: 'absolute', left: '12px', top: '12px' }} />
+            <input type="text" className="ceo-form-input" placeholder="Search by name, ID, or department..." style={{ paddingLeft: '36px', height: '40px' }} />
+          </div>
           
-          <div className="ceo-command-panel">
-            <div className="ceo-command-header">
-              <div className="ceo-typography-card-title"><Users size={18} color="var(--ceo-primary)" /> Global Headcount Distribution</div>
-            </div>
-            <div className="ceo-command-content" style={{ height: '300px', paddingRight: '32px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={distributionData} layout="vertical" margin={{ top: 0, right: 0, left: 30, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--ceo-border)" horizontal={false} />
-                  <XAxis type="number" stroke="var(--ceo-text-muted)" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis type="category" dataKey="dept" stroke="var(--ceo-text-secondary)" fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip cursor={{ fill: 'var(--ceo-bg)' }} contentStyle={{ borderRadius: '8px', border: '1px solid var(--ceo-border)' }} />
-                  <Bar dataKey="count" fill="var(--ceo-primary)" barSize={20} radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+          <button className="ceo-btn" style={{ padding: '8px 12px' }}><Filter size={16}/> Filters</button>
+          
+          <div style={{ flex: 1 }}></div>
 
-          <div className="ceo-command-panel">
-            <div className="ceo-command-header">
-              <div className="ceo-typography-card-title"><Award size={18} color="var(--ceo-warning)" /> Executive Leadership Matrix</div>
-              <button className="ceo-btn" style={{ padding: '6px 12px', fontSize: '12px' }}>Full Directory</button>
-            </div>
-            <div className="ceo-erp-table-container" style={{ border: 'none', borderRadius: 0, boxShadow: 'none' }}>
-              <table className="ceo-erp-table">
-                <thead>
-                  <tr>
-                    <th>Executive Name</th>
-                    <th>Role & Dept</th>
-                    <th>Location</th>
-                    <th style={{ textAlign: 'right' }}>Performance</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td style={{ fontWeight: 600 }}>Michael Chen</td>
-                    <td>Chief Operating Officer</td>
-                    <td><div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><MapPin size={12} color="var(--ceo-text-muted)" /> NY HQ</div></td>
-                    <td style={{ textAlign: 'right' }}><span className="ceo-badge success">Exceeds Ex.</span></td>
-                  </tr>
-                  <tr>
-                    <td style={{ fontWeight: 600 }}>Elena Rodriguez</td>
-                    <td>Chief Financial Officer</td>
-                    <td><div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><MapPin size={12} color="var(--ceo-text-muted)" /> London</div></td>
-                    <td style={{ textAlign: 'right' }}><span className="ceo-badge success">Exceeds Ex.</span></td>
-                  </tr>
-                  <tr>
-                    <td style={{ fontWeight: 600 }}>James Wilson</td>
-                    <td>VP of Global Sales</td>
-                    <td><div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><MapPin size={12} color="var(--ceo-text-muted)" /> Singapore</div></td>
-                    <td style={{ textAlign: 'right' }}><span className="ceo-badge warning">Meets Ex.</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
+          <button className="ceo-btn" style={{ padding: '8px 16px' }}><Download size={16} /> Export List</button>
+          <button className="ceo-btn ceo-btn-primary" style={{ padding: '8px 16px' }}><UserPlus size={16} /> Add Employee</button>
         </div>
 
-        {/* RIGHT COLUMN */}
-        <div className="ceo-split-right">
-          
-          <div className="ceo-command-panel" style={{ borderTop: '4px solid var(--ceo-danger)' }}>
-            <div className="ceo-command-header" style={{ borderBottom: 'none' }}>
-              <div className="ceo-typography-card-title"><ShieldAlert size={18} color="var(--ceo-danger)" /> Key Talent Risks</div>
-            </div>
-            <div className="ceo-command-content" style={{ paddingTop: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {talentRisks.map((risk, i) => (
-                <div key={i} style={{ padding: '16px', background: risk.impact === 'Critical' ? '#FEF2F2' : '#FFFBEB', border: `1px solid ${risk.impact === 'Critical' ? '#FECACA' : '#FDE68A'}`, borderRadius: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span className="ceo-typography-meta" style={{ fontWeight: 600, color: 'var(--ceo-text-primary)' }}>{risk.name}</span>
-                    <span className={`ceo-badge ${risk.impact === 'Critical' ? 'critical' : 'warning'}`}>{risk.impact}</span>
-                  </div>
-                  <div className="ceo-typography-meta" style={{ marginBottom: '8px' }}>{risk.role}</div>
-                  <div className="ceo-typography-body" style={{ color: risk.impact === 'Critical' ? '#B91C1C' : '#B45309', fontWeight: 600 }}>
-                    {risk.risk}
-                  </div>
+        {/* EMPLOYEE TABLE */}
+        <div className="ceo-command-panel" style={{ gridArea: 'table', overflowY: 'auto' }}>
+          <div className="ceo-command-content" style={{ padding: 0 }}>
+            <table className="ceo-erp-table">
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th>ID</th>
+                  <th>Department</th>
+                  <th>Designation</th>
+                  <th>Status</th>
+                  <th>Join Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mockEmployees.map(emp => (
+                  <tr 
+                    key={emp.id} 
+                    onClick={() => setSelectedEmp(emp)}
+                    style={{ 
+                      background: (selectedEmp?.id === emp.id) ? 'var(--ceo-hover)' : 'var(--ceo-card-bg)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <img src={emp.avatar} alt={emp.name} style={{ width: '32px', height: '32px', borderRadius: '16px' }} />
+                        <span style={{ fontWeight: 600 }}>{emp.name}</span>
+                      </div>
+                    </td>
+                    <td><span className="ceo-typography-meta">{emp.id}</span></td>
+                    <td style={{ fontWeight: 500 }}>{emp.dept}</td>
+                    <td style={{ color: 'var(--ceo-text-secondary)' }}>{emp.role}</td>
+                    <td>
+                      <span className={`ceo-badge ${emp.status === 'Active' ? 'success' : emp.status === 'On Leave' ? 'warning' : 'critical'}`}>
+                        {emp.status}
+                      </span>
+                    </td>
+                    <td><span className="ceo-typography-meta">{emp.join}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* PROFILE SIDEBAR */}
+        {selectedEmp && (
+          <div className="ceo-command-panel" style={{ gridArea: 'profile', borderLeft: '1px solid var(--ceo-border)', boxShadow: '-4px 0 15px rgba(0,0,0,0.05)' }}>
+            
+            <div className="ceo-command-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '24px', paddingBottom: '16px', borderBottom: 'none' }}>
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                <img src={selectedEmp.avatar} alt={selectedEmp.name} style={{ width: '64px', height: '64px', borderRadius: '32px', border: '2px solid var(--ceo-border)' }} />
+                <div>
+                  <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--ceo-text-primary)' }}>{selectedEmp.name}</div>
+                  <div className="ceo-typography-meta">{selectedEmp.id}</div>
                 </div>
+              </div>
+              <button className="ceo-btn" onClick={() => setSelectedEmp(null)} style={{ padding: '4px', border: 'none', background: 'transparent' }}><XCircle size={20} color="var(--ceo-text-muted)"/></button>
+            </div>
+
+            <div style={{ padding: '0 24px', display: 'flex', gap: '8px' }}>
+              <span className={`ceo-badge ${selectedEmp.status === 'Active' ? 'success' : selectedEmp.status === 'On Leave' ? 'warning' : 'critical'}`}>
+                {selectedEmp.status}
+              </span>
+              <span className="ceo-badge neutral">{selectedEmp.dept}</span>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--ceo-border)', marginTop: '24px', padding: '0 16px', overflowX: 'auto' }}>
+              {PROFILE_TABS.map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setProfileTab(tab)}
+                  style={{
+                    padding: '8px 12px',
+                    background: profileTab === tab ? 'var(--tab-active-bg)' : 'transparent',
+                    color: profileTab === tab ? 'var(--ceo-primary)' : 'var(--ceo-text-secondary)',
+                    border: 'none',
+                    borderBottom: profileTab === tab ? '2px solid var(--ceo-primary)' : '2px solid transparent',
+                    fontWeight: 600,
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {tab}
+                </button>
               ))}
             </div>
-          </div>
 
-        </div>
+            <div className="ceo-command-content" style={{ padding: '24px', overflowY: 'auto' }}>
+              
+              {profileTab === 'Info' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  
+                  <div>
+                    <div className="ceo-typography-section-title" style={{ fontSize: '14px', marginBottom: '12px', color: 'var(--ceo-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Contact Details</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <Mail size={16} color="var(--ceo-text-muted)" />
+                        <span style={{ fontSize: '14px', fontWeight: 500 }}>{selectedEmp.email}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <Phone size={16} color="var(--ceo-text-muted)" />
+                        <span style={{ fontSize: '14px', fontWeight: 500 }}>{selectedEmp.phone}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <MapPin size={16} color="var(--ceo-text-muted)" />
+                        <span style={{ fontSize: '14px', fontWeight: 500 }}>{selectedEmp.location}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ borderTop: '1px solid var(--ceo-divider)', paddingTop: '24px' }}>
+                    <div className="ceo-typography-section-title" style={{ fontSize: '14px', marginBottom: '12px', color: 'var(--ceo-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Employment Details</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <Briefcase size={16} color="var(--ceo-text-muted)" />
+                        <span style={{ fontSize: '14px', fontWeight: 500 }}>{selectedEmp.role}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <Calendar size={16} color="var(--ceo-text-muted)" />
+                        <span style={{ fontSize: '14px', fontWeight: 500 }}>Joined: {selectedEmp.join}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <Shield size={16} color="var(--ceo-text-muted)" />
+                        <span style={{ fontSize: '14px', fontWeight: 500 }}>RBAC Profile: Employee</span>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              )}
+
+              {profileTab !== 'Info' && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--ceo-text-muted)' }}>
+                  Data protected under access control. (Restricted to HR)
+                </div>
+              )}
+
+            </div>
+          </div>
+        )}
 
       </div>
-
     </div>
   );
 }

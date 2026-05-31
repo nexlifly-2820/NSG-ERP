@@ -1,149 +1,151 @@
 import React, { useState } from 'react';
 import { 
-  Settings as SettingsIcon, Shield, Users, Key, Bell, 
-  List, Link2, Database, Save, Activity, Download
+  ShieldAlert, History, Bell, Settings as SettingsIcon, Users, 
+  Search, Download, CheckCircle, Save
 } from 'lucide-react';
 import '../CEO.css';
 
 // ==========================================
 // MOCK DATA
 // ==========================================
-const menuItems = [
-  { id: 'general', label: 'General Configuration', icon: <SettingsIcon size={16} /> },
-  { id: 'security', label: 'Security & Access', icon: <Shield size={16} /> },
-  { id: 'users', label: 'User Provisioning', icon: <Users size={16} /> },
-  { id: 'perms', label: 'Role Permissions', icon: <Key size={16} /> },
-  { id: 'notifs', label: 'System Notifications', icon: <Bell size={16} /> },
-  { id: 'audit', label: 'Compliance Audit Logs', icon: <List size={16} /> },
-  { id: 'integrations', label: 'ERP Integrations', icon: <Link2 size={16} /> },
-  { id: 'backups', label: 'Data & Backups', icon: <Database size={16} /> },
+const SETTINGS_CATEGORIES = [
+  { id: 'rbac', label: 'RBAC Permission Matrix', icon: ShieldAlert },
+  { id: 'audit', label: 'System Audit Logs', icon: History },
+  { id: 'notif', label: 'Notification Rules', icon: Bell },
+  { id: 'config', label: 'System Configuration', icon: SettingsIcon },
+  { id: 'auditors', label: 'External Auditors', icon: Users }
 ];
 
-const auditLogs = [
-  { id: 'AUD-091', action: 'User Permissions Modified', user: 'System Admin', timestamp: 'Oct 14, 2023 14:32:01', ip: '192.168.1.45', status: 'Success' },
-  { id: 'AUD-090', action: 'Failed Login Attempt', user: 'unknown@nsg-erp.com', timestamp: 'Oct 14, 2023 11:15:22', ip: '203.0.113.42', status: 'Failed' },
-  { id: 'AUD-089', action: 'Database Backup Completed', user: 'System Task', timestamp: 'Oct 14, 2023 03:00:00', ip: 'localhost', status: 'Success' },
-  { id: 'AUD-088', action: 'API Key Generated', user: 'Vivek C. (CEO)', timestamp: 'Oct 13, 2023 16:45:10', ip: '10.0.0.15', status: 'Success' },
+const mockAuditLogs = [
+  { id: 1, timestamp: "2025-05-31 10:15:22", user: "HR Admin (Priya)", action: "UPDATED_SALARY", module: "Payroll", details: "Changed Basic for EMP-104 from ₹45000 to ₹50000" },
+  { id: 2, timestamp: "2025-05-31 09:42:10", user: "System", action: "AUTO_ESCALATION", module: "Approvals", details: "Escalated Capex Request A-102 to CEO" },
+  { id: 3, timestamp: "2025-05-30 18:20:05", user: "CEO (Vivek)", action: "CHANGED_RBAC", module: "Settings", details: "Granted 'View Salary' to 'Team Lead' role" },
+  { id: 4, timestamp: "2025-05-30 14:10:00", user: "Manager (David)", action: "APPROVED_LEAVE", module: "People", details: "Approved Sick Leave for EMP-221" },
+  { id: 5, timestamp: "2025-05-30 11:05:44", user: "Finance (Sarah)", action: "BUDGET_REJECTED", module: "Finance", details: "Rejected Q3 Ad Spend for Marketing" }
 ];
 
+const ROLES = ['CEO', 'HR Manager', 'Finance Manager', 'Team Lead', 'Employee'];
+const MODULES = ['View Salary', 'Run Payroll', 'Approve Leaves', 'Export Data', 'View Audit Logs'];
+
+// Initial matrix state
+const initialRbac = {
+  'View Salary': { 'CEO': true, 'HR Manager': true, 'Finance Manager': true, 'Team Lead': false, 'Employee': false },
+  'Run Payroll': { 'CEO': false, 'HR Manager': true, 'Finance Manager': false, 'Team Lead': false, 'Employee': false },
+  'Approve Leaves': { 'CEO': true, 'HR Manager': true, 'Finance Manager': false, 'Team Lead': true, 'Employee': false },
+  'Export Data': { 'CEO': true, 'HR Manager': true, 'Finance Manager': true, 'Team Lead': false, 'Employee': false },
+  'View Audit Logs': { 'CEO': true, 'HR Manager': false, 'Finance Manager': false, 'Team Lead': false, 'Employee': false },
+};
+
+// ==========================================
+// COMPONENT
+// ==========================================
 export default function Settings() {
-  const [activeMenu, setActiveMenu] = useState('general');
+  const [activeCategory, setActiveCategory] = useState('audit');
+  
+  // RBAC State
+  const [rbacMatrix, setRbacMatrix] = useState(initialRbac);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const togglePermission = (module, role) => {
+    setRbacMatrix(prev => ({
+      ...prev,
+      [module]: {
+        ...prev[module],
+        [role]: !prev[module][role]
+      }
+    }));
+    setHasUnsavedChanges(true);
+  };
+
+  const saveRbac = () => {
+    setIsSaving(true);
+    setTimeout(() => {
+      setIsSaving(false);
+      setHasUnsavedChanges(false);
+    }, 1000);
+  };
 
   return (
-    <div className="ceo-layout-grid">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', paddingBottom: '32px' }}>
       
-      {/* 1. PAGE HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <h1 className="ceo-typography-page-title">Enterprise System Configuration</h1>
-          <p className="ceo-typography-body" style={{ marginTop: '8px' }}>Manage security, access controls, system integrations, and compliance logs.</p>
-        </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="ceo-btn"><Activity size={16} /> System Health</button>
-          <button className="ceo-btn ceo-btn-primary"><Save size={16} /> Save Changes</button>
-        </div>
+      {/* HEADER */}
+      <div style={{ marginBottom: '24px' }}>
+        <h1 className="ceo-typography-page-title">System & Security Settings</h1>
+        <p className="ceo-typography-body" style={{ marginTop: '4px' }}>Enterprise access controls, audit logs, and global parameters.</p>
       </div>
 
-      {/* 2. SPLIT LAYOUT */}
-      <div className="ceo-split-layout">
+      {/* CSS GRID LAYOUT */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '240px 1fr',
+        gap: '24px',
+        flex: 1
+      }}>
         
-        {/* LEFT COLUMN - NAV */}
-        <div style={{ width: '280px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          
-          <div className="ceo-command-panel">
-            <div className="ceo-command-content" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {menuItems.map(item => (
-                <div 
-                  key={item.id} 
-                  onClick={() => setActiveMenu(item.id)}
-                  style={{
-                    padding: '12px 16px', borderRadius: 'var(--ceo-radius-btn)', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: '12px',
-                    background: activeMenu === item.id ? 'var(--ceo-hover)' : 'transparent',
-                    color: activeMenu === item.id ? 'var(--ceo-primary)' : 'var(--ceo-text-secondary)',
-                    fontWeight: activeMenu === item.id ? 600 : 500,
-                    borderLeft: activeMenu === item.id ? '3px solid var(--ceo-primary)' : '3px solid transparent'
-                  }}
-                >
-                  {item.icon}
-                  <span style={{ fontSize: '14px' }}>{item.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
+        {/* NAV SIDEBAR */}
+        <div className="ceo-command-panel" style={{ padding: '12px 0' }}>
+          {SETTINGS_CATEGORIES.map(cat => (
+            <button 
+              key={cat.id}
+              onClick={() => setActiveCategory(cat.id)}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '12px 24px',
+                background: activeCategory === cat.id ? 'var(--tab-active-bg)' : 'transparent',
+                border: 'none',
+                borderRight: activeCategory === cat.id ? '3px solid var(--tab-active-border)' : '3px solid transparent',
+                cursor: 'pointer',
+                textAlign: 'left',
+                color: activeCategory === cat.id ? 'var(--ceo-primary)' : 'var(--ceo-text-secondary)',
+                fontWeight: activeCategory === cat.id ? 600 : 500,
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <cat.icon size={18} />
+              {cat.label}
+            </button>
+          ))}
         </div>
 
-        {/* RIGHT COLUMN - CONTENT */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        {/* CONTENT PANEL */}
+        <div className="ceo-command-panel" style={{ display: 'flex', flexDirection: 'column' }}>
           
-          {activeMenu === 'general' && (
-            <div className="ceo-command-panel">
+          {/* AUDIT LOGS */}
+          {activeCategory === 'audit' && (
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               <div className="ceo-command-header">
-                <div className="ceo-typography-card-title"><SettingsIcon size={18} color="var(--ceo-primary)" /> General Enterprise Settings</div>
-              </div>
-              <div className="ceo-command-content" style={{ padding: '32px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', maxWidth: '800px' }}>
-                  <div className="ceo-form-group">
-                    <label>Enterprise Instance Name</label>
-                    <input type="text" className="ceo-form-input" defaultValue="NSG Global ERP - Prod" />
+                <div className="ceo-typography-card-title"><History size={18} color="var(--ceo-primary)" /> Immutable Audit Trail</div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ position: 'relative', width: '250px' }}>
+                    <Search size={16} color="var(--ceo-text-muted)" style={{ position: 'absolute', left: '12px', top: '10px' }} />
+                    <input type="text" className="ceo-form-input" placeholder="Search logs..." style={{ paddingLeft: '36px', height: '36px', padding: '8px' }} />
                   </div>
-                  <div className="ceo-form-group">
-                    <label>Primary Domain</label>
-                    <input type="text" className="ceo-form-input" defaultValue="erp.nsg-global.com" disabled style={{ background: 'var(--ceo-bg)' }} />
-                  </div>
-                  <div className="ceo-form-group">
-                    <label>System Timezone</label>
-                    <select className="ceo-form-input" defaultValue="UTC">
-                      <option value="UTC">UTC (Coordinated Universal Time)</option>
-                      <option value="IST">IST (Indian Standard Time)</option>
-                      <option value="EST">EST (Eastern Standard Time)</option>
-                    </select>
-                  </div>
-                  <div className="ceo-form-group">
-                    <label>Default Currency</label>
-                    <select className="ceo-form-input" defaultValue="INR">
-                      <option value="INR">INR (₹)</option>
-                      <option value="USD">USD ($)</option>
-                      <option value="EUR">EUR (€)</option>
-                    </select>
-                  </div>
+                  <button className="ceo-btn" style={{ padding: '6px 12px' }}><Download size={16} /> Export CSV</button>
                 </div>
               </div>
-            </div>
-          )}
-
-          {activeMenu === 'audit' && (
-            <div className="ceo-command-panel">
-              <div className="ceo-command-header">
-                <div className="ceo-typography-card-title"><List size={18} color="var(--ceo-primary)" /> Security & Compliance Audit Logs</div>
-                <button className="ceo-btn" style={{ padding: '6px 12px', fontSize: '12px' }}><Download size={14} /> Export CSV</button>
-              </div>
-              <div className="ceo-erp-table-container" style={{ border: 'none', borderRadius: 0, boxShadow: 'none' }}>
+              <div className="ceo-command-content" style={{ padding: 0, overflowY: 'auto' }}>
                 <table className="ceo-erp-table">
                   <thead>
                     <tr>
-                      <th>Event ID</th>
+                      <th>Timestamp</th>
+                      <th>User</th>
                       <th>Action</th>
-                      <th>User / Actor</th>
-                      <th>IP Address</th>
-                      <th>Timestamp (UTC)</th>
-                      <th style={{ textAlign: 'right' }}>Status</th>
+                      <th>Module</th>
+                      <th>Details (Old → New)</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {auditLogs.map((log) => (
-                      <tr key={log.id}>
-                        <td style={{ fontFamily: 'monospace' }} className="ceo-typography-meta">{log.id}</td>
-                        <td style={{ fontWeight: 600 }}>{log.action}</td>
-                        <td>{log.user}</td>
-                        <td style={{ fontFamily: 'monospace' }} className="ceo-typography-meta">{log.ip}</td>
-                        <td className="ceo-typography-meta">{log.timestamp}</td>
-                        <td style={{ textAlign: 'right' }}>
-                          <span className={`ceo-badge ${log.status === 'Success' ? 'success' : 'critical'}`}>
-                            {log.status}
-                          </span>
-                        </td>
+                    {mockAuditLogs.map(log => (
+                      <tr key={log.id} style={{ height: '44px' }}>
+                        <td><span style={{ fontFamily: 'monospace', fontSize: '12px', color: 'var(--ceo-text-secondary)' }}>{log.timestamp}</span></td>
+                        <td style={{ fontWeight: 600 }}>{log.user}</td>
+                        <td><span className="ceo-badge neutral" style={{ background: 'var(--ceo-bg)' }}>{log.action}</span></td>
+                        <td>{log.module}</td>
+                        <td><span style={{ fontFamily: 'monospace', fontSize: '12px', color: 'var(--ceo-text-muted)' }}>{log.details}</span></td>
                       </tr>
                     ))}
                   </tbody>
@@ -152,20 +154,73 @@ export default function Settings() {
             </div>
           )}
 
-          {activeMenu !== 'general' && activeMenu !== 'audit' && (
-            <div className="ceo-command-panel" style={{ height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ textAlign: 'center' }}>
-                <SettingsIcon size={48} color="var(--ceo-border)" style={{ margin: '0 auto 16px auto' }} />
-                <h3 className="ceo-typography-card-title" style={{ justifyContent: 'center', marginBottom: '8px' }}>Configuration Module Ready</h3>
-                <p className="ceo-typography-body">The {menuItems.find(m => m.id === activeMenu)?.label} module is connected to the master database.</p>
+          {/* RBAC MATRIX */}
+          {activeCategory === 'rbac' && (
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <div className="ceo-command-header">
+                <div className="ceo-typography-card-title"><ShieldAlert size={18} color="var(--ceo-primary)" /> Role-Based Access Control</div>
+                <button className="ceo-btn ceo-btn-primary" onClick={saveRbac} disabled={!hasUnsavedChanges || isSaving} style={{ padding: '6px 16px' }}>
+                  {isSaving ? 'Saving...' : <><Save size={16}/> Save Changes</>}
+                </button>
+              </div>
+              <div className="ceo-command-content" style={{ padding: 0, overflowY: 'auto' }}>
+                <table className="ceo-erp-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '250px' }}>Module / Permission</th>
+                      {ROLES.map(r => <th key={r} style={{ textAlign: 'center' }}>{r}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {MODULES.map(mod => (
+                      <tr key={mod}>
+                        <td style={{ fontWeight: 600, borderRight: '1px solid var(--ceo-border)' }}>{mod}</td>
+                        {ROLES.map(role => {
+                          const isChecked = rbacMatrix[mod][role];
+                          // CEO cannot be changed for these critical modules
+                          const disabled = role === 'CEO' && (mod === 'View Salary' || mod === 'Export Data' || mod === 'View Audit Logs');
+                          
+                          return (
+                            <td key={role} style={{ textAlign: 'center' }}>
+                              <button 
+                                onClick={() => !disabled && togglePermission(mod, role)}
+                                disabled={disabled}
+                                style={{ 
+                                  width: '40px', height: '20px', borderRadius: '10px', 
+                                  background: isChecked ? 'var(--ceo-success)' : 'var(--ceo-border)', 
+                                  position: 'relative', border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
+                                  opacity: disabled ? 0.5 : 1, transition: 'background 0.2s'
+                                }}
+                              >
+                                <div style={{ 
+                                  width: '16px', height: '16px', borderRadius: '8px', 
+                                  background: '#fff', position: 'absolute', top: '2px', 
+                                  left: isChecked ? '22px' : '2px', transition: 'left 0.2s ease',
+                                  boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                                }}></div>
+                              </button>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
 
+          {/* OTHER */}
+          {['notif', 'config', 'auditors'].includes(activeCategory) && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--ceo-text-muted)' }}>
+              <SettingsIcon size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
+              <div className="ceo-typography-section-title">Coming Soon</div>
+              <p className="ceo-typography-body">This settings module is part of the Phase 2 rollout.</p>
+            </div>
+          )}
+
         </div>
-
       </div>
-
     </div>
   );
 }
