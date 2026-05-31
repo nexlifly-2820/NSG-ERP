@@ -102,7 +102,7 @@ export default function Dashboard() {
         {/* ZONE: KPI STRIP */}
         <div style={{ gridArea: 'kpi', display: 'flex', gap: '24px' }}>
           {kpiData.map(kpi => (
-            <div key={kpi.id} className="ceo-command-panel" style={{ flex: 1, padding: '20px 24px', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div key={kpi.id} className="ceo-command-panel kpi-panel" style={{ flex: 1 }}>
               <div>
                 <div className="ceo-typography-meta" style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>{kpi.label}</div>
                 <div style={{ fontSize: '28px', fontWeight: 800, marginTop: '8px', color: 'var(--ceo-text-primary)' }}>{kpi.value}</div>
@@ -206,38 +206,88 @@ export default function Dashboard() {
         </div>
 
         {/* ZONE: ATTENDANCE HEATMAP */}
-        <div className="ceo-command-panel" style={{ gridArea: 'heat' }}>
-          <div className="ceo-command-header" style={{ padding: '12px 24px' }}>
-            <div className="ceo-typography-card-title">Attendance Heatmap (Last 14 Days)</div>
-          </div>
-          <div style={{ padding: '16px 24px', overflowX: 'auto' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: `80px repeat(${dates.length}, 1fr)`, gap: '4px' }}>
-              {/* Header Row */}
-              <div></div>
-              {dates.map((d, i) => (
-                <div key={i} className="ceo-typography-meta" style={{ textAlign: 'center', fontSize: '10px' }}>{d}</div>
-              ))}
-              
-              {/* Data Rows */}
-              {depts.map((dept, dIdx) => (
-                <React.Fragment key={dept}>
-                  <div className="ceo-typography-meta" style={{ alignSelf: 'center', fontWeight: 600 }}>{dept}</div>
-                  {heatmapData[dIdx].map((pct, pIdx) => (
-                    <div key={pIdx} title={`${dept} - ${dates[pIdx]}: ${pct}%`} style={{
-                      backgroundColor: getHeatmapColor(pct),
-                      opacity: pct / 100,
-                      height: '24px',
-                      borderRadius: '4px',
-                      transition: 'transform 0.1s',
-                      cursor: 'pointer',
-                    }}
-                    onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
-                    onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                    />
-                  ))}
-                </React.Fragment>
-              ))}
+        <div className="ceo-command-panel" style={{ gridArea: 'heat', overflow: 'hidden' }}>
+          <div className="ceo-command-header" style={{ padding: '24px 32px', borderBottom: 'none' }}>
+            <div className="ceo-typography-card-title" style={{ fontSize: '18px' }}>Attendance Heatmap (Last 14 Days)</div>
+            <div style={{ display: 'flex', gap: '24px', alignItems: 'center', marginTop: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'linear-gradient(135deg, #10B981, #059669)', boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)' }}></div>
+                <span className="ceo-typography-meta" style={{ fontWeight: 600, fontSize: '13px' }}>95-100% (Healthy)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'linear-gradient(135deg, #FBBF24, #D97706)', boxShadow: '0 2px 4px rgba(245, 158, 11, 0.2)' }}></div>
+                <span className="ceo-typography-meta" style={{ fontWeight: 600, fontSize: '13px' }}>85-94% (Warning)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '16px', height: '16px', borderRadius: '4px', background: 'linear-gradient(135deg, #EF4444, #DC2626)', boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)' }}></div>
+                <span className="ceo-typography-meta" style={{ fontWeight: 600, fontSize: '13px' }}>&lt;85% (Critical)</span>
+              </div>
             </div>
+          </div>
+          <div style={{ padding: '0 0 32px 0', overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
+              <thead>
+                <tr>
+                  <th style={{ padding: '0 24px 16px 32px', textAlign: 'left', borderBottom: '2px solid var(--ceo-border)' }}></th>
+                  {dates.map((d, i) => (
+                    <th key={i} style={{ padding: '0 8px 16px 8px', textAlign: 'center', borderBottom: '2px solid var(--ceo-border)' }}>
+                      <div className="ceo-typography-meta" style={{ fontWeight: 700, color: 'var(--ceo-text-muted)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        {d.split(' ')[0]}<br/>
+                        <span style={{ fontSize: '14px', color: 'var(--ceo-text-primary)' }}>{d.split(' ')[1]}</span>
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {depts.map((dept, dIdx) => (
+                  <tr key={dept} style={{ transition: 'background 0.2s ease', borderBottom: '1px solid var(--ceo-border)' }}
+                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--ceo-hover)'}
+                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                    <td style={{ padding: '16px 24px 16px 32px', fontWeight: 600, color: 'var(--ceo-text-secondary)', fontSize: '14px' }}>
+                      {dept}
+                    </td>
+                    {heatmapData[dIdx].map((pct, pIdx) => (
+                      <td key={pIdx} style={{ padding: '12px 8px', textAlign: 'center' }}>
+                        <div style={{ display: 'inline-flex', justifyContent: 'center' }}>
+                          <div title={`${dept} - ${dates[pIdx]}: ${pct}%`} style={{
+                            background: pct >= 95 ? 'linear-gradient(135deg, #10B981, #059669)' : pct >= 85 ? 'linear-gradient(135deg, #FBBF24, #D97706)' : 'linear-gradient(135deg, #EF4444, #DC2626)',
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '10px',
+                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                            cursor: 'pointer',
+                            boxShadow: pct >= 95 ? '0 4px 6px rgba(16, 185, 129, 0.2)' : pct >= 85 ? '0 4px 6px rgba(245, 158, 11, 0.2)' : '0 4px 6px rgba(239, 68, 68, 0.2)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            color: '#ffffff',
+                            textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                            border: '1px solid rgba(255,255,255,0.2)'
+                          }}
+                          onMouseOver={(e) => { 
+                            e.currentTarget.style.transform = 'scale(1.15) translateY(-2px)'; 
+                            e.currentTarget.style.boxShadow = pct >= 95 ? '0 8px 12px rgba(16, 185, 129, 0.4)' : pct >= 85 ? '0 8px 12px rgba(245, 158, 11, 0.4)' : '0 8px 12px rgba(239, 68, 68, 0.4)';
+                            e.currentTarget.style.zIndex = '10';
+                            e.currentTarget.style.position = 'relative';
+                          }}
+                          onMouseOut={(e) => { 
+                            e.currentTarget.style.transform = 'scale(1) translateY(0)'; 
+                            e.currentTarget.style.boxShadow = pct >= 95 ? '0 4px 6px rgba(16, 185, 129, 0.2)' : pct >= 85 ? '0 4px 6px rgba(245, 158, 11, 0.2)' : '0 4px 6px rgba(239, 68, 68, 0.2)';
+                            e.currentTarget.style.zIndex = '1';
+                          }}
+                          >
+                            {pct}
+                          </div>
+                        </div>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 

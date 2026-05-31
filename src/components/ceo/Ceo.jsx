@@ -31,7 +31,7 @@ export default function Ceo({ activeTab }) {
   };
 
   return (
-    <div className="ceo-module-container" style={{ padding: 0 }}>
+    <div className="ceo-module-container">
       {renderContent()}
     </div>
   );
