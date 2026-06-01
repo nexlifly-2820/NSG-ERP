@@ -19,41 +19,9 @@ const monthsList = [
 const currentYearVal = new Date().getFullYear();
 const yearsList = Array.from({ length: currentYearVal - 2024 + 1 }, (_, i) => 2024 + i);
 
-const employeesBase = [
-  { id: 'AC', name: 'Alice Chen', defaultIn: '09:00', defaultOut: '18:00' },
-  { id: 'BS', name: 'Bob Smith', defaultIn: '09:15', defaultOut: '18:15' },
-  { id: 'CD', name: 'Charlie Davis', defaultIn: '09:00', defaultOut: '18:00' },
-  { id: 'DP', name: 'Diana Prince', defaultIn: '09:30', defaultOut: '18:30' },
-  { id: 'EW', name: 'Evan Wright', defaultIn: '09:00', defaultOut: '18:00' },
-  { id: 'FG', name: 'Fiona Gallagher', defaultIn: '09:00', defaultOut: '18:00' },
-  { id: 'GH', name: 'George Hale', defaultIn: '08:45', defaultOut: '17:45' },
-  { id: 'HL', name: 'Hannah Lee', defaultIn: '09:00', defaultOut: '18:00' },
-  { id: 'IG', name: 'Ivy Green', defaultIn: '09:00', defaultOut: '18:00' },
-  { id: 'JW', name: 'Jack White', defaultIn: '09:00', defaultOut: '18:00' },
-  { id: 'KT', name: 'Kevin Taylor', defaultIn: '09:00', defaultOut: '18:00' },
-  { id: 'MC', name: 'Michael Chang', defaultIn: '09:15', defaultOut: '18:30' }
-];
+const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
 
-const lateArrivalsData = [
-  { id: 1, name: 'Michael Chang', date: 'May 1', scheduled: '09:00 AM', actual: '09:15 AM', minutes: '15 MINS', cumulative: '3 times', highlight: false },
-  { id: 2, name: 'Bob Smith', date: 'May 2', scheduled: '09:00 AM', actual: '09:45 AM', minutes: '45 MINS', cumulative: '1 time', highlight: true },
-  { id: 3, name: 'Fiona Gallagher', date: 'May 5', scheduled: '09:00 AM', actual: '09:35 AM', minutes: '35 MINS', cumulative: '5 times', highlight: true },
-  { id: 4, name: 'George Hale', date: 'May 12', scheduled: '09:00 AM', actual: '09:20 AM', minutes: '20 MINS', cumulative: '2 times', highlight: false },
-  { id: 5, name: 'Alice Chen', date: 'May 18', scheduled: '09:00 AM', actual: '09:10 AM', minutes: '10 MINS', cumulative: '1 time', highlight: false },
-  { id: 6, name: 'Hannah Lee', date: 'May 22', scheduled: '09:00 AM', actual: '10:00 AM', minutes: '60 MINS', cumulative: '2 times', highlight: true }
-];
-
-const missedPunchesData = [
-  { id: 1, name: 'Charlie Davis', date: 'May 4', type: 'CLOCK OUT' },
-  { id: 2, name: 'Diana Prince', date: 'May 5', type: 'CLOCK IN' },
-  { id: 3, name: 'Evan Wright', date: 'May 8', type: 'CLOCK OUT' },
-  { id: 4, name: 'Ivy Green', date: 'May 10', type: 'CLOCK IN' },
-  { id: 5, name: 'Jack White', date: 'May 15', type: 'CLOCK OUT' }
-];
-
-const TeamAttendance = ({ onBack }) => {
-
-  const [selectedMonth, setSelectedMonth] = useState(4); // May (0-indexed)
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth()); // current month
   const [selectedYear, setSelectedYear] = useState(2026);
   const [showAllTeam, setShowAllTeam] = useState(false);
   const [showAllLate, setShowAllLate] = useState(false);
@@ -63,6 +31,7 @@ const TeamAttendance = ({ onBack }) => {
   const [notifyModal, setNotifyModal] = useState({
     isOpen: false,
     alertId: null,
+    employeeId: null,
     employeeName: '',
     date: '',
     type: '',
@@ -94,40 +63,171 @@ const TeamAttendance = ({ onBack }) => {
   }, [selectedMonth, selectedYear]);
 
   const teamGridData = useMemo(() => {
-    return employeesBase.map(emp => {
-      const rec = { id: emp.id, name: emp.name };
+    const emps = db?.employees || [];
+    return emps.map(emp => {
+      const rec = { id: emp.emp_id || `NSG-${emp.id}`, dbId: emp.id, name: emp.name };
       daysInMonth.forEach(day => {
         const isWeekend = day.dayStr === 'sat' || day.dayStr === 'sun';
-        let status = isWeekend ? 'Off' : 'Present';
-        let timeIn = emp.defaultIn;
-        let timeOut = emp.defaultOut;
         
-        // Add some random absences/leaves for realism
-        if (!isWeekend && emp.id === 'EW' && day.dateNum === 25) { status = 'Absent'; timeIn = '-'; timeOut = '-'; }
-        if (!isWeekend && emp.id === 'DP' && day.dateNum === 27) { status = 'Leave'; timeIn = '-'; timeOut = '-'; }
-        if (!isWeekend && emp.id === 'BS' && day.dateNum === 27) { status = 'WFH'; }
-        if (!isWeekend && emp.id === 'GH' && day.dateNum === 28) { status = 'WFH'; }
-
-        if (isWeekend) { timeIn = '-'; timeOut = '-'; }
+        // Lookup standard date string like "2026-05-27"
+        const year = selectedYear;
+        const monthStr = String(selectedMonth + 1).padStart(2, '0');
+        const dateStr = String(day.dateNum).padStart(2, '0');
+        const lookupDate = `${year}-${monthStr}-${dateStr}`;
+        
+        // Find log
+        const log = (db?.attendanceLogs || []).find(l => l.employee_id === emp.id && l.date === lookupDate);
+        
+        let status = isWeekend ? 'Off' : 'Present';
+        let timeIn = '09:00';
+        let timeOut = '18:00';
+        
+        if (log) {
+          if (log.work_mode === 'wfh') {
+            status = 'WFH';
+            timeIn = log.clock_in ? new Date(log.clock_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : '09:00';
+            timeOut = log.clock_out ? new Date(log.clock_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : '18:00';
+          } else if (log.exception_flag === 'absent') {
+            status = 'Absent';
+            timeIn = '-';
+            timeOut = '-';
+          } else {
+            status = log.is_late ? 'Late' : 'Present';
+            timeIn = log.clock_in ? new Date(log.clock_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : '-';
+            timeOut = log.clock_out ? new Date(log.clock_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : '-';
+          }
+        } else {
+          // If no log seeded, default to absent on weekdays and Off on weekends
+          if (isWeekend) {
+            status = 'Off';
+            timeIn = '-';
+            timeOut = '-';
+          } else {
+            // Seeding default present times for dates past the current date to keep the mock grid fully populated
+            const todayKey = new Date().toISOString().slice(0, 10);
+            if (lookupDate > todayKey) {
+              status = 'Present';
+              timeIn = '09:00';
+              timeOut = '18:00';
+            } else {
+              status = 'Absent';
+              timeIn = '-';
+              timeOut = '-';
+            }
+          }
+        }
 
         rec[day.dateNum] = { status, in: timeIn, out: timeOut };
       });
       return rec;
     });
-  }, [daysInMonth]);
+  }, [db, daysInMonth, selectedMonth, selectedYear]);
+
+  const lateArrivalsData = useMemo(() => {
+    const lates = [];
+    const logs = db?.attendanceLogs || [];
+    logs.forEach(l => {
+      if (l.is_late) {
+        const emp = (db?.employees || []).find(e => e.id === l.employee_id);
+        if (emp) {
+          const logDate = new Date(l.date);
+          const monthName = logDate.toLocaleDateString('en-US', { month: 'short' });
+          const dayNum = logDate.getDate();
+          
+          const actualTime = l.clock_in ? new Date(l.clock_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
+          
+          lates.push({
+            id: l.id,
+            name: emp.name,
+            date: `${monthName} ${dayNum}`,
+            scheduled: '09:00 AM',
+            actual: actualTime,
+            minutes: 'Late Arrival',
+            cumulative: 'Flagged late',
+            highlight: true
+          });
+        }
+      }
+    });
+    return lates;
+  }, [db]);
+
+  const missedPunchesData = useMemo(() => {
+    const alerts = [];
+    
+    // 1. Scan attendance logs for missed punches
+    const logs = db?.attendanceLogs || [];
+    logs.forEach(l => {
+      if (l.clock_in && !l.clock_out) {
+        const emp = (db?.employees || []).find(e => e.id === l.employee_id);
+        if (emp) {
+          const logDate = new Date(l.date);
+          const monthName = logDate.toLocaleDateString('en-US', { month: 'short' });
+          const dayNum = logDate.getDate();
+          
+          alerts.push({
+            id: `log-${l.id}`,
+            employee_id: emp.id,
+            name: emp.name,
+            date: `${monthName} ${dayNum}`,
+            type: 'CLOCK OUT'
+          });
+        }
+      }
+    });
+    
+    // 2. Scan pending corrections
+    const corrections = db?.attendanceCorrections || [];
+    corrections.forEach(c => {
+      const emp = (db?.employees || []).find(e => e.id === c.employee_id);
+      if (emp) {
+        const logDate = new Date(c.correction_date);
+        const monthName = logDate.toLocaleDateString('en-US', { month: 'short' });
+        const dayNum = logDate.getDate();
+        
+        alerts.push({
+          id: `corr-${c.id}`,
+          employee_id: emp.id,
+          name: emp.name,
+          date: `${monthName} ${dayNum}`,
+          type: 'REGULARIZATION'
+        });
+      }
+    });
+    
+    return alerts;
+  }, [db]);
 
   const openNotifyModal = (alert) => {
     setNotifyModal({
       isOpen: true,
       alertId: alert.id,
+      employeeId: alert.employee_id,
       employeeName: alert.name,
       date: alert.date,
       type: alert.type,
-      message: `Hi ${alert.name}, we noticed a missing ${alert.type} on ${alert.date}. Please update/regularize your attendance in the portal.`
+      message: `Hi ${alert.name}, we noticed a missing or late punch (${alert.type}) on ${alert.date}. Please update/regularize your attendance in the portal.`
     });
   };
 
   const handleSendNotification = () => {
+    // Append notification targeted at the employee to the database!
+    const newNotification = {
+      id: +new Date(),
+      employee_id: notifyModal.employeeId || 102,
+      message: notifyModal.message,
+      timestamp: new Date().toISOString(),
+      type: 'warning',
+      read: false
+    };
+
+    if (db && onUpdateDb) {
+      onUpdateDb({
+        ...db,
+        notifications: [...(db.notifications || []), newNotification]
+      });
+    }
+
     const newSet = new Set(notifiedIds);
     newSet.add(notifyModal.alertId);
     setNotifiedIds(newSet);
@@ -140,6 +240,7 @@ const TeamAttendance = ({ onBack }) => {
     setNotifyModal({
       isOpen: false,
       alertId: null,
+      employeeId: null,
       employeeName: '',
       date: '',
       type: '',
@@ -151,6 +252,7 @@ const TeamAttendance = ({ onBack }) => {
     setNotifyModal({
       isOpen: false,
       alertId: null,
+      employeeId: null,
       employeeName: '',
       date: '',
       type: '',

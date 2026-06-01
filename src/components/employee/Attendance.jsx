@@ -268,15 +268,45 @@ function TodayStatusCard({ clockState, clockInTime, clockOutTime, elapsed }) {
 
 const ROWS_PER_PAGE = 7;
 
-function AttendanceLogTable() {
+function getFormattedLogs(db) {
+  const logs = (db?.attendanceLogs || []).filter(l => l.employee_id === 102);
+  return logs.map(l => {
+    const d = new Date(l.date);
+    const inTimeStr = l.clock_in ? new Date(l.clock_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : null;
+    const outTimeStr = l.clock_out ? new Date(l.clock_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : null;
+    
+    let hoursStr = '—';
+    if (l.clock_in && l.clock_out) {
+      const diffMs = new Date(l.clock_out) - new Date(l.clock_in);
+      const diffH = Math.floor(diffMs / 3600000);
+      const diffM = Math.floor((diffMs % 3600000) / 60000);
+      hoursStr = `${diffH}h ${diffM}m`;
+    }
+    
+    let status = 'present';
+    if (l.work_mode === 'wfh') status = 'wfh';
+    else if (l.is_late) status = 'late';
+    else if (l.exception_flag === 'absent') status = 'absent';
+    
+    return {
+      date: d,
+      status: status,
+      inTime: inTimeStr,
+      outTime: outTimeStr,
+      hours: hoursStr
+    };
+  }).reverse(); // Latest logs first
+}
+
+function AttendanceLogTable({ db }) {
   const [monthOffset, setMonthOffset] = useState(0);
   const [page, setPage] = useState(1);
-  const logData = generateMockLog();
+  const logData = getFormattedLogs(db);
 
   const currentDate = new Date();
   const displayDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - monthOffset, 1);
 
-  const totalPages = Math.ceil(logData.length / ROWS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(logData.length / ROWS_PER_PAGE));
   const pageData   = logData.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
 
   // Reset to page 1 when month changes
@@ -316,7 +346,7 @@ function AttendanceLogTable() {
         </thead>
         <tbody>
           {pageData.map((row, i) => {
-            const isToday = row.status === 'today';
+            const isToday = row.date.toDateString() === new Date().toDateString();
             const cfg = STATUS_CONFIG[row.status] || STATUS_CONFIG.present;
             return (
               <tr key={i}>
@@ -335,6 +365,11 @@ function AttendanceLogTable() {
               </tr>
             );
           })}
+          {pageData.length === 0 && (
+            <tr>
+              <td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px' }}>No logs recorded for this month.</td>
+            </tr>
+          )}
         </tbody>
       </table>
 
@@ -372,7 +407,7 @@ function AttendanceLogTable() {
       </div>
 
       <p className="att-pagination__info">
-        Showing {(page - 1) * ROWS_PER_PAGE + 1}–{Math.min(page * ROWS_PER_PAGE, logData.length)} of {logData.length} records
+        Showing {logData.length === 0 ? 0 : (page - 1) * ROWS_PER_PAGE + 1}–{Math.min(page * ROWS_PER_PAGE, logData.length)} of {logData.length} records
       </p>
     </div>
   );
@@ -382,7 +417,7 @@ function AttendanceLogTable() {
 //  WFH REQUEST FORM
 // ════════════════════════════════════════════════════════
 
-function WfhRequestForm() {
+function WfhRequestForm({ db, onUpdateDb }) {
   const [form, setForm]       = useState({ wfh_date: '', wfh_reason: '' });
   const [errors, setErrors]   = useState({});
   const [gps, setGps]         = useState('idle');   // idle | searching | captured | failed
@@ -412,10 +447,29 @@ function WfhRequestForm() {
     const e = validate();
     if (Object.keys(e).length) { setErrors(e); return; }
     setLoading(true);
-    // Simulate API
+    
     setTimeout(() => {
       setLoading(false);
       setToast({ type: 'success', msg: 'WFH request submitted successfully!' });
+
+      const newLog = {
+        id: +new Date(),
+        employee_id: 102, // Jane Smith
+        date: form.wfh_date,
+        clock_in: `${form.wfh_date}T09:00:00Z`,
+        clock_out: `${form.wfh_date}T18:00:00Z`,
+        work_mode: 'wfh',
+        is_late: false,
+        exception_flag: 'none'
+      };
+
+      if (db && onUpdateDb) {
+        onUpdateDb({
+          ...db,
+          attendanceLogs: [...(db.attendanceLogs || []), newLog]
+        });
+      }
+
       setForm({ wfh_date: '', wfh_reason: '' });
       setGps('idle'); setGpsCoords(null);
       setTimeout(() => setToast(null), 4000);
@@ -496,7 +550,7 @@ function WfhRequestForm() {
 //  MISSED PUNCH CORRECTION FORM
 // ════════════════════════════════════════════════════════
 
-function CorrectionForm() {
+function CorrectionForm({ db, onUpdateDb }) {
   const [form, setForm]       = useState({
     correction_date: '',
     missed_type:     'clock-in',
@@ -532,120 +586,40 @@ function CorrectionForm() {
     const e = validate();
     if (Object.keys(e).length) { setErrors(e); return; }
     setLoading(true);
+    
     setTimeout(() => {
       setLoading(false);
       setToast({ type: 'success', msg: 'Correction request submitted for approval.' });
+
+      // Create new regularization request in db.attendanceCorrections
+      const newCorrection = {
+        id: +new Date(),
+        employee_id: 102, // Jane Smith
+        correction_date: form.correction_date,
+        requested_clock_in: `${form.correction_date}T${form.requested_time}:00Z`,
+        requested_clock_out: `${form.correction_date}T18:00:00Z`, // default clock-out
+        reason: form.reason
+      };
+
+      if (db && onUpdateDb) {
+        onUpdateDb({
+          ...db,
+          attendanceCorrections: [...(db.attendanceCorrections || []), newCorrection]
+        });
+      }
+
       setForm({ correction_date: '', missed_type: 'clock-in', requested_time: '', reason: '' });
       setPhotoFile(null); setPhotoPreview(null);
       setTimeout(() => setToast(null), 4000);
     }, 1200);
   }
-
-  const today = new Date().toISOString().slice(0, 10);
-
-  return (
-    <div className="att-card">
-      <SectionHeader icon={<AlertTriangle size={15} />} title="Missed Punch Correction" accent="#fbbf24" />
-
-      <div className="att-form-field">
-        <label className="att-form-label">Date</label>
-        <input
-          type="date"
-          className="att-form-input"
-          max={today}
-          value={form.correction_date}
-          onChange={e => { setForm(f => ({ ...f, correction_date: e.target.value })); setErrors(v => ({ ...v, correction_date: '' })); }}
-        />
-        {errors.correction_date && <span className="att-form-error">{errors.correction_date}</span>}
-      </div>
-
-      <div className="att-form-field">
-        <label className="att-form-label">Missed Type</label>
-        <div className="att-radio-group">
-          {['clock-in', 'clock-out'].map(opt => (
-            <label
-              key={opt}
-              className={`att-radio-option ${form.missed_type === opt ? 'att-radio-option--selected' : ''}`}
-              onClick={() => setForm(f => ({ ...f, missed_type: opt }))}
-            >
-              <input type="radio" name="missed_type" value={opt} readOnly checked={form.missed_type === opt} />
-              {opt === 'clock-in' ? <Clock size={13} /> : <LogOut size={13} />}
-              {opt === 'clock-in' ? 'Clock-In' : 'Clock-Out'}
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <div className="att-form-field">
-        <label className="att-form-label">Requested Time</label>
-        <input
-          type="time"
-          className="att-form-input"
-          placeholder="09:05"
-          value={form.requested_time}
-          onChange={e => { setForm(f => ({ ...f, requested_time: e.target.value })); setErrors(v => ({ ...v, requested_time: '' })); }}
-        />
-        {errors.requested_time && <span className="att-form-error">{errors.requested_time}</span>}
-      </div>
-
-      <div className="att-form-field">
-        <label className="att-form-label">Reason</label>
-        <textarea
-          className="att-form-textarea"
-          placeholder="Biometric device malfunction..."
-          value={form.reason}
-          onChange={e => { setForm(f => ({ ...f, reason: e.target.value })); setErrors(v => ({ ...v, reason: '' })); }}
-        />
-        {errors.reason && <span className="att-form-error">{errors.reason}</span>}
-      </div>
-
-      <div className="att-form-field">
-        <label className="att-form-label">Photo Evidence (Optional)</label>
-        <div className="att-photo-upload">
-          <div className="att-photo-upload__btn" onClick={() => fileRef.current?.click()}>
-            <Camera size={13} />
-            {photoFile ? 'Change Photo' : 'Upload / Capture'}
-          </div>
-          <span className="att-photo-upload__name">
-            {photoFile ? photoFile.name : 'No file chosen'}
-          </span>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handlePhoto}
-          />
-        </div>
-        {photoPreview && (
-          <img src={photoPreview} alt="Preview" className="att-photo-preview" />
-        )}
-      </div>
-
-      <button
-        className="att-submit-btn"
-        onClick={handleSubmit}
-        disabled={loading}
-      >
-        {loading ? <Loader size={14} className="att-spin" /> : <Send size={14} />}
-        {loading ? 'Submitting…' : 'Submit Correction Request'}
-      </button>
-
-      {toast && (
-        <div className={`att-toast att-toast--${toast.type}`}>
-          <CheckCircle2 size={14} />
-          {toast.msg}
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ════════════════════════════════════════════════════════
 //  ROOT — EmpAttendancePage
 // ════════════════════════════════════════════════════════
 
-export default function Attendance({ activeTab }) {
+export default function Attendance({ db, onUpdateDb }) {
   // Clock state: idle | searching | clocked-in | already
   const [clockState, setClockState] = useState('idle');
   const [gpsStatus,  setGpsStatus]  = useState('idle'); // idle | searching | ok | denied | error
@@ -667,39 +641,90 @@ export default function Attendance({ activeTab }) {
     return () => clearInterval(t);
   }, [clockState, clockInTime]);
 
+  // Sync state from global db
+  useEffect(() => {
+    if (!db) return;
+    const today = todayKey();
+    const todayLog = (db.attendanceLogs || []).find(l => l.employee_id === 102 && l.date === today);
+    
+    if (todayLog) {
+      if (todayLog.clock_in && todayLog.clock_out) {
+        setClockState('already');
+        setClockInTime(new Date(todayLog.clock_in));
+        setClockOutTime(new Date(todayLog.clock_out));
+      } else if (todayLog.clock_in) {
+        setClockState('clocked-in');
+        setClockInTime(new Date(todayLog.clock_in));
+        setClockOutTime(null);
+      }
+    } else {
+      setClockState('idle');
+      setClockInTime(null);
+      setClockOutTime(null);
+    }
+  }, [db]);
+
+  function saveClockIn(workMode) {
+    const now = new Date();
+    const newLog = {
+      id: +now,
+      employee_id: 102, // Jane Smith
+      date: todayKey(),
+      clock_in: now.toISOString(),
+      clock_out: null,
+      work_mode: workMode,
+      is_late: now.getHours() >= 9 && now.getMinutes() > 30,
+      exception_flag: 'none'
+    };
+    
+    if (db && onUpdateDb) {
+      onUpdateDb({
+        ...db,
+        attendanceLogs: [...(db.attendanceLogs || []), newLog]
+      });
+    }
+  }
+
   function handleClockIn() {
     setClockState('searching');
     setGpsStatus('searching');
     navigator.geolocation?.getCurrentPosition(
       () => {
         setGpsStatus('ok');
-        const now = new Date();
-        setClockInTime(now);
-        setClockState('clocked-in');
-        setElapsed(0);
+        saveClockIn('office');
       },
       () => {
         setGpsStatus('denied');
-        const now = new Date();
-        setClockInTime(now);
-        setClockState('clocked-in');
-        setElapsed(0);
+        saveClockIn('wfh');
       },
       { timeout: 10_000, enableHighAccuracy: true }
     );
     if (!navigator.geolocation) {
       setGpsStatus('ok');
-      const now = new Date();
-      setClockInTime(now);
-      setClockState('clocked-in');
-      setElapsed(0);
+      saveClockIn('office');
     }
   }
 
   function handleClockOut() {
-    setClockOutTime(new Date());
-    setClockState('already');
-    setGpsStatus('idle');
+    const now = new Date();
+    const today = todayKey();
+    
+    if (db && onUpdateDb) {
+      const updatedLogs = (db.attendanceLogs || []).map(l => {
+        if (l.employee_id === 102 && l.date === today) {
+          return {
+            ...l,
+            clock_out: now.toISOString()
+          };
+        }
+        return l;
+      });
+      
+      onUpdateDb({
+        ...db,
+        attendanceLogs: updatedLogs
+      });
+    }
   }
 
   return (
@@ -732,9 +757,9 @@ export default function Attendance({ activeTab }) {
 
         {/* Row 2: Log table | WFH form | Correction form */}
         <div className="att-bottom-grid">
-          <AttendanceLogTable />
-          <WfhRequestForm />
-          <CorrectionForm />
+          <AttendanceLogTable db={db} />
+          <WfhRequestForm db={db} onUpdateDb={onUpdateDb} />
+          <CorrectionForm db={db} onUpdateDb={onUpdateDb} />
         </div>
       </div>
     </div>

@@ -46,11 +46,19 @@ const INITIAL_RESIGNATIONS = [
   }
 ];
 
-export default function Hr({ activeTab, queryParams, setQueryParams }) {
-  const [db, setDb] = useState(null);
+export default function Hr({ activeTab, queryParams, setQueryParams, db: passedDb, onUpdateDb: passedOnUpdateDb }) {
+  const [localDb, setLocalDb] = useState(null);
+
+  const isGlobal = !!passedDb;
+  const db = isGlobal ? passedDb : localDb;
+  const updateDb = isGlobal ? passedOnUpdateDb : (newDb) => {
+    localStorage.setItem('nsg_hr_db', JSON.stringify(newDb));
+    setLocalDb(newDb);
+  };
 
   // Initialize DB from LocalStorage or seed defaults
   useEffect(() => {
+    if (isGlobal) return;
     const localData = localStorage.getItem('nsg_hr_db');
     if (localData) {
       try {
@@ -58,7 +66,7 @@ export default function Hr({ activeTab, queryParams, setQueryParams }) {
         // Fallback for custom fields in case they aren't seeded in an older storage version
         if (!parsed.attendanceCorrections) parsed.attendanceCorrections = INITIAL_ATTENDANCE_CORRECTIONS;
         if (!parsed.resignations) parsed.resignations = INITIAL_RESIGNATIONS;
-        setDb(parsed);
+        setLocalDb(parsed);
       } catch (e) {
         console.error("Failed to parse simulated HR DB from localStorage. Restoring seeds.", e);
         initializeSeed();
@@ -66,7 +74,7 @@ export default function Hr({ activeTab, queryParams, setQueryParams }) {
     } else {
       initializeSeed();
     }
-  }, []);
+  }, [isGlobal]);
 
   const initializeSeed = () => {
     const seed = {
@@ -92,14 +100,7 @@ export default function Hr({ activeTab, queryParams, setQueryParams }) {
       resignations: INITIAL_RESIGNATIONS
     };
     localStorage.setItem('nsg_hr_db', JSON.stringify(seed));
-    setDb(seed);
-  };
-
-  const updateDb = (newDb) => {
-    // Save to localStorage for persistence
-    localStorage.setItem('nsg_hr_db', JSON.stringify(newDb));
-    // Trigger React render
-    setDb(newDb);
+    setLocalDb(seed);
   };
 
   if (!db) {

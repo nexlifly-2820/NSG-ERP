@@ -7,7 +7,96 @@ import Tl from './components/tl/Tl';
 import Employee from './components/employee/Employee';
 import './index.css';
 
+// Seed defaults from HR package to establish unified global DB state
+import {
+  INITIAL_CANDIDATES, INITIAL_EMPLOYEES, INITIAL_JOB_HISTORY,
+  INITIAL_DISCIPLINARY_TICKETS, INITIAL_PIPS, INITIAL_ATTENDANCE_LOGS,
+  INITIAL_TIMESHEET_EXCEPTIONS, INITIAL_LEAVE_BALANCES, INITIAL_LEAVE_REQUESTS,
+  INITIAL_PAYROLL_RUNS, INITIAL_PAYSLIPS, INITIAL_LOANS,
+  INITIAL_EXPENSE_CLAIMS, INITIAL_TDS_DECLARATIONS, INITIAL_TRAINING_TRACKS,
+  INITIAL_TRAINING_PROGRESS, INITIAL_CHAT_ROOMS, INITIAL_AUDIT_LOGS
+} from './components/hr/mockData';
+
+const INITIAL_ATTENDANCE_CORRECTIONS = [
+  { 
+    id: 1, 
+    employee_id: 102, 
+    correction_date: '2026-05-27', 
+    requested_clock_in: '2026-05-27T09:00:00Z', 
+    requested_clock_out: '2026-05-27T18:00:00Z', 
+    reason: 'Forgot to swipe out due to client meeting.' 
+  }
+];
+
+const INITIAL_RESIGNATIONS = [
+  { 
+    id: 1, 
+    employee_id: 103, 
+    resignation_date: '2026-05-20', 
+    LWD: '2026-06-20', 
+    status: 'pending', 
+    reason: 'Pursuing higher studies.' 
+  }
+];
+
 export default function App() {
+  const loadDbSync = () => {
+    const localData = localStorage.getItem('nsg_hr_db');
+    if (localData) {
+      try {
+        const parsed = JSON.parse(localData);
+        if (!parsed.attendanceCorrections) parsed.attendanceCorrections = [];
+        if (!parsed.resignations) parsed.resignations = INITIAL_RESIGNATIONS;
+        
+        // Remove pre-seeded mock logs & corrections for active testing employee ID 102
+        // This ensures a completely blank sheet so only your live actions show up!
+        parsed.attendanceLogs = (parsed.attendanceLogs || []).filter(l => l.employee_id !== 102);
+        parsed.attendanceCorrections = (parsed.attendanceCorrections || []).filter(c => c.employee_id !== 102);
+        
+        localStorage.setItem('nsg_hr_db', JSON.stringify(parsed));
+        return parsed;
+      } catch (e) {
+        return seedDbSync();
+      }
+    } else {
+      return seedDbSync();
+    }
+  };
+
+  const seedDbSync = () => {
+    const seed = {
+      candidates: INITIAL_CANDIDATES,
+      employees: INITIAL_EMPLOYEES,
+      jobHistory: INITIAL_JOB_HISTORY,
+      disciplinaryTickets: INITIAL_DISCIPLINARY_TICKETS,
+      pips: INITIAL_PIPS,
+      attendanceLogs: INITIAL_ATTENDANCE_LOGS.filter(l => l.employee_id !== 102),
+      timesheetExceptions: INITIAL_TIMESHEET_EXCEPTIONS,
+      leaveBalances: INITIAL_LEAVE_BALANCES,
+      leaveRequests: INITIAL_LEAVE_REQUESTS,
+      payrollRuns: INITIAL_PAYROLL_RUNS,
+      payslips: INITIAL_PAYSLIPS,
+      loans: INITIAL_LOANS,
+      expenseClaims: INITIAL_EXPENSE_CLAIMS,
+      tdsDeclarations: INITIAL_TDS_DECLARATIONS,
+      trainingTracks: INITIAL_TRAINING_TRACKS,
+      trainingProgress: INITIAL_TRAINING_PROGRESS,
+      chatRooms: INITIAL_CHAT_ROOMS,
+      auditLogs: INITIAL_AUDIT_LOGS,
+      attendanceCorrections: [],
+      resignations: INITIAL_RESIGNATIONS
+    };
+    localStorage.setItem('nsg_hr_db', JSON.stringify(seed));
+    return seed;
+  };
+
+  const [db, setDb] = useState(() => loadDbSync());
+
+  const updateDb = (newDb) => {
+    localStorage.setItem('nsg_hr_db', JSON.stringify(newDb));
+    setDb(newDb);
+  };
+
   // Hash Parser helper
   const parseHash = () => {
     const hash = window.location.hash || '#/CEO/dashboard';
@@ -54,6 +143,8 @@ export default function App() {
     const props = {
       activeTab: route.tab,
       queryParams: route.queryParams,
+      db: db,
+      onUpdateDb: updateDb,
       setQueryParams: (paramsObj) => {
         // Merge with current query parameters
         const currentParams = {};
@@ -78,9 +169,6 @@ export default function App() {
     }
   };
 
-  // Read live HR db for notification computation
-  const hrDbRaw = (() => { try { return JSON.parse(localStorage.getItem('nsg_hr_db') || '{}'); } catch { return {}; } })();
-
   return (
     <div className="app-container">
       {/* Sidebar Panel */}
@@ -97,7 +185,7 @@ export default function App() {
           activeRole={route.role} 
           setActiveRole={(role) => navigateTo(role, 'dashboard')} 
           navigateTo={navigateTo}
-          hrDb={hrDbRaw}
+          hrDb={db}
         />
 
         {/* Dynamic Inner Layout Body */}

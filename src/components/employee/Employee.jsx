@@ -10,9 +10,9 @@ import Tasks from './Tasks';
 import Leave from './Leave';
 import Payroll from './Payroll';
 
-export default function Employee({ activeTab }) {
+export default function Employee({ activeTab, db, onUpdateDb }) {
   if (activeTab === 'attendance') {
-    return <Attendance />;
+    return <Attendance db={db} onUpdateDb={onUpdateDb} />;
   }
 
   if (activeTab === 'timesheet') {
