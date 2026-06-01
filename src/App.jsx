@@ -78,6 +78,9 @@ export default function App() {
     }
   };
 
+  // Read live HR db for notification computation
+  const hrDbRaw = (() => { try { return JSON.parse(localStorage.getItem('nsg_hr_db') || '{}'); } catch { return {}; } })();
+
   return (
     <div className="app-container">
       {/* Sidebar Panel */}
@@ -93,6 +96,8 @@ export default function App() {
         <Navbar 
           activeRole={route.role} 
           setActiveRole={(role) => navigateTo(role, 'dashboard')} 
+          navigateTo={navigateTo}
+          hrDb={hrDbRaw}
         />
 
         {/* Dynamic Inner Layout Body */}
