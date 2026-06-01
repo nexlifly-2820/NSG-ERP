@@ -25,9 +25,22 @@ const defaultDocs = [
   { id: 'degree', docType: 'Degree Certificate', status: 'missing', uploadedAt: null }
 ];
 
-export default function Profile() {
-  // --- States ---
-  const [personalDetails, setPersonalDetails] = useState(() => {
+export default function Profile({ db, onUpdateDb }) {
+  // The logged-in employee is always ID 102 (Jane Smith) in this portal
+  const EMPLOYEE_ID = 102;
+  const empRecord = db?.employees?.find(e => e.id === EMPLOYEE_ID) || null;
+
+  // --- Derive initial states from db.employees if available, else localStorage/defaults ---
+  const getInitialPersonal = () => {
+    if (empRecord) {
+      return {
+        dob: empRecord.dob || defaultDetails.dob,
+        gender: empRecord.gender || defaultDetails.gender,
+        address: empRecord.address || defaultDetails.address,
+        emergencyContactName: empRecord.emergencyContactName || defaultDetails.emergencyContactName,
+        emergencyContactPhone: empRecord.emergencyContactPhone || defaultDetails.emergencyContactPhone
+      };
+    }
     const saved = localStorage.getItem('nsg_employee_profile_details');
     if (saved) {
       try {
@@ -39,22 +52,41 @@ export default function Profile() {
           emergencyContactName: parsed.emergencyContactName || parsed.emergencyContact_name || 'Robert Jenkins',
           emergencyContactPhone: parsed.emergencyContactPhone || parsed.emergencyContact || '+91 98765 43210'
         };
-      } catch {
-        return defaultDetails;
-      }
+      } catch { return defaultDetails; }
     }
     return defaultDetails;
-  });
+  };
 
-  const [bankData, setBankData] = useState(() => {
+  const [personalDetails, setPersonalDetails] = useState(getInitialPersonal);
+
+  // Bank data: from db.employees bank fields
+  const getInitialBank = () => {
+    if (empRecord && empRecord.bank_name) {
+      return {
+        bankName: empRecord.bank_name,
+        holderName: empRecord.name || defaultBank.holderName,
+        accountNumber: empRecord.account_number || defaultBank.accountNumber,
+        ifscCode: empRecord.ifsc_code || defaultBank.ifscCode,
+        status: empRecord.bank_status || 'verified'
+      };
+    }
     const saved = localStorage.getItem('nsg_employee_profile_bank');
     return saved ? JSON.parse(saved) : defaultBank;
-  });
+  };
 
-  const [docs, setDocs] = useState(() => {
+  const [bankData, setBankData] = useState(getInitialBank);
+
+  // Docs: from db.documents if available, else localStorage/defaults
+  const getInitialDocs = () => {
+    if (db?.documents) {
+      const empDocs = db.documents.filter(d => d.employee_id === EMPLOYEE_ID);
+      if (empDocs.length > 0) return empDocs;
+    }
     const saved = localStorage.getItem('nsg_employee_profile_docs');
     return saved ? JSON.parse(saved) : defaultDocs;
-  });
+  };
+
+  const [docs, setDocs] = useState(getInitialDocs);
 
   const [avatar, setAvatar] = useState(() => {
     return localStorage.getItem('nsg_employee_profile_avatar') || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150';
@@ -162,24 +194,55 @@ export default function Profile() {
     }
 
     setDetailsErrors({});
-    setPersonalDetails({ 
-      dob, 
-      gender, 
-      address, 
-      emergencyContactName: emergencyContactName.trim(), 
-      emergencyContactPhone: emergencyContactPhone.trim() 
-    });
+    const updatedPersonal = {
+      dob,
+      gender,
+      address,
+      emergencyContactName: emergencyContactName.trim(),
+      emergencyContactPhone: emergencyContactPhone.trim()
+    };
+    setPersonalDetails(updatedPersonal);
+
+    // Write back to shared db.employees so HR portal sees the update
+    if (db && onUpdateDb) {
+      const updatedEmployees = (db.employees || []).map(e =>
+        e.id === EMPLOYEE_ID ? { ...e, ...updatedPersonal } : e
+      );
+      onUpdateDb({ ...db, employees: updatedEmployees });
+    } else {
+      // Fallback to localStorage if db not available
+      localStorage.setItem('nsg_employee_profile_details', JSON.stringify(updatedPersonal));
+    }
+
     setIsEditingDetails(false);
     showToast('Personal details updated successfully');
   };
 
   const handleUpdateBank = (updatedBank) => {
     setBankData(updatedBank);
+    // Write bank fields back to db.employees so HR Payroll uses the correct account
+    if (db && onUpdateDb) {
+      const updatedEmployees = (db.employees || []).map(e =>
+        e.id === EMPLOYEE_ID
+          ? { ...e, bank_name: updatedBank.bankName, account_number: updatedBank.accountNumber, ifsc_code: updatedBank.ifscCode, bank_status: 'pending' }
+          : e
+      );
+      onUpdateDb({ ...db, employees: updatedEmployees });
+    } else {
+      localStorage.setItem('nsg_employee_profile_bank', JSON.stringify(updatedBank));
+    }
     showToast('Bank details submitted for verification');
   };
 
   const handleSimulateBankVerify = (status) => {
-    setBankData({ ...bankData, status });
+    const updated = { ...bankData, status };
+    setBankData(updated);
+    if (db && onUpdateDb) {
+      const updatedEmployees = (db.employees || []).map(e =>
+        e.id === EMPLOYEE_ID ? { ...e, bank_status: status } : e
+      );
+      onUpdateDb({ ...db, employees: updatedEmployees });
+    }
     showToast(`Bank account status: ${status}`);
   };
 
@@ -254,10 +317,17 @@ export default function Profile() {
   // --- Sub-renderers to keep code clean and modular ---
 
   const renderPhotoSection = () => {
+    // Live data from db.employees — falls back to hardcoded if db not available
+    const liveName = empRecord?.name || 'Jane Smith';
+    const liveEmpId = empRecord?.emp_id || 'NSG-0102';
+    const liveEmail = empRecord?.email || 'jane.smith@nsgtech.com';
+    const liveDept = empRecord?.department || 'IT';
+    const liveDesignation = empRecord?.designation || 'Systems Executive';
+
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '16px', position: 'relative' }}>
         <span className="badge-pill" style={{ position: 'absolute', top: '0', right: '0', backgroundColor: 'rgba(16, 185, 129, 0.08)', color: 'var(--accent-green)', fontWeight: 'bold', fontSize: '11px' }}>
-          Product Engineering
+          {liveDept}
         </span>
 
         <label className="avatar-uploader-wrapper">
@@ -274,18 +344,19 @@ export default function Profile() {
         </label>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <h2 className="emp-name-text">Sarah Jenkins</h2>
-          <span className="emp-id-text">EMP-0842</span>
+          <h2 className="emp-name-text">{liveName}</h2>
+          <span className="emp-id-text">{liveEmpId}</span>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>{liveDesignation}</span>
         </div>
 
         <div style={{ width: '100%', borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '4px', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Mail size={14} style={{ color: 'var(--text-muted)' }} />
-            <span>sarah.jenkins@nsg-erp.com</span>
+            <span>{liveEmail}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Home size={14} style={{ color: 'var(--text-muted)' }} />
-            <span>Bangalore Development Centre</span>
+            <span>{liveDept} — {empRecord?.status === 'active' ? 'Active Employee' : empRecord?.status || 'Active Employee'}</span>
           </div>
         </div>
       </div>

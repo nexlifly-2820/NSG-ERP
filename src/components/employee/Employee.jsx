@@ -36,7 +36,7 @@ export default function Employee({ activeTab, db, onUpdateDb }) {
   }
 
   if (activeTab === 'profile') {
-    return <Profile />;
+    return <Profile db={db} onUpdateDb={onUpdateDb} />;
   }
 
   if (activeTab === 'resignation') {
