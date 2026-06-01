@@ -1493,3 +1493,22 @@ div[style*="position: fixed"][style*="background-color: rgba(0,0,0,0.5)"] {
   background-color: var(--border-color) !important;
   color: var(--text-primary) !important;
 }
+
+/* Custom scrollbar rules for WebKit engines */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}

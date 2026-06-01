@@ -1,8 +1,8 @@
 import React from 'react';
 import { 
-  LayoutDashboard, Briefcase, Users, FileCheck, History, AlertTriangle, 
+  LayoutDashboard, Briefcase, Users, FileCheck, 
   Clock, FileWarning, Calendar, CreditCard, TrendingUp, LogOut, 
-  GraduationCap, BarChart3, ShieldAlert, Sliders, MessageSquare 
+  GraduationCap, BarChart3, Sliders, MessageSquare 
 } from 'lucide-react';
 
 export default function HrSidebar({ activeTab, setActiveTab }) {
@@ -11,8 +11,6 @@ export default function HrSidebar({ activeTab, setActiveTab }) {
     { id: 'recruitment', label: 'Recruitment & ATS', icon: Briefcase },
     { id: 'employees', label: 'Employee Registry', icon: Users },
     { id: 'onboarding', label: 'Onboarding', icon: FileCheck },
-    { id: 'job-history', label: 'Job History', icon: History },
-    { id: 'disciplinary', label: 'Disciplinary & PIP', icon: AlertTriangle },
     { id: 'attendance', label: 'Attendance', icon: Clock },
     { id: 'timesheets', label: 'Timesheet Exceptions', icon: FileWarning },
     { id: 'leave', label: 'Leave Management', icon: Calendar },
@@ -21,7 +19,6 @@ export default function HrSidebar({ activeTab, setActiveTab }) {
     { id: 'exits', label: 'Exits & FnF', icon: LogOut },
     { id: 'lnd', label: 'Learning & L&D', icon: GraduationCap },
     { id: 'reports', label: 'Reports Engine', icon: BarChart3 },
-    { id: 'audit', label: 'Audit Logs', icon: ShieldAlert },
     { id: 'settings', label: 'Settings', icon: Sliders },
     { id: 'messaging', label: 'Messaging & Meet', icon: MessageSquare },
   ];

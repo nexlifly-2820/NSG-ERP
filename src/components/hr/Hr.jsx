@@ -8,25 +8,20 @@ import {
   INITIAL_TRAINING_PROGRESS, INITIAL_CHAT_ROOMS, INITIAL_AUDIT_LOGS
 } from './mockData';
 
-import {
-  HrDashboardView,
-  RecruitmentView,
-  EmployeeRegistryView,
-  OnboardingView,
-  JobHistoryView,
-  DisciplinaryPipView,
-  AttendanceRegisterView,
-  TimesheetExceptionsView,
-  LeaveManagementView,
-  PayrollBuilderView,
-  AppraisalsView,
-  ExitFnFView,
-  LearningLndView,
-  ReportsEngineView,
-  DepartmentAuditView,
-  HrSettingsView,
-  HrMessagingView
-} from './modules/HrModules';
+import { HrDashboardView } from './modules/dashboard/HrDashboardView';
+import { RecruitmentView } from './modules/recruitment/RecruitmentView';
+import { EmployeeRegistryView } from './modules/employees/EmployeeRegistryView';
+import { OnboardingView } from './modules/onboarding/OnboardingView';
+import { AttendanceRegisterView } from './modules/attendance/AttendanceRegisterView';
+import { TimesheetExceptionsView } from './modules/timesheets/TimesheetExceptionsView';
+import { LeaveManagementView } from './modules/leave/LeaveManagementView';
+import { PayrollBuilderView } from './modules/payroll/PayrollBuilderView';
+import { AppraisalsView } from './modules/appraisals/AppraisalsView';
+import { ExitFnFView } from './modules/exits/ExitFnFView';
+import { LearningLndView } from './modules/lnd/LearningLndView';
+import { ReportsEngineView } from './modules/reports/ReportsEngineView';
+import { HrSettingsView } from './modules/settings/HrSettingsView';
+import { HrMessagingView } from './modules/messaging/HrMessagingView';
 
 // Extended Seed Data not present in mockData.js to prevent undefined issues
 const INITIAL_ATTENDANCE_CORRECTIONS = [
@@ -51,7 +46,7 @@ const INITIAL_RESIGNATIONS = [
   }
 ];
 
-export default function Hr({ activeTab }) {
+export default function Hr({ activeTab, queryParams, setQueryParams }) {
   const [db, setDb] = useState(null);
 
   // Initialize DB from LocalStorage or seed defaults
@@ -120,43 +115,38 @@ export default function Hr({ activeTab }) {
 
   // Router for rendering the 17 custom-stylized HR modules
   const renderTabContent = () => {
+    const props = { db, onUpdateDb: updateDb, queryParams, setQueryParams };
     switch (activeTab) {
       case 'dashboard':
-        return <HrDashboardView db={db} onUpdateDb={updateDb} />;
+        return <HrDashboardView {...props} />;
       case 'recruitment':
-        return <RecruitmentView db={db} onUpdateDb={updateDb} />;
+        return <RecruitmentView {...props} />;
       case 'employees':
-        return <EmployeeRegistryView db={db} onUpdateDb={updateDb} />;
+        return <EmployeeRegistryView {...props} />;
       case 'onboarding':
-        return <OnboardingView db={db} onUpdateDb={updateDb} />;
-      case 'job-history':
-        return <JobHistoryView db={db} onUpdateDb={updateDb} />;
-      case 'disciplinary':
-        return <DisciplinaryPipView db={db} onUpdateDb={updateDb} />;
+        return <OnboardingView {...props} />;
       case 'attendance':
-        return <AttendanceRegisterView db={db} onUpdateDb={updateDb} />;
+        return <AttendanceRegisterView {...props} />;
       case 'timesheets':
-        return <TimesheetExceptionsView db={db} onUpdateDb={updateDb} />;
+        return <TimesheetExceptionsView {...props} />;
       case 'leave':
-        return <LeaveManagementView db={db} onUpdateDb={updateDb} />;
+        return <LeaveManagementView {...props} />;
       case 'payroll':
-        return <PayrollBuilderView db={db} onUpdateDb={updateDb} userRole="HR" />;
+        return <PayrollBuilderView {...props} userRole="HR" />;
       case 'appraisals':
-        return <AppraisalsView db={db} onUpdateDb={updateDb} />;
+        return <AppraisalsView {...props} />;
       case 'exits':
-        return <ExitFnFView db={db} onUpdateDb={updateDb} />;
+        return <ExitFnFView {...props} />;
       case 'lnd':
-        return <LearningLndView db={db} onUpdateDb={updateDb} />;
+        return <LearningLndView {...props} />;
       case 'reports':
-        return <ReportsEngineView db={db} onUpdateDb={updateDb} />;
-      case 'audit':
-        return <DepartmentAuditView db={db} onUpdateDb={updateDb} />;
+        return <ReportsEngineView {...props} />;
       case 'settings':
-        return <HrSettingsView db={db} onUpdateDb={updateDb} />;
+        return <HrSettingsView {...props} />;
       case 'messaging':
-        return <HrMessagingView db={db} onUpdateDb={updateDb} />;
+        return <HrMessagingView {...props} />;
       default:
-        return <HrDashboardView db={db} onUpdateDb={updateDb} />;
+        return <HrDashboardView {...props} />;
     }
   };
 
