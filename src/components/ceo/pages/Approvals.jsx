@@ -271,7 +271,7 @@ const ApprovalTable = ({ data, activeTab, selectedIds, onToggleCheck, onToggleAl
 // ==========================================
 // MAIN EXPORT (ApprovalsPage)
 // ==========================================
-export default function ApprovalsPage() {
+export default function ApprovalsPage({ db, onUpdateDb }) {
   const [activeTab, setActiveTab] = useState('All');
   const [approvals, setApprovals] = useState(mockApprovals);
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -279,6 +279,47 @@ export default function ApprovalsPage() {
   
   // Modal State
   const [modalConfig, setModalConfig] = useState({ isOpen: false, type: '', item: null });
+
+  // Sync approvals with the database
+  useEffect(() => {
+    let list = [...mockApprovals];
+    const pendingPayrollRuns = (db?.payrollRuns || []).filter(r => r.status === 'maker_signed');
+
+    // Pre-pend active maker signed runs
+    pendingPayrollRuns.forEach(run => {
+      if (!list.some(a => a.id === `PAY-${run.id}`)) {
+        list.unshift({
+          id: `PAY-${run.id}`,
+          type: "Payroll",
+          requestedBy: "Sarah Jenkins (HR)",
+          dept: "HR",
+          urgency: "Critical",
+          submittedAt: run.maker_signed_at ? new Date(run.maker_signed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now",
+          amount: "₹24.5M",
+          status: 'Pending',
+          payrollRunId: run.id
+        });
+      }
+    });
+
+    // Sync any that were already approved or rejected in database
+    const syncedList = list.map(a => {
+      if (a.id.startsWith('PAY-')) {
+        const runId = Number(a.id.split('-')[1]);
+        const run = db?.payrollRuns?.find(r => r.id === runId);
+        if (run) {
+          if (run.status === 'bank_transferred') {
+            return { ...a, status: 'Approved' };
+          } else if (run.status === 'rejected') {
+            return { ...a, status: 'Denied' };
+          }
+        }
+      }
+      return a;
+    });
+
+    setApprovals(syncedList);
+  }, [db]);
 
   const toggleSelection = (id) => {
     const next = new Set(selectedIds);
@@ -303,8 +344,46 @@ export default function ApprovalsPage() {
     const { type, item } = modalConfig;
     const newStatus = type === 'Approve' ? 'Approved' : 'Denied';
     
-    // Update state
-    setApprovals(approvals.map(a => a.id === item.id ? { ...a, status: newStatus } : a));
+    if (item && item.id.startsWith('PAY-')) {
+      const runId = item.payrollRunId;
+      const updatedRuns = (db?.payrollRuns || []).map(run => {
+        if (run.id === runId) {
+          return {
+            ...run,
+            status: type === 'Approve' ? 'bank_transferred' : 'rejected',
+            checker_id: 'CEO Suite',
+            checker_signed_at: new Date().toISOString(),
+            bank_transfer_at: type === 'Approve' ? new Date().toISOString() : null
+          };
+        }
+        return run;
+      });
+
+      const newLogs = [...(db?.auditLogs || []), {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        initiator_id: 'CEO Suite',
+        module: 'Payroll',
+        record_id: runId,
+        action_type: type === 'Approve' ? 'payroll_release' : 'payroll_reject',
+        change_diff: { payroll_run: type === 'Approve' ? 'bank_transferred' : 'rejected' },
+        ip_address: '192.168.1.101',
+        client_agent: 'Chrome / Windows'
+      }];
+
+      onUpdateDb({
+        ...db,
+        payrollRuns: updatedRuns,
+        auditLogs: newLogs
+      });
+
+      alert(type === 'Approve'
+        ? 'Payroll transfer signed! Payout dispatched and monthly payslips released to all employee dashboards.'
+        : 'Payroll ledger rejected and sent back to HR.'
+      );
+    } else {
+      setApprovals(approvals.map(a => a.id === item.id ? { ...a, status: newStatus } : a));
+    }
     
     // Close modal and drawer
     setModalConfig({ isOpen: false, type: '', item: null });

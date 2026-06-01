@@ -12,21 +12,22 @@ import StrategyOKRs from './pages/StrategyOKRs';
 import Messaging from './pages/Messaging';
 import './CEO.css';
 
-export default function Ceo({ activeTab }) {
+export default function Ceo({ activeTab, db, onUpdateDb, queryParams, setQueryParams }) {
   const renderContent = () => {
+    const props = { db, onUpdateDb, queryParams, setQueryParams };
     switch (activeTab) {
-      case 'dashboard': return <Dashboard />;
-      case 'companySetup': return <CompanySetup />;
-      case 'finance': return <Finance />;
-      case 'approvals': return <Approvals />;
-      case 'projects': return <Projects />;
-      case 'reports': return <Reports />;
-      case 'settings': return <Settings />;
-      case 'announcements': return <Announcements />;
-      case 'strategyOKRs': return <StrategyOKRs />;
-      case 'people': return <People />;
-      case 'messaging': return <Messaging />;
-      default: return <Dashboard />;
+      case 'dashboard': return <Dashboard {...props} />;
+      case 'companySetup': return <CompanySetup {...props} />;
+      case 'finance': return <Finance {...props} />;
+      case 'approvals': return <Approvals {...props} />;
+      case 'projects': return <Projects {...props} />;
+      case 'reports': return <Reports {...props} />;
+      case 'settings': return <Settings {...props} />;
+      case 'announcements': return <Announcements {...props} />;
+      case 'strategyOKRs': return <StrategyOKRs {...props} />;
+      case 'people': return <People {...props} />;
+      case 'messaging': return <Messaging {...props} />;
+      default: return <Dashboard {...props} />;
     }
   };
 

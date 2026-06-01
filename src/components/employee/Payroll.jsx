@@ -77,7 +77,7 @@ function SubTabs({ active, setActive }) {
 
 // ─── Payslips Tab ─────────────────────────────────────────────────────────────
 
-function PayslipsTab() {
+function PayslipsTab({ db }) {
   const [downloading, setDownloading] = useState(null);
 
   function handleDownload(id) {
@@ -85,59 +85,93 @@ function PayslipsTab() {
     setTimeout(() => setDownloading(null), 1800);
   }
 
+  // Filter only released payslips for Employee 102 (Jane Smith)
+  const employeePayslips = (db?.payslips || []).filter(p => {
+    if (p.employee_id !== 102) return false;
+    // Payslips are visible if their payroll run status is 'bank_transferred'
+    const matchingRun = db?.payrollRuns?.find(r => r.month === p.month && r.year === p.year);
+    return matchingRun && matchingRun.status === 'bank_transferred';
+  });
+
+  // Fallback to mock data if there are no payslips in DB (or if db not loaded yet)
+  const payslipsList = db ? employeePayslips : PAYSLIPS;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {PAYSLIPS.map(p => (
-        <div
-          key={p.id}
-          className="pay-slip-card"
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, padding: '16px 20px', borderRadius: 12 }}
-        >
-          {/* Month + badge */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: 10,
-              background: 'var(--pay-emerald-dim)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <FileText size={18} color="var(--pay-emerald)" />
-            </div>
-            <div>
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--pay-text)' }}>{p.month}</p>
-              <span className="pay-slip-badge">Paid</span>
-            </div>
-          </div>
-
-          {/* Amounts */}
-          <div style={{ display: 'flex', gap: 32 }}>
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ margin: 0, fontSize: 11, color: 'var(--pay-text-muted)' }}>Gross</p>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--pay-text)', fontVariantNumeric: 'tabular-nums' }}>{INR(p.gross)}</p>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ margin: 0, fontSize: 11, color: 'var(--pay-text-muted)' }}>Deductions</p>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--pay-red)', fontVariantNumeric: 'tabular-nums' }}>-{INR(p.deductions)}</p>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ margin: 0, fontSize: 11, color: 'var(--pay-text-muted)' }}>Net Pay</p>
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--pay-violet)', fontVariantNumeric: 'tabular-nums' }}>{INR(p.net)}</p>
-            </div>
-          </div>
-
-          {/* Download */}
-          <button
-            className="pay-download-btn"
-            onClick={() => handleDownload(p.id)}
-            disabled={downloading === p.id}
-            style={{ minWidth: 130, justifyContent: 'center' }}
+      {payslipsList.length > 0 ? (
+        payslipsList.map(p => (
+          <div
+            key={p.id}
+            className="pay-slip-card"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, padding: '16px 20px', borderRadius: 12 }}
           >
-            {downloading === p.id
-              ? <><Loader size={13} className="pay-spin" /> Downloading…</>
-              : <><Download size={13} /> Download PDF</>
-            }
-          </button>
+            {/* Month + badge */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: 10,
+                background: 'var(--pay-emerald-dim)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <FileText size={18} color="var(--pay-emerald)" />
+              </div>
+              <div>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--pay-text)' }}>
+                  {p.month === 4 ? 'April 2026' : p.month === 5 ? 'May 2026' : p.month === 6 ? 'June 2026' : `Month ${p.month} ${p.year || 2026}`}
+                </p>
+                <span className="pay-slip-badge">Paid</span>
+              </div>
+            </div>
+
+            {/* Amounts */}
+            <div style={{ display: 'flex', gap: 32 }}>
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ margin: 0, fontSize: 11, color: 'var(--pay-text-muted)' }}>Gross</p>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--pay-text)', fontVariantNumeric: 'tabular-nums' }}>
+                  {INR((p.basic || 0) + (p.hra || 0) + (p.allowances || 0))}
+                </p>
+              </div>
+              {p.lop > 0 && (
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ margin: 0, fontSize: 11, color: 'var(--pay-text-muted)' }}>LOP Penalty</p>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--pay-red)', fontVariantNumeric: 'tabular-nums' }}>
+                    -{INR(p.lop)}
+                  </p>
+                </div>
+              )}
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ margin: 0, fontSize: 11, color: 'var(--pay-text-muted)' }}>Deductions</p>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--pay-red)', fontVariantNumeric: 'tabular-nums' }}>
+                  -{INR((p.epf || 0) + (p.tds || 0))}
+                </p>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ margin: 0, fontSize: 11, color: 'var(--pay-text-muted)' }}>Net Pay</p>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: 'var(--pay-violet)', fontVariantNumeric: 'tabular-nums' }}>
+                  {INR(p.net)}
+                </p>
+              </div>
+            </div>
+
+            {/* Download */}
+            <button
+              className="pay-download-btn"
+              onClick={() => handleDownload(p.id)}
+              disabled={downloading === p.id}
+              style={{ minWidth: 130, justifyContent: 'center' }}
+            >
+              {downloading === p.id
+                ? <><Loader size={13} className="pay-spin" /> Downloading…</>
+                : <><Download size={13} /> Download PDF</>
+              }
+            </button>
+          </div>
+        ))
+      ) : (
+        <div className="pay-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 200, gap: 12 }}>
+          <AlertTriangle size={32} color="var(--pay-text-muted)" />
+          <p style={{ color: 'var(--pay-text-muted)', fontSize: 13, margin: 0 }}>No monthly payslip ledgers processed or released for your account yet.</p>
         </div>
-      ))}
+      )}
     </div>
   );
 }
@@ -194,10 +228,23 @@ function CtcBreakdownTab() {
 
 // ─── TDS Declaration Tab ──────────────────────────────────────────────────────
 
-function TdsDeclarationTab() {
-  const [submitted, setSubmitted] = useState(false);
-  const [submittedDate, setSubmittedDate] = useState('');
-  const [form, setForm] = useState({ sec80c: '', hra_rent: '', hra_city: 'metro', sec80d: '' });
+function TdsDeclarationTab({ db, onUpdateDb }) {
+  const currentDeclaration = (db?.tdsDeclarations || []).find(
+    d => d.employee_id === 102 && d.financial_year === '2026-27'
+  );
+
+  const [form, setForm] = useState(() => {
+    if (currentDeclaration) {
+      return {
+        sec80c: String(currentDeclaration.sec80c || ''),
+        hra_rent: String(currentDeclaration.hra_rent || ''),
+        hra_city: currentDeclaration.hra_city || 'metro',
+        sec80d: String(currentDeclaration.sec80d || ''),
+      };
+    }
+    return { sec80c: '', hra_rent: '', hra_city: 'metro', sec80d: '' };
+  });
+
   const [proof, setProof] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [tdsImpact, setTdsImpact] = useState(null);
@@ -227,35 +274,92 @@ function TdsDeclarationTab() {
   }
 
   function handleSubmit() {
-    setSubmitted(true);
-    setSubmittedDate(new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }));
+    const newDecl = {
+      id: Date.now(),
+      employee_id: 102,
+      financial_year: '2026-27',
+      sec80c: parseFloat(form.sec80c) || 0,
+      hra_rent: parseFloat(form.hra_rent) || 0,
+      hra_city: form.hra_city || 'metro',
+      sec80d: parseFloat(form.sec80d) || 0,
+      status: 'pending',
+      submitted_at: new Date().toISOString(),
+      proof_name: proof ? proof.name : 'investment_proof.pdf'
+    };
+
+    onUpdateDb({
+      ...db,
+      tdsDeclarations: [...(db.tdsDeclarations || []).filter(d => !(d.employee_id === 102 && d.financial_year === '2026-27')), newDecl]
+    });
+    alert('Investment declaration successfully submitted to HR for verification!');
   }
 
-  if (submitted) {
+  if (currentDeclaration) {
+    const isPending = currentDeclaration.status === 'pending';
+    const isVerified = currentDeclaration.status === 'verified';
+    const isRejected = currentDeclaration.status === 'rejected';
+
     return (
       <div className="pay-card">
-        <div className="pay-banner pay-banner--success" style={{ marginBottom: 20 }}>
-          <CheckCircle size={18} />
-          <div>
-            <p style={{ margin: 0, fontWeight: 700, fontSize: 13 }}>Declaration Submitted</p>
-            <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>Submitted on {submittedDate} — under HR review</p>
+        {isPending && (
+          <div className="pay-banner pay-banner--success" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <CheckCircle size={18} />
+            <div>
+              <p style={{ margin: 0, fontWeight: 700, fontSize: 13 }}>Declaration Submitted</p>
+              <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>
+                Submitted on {new Date(currentDeclaration.submitted_at || Date.now()).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} — under HR review
+              </p>
+            </div>
           </div>
-          <button onClick={() => setSubmitted(false)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--pay-emerald)' }}>
-            <X size={16} />
-          </button>
-        </div>
-        <div style={{ opacity: 0.45, pointerEvents: 'none', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        )}
+
+        {isVerified && (
+          <div className="pay-banner pay-banner--success" style={{ marginBottom: 20, backgroundColor: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <CheckCircle size={18} color="#10B981" />
+            <div>
+              <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: '#10B981' }}>Declaration Verified ✓</p>
+              <p style={{ margin: 0, fontSize: 12, opacity: 0.7, color: 'var(--pay-text)' }}>
+                Verified and signed off by {currentDeclaration.verified_by || 'HR Admin'}. Benefits applied to your active tax bracket.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {isRejected && (
+          <div className="pay-banner pay-banner--error" style={{ marginBottom: 20, backgroundColor: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <X size={18} color="#EF4444" />
+            <div>
+              <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: '#EF4444' }}>Declaration Rejected</p>
+              <p style={{ margin: 0, fontSize: 12, opacity: 0.7, color: 'var(--pay-text)' }}>
+                Rejected by HR. Please double check details and re-declare.
+              </p>
+            </div>
+            <button 
+              onClick={() => {
+                onUpdateDb({
+                  ...db,
+                  tdsDeclarations: (db.tdsDeclarations || []).filter(d => !(d.employee_id === 102 && d.financial_year === '2026-27'))
+                });
+              }} 
+              style={{ marginLeft: 'auto', background: 'var(--pay-red)', border: 'none', color: '#fff', padding: '4px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer' }}
+            >
+              Re-submit
+            </button>
+          </div>
+        )}
+
+        <div style={{ opacity: 0.55, pointerEvents: 'none', display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div className="pay-form-field">
             <label className="pay-form-label">Section 80C</label>
-            <input className="pay-form-input" value={form.sec80c} disabled />
+            <input className="pay-form-input" value={INR(currentDeclaration.sec80c || 0)} disabled />
           </div>
           <div className="pay-form-field">
             <label className="pay-form-label">HRA – Rent Paid</label>
-            <input className="pay-form-input" value={form.hra_rent} disabled />
+            <input className="pay-form-input" value={INR(currentDeclaration.hra_rent || 0)} disabled />
           </div>
           <div className="pay-form-field">
             <label className="pay-form-label">Section 80D</label>
-            <input className="pay-form-input" value={form.sec80d} disabled />
+            <input className="pay-form-input" value={INR(currentDeclaration.sec80d || 0)} disabled />
           </div>
         </div>
       </div>
@@ -508,7 +612,7 @@ function TaxCalculatorTab() {
 
 // ─── Root Payroll ─────────────────────────────────────────────────────────────
 
-export default function Payroll() {
+export default function Payroll({ db, onUpdateDb }) {
   const [activeTab, setActiveTab] = useState('payslips');
 
   return (
@@ -523,9 +627,9 @@ export default function Payroll() {
 
       <SubTabs active={activeTab} setActive={setActiveTab} />
 
-      {activeTab === 'payslips' && <PayslipsTab />}
+      {activeTab === 'payslips' && <PayslipsTab db={db} />}
       {activeTab === 'ctc'      && <CtcBreakdownTab />}
-      {activeTab === 'tds'      && <TdsDeclarationTab />}
+      {activeTab === 'tds'      && <TdsDeclarationTab db={db} onUpdateDb={onUpdateDb} />}
       {activeTab === 'tax'      && <TaxCalculatorTab />}
     </div>
   );

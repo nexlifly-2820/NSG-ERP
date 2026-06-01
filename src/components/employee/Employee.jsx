@@ -28,7 +28,7 @@ export default function Employee({ activeTab, db, onUpdateDb }) {
   }
 
   if (activeTab === 'payroll') {
-    return <Payroll />;
+    return <Payroll db={db} onUpdateDb={onUpdateDb} />;
   }
 
   if (activeTab === 'expenses') {
