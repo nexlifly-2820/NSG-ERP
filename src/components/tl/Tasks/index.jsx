@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import styles from './tasks.module.css';
 import { PlusSquare, List, XCircle, GitPullRequest, Edit, UserPlus, RotateCcw, Check, X } from 'lucide-react';
 
-const Tasks = () => {
+const Tasks = ({ db, onUpdateDb }) => {
   const [activeView, setActiveView] = useState('create'); // 'create', 'list', 'rejected', 'pr'
   const [subtasks, setSubtasks] = useState(['']);
   const [groupBy, setGroupBy] = useState('None');
@@ -15,15 +15,35 @@ const Tasks = () => {
     setSubtasks(newSubtasks);
   };
 
-  // --- Mock Data ---
-  const [taskList, setTaskList] = useState([
-    { id: 1, project: 'NSG-ERP Core', title: 'Implement JWT Auth Service', assignee: 'Sarah Jenkins', avatar: 'SJ', priority: 'High', status: 'Done', points: 8, due: 'May 10' },
-    { id: 2, project: 'Mobile App', title: 'Database Migration Script', assignee: 'Michael Chang', avatar: 'MC', priority: 'Medium', status: 'In Progress', points: 5, due: 'May 15' },
-    { id: 3, project: 'Marketing Website', title: 'Update Dashboard Layout', assignee: 'David Miller', avatar: 'DM', priority: 'Low', status: 'To Do', points: 3, due: 'May 20' }
-  ]);
+  // --- Dynamic Database Mapping ---
+  const getStatusLabel = (status) => {
+    if (status === 'pending') return 'To Do';
+    if (status === 'in-progress') return 'In Progress';
+    if (status === 'done') return 'Done';
+    if (status === 'blocked') return 'Blocked';
+    return status;
+  };
+
+  const getAssigneeAvatar = (name) => {
+    if (!name || name === 'Unassigned') return 'UN';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  };
+
+  const allTasks = db?.tasks || [];
+
+  const taskList = allTasks.map(t => ({
+    id: t.id,
+    project: t.project || 'NSG-ERP Core',
+    title: t.title,
+    assignee: t.assignee,
+    avatar: t.avatar || getAssigneeAvatar(t.assignee),
+    priority: t.priority ? t.priority.charAt(0).toUpperCase() + t.priority.slice(1) : 'Medium',
+    status: getStatusLabel(t.status),
+    points: t.sp || 1,
+    due: t.due || 'TBD'
+  }));
   
   const [taskTitle, setTaskTitle] = useState('');
-
   const [taskPoints, setTaskPoints] = useState('');
   const [taskPriority, setTaskPriority] = useState('Medium');
   const [taskAssignee, setTaskAssignee] = useState('Select Team Member...');
@@ -36,27 +56,44 @@ const Tasks = () => {
       return;
     }
 
-    const newTask = {
+    const assignedUser = taskAssignee === 'Select Team Member...' ? 'Unassigned' : taskAssignee;
+    const priorityVal = taskPriority.toLowerCase();
+
+    const newDbTask = {
       id: Date.now(),
       project: 'NSG-ERP Core',
-      title: taskTitle.trim() || 'Untitled Task',
-      assignee: taskAssignee === 'Select Team Member...' ? 'Unassigned' : taskAssignee,
-      avatar: taskAssignee !== 'Select Team Member...' ? taskAssignee.split(' ').map(n => n[0]).join('') : 'UN',
-      priority: taskPriority,
-      status: 'To Do',
-      points: parseInt(taskPoints) || 1,
-      due: 'TBD'
+      sprint: 'Sprint 14',
+      title: taskTitle.trim(),
+      description: 'Created via TL sprint board',
+      priority: priorityVal,
+      status: 'pending',
+      sp: parseInt(taskPoints) || 1,
+      assignee: assignedUser,
+      avatar: assignedUser !== 'Unassigned' ? assignedUser.split(' ').map(n => n[0]).join('').toUpperCase() : 'UN',
+      due: '2026-06-15',
+      subtasks: subtasks.filter(t => t.trim() !== '').map((s, idx) => ({ id: Date.now() + idx, title: s, done: false })),
+      acceptance: [
+        'Meets general code quality guidelines',
+        'Verified on local staging build'
+      ],
+      prStatus: null,
+      prUrl: '',
+      rejectedReason: ''
     };
-    
-    setTaskList([...taskList, newTask]);
+
+    if (db && onUpdateDb) {
+      const currentTasks = Array.isArray(db.tasks) ? db.tasks : [];
+      const updatedTasks = [...currentTasks, newDbTask];
+      onUpdateDb({ ...db, tasks: updatedTasks });
+    }
     
     // Dispatch to global kanban board in Projects module
     const kanbanTask = {
-      id: `t${Date.now()}`,
-      title: newTask.title,
-      points: newTask.points,
-      priority: newTask.priority,
-      assignee: newTask.avatar,
+      id: `t${newDbTask.id}`,
+      title: newDbTask.title,
+      points: newDbTask.sp,
+      priority: taskPriority,
+      assignee: newDbTask.avatar,
       blocked: false
     };
     window.dispatchEvent(new CustomEvent('add_kanban_task', { detail: kanbanTask }));
@@ -69,15 +106,56 @@ const Tasks = () => {
     setActiveView('list');
   };
 
-  const rejectedTasks = [
-    { id: 1, title: 'Export to CSV Feature', reason: 'Missing edge case for large files >50MB. Memory leak detected.', rejectedBy: 'Nirmal (CEO)', rejectedAt: '2 hours ago', resubmitDue: 'May 18' },
-    { id: 2, title: 'User Onboarding Flow', reason: 'Figma design mismatch on mobile screens.', rejectedBy: 'Sarah Jenkins', rejectedAt: '1 day ago', resubmitDue: 'May 19' }
-  ];
+  const handleApprovePr = (taskId) => {
+    if (db && onUpdateDb) {
+      const currentTasks = Array.isArray(db.tasks) ? db.tasks : [];
+      const updatedTasks = currentTasks.map(t => {
+        if (t.id === taskId) {
+          return { ...t, prStatus: 'approved', status: 'done', rejectedReason: '' };
+        }
+        return t;
+      });
+      onUpdateDb({ ...db, tasks: updatedTasks });
+    }
+  };
 
-  const prReviews = [
-    { id: 1, title: 'Fix notification socket bug', prUrl: '#PR-402', author: 'Michael Chang', openedAt: 'May 16, 10:00 AM', hoursPending: 28 }, // > 24h
-    { id: 2, title: 'Add dark mode toggle', prUrl: '#PR-408', author: 'David Miller', openedAt: 'May 17, 09:30 AM', hoursPending: 4 }
-  ];
+  const handleRejectPr = (taskId) => {
+    const reason = prompt("Enter revision notes / rejection reason for the developer:");
+    if (reason === null) return;
+    
+    if (db && onUpdateDb) {
+      const currentTasks = Array.isArray(db.tasks) ? db.tasks : [];
+      const updatedTasks = currentTasks.map(t => {
+        if (t.id === taskId) {
+          return { ...t, prStatus: 'rejected', status: 'blocked', rejectedReason: reason || 'Rework requested.' };
+        }
+        return t;
+      });
+      onUpdateDb({ ...db, tasks: updatedTasks });
+    }
+  };
+
+  const rejectedTasks = allTasks
+    .filter(t => t.prStatus === 'rejected')
+    .map(t => ({
+      id: t.id,
+      title: t.title,
+      reason: t.rejectedReason || 'Rework required.',
+      rejectedBy: 'Sarah Jenkins',
+      rejectedAt: 'Recently',
+      resubmitDue: t.due || 'TBD'
+    }));
+
+  const prReviews = allTasks
+    .filter(t => t.prStatus === 'submitted')
+    .map(t => ({
+      id: t.id,
+      title: t.title,
+      prUrl: t.prUrl || '#PR',
+      author: t.assignee,
+      openedAt: 'Today',
+      hoursPending: 2
+    }));
 
   const getGroupedTasks = () => {
     if (groupBy === 'None') return { 'All Tasks': taskList };
@@ -151,6 +229,7 @@ const Tasks = () => {
                   onChange={(e) => setTaskAssignee(e.target.value)}
                 >
                   <option>Select Team Member...</option>
+                  <option>Jane Smith</option>
                   <option>Sarah Jenkins</option>
                   <option>Michael Chang</option>
                   <option>David Miller</option>
@@ -389,8 +468,8 @@ const Tasks = () => {
                       </td>
                       <td>
                         <div className={styles.actionGroup}>
-                          <button className={`${styles.actionBtn} ${styles.success}`}><Check size={12}/> Approve PR</button>
-                          <button className={`${styles.actionBtn} ${styles.danger}`}><X size={12}/> Request Changes</button>
+                          <button className={`${styles.actionBtn} ${styles.success}`} onClick={() => handleApprovePr(pr.id)}><Check size={12}/> Approve PR</button>
+                          <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => handleRejectPr(pr.id)}><X size={12}/> Request Changes</button>
                         </div>
                       </td>
                     </tr>

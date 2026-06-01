@@ -261,10 +261,10 @@ function TaskDetailPanel({ task, onClose, onUpdate }) {
   const panelRef = useRef(null);
 
   useEffect(() => {
-    setSubtasks(task.subtasks);
+    setSubtasks(task.subtasks || []);
     setStatus(task.status);
     setAcChecked([]);
-  }, [task.id]);
+  }, [task.id, task.subtasks, task.status]);
 
   function toggleSubtask(id) {
     const updated = subtasks.map(s => s.id === id ? { ...s, done: !s.done } : s);
@@ -336,16 +336,23 @@ function TaskDetailPanel({ task, onClose, onUpdate }) {
 }
 
 // ─── EmpTasksPage (root) ──────────────────────────────────────────────────────
-export default function Tasks() {
-  const [tasks, setTasks]             = useState(MOCK_TASKS);
+export default function Tasks({ db, onUpdateDb }) {
   const [selectedId, setSelectedId]   = useState(null);
   const [sprint, setSprint]           = useState('All Sprints');
   const [statusFilter, setStatusFilter] = useState('All');
 
+  const tasksList = db?.tasks || MOCK_TASKS;
+  // View ONLY tasks assigned to Jane Smith in Employee ESS
+  const tasks = tasksList.filter(t => t.assignee === 'Jane Smith');
+
   const selectedTask = tasks.find(t => t.id === selectedId) || null;
 
   function handleUpdate(id, changes) {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...changes } : t));
+    if (db && onUpdateDb) {
+      const currentTasks = Array.isArray(db.tasks) ? db.tasks : [];
+      const updatedTasks = currentTasks.map(t => t.id === id ? { ...t, ...changes } : t);
+      onUpdateDb({ ...db, tasks: updatedTasks });
+    }
   }
 
   const filtered = tasks.filter(t => {

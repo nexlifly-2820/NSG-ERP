@@ -20,7 +20,7 @@ export default function Employee({ activeTab, db, onUpdateDb }) {
   }
 
   if (activeTab === 'tasks') {
-    return <Tasks />;
+    return <Tasks db={db} onUpdateDb={onUpdateDb} />;
   }
 
   if (activeTab === 'leave') {

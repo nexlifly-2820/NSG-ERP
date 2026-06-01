@@ -54,6 +54,123 @@ const INITIAL_TIMESHEETS = [
   }
 ];
 
+const INITIAL_TASKS = [
+  {
+    id: 1,
+    project: 'NSG-ERP Core',
+    sprint: 'Sprint 14',
+    title: 'Finalize Q3 sprint report',
+    description: 'Compile all sprint metrics, velocity charts, and retrospective notes into the final Q3 report document for stakeholder review.',
+    priority: 'high',
+    status: 'in-progress',
+    sp: 5,
+    assignee: 'Jane Smith',
+    avatar: 'JS',
+    due: '2026-06-05',
+    subtasks: [
+      { id: 11, title: 'Collect velocity data from Jira', done: true },
+      { id: 12, title: 'Write retrospective summary',    done: true },
+      { id: 13, title: 'Export charts to PDF',           done: false },
+    ],
+    acceptance: [
+      'Report covers all 3 sprints of Q3',
+      'Charts exported as high-res PNG',
+      'Approved by Product Owner before submission',
+    ],
+    prStatus: null,
+    prUrl: '',
+    rejectedReason: '',
+  },
+  {
+    id: 2,
+    project: 'NSG-ERP Core',
+    sprint: 'Sprint 14',
+    title: 'Code review – auth module',
+    description: 'Review pull request #204 for the authentication module refactor. Ensure JWT refresh logic, error handling, and test coverage are complete.',
+    priority: 'medium',
+    status: 'pending',
+    sp: 3,
+    assignee: 'Jane Smith',
+    avatar: 'JS',
+    due: '2026-06-08',
+    subtasks: [
+      { id: 21, title: 'Review JWT refresh logic', done: false },
+      { id: 22, title: 'Check error boundary coverage', done: false },
+    ],
+    acceptance: [
+      'All unit tests pass with >80% coverage',
+      'No critical security findings',
+    ],
+    prStatus: null,
+    prUrl: '',
+    rejectedReason: '',
+  },
+  {
+    id: 3,
+    project: 'Marketing Website',
+    sprint: 'Sprint 14',
+    title: 'Update Dashboard Layout',
+    description: 'Update the dashboard grid spacing, sidebar collapse animation, and responsive media queries.',
+    priority: 'low',
+    status: 'pending',
+    sp: 3,
+    assignee: 'David Miller',
+    avatar: 'DM',
+    due: '2026-06-12',
+    subtasks: [
+      { id: 31, title: 'Update story points', done: false },
+      { id: 32, title: 'Reassign stale tickets', done: false },
+    ],
+    acceptance: ['All tickets have assignee and SP', 'No tickets in backlog without sprint'],
+    prStatus: null,
+    prUrl: '',
+    rejectedReason: '',
+  },
+  {
+    id: 4,
+    project: 'NSG-ERP Core',
+    sprint: 'Sprint 13',
+    title: 'Team sync meeting notes',
+    description: 'Document and distribute the weekly team sync notes including decisions made, blockers identified, and action items assigned.',
+    priority: 'medium',
+    status: 'done',
+    sp: 2,
+    assignee: 'Jane Smith',
+    avatar: 'JS',
+    due: '2026-05-28',
+    subtasks: [
+      { id: 41, title: 'Write meeting summary', done: true },
+      { id: 42, title: 'Share via Slack', done: true },
+    ],
+    acceptance: ['Notes shared within 2 hours of meeting', 'Action items have owners'],
+    prStatus: 'approved',
+    prUrl: 'https://github.com/org/repo/pull/198',
+    rejectedReason: '',
+  },
+  {
+    id: 5,
+    project: 'Mobile App',
+    sprint: 'Sprint 13',
+    title: 'Deploy staging build v2.4',
+    description: 'Deploy the latest build to the staging environment, run smoke tests, and notify QA team for sign-off.',
+    priority: 'high',
+    status: 'blocked',
+    sp: 8,
+    assignee: 'Jane Smith',
+    avatar: 'JS',
+    due: '2026-05-25',
+    subtasks: [
+      { id: 51, title: 'Build Docker image', done: true },
+      { id: 52, title: 'Run smoke tests', done: false },
+      { id: 53, title: 'Notify QA team', done: false },
+    ],
+    acceptance: ['Smoke tests pass 100%', 'QA sign-off received', 'Deployment log archived'],
+    prStatus: 'rejected',
+    prUrl: '',
+    rejectedReason: 'Missing smoke test results in PR description.',
+  }
+];
+
 export default function App() {
   const loadDbSync = () => {
     const localData = localStorage.getItem('nsg_hr_db');
@@ -63,6 +180,7 @@ export default function App() {
         if (!parsed.attendanceCorrections) parsed.attendanceCorrections = [];
         if (!parsed.resignations) parsed.resignations = INITIAL_RESIGNATIONS;
         if (!parsed.timesheets) parsed.timesheets = INITIAL_TIMESHEETS;
+        if (!parsed.tasks || !Array.isArray(parsed.tasks)) parsed.tasks = INITIAL_TASKS;
         
         // Remove pre-seeded mock logs & corrections for active testing employee ID 102
         // This ensures a completely blank sheet so only your live actions show up!
@@ -101,7 +219,8 @@ export default function App() {
       auditLogs: INITIAL_AUDIT_LOGS,
       attendanceCorrections: [],
       resignations: INITIAL_RESIGNATIONS,
-      timesheets: INITIAL_TIMESHEETS
+      timesheets: INITIAL_TIMESHEETS,
+      tasks: INITIAL_TASKS
     };
     localStorage.setItem('nsg_hr_db', JSON.stringify(seed));
     return seed;
