@@ -249,7 +249,7 @@ export default function App() {
         if (!parsed.supportTickets) parsed.supportTickets = [];
         if (!parsed.assets) parsed.assets = INITIAL_ASSETS;
         if (!parsed.assetRequests) parsed.assetRequests = [];
-        if (!parsed.chatChannels) parsed.chatChannels = INITIAL_CHAT_CHANNELS;
+        if (!parsed.chatChannels || parsed.chatChannels.length === 0) parsed.chatChannels = INITIAL_CHAT_CHANNELS;
         
         // Remove pre-seeded mock logs & corrections for active testing employee ID 102
         // This ensures a completely blank sheet so only your live actions show up!

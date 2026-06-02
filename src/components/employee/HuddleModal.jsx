@@ -53,9 +53,11 @@ export default function HuddleModal({ peer, onClose }) {
         height: '100%',
         parentNode: containerRef.current,
         userInfo: {
-          displayName: peer.name === 'HR / Management' || peer.name === 'HR Interview'
-            ? 'Sarah Jenkins (HR Manager)'
-            : 'Jane Smith (Employee)'
+          displayName: peer.displayName || (
+            peer.name === 'HR / Management' || peer.name === 'HR Interview'
+              ? 'Sarah Jenkins (HR Manager)'
+              : 'Jane Smith (Employee)'
+          )
         },
         configOverwrite: {
           startWithAudioMuted: false,

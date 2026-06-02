@@ -5,37 +5,100 @@ import {
   Smile, Hand, MoreVertical, MessageSquare, Paperclip, Clock, PictureInPicture,
   Maximize, Activity, Settings, AlertOctagon, Heart, ThumbsUp
 } from 'lucide-react';
+import HuddleModal from '../../employee/HuddleModal';
 import '../CEO.css';
 
-export default function Messaging({ initialSelectedChannel }) {
+const DEFAULT_CHAT_CHANNELS = [
+  {
+    id: 'general-channel',
+    name: '#general-channel',
+    label: 'Company General Room',
+    type: 'staff',
+    members: ['101', '102', '103', '104', '105', 'hr', 'ceo'],
+    messages: [
+      { id: 1, sender: 'CEO (John Doe)', text: 'Welcome to the unified NSG-ERP communications channel!', time: 'Yesterday' }
+    ]
+  },
+  {
+    id: 'team-room',
+    name: '#team-room',
+    label: 'Engineering Team Room',
+    type: 'staff',
+    members: ['101', '102', '103', '105', 'hr'],
+    messages: [
+      { id: 1, sender: 'Marcus Vance', text: 'Hey team, morning! Please drop your standup items here. Also, let\'s aim to deploy the new build by 4 PM.', time: '9:15 AM' },
+      { id: 2, sender: 'Alex Wong', text: 'Morning! Working on the payment gate validation fixes. PR is ready for review: #412.', time: '9:30 AM' },
+      { id: 3, sender: 'Sarah Jenkins', text: 'Morning! I\'m wrapping up the Asset Requests validation and mobile tab changes. I\'ll review your PR, Alex, right after.', time: '9:35 AM' }
+    ]
+  },
+  {
+    id: 'grievance-room',
+    name: '#grievance-room',
+    label: 'HR Grievance (Private)',
+    type: 'grievance',
+    members: ['102', 'hr'],
+    messages: [
+      { id: 1, sender: 'Sophia Reed (HR Officer)', text: 'Hello Sarah, welcome to your secure grievance portal. Anything shared here remains private. How can I assist you today?', time: 'Yesterday' }
+    ]
+  },
+  {
+    id: 'ceo-channel',
+    name: '#ceo-channel',
+    label: 'CEO Suite Room',
+    type: 'management',
+    members: ['hr', 'ceo'],
+    messages: [
+      { id: 1, sender: 'CEO (John Doe)', text: "Sarah, let's audit the monthly payroll maker file before release.", time: '11:15 AM' }
+    ]
+  },
+  {
+    id: 'tl-channel',
+    name: '#tl-channel',
+    label: 'Team Lead Forum',
+    type: 'management',
+    members: ['hr', '101'],
+    messages: [
+      { id: 1, sender: 'TL (Michael Vance)', text: 'Are the Shift A attendance exceptions fully resolved?', time: '09:30 AM' }
+    ]
+  }
+];
+
+export default function Messaging({ initialSelectedChannel, db, onUpdateDb }) {
+  const [huddlePeer, setHuddlePeer] = useState(null);
+  
   // === MOCK DATA ===
-  const [channels, setChannels] = useState(['announcements', 'general', 'dev-team', 'hr-room']);
-  const [selectedChannel, setSelectedChannel] = useState(initialSelectedChannel || 'general');
+  const chatChannels = db?.chatChannels && db.chatChannels.length > 0 ? db.chatChannels : DEFAULT_CHAT_CHANNELS;
+  const myChannels = chatChannels.filter(c => c.members.includes('ceo'));
+
+  const [selectedChannel, setSelectedChannel] = useState(() => {
+    if (initialSelectedChannel) return initialSelectedChannel;
+    return myChannels.length > 0 ? myChannels[0].id : 'general';
+  });
 
   const [employees, setEmployees] = useState([
     { id: 1, name: 'Alice Chen', avatar: 'https://ui-avatars.com/api/?name=Alice+Chen&background=0D8ABC&color=fff', status: 'Active' },
-    { id: 2, name: 'Sarah Jenkins', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100', status: 'Active', isMe: true },
+    { id: 2, name: 'Sarah Jenkins', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100', status: 'Active' },
     { id: 3, name: 'Michael Chang', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=100', status: 'Active' },
     { id: 4, name: 'Emily Rodriguez', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=100', status: 'Active' },
-    { id: 5, name: 'David Miller', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=100', status: 'On Leave' }
+    { id: 5, name: 'David Miller', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=100', status: 'On Leave' },
+    { id: 'ceo', name: 'John Doe', avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=1e293b&color=fff', status: 'Active', isMe: true }
   ]);
 
-  const [messages, setMessages] = useState({
-    'general': [
-      { id: 1, sender: 'Emily Rodriguez', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=100', text: 'Hey guys! Just uploaded the new branding icons into the HR tools library.', timestamp: '02:15 PM' },
-      { id: 2, sender: 'David Miller', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=100', text: 'Looks sweet Emily, colors are highly premium.', timestamp: '02:30 PM' }
-    ],
-    'dev-team': [
-      { id: 1, sender: 'Michael Chang', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=100', text: 'I am finishing setup on the dynamic workspace directories. Git conflict risks are now 0%!', timestamp: '01:00 PM' }
-    ],
-    'announcements': [
-      { id: 1, sender: 'Super Admin', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100', text: 'Welcome everyone to the new NSG ERP Platform! Please set up your custom profiles today.', timestamp: '10:00 AM' }
-    ],
+  const [localDmMessages, setLocalDmMessages] = useState({
     'dm-3': [
-      { id: 1, sender: 'Sarah Jenkins', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100', text: 'Hi Michael, did you get a chance to look at the onboarding tasks?', timestamp: 'Yesterday', isMe: true },
+      { id: 1, sender: 'John Doe (CEO)', avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=1e293b&color=fff', text: 'Hi Michael, did you get a chance to look at the onboarding tasks?', timestamp: 'Yesterday', isMe: true },
       { id: 2, sender: 'Michael Chang', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=100', text: 'Yes Sarah! Finished the database structures and directory mappings.', timestamp: 'Yesterday' }
     ]
   });
+
+  const currentChannel = chatChannels.find(c => c.id === selectedChannel);
+
+  const messages = useMemo(() => {
+    if (currentChannel) {
+      return { [selectedChannel]: (currentChannel.messages || []) };
+    }
+    return localDmMessages;
+  }, [currentChannel, selectedChannel, localDmMessages]);
 
   const [inputVal, setInputVal] = useState('');
   const chatEndRef = useRef(null);
@@ -107,92 +170,129 @@ export default function Messaging({ initialSelectedChannel }) {
     e.preventDefault();
     if (!inputVal.trim()) return;
 
+    const isCorporateChannel = chatChannels.some(c => c.id === selectedChannel);
+
     const newMsg = {
       id: Date.now(),
-      sender: 'Sarah Jenkins',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100',
+      sender: 'John Doe (CEO)',
+      avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=1e293b&color=fff',
       text: inputVal,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isMe: true
     };
 
-    setMessages(prev => ({
-      ...prev,
-      [selectedChannel]: [...(prev[selectedChannel] || []), newMsg]
-    }));
+    if (isCorporateChannel) {
+      const updatedChannels = chatChannels.map(c => {
+        if (c.id === selectedChannel) {
+          return {
+            ...c,
+            messages: [...(c.messages || []), newMsg]
+          };
+        }
+        return c;
+      });
+      onUpdateDb({ ...db, chatChannels: updatedChannels });
+    } else {
+      setLocalDmMessages(prev => ({
+        ...prev,
+        [selectedChannel]: [...(prev[selectedChannel] || []), newMsg]
+      }));
+    }
     setInputVal('');
 
     // Simulated reply
     setTimeout(() => {
       const isDM = selectedChannel.startsWith('dm-');
-      const senderName = isDM ? employees.find(e => `dm-${e.id}` === selectedChannel)?.name || 'Colleague' : 'Michael Chang';
-      const senderAvatar = isDM ? employees.find(e => `dm-${e.id}` === selectedChannel)?.avatar : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=100';
+      if (isDM) {
+        const senderName = employees.find(e => `dm-${e.id}` === selectedChannel)?.name || 'Colleague';
+        const senderAvatar = employees.find(e => `dm-${e.id}` === selectedChannel)?.avatar;
 
-      const autoReply = {
-        id: Date.now() + 1,
-        sender: senderName,
-        avatar: senderAvatar,
-        text: 'Got it! I will check that out shortly.',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      
-      setMessages(prev => ({
-        ...prev,
-        [selectedChannel]: [...(prev[selectedChannel] || []), autoReply]
-      }));
+        const autoReply = {
+          id: Date.now() + 1,
+          sender: senderName,
+          avatar: senderAvatar,
+          text: 'Got it! I will check that out shortly.',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        
+        setLocalDmMessages(prev => ({
+          ...prev,
+          [selectedChannel]: [...(prev[selectedChannel] || []), autoReply]
+        }));
+      }
     }, 2000);
   };
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    const isCorporateChannel = chatChannels.some(c => c.id === selectedChannel);
+
     const newMsg = {
       id: Date.now(),
-      sender: 'Sarah Jenkins',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100',
+      sender: 'John Doe (CEO)',
+      avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=1e293b&color=fff',
       text: `📎 Shared file: ${file.name}`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isMe: true
     };
-    setMessages(prev => ({
-      ...prev,
-      [selectedChannel]: [...(prev[selectedChannel] || []), newMsg]
-    }));
+
+    if (isCorporateChannel) {
+      const updatedChannels = chatChannels.map(c => {
+        if (c.id === selectedChannel) {
+          return {
+            ...c,
+            messages: [...(c.messages || []), newMsg]
+          };
+        }
+        return c;
+      });
+      onUpdateDb({ ...db, chatChannels: updatedChannels });
+    } else {
+      setLocalDmMessages(prev => ({
+        ...prev,
+        [selectedChannel]: [...(prev[selectedChannel] || []), newMsg]
+      }));
+    }
   };
 
   // Start Call WebRTC
-  const handleStartCall = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      cameraStreamRef.current = stream;
-      if (callCameraVideoRef.current) {
-        callCameraVideoRef.current.srcObject = stream;
-        callCameraVideoRef.current.play().catch(() => {});
-      }
-      setIsInCall(true);
-      setIsCallExpanded(true); // Open full screen by default when starting a group call
+  const handleStartCall = () => {
+    setHuddlePeer({
+      channelId: selectedChannel,
+      roomName: isDM ? `DM-${employees.find(e => `dm-${e.id}` === selectedChannel)?.name}` : selectedChannel,
+      name: selectedChannel,
+      displayName: 'John Doe (CEO)'
+    });
 
-      // Simulate Group Participants
-      const members = channelMembers[selectedChannel] || [2];
-      const active = [2]; // You are always active
-      const offline = [];
-      
-      members.forEach(id => {
-        if (id === 2) return;
-        // Randomly simulate joined vs offline
-        if (Math.random() > 0.4) {
-          active.push(id);
-        } else {
-          offline.push(id);
+    const isCorporateChannel = chatChannels.some(c => c.id === selectedChannel);
+    const callMsg = {
+      id: Date.now(),
+      sender: 'John Doe (CEO)',
+      avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=1e293b&color=fff',
+      text: `Started a video call`,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isCallStatus: true,
+      isMe: true
+    };
+
+    if (isCorporateChannel) {
+      const updatedChannels = chatChannels.map(c => {
+        if (c.id === selectedChannel) {
+          return {
+            ...c,
+            messages: [...(c.messages || []), callMsg]
+          };
         }
+        return c;
       });
-      
-      setActiveCallParticipants(active);
-      setOfflineCallParticipants(offline);
-
-    } catch (err) {
-      console.error("Camera access denied:", err);
-      alert("Could not access camera/microphone for the call.");
+      onUpdateDb({ ...db, chatChannels: updatedChannels });
+    } else {
+      setLocalDmMessages(prev => ({
+        ...prev,
+        [selectedChannel]: [...(prev[selectedChannel] || []), callMsg]
+      }));
     }
   };
 
@@ -282,14 +382,37 @@ export default function Messaging({ initialSelectedChannel }) {
   const handleCreateChannel = (e) => {
     e.preventDefault();
     if (!newChannelName.trim()) return;
-    const formattedName = newChannelName.toLowerCase().replace(/\s+/g, '-');
-    if (!channels.includes(formattedName)) {
-      setChannels([...channels, formattedName]);
-      setChannelMembers({ ...channelMembers, [formattedName]: [2] }); // CEO is automatically in it
-      setSelectedChannel(formattedName);
+    
+    const formattedName = newChannelName.startsWith('#') ? newChannelName.trim() : `#${newChannelName.trim()}`;
+    const newId = formattedName.toLowerCase().replace(/[^a-z0-9-_]/g, '-').replace(/^-+|-+$/g, '');
+    
+    if (chatChannels.some(c => c.id === newId)) {
+      alert('A channel with this name already exists.');
+      return;
     }
+    
+    const newChan = {
+      id: newId,
+      name: formattedName,
+      label: `${newChannelName} Channel`,
+      type: 'staff',
+      members: ['101', '102', '103', '104', '105', 'hr', 'ceo'],
+      messages: [
+        {
+          id: Date.now(),
+          sender: 'System',
+          text: `Channel ${formattedName} created by CEO John Doe.`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]
+    };
+    
+    const updated = [...chatChannels, newChan];
+    onUpdateDb({ ...db, chatChannels: updated });
+    
     setNewChannelName('');
     setIsCreateChannelOpen(false);
+    setSelectedChannel(newId);
   };
 
   // Add Member logic
@@ -394,19 +517,19 @@ export default function Messaging({ initialSelectedChannel }) {
             <button onClick={() => setIsCreateChannelOpen(true)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--ceo-text-secondary)' }}><Plus size={14} /></button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '24px' }}>
-            {channels.map(chan => (
+            {myChannels.map(chan => (
               <div 
-                key={chan} 
-                onClick={() => setSelectedChannel(chan)}
+                key={chan.id} 
+                onClick={() => setSelectedChannel(chan.id)}
                 style={{ 
                   display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer',
-                  background: selectedChannel === chan ? '#EFF6FF' : 'transparent',
-                  color: selectedChannel === chan ? 'var(--ceo-primary)' : 'var(--ceo-text-secondary)',
-                  fontWeight: selectedChannel === chan ? 700 : 600,
+                  background: selectedChannel === chan.id ? '#EFF6FF' : 'transparent',
+                  color: selectedChannel === chan.id ? 'var(--ceo-primary)' : 'var(--ceo-text-secondary)',
+                  fontWeight: selectedChannel === chan.id ? 700 : 600,
                   fontSize: '14px', transition: 'all 0.2s'
                 }}
               >
-                <Hash size={16} /> {chan}
+                <Hash size={16} /> {chan.name}
               </div>
             ))}
           </div>
@@ -493,25 +616,47 @@ export default function Messaging({ initialSelectedChannel }) {
               <div style={{ fontSize: '13px' }}>Start the conversation!</div>
             </div>
           ) : (
-            (messages[selectedChannel] || []).map((msg, idx) => (
-              <div key={msg.id} style={{ display: 'flex', gap: '16px', flexDirection: msg.isMe ? 'row-reverse' : 'row' }}>
-                <img src={msg.avatar} alt={msg.sender} style={{ width: '36px', height: '36px', borderRadius: '18px', border: '1px solid var(--ceo-border)', flexShrink: 0 }} />
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: msg.isMe ? 'flex-end' : 'flex-start', maxWidth: '70%' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexDirection: msg.isMe ? 'row-reverse' : 'row' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ceo-text-primary)' }}>{msg.isMe ? 'You' : msg.sender}</span>
-                    <span style={{ fontSize: '11px', color: 'var(--ceo-text-muted)' }}>{msg.timestamp}</span>
-                  </div>
-                  <div style={{ 
-                    background: msg.isMe ? 'var(--ceo-primary)' : '#FFF', 
-                    color: msg.isMe ? '#FFF' : 'var(--ceo-text-primary)',
-                    padding: '12px 16px', borderRadius: '12px', border: msg.isMe ? 'none' : '1px solid var(--ceo-border)',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)', fontSize: '14px', lineHeight: '1.5'
-                  }}>
-                    {msg.text}
+            (messages[selectedChannel] || []).map((msg, idx) => {
+              const isMsgMe = msg.isMe || (msg.sender && (msg.sender.includes('CEO') || msg.sender.includes('John Doe')));
+              return (
+                <div key={msg.id || idx} style={{ display: 'flex', gap: '16px', flexDirection: isMsgMe ? 'row-reverse' : 'row' }}>
+                  <img src={msg.avatar} alt={msg.sender} style={{ width: '36px', height: '36px', borderRadius: '18px', border: '1px solid var(--ceo-border)', flexShrink: 0 }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMsgMe ? 'flex-end' : 'flex-start', maxWidth: '70%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexDirection: isMsgMe ? 'row-reverse' : 'row' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ceo-text-primary)' }}>{isMsgMe ? 'You' : msg.sender}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--ceo-text-muted)' }}>{msg.timestamp || msg.time}</span>
+                    </div>
+                    <div style={{ 
+                      background: isMsgMe ? 'var(--ceo-primary)' : '#FFF', 
+                      color: isMsgMe ? '#FFF' : 'var(--ceo-text-primary)',
+                      padding: '12px 16px', borderRadius: '12px', border: isMsgMe ? 'none' : '1px solid var(--ceo-border)',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)', fontSize: '14px', lineHeight: '1.5'
+                    }}>
+                      {msg.isCallStatus ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: isMsgMe ? '#FFF' : 'var(--ceo-primary)', fontWeight: '600' }}>
+                          <Video size={16} />
+                          <span>{msg.text}</span>
+                          <button 
+                            type="button" 
+                            style={{ marginLeft: '12px', padding: '6px 16px', borderRadius: '6px', backgroundColor: isMsgMe ? '#FFF' : 'var(--ceo-primary)', color: isMsgMe ? 'var(--ceo-primary)' : 'white', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}
+                            onClick={() => {
+                              setHuddlePeer({
+                                channelId: selectedChannel,
+                                roomName: selectedChannel,
+                                name: selectedChannel,
+                                displayName: 'John Doe (CEO)'
+                              });
+                            }}
+                          >
+                            Join
+                          </button>
+                        </div>
+                      ) : msg.text}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
           <div ref={chatEndRef} />
         </div>
@@ -885,6 +1030,12 @@ export default function Messaging({ initialSelectedChannel }) {
           100% { opacity: 1; }
         }
       `}</style>
+      {huddlePeer && (
+        <HuddleModal 
+          peer={huddlePeer} 
+          onClose={() => setHuddlePeer(null)} 
+        />
+      )}
     </div>
   );
 }

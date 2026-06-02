@@ -43,6 +43,61 @@ const initialRoomData = {
   }
 };
 
+const DEFAULT_CHAT_CHANNELS = [
+  {
+    id: 'general-channel',
+    name: '#general-channel',
+    label: 'Company General Room',
+    type: 'staff',
+    members: ['101', '102', '103', '104', '105', 'hr', 'ceo'],
+    messages: [
+      { id: 1, sender: 'CEO (John Doe)', text: 'Welcome to the unified NSG-ERP communications channel!', time: 'Yesterday' }
+    ]
+  },
+  {
+    id: 'team-room',
+    name: '#team-room',
+    label: 'Engineering Team Room',
+    type: 'staff',
+    members: ['101', '102', '103', '105', 'hr'],
+    messages: [
+      { id: 1, sender: 'Marcus Vance', text: 'Hey team, morning! Please drop your standup items here. Also, let\'s aim to deploy the new build by 4 PM.', time: '9:15 AM' },
+      { id: 2, sender: 'Alex Wong', text: 'Morning! Working on the payment gate validation fixes. PR is ready for review: #412.', time: '9:30 AM' },
+      { id: 3, sender: 'Sarah Jenkins', text: 'Morning! I\'m wrapping up the Asset Requests validation and mobile tab changes. I\'ll review your PR, Alex, right after.', time: '9:35 AM' }
+    ]
+  },
+  {
+    id: 'grievance-room',
+    name: '#grievance-room',
+    label: 'HR Grievance (Private)',
+    type: 'grievance',
+    members: ['102', 'hr'],
+    messages: [
+      { id: 1, sender: 'Sophia Reed (HR Officer)', text: 'Hello Sarah, welcome to your secure grievance portal. Anything shared here remains private. How can I assist you today?', time: 'Yesterday' }
+    ]
+  },
+  {
+    id: 'ceo-channel',
+    name: '#ceo-channel',
+    label: 'CEO Suite Room',
+    type: 'management',
+    members: ['hr', 'ceo'],
+    messages: [
+      { id: 1, sender: 'CEO (John Doe)', text: "Sarah, let's audit the monthly payroll maker file before release.", time: '11:15 AM' }
+    ]
+  },
+  {
+    id: 'tl-channel',
+    name: '#tl-channel',
+    label: 'Team Lead Forum',
+    type: 'management',
+    members: ['hr', '101'],
+    messages: [
+      { id: 1, sender: 'TL (Michael Vance)', text: 'Are the Shift A attendance exceptions fully resolved?', time: '09:30 AM' }
+    ]
+  }
+];
+
 export default function Messaging({ db, onUpdateDb }) {
   const getInitialRooms = () => {
     if (db?.employeeChatRooms) {
@@ -112,7 +167,7 @@ export default function Messaging({ db, onUpdateDb }) {
     localStorage.setItem('nsg_employee_chat_rooms', JSON.stringify(rooms));
   }, [rooms]);
 
-  const chatChannels = db?.chatChannels || [];
+  const chatChannels = db?.chatChannels && db.chatChannels.length > 0 ? db.chatChannels : DEFAULT_CHAT_CHANNELS;
 
   const activeRoom = chatChannels.find(c => c.id === activeRoomId) || rooms[activeRoomId] || (
     activeRoomId.startsWith('c') ? {
