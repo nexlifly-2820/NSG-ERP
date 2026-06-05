@@ -1,10 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export function AppraisalsView({ db, onUpdateDb }) {
   const [appraisalTab, setAppraisalTab] = useState('proposals'); // proposals | cycles | scorecards | promotions
   const [selectedEmpId, setSelectedEmpId] = useState(104);
-  const [proposedCTC, setProposedCTC] = useState(65000);
+
+  const emp = db.employees.find(e => e.id === selectedEmpId) || { name: 'Staff', grade: 1, designation: 'Developer' };
+  
+  // Base current CTC calculation simulation
+  const currentMonthlyCTC = emp.grade * 15000 + 10000;
+  const currentAnnualCTC = currentMonthlyCTC * 12;
+
+  const [proposedCTC, setProposedCTC] = useState(() => Math.round(currentAnnualCTC * 1.10));
   const [incrementPct, setIncrementPct] = useState(10);
+
+  // Sync values when the selected employee changes
+  useEffect(() => {
+    const monthly = emp.grade * 15000 + 10000;
+    const annual = monthly * 12;
+    setIncrementPct(10);
+    setProposedCTC(Math.round(annual * 1.10));
+  }, [selectedEmpId, emp.grade]);
 
   // Review Cycle States
   const [cycleName, setCycleName] = useState('');
@@ -15,12 +30,6 @@ export function AppraisalsView({ db, onUpdateDb }) {
   const [tlDeadline, setTlDeadline] = useState('');
   const [cycleStatus, setCycleStatus] = useState('active');
   const [isCreateCycleOpen, setIsCreateCycleOpen] = useState(false);
-
-  const emp = db.employees.find(e => e.id === selectedEmpId) || { name: 'Staff', grade: 1, designation: 'Developer' };
-  
-  // Base current CTC calculation simulation
-  const currentMonthlyCTC = emp.grade * 15000 + 10000;
-  const currentAnnualCTC = currentMonthlyCTC * 12;
 
   // Reactively calculate values
   const handleCTCChange = (val) => {

@@ -134,6 +134,41 @@ class LeaveRequestResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class LeaveBalanceResponse(BaseModel):
+    id: int
+    user_id: int
+    CL: float
+    SL: float
+    EL: float
+    Maternity: float
+    Paternity: float
+    year: int
+
+    class Config:
+        from_attributes = True
+
+class LeaveBalanceAdjustment(BaseModel):
+    CL: float
+    SL: float
+    EL: float
+    Maternity: float
+    Paternity: float
+
+class LeaveRequestOnBehalf(BaseModel):
+    employee_id: int
+    leave_type: str
+    from_date: date
+    to_date: date
+    days: float
+    reason: str
+
+class LeaveRequestEdit(BaseModel):
+    leave_type: str
+    from_date: date
+    to_date: date
+    days: float
+    reason: str
+
 class TimesheetExceptionResponse(BaseModel):
     id: int
     employee_id: int
@@ -826,10 +861,104 @@ def delete_esign_request(id: int, current_user: models.User = Depends(security.g
     return {"status": "success", "message": "E-sign request voided."}
 
 # 5. Leaves & Timesheets Exceptions
+@router.get("/leaves/balances", response_model=List[LeaveBalanceResponse])
+def get_leave_balances(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_hr_role(current_user)
+    return db.query(models.LeaveBalance).all()
+
+@router.put("/leaves/balances/{id}", response_model=LeaveBalanceResponse)
+def adjust_leave_balance(id: int, req: LeaveBalanceAdjustment, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_hr_role(current_user)
+    bal = db.query(models.LeaveBalance).filter(models.LeaveBalance.id == id).first()
+    if not bal:
+        raise HTTPException(status_code=404, detail="Leave balance record not found.")
+    bal.CL = req.CL
+    bal.SL = req.SL
+    bal.EL = req.EL
+    bal.Maternity = req.Maternity
+    bal.Paternity = req.Paternity
+    db.commit()
+    db.refresh(bal)
+    return bal
+
 @router.get("/leaves/requests", response_model=List[LeaveRequestResponse])
 def get_leave_requests(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
     return db.query(models.LeaveRequest).order_by(models.LeaveRequest.from_date.desc()).all()
+
+@router.post("/leaves/requests/on-behalf", response_model=LeaveRequestResponse)
+def apply_leave_on_behalf(req: LeaveRequestOnBehalf, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_hr_role(current_user)
+    
+    emp = db.query(models.User).filter(models.User.id == req.employee_id, models.User.role == "employee").first()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found.")
+        
+    new_req = models.LeaveRequest(
+        user_id=req.employee_id,
+        leave_type=req.leave_type,
+        from_date=req.from_date,
+        to_date=req.to_date,
+        days=req.days,
+        reason=req.reason,
+        status="hr_approved",
+        tl_approved_at=datetime.now(),
+        hr_approved_at=datetime.now()
+    )
+    db.add(new_req)
+    
+    bal = db.query(models.LeaveBalance).filter(
+        models.LeaveBalance.user_id == req.employee_id,
+        models.LeaveBalance.year == date.today().year
+    ).first()
+    if bal and hasattr(bal, req.leave_type):
+        current_bal = getattr(bal, req.leave_type)
+        setattr(bal, req.leave_type, max(0.0, current_bal - req.days))
+        
+    db_notify = models.Notification(
+        user_id=req.employee_id,
+        message=f"HR has submitted and approved a {req.leave_type} leave request on your behalf for {req.days} days ({req.from_date} to {req.to_date}).",
+        type="info"
+    )
+    db.add(db_notify)
+    
+    db.commit()
+    db.refresh(new_req)
+    return new_req
+
+@router.put("/leaves/requests/{id}", response_model=LeaveRequestResponse)
+def edit_leave_request(id: int, req: LeaveRequestEdit, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_hr_role(current_user)
+    db_req = db.query(models.LeaveRequest).filter(models.LeaveRequest.id == id).first()
+    if not db_req:
+        raise HTTPException(status_code=404, detail="Leave request not found.")
+        
+    if db_req.status == "hr_approved":
+        bal = db.query(models.LeaveBalance).filter(
+            models.LeaveBalance.user_id == db_req.user_id,
+            models.LeaveBalance.year == date.today().year
+        ).first()
+        if bal:
+            type_changed = db_req.leave_type != req.leave_type
+            if type_changed:
+                if hasattr(bal, db_req.leave_type):
+                    setattr(bal, db_req.leave_type, getattr(bal, db_req.leave_type) + db_req.days)
+                if hasattr(bal, req.leave_type):
+                    setattr(bal, req.leave_type, max(0.0, getattr(bal, req.leave_type) - req.days))
+            else:
+                days_diff = req.days - db_req.days
+                if hasattr(bal, db_req.leave_type):
+                    setattr(bal, db_req.leave_type, max(0.0, getattr(bal, db_req.leave_type) - days_diff))
+                    
+    db_req.leave_type = req.leave_type
+    db_req.from_date = req.from_date
+    db_req.to_date = req.to_date
+    db_req.days = req.days
+    db_req.reason = req.reason
+    
+    db.commit()
+    db.refresh(db_req)
+    return db_req
 
 @router.post("/leaves/requests/{id}/approve", response_model=LeaveRequestResponse)
 def approve_leave_hr(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -841,7 +970,6 @@ def approve_leave_hr(id: int, current_user: models.User = Depends(security.get_c
     req.status = "hr_approved"
     req.hr_approved_at = datetime.now()
     
-    # Deduct days from Leave Balance
     bal = db.query(models.LeaveBalance).filter(
         models.LeaveBalance.user_id == req.user_id,
         models.LeaveBalance.year == date.today().year
@@ -878,6 +1006,25 @@ def reject_leave_hr(id: int, current_user: models.User = Depends(security.get_cu
     db.commit()
     db.refresh(req)
     return req
+
+@router.delete("/leaves/requests/{id}")
+def delete_leave_request(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_hr_role(current_user)
+    req = db.query(models.LeaveRequest).filter(models.LeaveRequest.id == id).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Leave request not found.")
+        
+    if req.status == "hr_approved":
+        bal = db.query(models.LeaveBalance).filter(
+            models.LeaveBalance.user_id == req.user_id,
+            models.LeaveBalance.year == date.today().year
+        ).first()
+        if bal and hasattr(bal, req.leave_type):
+            setattr(bal, req.leave_type, getattr(bal, req.leave_type) + req.days)
+            
+    db.delete(req)
+    db.commit()
+    return {"status": "success", "message": "Leave request successfully deleted and balances restored if applicable."}
 
 @router.get("/timesheets/exceptions", response_model=List[TimesheetExceptionResponse])
 def get_timesheet_exceptions(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
