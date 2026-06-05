@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   LayoutDashboard, CreditCard, User, UserMinus, 
   HelpCircle, Briefcase, MessageSquare, 
-  Calendar, Clock, CheckSquare, Coins 
+  Calendar, Clock, CheckSquare, Coins, GraduationCap
 } from 'lucide-react';
 
 export default function EmployeeSidebar({ activeTab, setActiveTab }) {
@@ -18,6 +18,7 @@ export default function EmployeeSidebar({ activeTab, setActiveTab }) {
   const isHelpActive = activeTab === 'help';
   const isAssetsActive = activeTab === 'assets';
   const isMessagingActive = activeTab === 'messaging';
+  const isLearningActive = activeTab === 'learning';
 
   const activeStyle = {
     color: '#10b981',
@@ -137,6 +138,16 @@ export default function EmployeeSidebar({ activeTab, setActiveTab }) {
       >
         <Briefcase size={18} />
         <span>Asset Requests</span>
+      </button>
+
+      {/* Learning & Training Tab */}
+      <button
+        className={`nav-link ${isLearningActive ? 'active' : ''}`}
+        onClick={() => setActiveTab('learning')}
+        style={isLearningActive ? activeStyle : {}}
+      >
+        <GraduationCap size={18} />
+        <span>Learning & Training</span>
       </button>
 
       {/* Messaging & Meet Tab */}

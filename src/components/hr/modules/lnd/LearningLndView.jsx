@@ -1,42 +1,133 @@
 import React, { useState } from 'react';
-import { Check, Lock, AlertCircle } from 'lucide-react';
+import { Check, Lock, AlertCircle, Pencil, Trash2, Plus } from 'lucide-react';
+
+const DEFAULT_QUIZ_QUESTIONS = [
+  { id: 1, question: 'What is the NSG Code of Conduct primarily concerned with?', options: ['Maximizing individual profits', 'Ethical behavior, integrity and company values', 'Marketing strategy', 'Competitor analysis'], correct: 1 },
+  { id: 2, question: 'What should you do if you witness workplace harassment?', options: ['Ignore it and move on', 'Discuss it only with friends outside the company', 'Report it to HR or your Team Lead immediately', 'Handle it yourself informally'], correct: 2 },
+  { id: 3, question: 'How many days of Casual Leave (CL) are employees entitled to per year?', options: ['6 days', '10 days', '12 days', '15 days'], correct: 2 },
+  { id: 4, question: 'Which of the following best describes confidentiality of company data?', options: ['Company data can be shared with anyone if it is useful', 'Company data must be protected and only shared on a need-to-know basis', 'Only financial data is confidential', "Data security is the IT department's problem alone"], correct: 1 },
+  { id: 5, question: 'What is the correct procedure for submitting a timesheet?', options: ['Submit at any time during the month', 'Submit verbally to your Team Lead', 'Submit via the ERP portal by the end of each week', 'No submission needed, HR tracks it automatically'], correct: 2 }
+];
 
 export function LearningLndView({ db, onUpdateDb }) {
-  const [lndTab, setLndTab] = useState('progress'); // progress | tracks | assigner
+  const [lndTab, setLndTab] = useState('progress'); // progress | tracks | quiz | assigner
   const [hoveredRowId, setHoveredRowId] = useState(null);
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
-  
+  const [editingTrack, setEditingTrack] = useState(null);
+
   // Track Builder States
   const [trackName, setTrackName] = useState('');
   const [trackDept, setTrackDept] = useState('All');
   const [m1Title, setM1Title] = useState('');
   const [m2Title, setM2Title] = useState('');
+  const [isMandatory, setIsMandatory] = useState(true);
 
-  const handleCreateTrack = (e) => {
+  // ── Quiz CRUD States ──────────────────────────────────────────────
+  const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState(null);
+  const [qText, setQText] = useState('');
+  const [qOptions, setQOptions] = useState(['', '', '', '']);
+  const [qCorrect, setQCorrect] = useState(0);
+
+  const getQuizQuestions = () =>
+    (db?.quizQuestions && db.quizQuestions.length > 0) ? db.quizQuestions : DEFAULT_QUIZ_QUESTIONS;
+
+  const openCreateQ = () => {
+    setEditingQuestion(null);
+    setQText('');
+    setQOptions(['', '', '', '']);
+    setQCorrect(0);
+    setIsQuizModalOpen(true);
+  };
+
+  const openEditQ = (q) => {
+    setEditingQuestion(q);
+    setQText(q.question);
+    setQOptions([...q.options]);
+    setQCorrect(q.correct);
+    setIsQuizModalOpen(true);
+  };
+
+  const handleSaveQ = (e) => {
+    e.preventDefault();
+    if (!qText.trim() || qOptions.some(o => !o.trim())) return;
+    const questions = getQuizQuestions();
+    let updated;
+    if (editingQuestion) {
+      updated = questions.map(q => q.id === editingQuestion.id ? { ...q, question: qText, options: qOptions, correct: qCorrect } : q);
+    } else {
+      updated = [...questions, { id: Date.now(), question: qText, options: qOptions, correct: qCorrect }];
+    }
+    onUpdateDb({ ...db, quizQuestions: updated });
+    setIsQuizModalOpen(false);
+    setEditingQuestion(null);
+  };
+
+  const handleDeleteQ = (q) => {
+    if (!window.confirm(`Delete question: "${q.question.slice(0, 60)}..."?`)) return;
+    const updated = getQuizQuestions().filter(item => item.id !== q.id);
+    onUpdateDb({ ...db, quizQuestions: updated });
+  };
+
+  const openCreateModal = () => {
+    setEditingTrack(null);
+    setTrackName('');
+    setTrackDept('All');
+    setM1Title('');
+    setM2Title('');
+    setIsMandatory(true);
+    setIsBuilderOpen(true);
+  };
+
+  const openEditModal = (track) => {
+    setEditingTrack(track);
+    setTrackName(track.name);
+    setTrackDept(track.department || 'All');
+    setM1Title(track.modules?.[0]?.title || '');
+    setM2Title(track.modules?.[1]?.title || '');
+    setIsMandatory(track.is_mandatory !== false);
+    setIsBuilderOpen(true);
+  };
+
+  const handleSaveTrack = (e) => {
     e.preventDefault();
     if (!trackName.trim()) return;
 
-    const newTrack = {
-      id: Date.now(),
+    const trackData = {
       name: trackName,
       department: trackDept,
       modules: [
         { id: 1, title: m1Title || 'Induction Session 1', duration: 30, has_quiz: true },
         { id: 2, title: m2Title || 'Technical Guidelines', duration: 45, has_quiz: true }
       ],
-      is_mandatory: true
+      is_mandatory: isMandatory
     };
 
-    onUpdateDb({
-      ...db,
-      trainingTracks: [...(db.trainingTracks || []), newTrack]
-    });
+    let updatedTracks;
+    if (editingTrack) {
+      // UPDATE existing
+      updatedTracks = (db.trainingTracks || []).map(t =>
+        t.id === editingTrack.id ? { ...t, ...trackData } : t
+      );
+      alert(`Training Track "${trackName}" updated successfully!`);
+    } else {
+      // CREATE new
+      updatedTracks = [...(db.trainingTracks || []), { id: Date.now(), ...trackData }];
+      alert(`Training Track "${trackName}" deployed to LMS!`);
+    }
 
+    onUpdateDb({ ...db, trainingTracks: updatedTracks });
+    setIsBuilderOpen(false);
+    setEditingTrack(null);
     setTrackName('');
     setM1Title('');
     setM2Title('');
-    setIsBuilderOpen(false);
-    alert(`Training Track ${newTrack.name} successfully deployed to LMS!`);
+  };
+
+  const handleDeleteTrack = (track) => {
+    if (!window.confirm(`Delete track "${track.name}"? This cannot be undone.`)) return;
+    const updatedTracks = (db.trainingTracks || []).filter(t => t.id !== track.id);
+    onUpdateDb({ ...db, trainingTracks: updatedTracks });
   };
 
   const handleSimulatePass = (empId) => {
@@ -117,7 +208,8 @@ export function LearningLndView({ db, onUpdateDb }) {
           {[
             { id: 'progress', label: 'Quiz & Compliance Progress' },
             { id: 'tracks', label: 'Training Course Tracks' },
-            { id: 'assigner', label: 'Mandatory Assigner matrix' }
+            { id: 'quiz', label: 'Quiz Manager' },
+            { id: 'assigner', label: 'Mandatory Assigner Matrix' }
           ].map(tab => (
             <button
               key={tab.id}
@@ -140,24 +232,20 @@ export function LearningLndView({ db, onUpdateDb }) {
 
         {lndTab === 'tracks' && (
           <button
-            onClick={() => setIsBuilderOpen(true)}
+            onClick={openCreateModal}
             className="print-btn"
-            style={{
-              backgroundColor: 'var(--accent-pink)',
-              color: '#fff',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '10px',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: 'var(--shadow-sm)'
-            }}
+            style={{ backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: 'var(--shadow-sm)' }}
           >
             ⚙️ Build Course Track
+          </button>
+        )}
+        {lndTab === 'quiz' && (
+          <button
+            onClick={openCreateQ}
+            className="print-btn"
+            style={{ backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: 'var(--shadow-sm)' }}
+          >
+            <Plus size={14} /> Add Question
           </button>
         )}
       </div>
@@ -261,30 +349,167 @@ export function LearningLndView({ db, onUpdateDb }) {
 
       {lndTab === 'tracks' && (
         <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', width: '100%' }}>
-          {/* Configured Tracks list */}
           <div className="table-container" style={{ margin: 0, width: '100%', overflowX: 'auto' }}>
-            <div className="pipeline-title" style={{ padding: '16px 40px 0 40px' }}>Active Training tracks in LMS</div>
+            <div className="pipeline-title" style={{ padding: '16px 40px 0 40px' }}>Active Training Tracks in LMS</div>
             <table className="data-table">
               <thead>
                 <tr>
                   <th style={{ padding: '16px 40px', textAlign: 'left' }}>Course Track Name</th>
                   <th style={{ padding: '16px 40px', textAlign: 'left' }}>Target Department</th>
-                  <th style={{ padding: '16px 40px', textAlign: 'left' }}>Syllabus Duration</th>
+                  <th style={{ padding: '16px 40px', textAlign: 'left' }}>Modules</th>
+                  <th style={{ padding: '16px 40px', textAlign: 'left' }}>Duration</th>
                   <th style={{ padding: '16px 40px', textAlign: 'left' }}>Mandatory</th>
+                  <th style={{ padding: '16px 40px', textAlign: 'left' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
+                {(!db.trainingTracks || db.trainingTracks.length === 0) && (
+                  <tr><td colSpan={6} style={{ padding: '32px 40px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No tracks yet. Click "⚙️ Build Course Track" to create one.</td></tr>
+                )}
                 {db.trainingTracks?.map((tr, idx) => (
-                  <tr key={idx}>
+                  <tr key={tr.id || idx}>
                     <td style={{ padding: '16px 40px' }}><strong>{tr.name}</strong></td>
-                    <td style={{ padding: '16px 40px' }}>{tr.department}</td>
-                    <td style={{ padding: '16px 40px' }}>{tr.modules?.reduce((acc, m) => acc + m.duration, 0) || 75} mins (2 modules)</td>
-                    <td style={{ padding: '16px 40px' }}>{tr.is_mandatory ? 'Yes ✓' : 'Optional'}</td>
+                    <td style={{ padding: '16px 40px' }}>{tr.department || 'All'}</td>
+                    <td style={{ padding: '16px 40px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        {tr.modules?.map((m, mi) => (
+                          <span key={mi} style={{ fontSize: 11, color: 'var(--text-secondary)' }}>• {m.title}</span>
+                        ))}
+                      </div>
+                    </td>
+                    <td style={{ padding: '16px 40px' }}>{tr.modules?.reduce((acc, m) => acc + m.duration, 0) || 75} mins</td>
+                    <td style={{ padding: '16px 40px' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: tr.is_mandatory !== false ? 'var(--accent-green)' : 'var(--text-muted)' }}>
+                        {tr.is_mandatory !== false ? 'Yes ✓' : 'Optional'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '16px 40px' }}>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={() => openEditModal(tr)}
+                          title="Edit Track"
+                          style={{ padding: '5px 10px', background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.3)', color: '#60a5fa', borderRadius: 6, cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
+                        >
+                          <Pencil size={12} /> Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTrack(tr)}
+                          title="Delete Track"
+                          style={{ padding: '5px 10px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', borderRadius: 6, cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
+                        >
+                          <Trash2 size={12} /> Delete
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* ── QUIZ MANAGER TAB ── */}
+      {lndTab === 'quiz' && (
+        <div className="table-container" style={{ margin: 0, width: '100%', overflowX: 'auto' }}>
+          <div className="pipeline-title" style={{ padding: '16px 40px 0 40px' }}>Compliance Quiz Questions Bank</div>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th style={{ padding: '12px 20px', textAlign: 'left', width: 40 }}>#</th>
+                <th style={{ padding: '12px 20px', textAlign: 'left' }}>Question</th>
+                <th style={{ padding: '12px 20px', textAlign: 'left' }}>Options</th>
+                <th style={{ padding: '12px 20px', textAlign: 'left' }}>Correct Answer</th>
+                <th style={{ padding: '12px 20px', textAlign: 'left' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {getQuizQuestions().map((q, idx) => (
+                <tr key={q.id || idx}>
+                  <td style={{ padding: '14px 20px', color: 'var(--text-muted)', fontWeight: 700 }}>{idx + 1}</td>
+                  <td style={{ padding: '14px 20px', maxWidth: 280, fontSize: 13 }}>{q.question}</td>
+                  <td style={{ padding: '14px 20px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      {q.options.map((opt, oi) => (
+                        <span key={oi} style={{ fontSize: 11, color: oi === q.correct ? 'var(--accent-green)' : 'var(--text-secondary)', fontWeight: oi === q.correct ? 700 : 400 }}>
+                          {oi === q.correct ? '✓ ' : '○ '}{opt}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td style={{ padding: '14px 20px' }}>
+                    <span style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 6, padding: '3px 10px', fontSize: 11, fontWeight: 700 }}>
+                      Option {q.correct + 1}
+                    </span>
+                  </td>
+                  <td style={{ padding: '14px 20px' }}>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={() => openEditQ(q)} style={{ padding: '5px 10px', background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.3)', color: '#60a5fa', borderRadius: 6, cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Pencil size={12} /> Edit
+                      </button>
+                      <button onClick={() => handleDeleteQ(q)} style={{ padding: '5px 10px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', borderRadius: 6, cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Trash2 size={12} /> Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── QUIZ QUESTION MODAL ── */}
+      {isQuizModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+          <form onSubmit={handleSaveQ} className="card" style={{ width: 520, maxHeight: 'calc(100vh - 60px)', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderLeft: '4px solid #6366f1', padding: 24, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: 12 }}>
+              <h3 style={{ margin: 0, border: 'none', padding: 0, color: '#a78bfa', fontSize: 15 }}>
+                {editingQuestion ? '✏️ Edit Quiz Question' : '➕ Add Quiz Question'}
+              </h3>
+              <button type="button" onClick={() => { setIsQuizModalOpen(false); setEditingQuestion(null); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 16 }}>✕</button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Question Text *</label>
+              <textarea value={qText} onChange={e => setQText(e.target.value)} required rows={3} placeholder="e.g. What should you do if you witness workplace harassment?" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: 8, outline: 'none', resize: 'vertical', fontSize: 13 }} />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <label style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Answer Options (mark the correct one)</label>
+              {qOptions.map((opt, oi) => (
+                <div key={oi} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <input
+                    type="radio"
+                    name="correct"
+                    checked={qCorrect === oi}
+                    onChange={() => setQCorrect(oi)}
+                    title="Mark as correct answer"
+                    style={{ accentColor: '#10b981', width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }}
+                  />
+                  <input
+                    type="text"
+                    value={opt}
+                    onChange={e => { const updated = [...qOptions]; updated[oi] = e.target.value; setQOptions(updated); }}
+                    required
+                    placeholder={`Option ${oi + 1}`}
+                    style={{ flex: 1, backgroundColor: qCorrect === oi ? 'rgba(16,185,129,0.08)' : 'var(--bg-primary)', border: `1px solid ${qCorrect === oi ? 'rgba(16,185,129,0.4)' : 'var(--border-color)'}`, color: '#fff', padding: '8px 12px', borderRadius: 8, outline: 'none', fontSize: 13, transition: 'all 0.15s' }}
+                  />
+                  <span style={{ fontSize: 10, color: qCorrect === oi ? '#10b981' : 'var(--text-muted)', fontWeight: 700, width: 50, textAlign: 'right' }}>
+                    {qCorrect === oi ? '✓ Correct' : ''}
+                  </span>
+                </div>
+              ))}
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>💡 Click the radio button next to the correct answer</p>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: 14 }}>
+              <button type="button" onClick={() => { setIsQuizModalOpen(false); setEditingQuestion(null); }} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', borderRadius: 8, cursor: 'pointer' }}>Cancel</button>
+              <button type="submit" style={{ padding: '8px 20px', background: 'linear-gradient(135deg, #6366f1, #a78bfa)', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>
+                {editingQuestion ? '💾 Save Changes' : '➕ Add Question'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
@@ -321,90 +546,64 @@ export function LearningLndView({ db, onUpdateDb }) {
         </div>
       )}
 
-      {/* ⚙️ LMS COURSE TRACK BUILDER MODAL OVERLAY */}
+      {/* ⚙️ TRACK BUILDER / EDITOR MODAL */}
       {isBuilderOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
-          <form 
-            onSubmit={handleCreateTrack}
-            className="card" 
+          <form
+            onSubmit={handleSaveTrack}
+            className="card"
             style={{ width: '460px', maxHeight: 'calc(100vh - 80px)', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', padding: '24px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px', borderLeft: '4px solid var(--accent-pink)' }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', flexShrink: 0 }}>
               <h3 style={{ margin: 0, border: 'none', padding: 0, color: 'var(--accent-pink)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                ⚙️ LMS Course Track Builder
+                {editingTrack ? '✏️ Edit Course Track' : '⚙️ LMS Course Track Builder'}
               </h3>
-              <button type="button" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px' }} onClick={() => setIsBuilderOpen(false)}>✕</button>
+              <button type="button" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px' }} onClick={() => { setIsBuilderOpen(false); setEditingTrack(null); }}>✕</button>
             </div>
 
             <div className="custom-scroll" style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '13px', overflowY: 'auto', flex: 1, paddingRight: '4px' }}>
               <div>
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block' }}>Track Name</label>
-                </div>
-                <input 
-                  type="text" 
-                  value={trackName} 
-                  onChange={(e) => setTrackName(e.target.value)} 
-                  required 
-                  placeholder="e.g. Corporate Code of Conduct" 
-                  style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} 
-                />
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: 8 }}>Track Name *</label>
+                <input type="text" value={trackName} onChange={e => setTrackName(e.target.value)} required placeholder="e.g. Corporate Code of Conduct" style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
               </div>
 
               <div>
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block' }}>Department Scope</label>
-                </div>
-                <select 
-                  value={trackDept} 
-                  onChange={(e) => setTrackDept(e.target.value)} 
-                  style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }}
-                >
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: 8 }}>Department Scope</label>
+                <select value={trackDept} onChange={e => setTrackDept(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }}>
                   <option value="All">All Departments</option>
                   <option value="Engineering">Engineering</option>
                   <option value="Sales">Sales</option>
                   <option value="IT">IT</option>
+                  <option value="Marketing">Marketing</option>
+                  <option value="HR">HR</option>
+                  <option value="Finance">Finance</option>
                 </select>
               </div>
 
               <div>
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block' }}>Module 1 Title</label>
-                </div>
-                <input 
-                  type="text" 
-                  value={m1Title} 
-                  onChange={(e) => setM1Title(e.target.value)} 
-                  placeholder="e.g. Values and Ethics" 
-                  style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} 
-                />
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: 8 }}>Module 1 Title</label>
+                <input type="text" value={m1Title} onChange={e => setM1Title(e.target.value)} placeholder="e.g. Values and Ethics" style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
               </div>
 
               <div>
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block' }}>Module 2 Title</label>
-                </div>
-                <input 
-                  type="text" 
-                  value={m2Title} 
-                  onChange={(e) => setM2Title(e.target.value)} 
-                  placeholder="e.g. Anti-harassment & POSH" 
-                  style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} 
-                />
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: 8 }}>Module 2 Title</label>
+                <input type="text" value={m2Title} onChange={e => setM2Title(e.target.value)} placeholder="e.g. Anti-harassment & POSH" style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
               </div>
 
-              <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-tertiary)', border: '1px dashed var(--border-color)', padding: '12px', borderRadius: '8px', lineHeight: '1.4', marginTop: '4px' }}>
-                ℹ️ Published tracks will be automatically mapped to the selected department scopes, and enqueued as mandatory inductees tracks.
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input type="checkbox" id="mandatory-chk" checked={isMandatory} onChange={e => setIsMandatory(e.target.checked)} style={{ width: 16, height: 16, accentColor: 'var(--accent-pink)', cursor: 'pointer' }} />
+                <label htmlFor="mandatory-chk" style={{ fontSize: '13px', color: 'var(--text-secondary)', cursor: 'pointer' }}>Mark as Mandatory for selected department</label>
+              </div>
+
+              <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-tertiary)', border: '1px dashed var(--border-color)', padding: '12px', borderRadius: '8px', lineHeight: '1.4' }}>
+                ℹ️ {editingTrack ? 'Saving will update this track across all assigned employees.' : 'Published tracks will be automatically mapped to the selected department scopes and enqueued as mandatory induction tracks.'}
               </div>
             </div>
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '14px', marginTop: '4px', flexShrink: 0 }}>
-              <button type="button" style={{ background: 'none', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }} onClick={() => setIsBuilderOpen(false)}>Cancel</button>
-              <button 
-                type="submit" 
-                style={{ backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}
-              >
-                Publish LMS Course Track
+              <button type="button" style={{ background: 'none', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-muted)' }} onClick={() => { setIsBuilderOpen(false); setEditingTrack(null); }}>Cancel</button>
+              <button type="submit" style={{ backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}>
+                {editingTrack ? '💾 Save Changes' : 'Publish LMS Course Track'}
               </button>
             </div>
           </form>

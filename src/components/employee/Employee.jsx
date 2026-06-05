@@ -9,6 +9,7 @@ import Timesheet from './Timesheet';
 import Tasks from './Tasks';
 import Leave from './Leave';
 import Payroll from './Payroll';
+import Learning from './Learning';
 import EmployeeDashboard from './EmployeeDashboard';
 
 export default function Employee({ activeTab, db, onUpdateDb, navigateTo, currentUser }) {
@@ -64,6 +65,10 @@ export default function Employee({ activeTab, db, onUpdateDb, navigateTo, curren
 
   if (activeTab === 'messaging') {
     return <Messaging db={db} onUpdateDb={onUpdateDb} currentUser={currentUser} />;
+  }
+
+  if (activeTab === 'learning') {
+    return <Learning db={db} onUpdateDb={onUpdateDb} currentUser={currentUser} />;
   }
 
   // Fallback: show dashboard
