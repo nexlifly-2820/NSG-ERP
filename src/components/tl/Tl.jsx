@@ -17,7 +17,7 @@ export default function Tl({ activeTab, setActiveTab, db, onUpdateDb }) {
     <div className="component-container">
       {activeTab === 'dashboard' && <Dashboard setActiveTab={setActiveTab} setSelectedChatUser={setSelectedChatUser} />}
       {activeTab === 'team' && <Team setActiveTab={setActiveTab} />}
-      {activeTab === 'projects' && <Projects />}
+      {activeTab === 'projects' && <Projects db={db} onUpdateDb={onUpdateDb} />}
       {activeTab === 'tasks' && <Tasks db={db} onUpdateDb={onUpdateDb} />}
       {activeTab === 'attendance' && <Attendance db={db} onUpdateDb={onUpdateDb} />}
       {activeTab === 'timesheets' && <Timesheets db={db} onUpdateDb={onUpdateDb} />}
