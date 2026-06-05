@@ -79,11 +79,11 @@ const STATUS_LABEL   = { 'in-progress': 'In Progress', pending: 'Pending', done:
 const PR_URL_RE = /^https?:\/\/(github\.com\/[^/]+\/[^/]+\/pull\/\d+|gitlab\.com\/[^/]+\/[^/]+\/-\/merge_requests\/\d+)/;
 
 // ─── SprintFilterBar ──────────────────────────────────────────────────────────
-function SprintFilterBar({ sprint, setSprint, statusFilter, setStatusFilter }) {
+function SprintFilterBar({ sprint, setSprint, statusFilter, setStatusFilter, sprintList = [] }) {
   return (
     <div className="tk-toolbar">
       <select className="tk-sprint-select" value={sprint} onChange={e => setSprint(e.target.value)}>
-        {SPRINTS.map(s => <option key={s}>{s}</option>)}
+        {sprintList.map(s => <option key={s}>{s}</option>)}
       </select>
       <div className="tk-filter-chips">
         {STATUS_FILTERS.map(f => (
@@ -347,6 +347,8 @@ export default function Tasks({ db, onUpdateDb }) {
 
   const selectedTask = tasks.find(t => t.id === selectedId) || null;
 
+  const sprintList = [...new Set(['All Sprints', 'Sprint 14', 'Sprint 13', ...tasks.map(t => t.sprint).filter(Boolean)])];
+
   function handleUpdate(id, changes) {
     if (db && onUpdateDb) {
       const currentTasks = Array.isArray(db.tasks) ? db.tasks : [];
@@ -379,6 +381,7 @@ export default function Tasks({ db, onUpdateDb }) {
       <SprintFilterBar
         sprint={sprint} setSprint={setSprint}
         statusFilter={statusFilter} setStatusFilter={setStatusFilter}
+        sprintList={sprintList}
       />
 
       {/* Main content */}

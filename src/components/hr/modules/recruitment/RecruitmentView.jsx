@@ -33,6 +33,23 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
   const [uploadedCandidateName, setUploadedCandidateName] = useState('');
   const [uploadedCandidateRole, setUploadedCandidateRole] = useState('Senior React Developer');
   const [parsedResult, setParsedResult] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [customRole, setCustomRole] = useState('');
+  const [customRoles, setCustomRoles] = useState([]);
+
+  const defaultRoles = [
+    'Senior React Developer',
+    'Product Manager',
+    'QA Automation Engineer',
+    'DevOps Engineer',
+    'Junior UI/UX Designer'
+  ];
+
+  const allRoles = Array.from(new Set([
+    ...defaultRoles,
+    ...(db.candidates || []).map(c => c.role),
+    ...customRoles
+  ])).filter(Boolean);
 
   const stages = [
     { id: 'applied', label: 'Applied' },
@@ -143,6 +160,9 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
 
   // Mock analysis generator helper
   const getMockAnalysis = (candidate) => {
+    if (candidate && candidate.parsedResult) {
+      return candidate.parsedResult;
+    }
     const name = candidate.name;
     const role = candidate.role || 'Developer';
     
@@ -218,29 +238,67 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
     }
   };
 
-  const handleStartParsing = (e) => {
+  const handleStartParsing = async (e) => {
     e.preventDefault();
-    if (!uploadedCandidateName) {
+    if (!selectedFile) {
+      alert('Please upload a resume file first.');
+      return;
+    }
+    if (!uploadedCandidateName.trim()) {
       alert('Please enter a candidate name.');
       return;
     }
     
+    const roleToAnalyze = uploadedCandidateRole === 'Other' ? customRole.trim() : uploadedCandidateRole;
+    if (uploadedCandidateRole === 'Other' && !roleToAnalyze) {
+      alert('Please enter a custom target role.');
+      return;
+    }
+
     setIsAnalyzing(true);
-    setAnalysisStatus('Reading metadata layers...');
+    setAnalysisStatus('Uploading document...');
     
-    setTimeout(() => {
-      setAnalysisStatus('Analyzing tech stack alignments...');
-    }, 600);
-
-    setTimeout(() => {
-      setAnalysisStatus('Verifying compliance & grade levels...');
-    }, 1200);
-
-    setTimeout(() => {
-      const mockResult = getMockAnalysis({ name: uploadedCandidateName, role: uploadedCandidateRole });
-      setParsedResult(mockResult);
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('target_role', roleToAnalyze);
+      
+      setAnalysisStatus('Parsing resume content...');
+      const response = await fetch('/api/hr-portal/candidates/analyze-resume', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.detail || 'Failed to analyze resume');
+      }
+      
+      setAnalysisStatus('AI matching evaluation...');
+      const result = await response.json();
+      
+      // Update states with the real parsed result
+      setParsedResult(result);
+      if (result.name && result.name !== 'Parsed Candidate' && result.name !== 'Unknown Candidate') {
+        setUploadedCandidateName(result.name);
+      }
+      
+      // If we analyzed a custom role successfully, add it to custom roles list and switch select to it
+      if (uploadedCandidateRole === 'Other') {
+        setCustomRoles(prev => Array.from(new Set([...prev, roleToAnalyze])));
+        setUploadedCandidateRole(roleToAnalyze);
+      }
+      
       setIsAnalyzing(false);
-    }, 1800);
+    } catch (err) {
+      console.error(err);
+      alert(`Error analyzing resume: ${err.message}`);
+      setIsAnalyzing(false);
+    }
   };
 
   const handleImportCandidate = () => {
@@ -251,11 +309,12 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
       name: uploadedCandidateName,
       email: (uploadedCandidateName.toLowerCase().replace(/\s+/g, '.')) + '@nsgapplicant.com',
       phone: '+91 ' + Math.floor(7000000000 + Math.random() * 2999999999),
-      role: uploadedCandidateRole,
+      role: uploadedCandidateRole === 'Other' ? customRole : uploadedCandidateRole,
       source: 'AI Resume Parser',
       stage: 'applied',
       resume_url: '#',
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      parsedResult: parsedResult
     };
 
     onUpdateDb({
@@ -270,6 +329,8 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
     setUploadedCandidateName('');
     setUploadedFileName('');
     setParsedResult(null);
+    setSelectedFile(null);
+    setCustomRole('');
   };
 
   return (
@@ -546,7 +607,7 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
                   <form onSubmit={handleStartParsing} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     
                     <div 
-                      onClick={() => setUploadedFileName('Simulated_Resume_Applicant.pdf')} 
+                      onClick={() => document.getElementById('resume-file-input').click()} 
                       style={{ 
                         border: '2px dashed var(--border-color)', 
                         borderRadius: '12px', 
@@ -558,6 +619,24 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
                         transition: 'all 0.2s'
                       }}
                     >
+                      <input 
+                        type="file" 
+                        id="resume-file-input" 
+                        accept=".pdf,.docx,.txt" 
+                        style={{ display: 'none' }} 
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            setSelectedFile(file);
+                            setUploadedFileName(file.name);
+                            // Pre-fill candidate name based on file name if empty
+                            const cleanName = file.name.split('.')[0]
+                              .replace(/_|-/g, ' ')
+                              .replace(/\b\w/g, c => c.toUpperCase());
+                            setUploadedCandidateName(cleanName);
+                          }
+                        }}
+                      />
                       <div style={{ fontSize: '32px', marginBottom: '8px' }}>📄</div>
                       {uploadedFileName ? (
                         <div>
@@ -566,7 +645,7 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
                         </div>
                       ) : (
                         <div>
-                          <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Click to select simulated PDF candidate resume</strong>
+                          <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Click to select candidate resume</strong>
                           <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>Supports PDF, DOCX, TXT formats</p>
                         </div>
                       )}
@@ -578,12 +657,22 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
                       
                       <label style={{ fontSize: '12px' }}>Target Enterprise Role</label>
                       <select value={uploadedCandidateRole} onChange={(e) => setUploadedCandidateRole(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}>
-                        <option value="Senior React Developer">Senior React Developer</option>
-                        <option value="Product Manager">Product Manager</option>
-                        <option value="QA Automation Engineer">QA Automation Engineer</option>
-                        <option value="DevOps Engineer">DevOps Engineer</option>
-                        <option value="Junior UI/UX Designer">Junior UI/UX Designer</option>
+                        {allRoles.map(role => (
+                          <option key={role} value={role}>{role}</option>
+                        ))}
+                        <option value="Other">Other...</option>
                       </select>
+                      
+                      {uploadedCandidateRole === 'Other' && (
+                        <input 
+                          type="text" 
+                          placeholder="Enter custom role (e.g. Data Scientist)" 
+                          value={customRole} 
+                          onChange={(e) => setCustomRole(e.target.value)} 
+                          required 
+                          style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px', marginTop: '8px' }} 
+                        />
+                      )}
                     </div>
 
                     <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>

@@ -3,10 +3,17 @@ import styles from './projects.module.css';
 import { Briefcase, Calendar, Users, ListTodo, KanbanSquare, GitCommit, Search, Plus, Play, MoreVertical, Flag, Clock, X, HelpCircle, Eye, CheckCircle, AlertCircle, ChevronRight, AlertTriangle, Menu, CheckSquare, Paperclip, MessageSquare, User, Tag, Info, Lock, ChevronDown } from 'lucide-react';
 
 
-const Projects = () => {
+const Projects = ({ db, onUpdateDb }) => {
   const [activeProject, setActiveProject] = useState(null);
   const [activeView, setActiveView] = useState('board'); // board, create_sprint, kanban, timeline
   const [activeFilter, setActiveFilter] = useState('All');
+
+  // Sprint Config States
+  const [sprintName, setSprintName] = useState('Sprint 43');
+  const [sprintGoal, setSprintGoal] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [spTarget, setSpTarget] = useState(40);
 
   // 1. My Projects Board Data
   const projectsData = [
@@ -231,42 +238,104 @@ const Projects = () => {
         <div className={styles.sprintForm}>
           <div className={styles.formGroup}>
             <label>Sprint Name</label>
-            <input type="text" placeholder="e.g. Sprint 42: Alpha Release" defaultValue="Sprint 43" />
+            <input 
+              type="text" 
+              placeholder="e.g. Sprint 42: Alpha Release" 
+              value={sprintName} 
+              onChange={(e) => setSprintName(e.target.value)} 
+            />
           </div>
           <div className={styles.formGroup}>
             <label>Sprint Goal</label>
-            <textarea placeholder="What are we trying to achieve?" rows="3"></textarea>
+            <textarea 
+              placeholder="What are we trying to achieve?" 
+              rows="3"
+              value={sprintGoal}
+              onChange={(e) => setSprintGoal(e.target.value)}
+            ></textarea>
           </div>
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label>Start Date</label>
-              <input type="date" />
+              <input 
+                type="date" 
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
             </div>
             <div className={styles.formGroup}>
               <label>End Date</label>
-              <input type="date" />
+              <input 
+                type="date" 
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
             </div>
           </div>
           <div className={styles.formGroup}>
             <label>Story Points Target</label>
-            <input type="number" placeholder="e.g. 50" defaultValue="40" />
+            <input 
+              type="number" 
+              placeholder="e.g. 50" 
+              value={spTarget}
+              onChange={(e) => setSpTarget(parseInt(e.target.value) || 0)}
+            />
           </div>
           <button 
             className={styles.startSprintBtn}
             onClick={() => {
               if (sprintBacklog.length > 0) {
-                const newTasks = sprintBacklog.map(item => ({
-                  id: item.id,
-                  title: item.title,
-                  points: item.points,
-                  priority: 'Medium',
-                  assignee: 'Unassigned',
-                  blocked: false
-                }));
+                const newTasks = sprintBacklog.map(item => {
+                  const assignedUser = item.assignee === 'Select Team Member...' || !item.assignee ? 'Unassigned' : item.assignee;
+                  const initials = assignedUser !== 'Unassigned' ? assignedUser.split(' ').map(n => n[0]).join('').toUpperCase() : 'UN';
+                  return {
+                    id: `t${item.id}`,
+                    title: item.title,
+                    points: item.points,
+                    priority: item.priority || 'Medium',
+                    assignee: initials,
+                    blocked: false
+                  };
+                });
+
+                const newDbTasks = sprintBacklog.map(item => {
+                  const assignedUser = item.assignee === 'Select Team Member...' || !item.assignee ? 'Unassigned' : item.assignee;
+                  return {
+                    id: Date.now() + Math.random(),
+                    project: activeProject?.name || item.project || 'NSG-ERP Core',
+                    sprint: sprintName,
+                    title: item.title,
+                    description: item.description || sprintGoal || 'Created via TL Sprint configuration',
+                    priority: (item.priority || 'Medium').toLowerCase(),
+                    status: 'pending',
+                    sp: item.points || 1,
+                    assignee: assignedUser,
+                    avatar: assignedUser !== 'Unassigned' ? assignedUser.split(' ').map(n => n[0]).join('').toUpperCase() : 'UN',
+                    due: endDate || '2026-06-15',
+                    subtasks: [],
+                    acceptance: item.criteria ? item.criteria.split('\n').map(c => c.trim().replace(/^-\s*/, '')).filter(Boolean) : [
+                      'Meets general code quality guidelines',
+                      'Verified on local staging build'
+                    ],
+                    prStatus: null,
+                    prUrl: '',
+                    rejectedReason: ''
+                  };
+                });
+
                 setKanbanData(prev => ({
                   ...prev,
                   todo: [...prev.todo, ...newTasks]
                 }));
+
+                if (db && onUpdateDb) {
+                  const currentTasks = Array.isArray(db.tasks) ? db.tasks : [];
+                  onUpdateDb({
+                    ...db,
+                    tasks: [...currentTasks, ...newDbTasks]
+                  });
+                }
+
                 setSprintBacklog([]);
               }
               setActiveView('kanban');

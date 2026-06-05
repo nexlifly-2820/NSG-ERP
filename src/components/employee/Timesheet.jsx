@@ -46,8 +46,8 @@ function weekTotal(rows) {
 
 // ─── AddTaskModal ─────────────────────────────────────────────────────────────
 
-function AddTaskModal({ onAdd, onClose, existingIds }) {
-  const available = SPRINT_TASKS.filter(t => !existingIds.includes(t.id));
+function AddTaskModal({ onAdd, onClose, existingIds, availableTasks }) {
+  const available = availableTasks.filter(t => !existingIds.includes(t.id));
   return (
     <div className="ts-modal-overlay" onClick={onClose}>
       <div className="ts-modal" onClick={e => e.stopPropagation()}>
@@ -165,8 +165,14 @@ function DayTotalBadge({ total }) {
 export default function Timesheet({ db, onUpdateDb, currentUser }) {
   const employeeId = currentUser?.id || 102;
   const [weekOffset, setWeekOffset] = useState(0);
+
+  const userTasks = (db?.tasks || []).filter(t => !t.assignee || t.assignee === 'Jane Smith');
+  const availableTasks = userTasks.length > 0
+    ? userTasks.map(t => ({ id: t.id, name: t.title, sprint: t.sprint }))
+    : SPRINT_TASKS;
+
   const [rows, setRows] = useState(() =>
-    SPRINT_TASKS.slice(0, 3).map(t => ({
+    availableTasks.slice(0, 3).map(t => ({
       taskId: t.id,
       name: t.name,
       sprint: t.sprint,
@@ -198,7 +204,7 @@ export default function Timesheet({ db, onUpdateDb, currentUser }) {
       setRejectedReason(match.rejection_comment || '');
     } else {
       // Default to empty draft for the week
-      setRows(SPRINT_TASKS.slice(0, 3).map(t => ({
+      setRows(availableTasks.slice(0, 3).map(t => ({
         taskId: t.id,
         name: t.name,
         sprint: t.sprint,
@@ -521,6 +527,7 @@ export default function Timesheet({ db, onUpdateDb, currentUser }) {
           onAdd={addTask}
           onClose={() => setShowAddModal(false)}
           existingIds={rows.map(r => r.taskId)}
+          availableTasks={availableTasks}
         />
       )}
       {showSubmitModal && (

@@ -10,7 +10,7 @@ import Escalations from './Escalations/index';
 import Approvals from './Approvals/index';
 import MessagingAndMeet from './Messaging & Meet/messages.module.index';
 
-export default function Tl({ activeTab, setActiveTab, db, onUpdateDb }) {
+export default function Tl({ activeTab, setActiveTab, db, onUpdateDb, currentUser }) {
   const [selectedChatUser, setSelectedChatUser] = useState(null);
 
   return (
@@ -18,7 +18,7 @@ export default function Tl({ activeTab, setActiveTab, db, onUpdateDb }) {
       {activeTab === 'dashboard' && <Dashboard setActiveTab={setActiveTab} setSelectedChatUser={setSelectedChatUser} />}
       {activeTab === 'team' && <Team setActiveTab={setActiveTab} />}
       {activeTab === 'projects' && <Projects db={db} onUpdateDb={onUpdateDb} />}
-      {activeTab === 'tasks' && <Tasks db={db} onUpdateDb={onUpdateDb} />}
+      {activeTab === 'tasks' && <Tasks db={db} onUpdateDb={onUpdateDb} currentUser={currentUser} />}
       {activeTab === 'attendance' && <Attendance db={db} onUpdateDb={onUpdateDb} />}
       {activeTab === 'timesheets' && <Timesheets db={db} onUpdateDb={onUpdateDb} />}
       {activeTab === 'approvals' && <Approvals db={db} onUpdateDb={onUpdateDb} />}

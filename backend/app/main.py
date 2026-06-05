@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import engine, Base
-from app.routers import auth, attendance, timesheets, employee_portal, team_lead, hr_portal, ceo_portal
+from app.routers import auth, attendance, timesheets, employee_portal, team_lead, hr_portal, ceo_portal, resume_analyzer
 
 # Auto-create tables for SQLite development.
 # For production environments, database migrations (like Alembic) are recommended.
@@ -40,6 +40,7 @@ app.include_router(employee_portal.router)
 app.include_router(team_lead.router)
 app.include_router(hr_portal.router)
 app.include_router(ceo_portal.router)
+app.include_router(resume_analyzer.router)
 
 @app.get("/")
 def read_root():

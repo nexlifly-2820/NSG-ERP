@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import styles from './tasks.module.css';
 import { PlusSquare, List, XCircle, GitPullRequest, Edit, UserPlus, RotateCcw, Check, X } from 'lucide-react';
 
-const Tasks = ({ db, onUpdateDb }) => {
+const Tasks = ({ db, onUpdateDb, currentUser }) => {
   const [activeView, setActiveView] = useState('create'); // 'create', 'list', 'rejected', 'pr'
   const [subtasks, setSubtasks] = useState(['']);
   const [groupBy, setGroupBy] = useState('None');
@@ -47,6 +47,10 @@ const Tasks = ({ db, onUpdateDb }) => {
   const [taskPoints, setTaskPoints] = useState('');
   const [taskPriority, setTaskPriority] = useState('Medium');
   const [taskAssignee, setTaskAssignee] = useState('Select Team Member...');
+  const [taskDescription, setTaskDescription] = useState('');
+  const [taskProject, setTaskProject] = useState('NSG-ERP Core');
+  const [taskSprint, setTaskSprint] = useState('Sprint 14');
+  const [taskAcceptance, setTaskAcceptance] = useState('');
 
   const handleCreateTask = (e) => {
     e.preventDefault();
@@ -61,10 +65,10 @@ const Tasks = ({ db, onUpdateDb }) => {
 
     const newDbTask = {
       id: Date.now(),
-      project: 'NSG-ERP Core',
-      sprint: 'Sprint 14',
+      project: taskProject,
+      sprint: taskSprint,
       title: taskTitle.trim(),
-      description: 'Created via TL sprint board',
+      description: taskDescription.trim() || 'Created via TL sprint board',
       priority: priorityVal,
       status: 'pending',
       sp: parseInt(taskPoints) || 1,
@@ -72,7 +76,7 @@ const Tasks = ({ db, onUpdateDb }) => {
       avatar: assignedUser !== 'Unassigned' ? assignedUser.split(' ').map(n => n[0]).join('').toUpperCase() : 'UN',
       due: '2026-06-15',
       subtasks: subtasks.filter(t => t.trim() !== '').map((s, idx) => ({ id: Date.now() + idx, title: s, done: false })),
-      acceptance: [
+      acceptance: taskAcceptance.trim() ? taskAcceptance.split('\n').map(c => c.trim().replace(/^-\s*/, '')).filter(Boolean) : [
         'Meets general code quality guidelines',
         'Verified on local staging build'
       ],
@@ -102,6 +106,10 @@ const Tasks = ({ db, onUpdateDb }) => {
     setTaskPoints('');
     setTaskPriority('Medium');
     setTaskAssignee('Select Team Member...');
+    setTaskDescription('');
+    setTaskProject('NSG-ERP Core');
+    setTaskSprint('Sprint 14');
+    setTaskAcceptance('');
     setSubtasks(['']);
     setActiveView('list');
   };
@@ -141,7 +149,7 @@ const Tasks = ({ db, onUpdateDb }) => {
       id: t.id,
       title: t.title,
       reason: t.rejectedReason || 'Rework required.',
-      rejectedBy: 'Sarah Jenkins',
+      rejectedBy: currentUser?.name || 'Marcus Vance',
       rejectedAt: 'Recently',
       resubmitDue: t.due || 'TBD'
     }));
@@ -238,7 +246,12 @@ const Tasks = ({ db, onUpdateDb }) => {
 
               <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                 <label className={styles.formLabel}>Description</label>
-                <textarea className={styles.formTextarea} placeholder="Detailed description of the task..."></textarea>
+                <textarea 
+                  className={styles.formTextarea} 
+                  placeholder="Detailed description of the task..."
+                  value={taskDescription}
+                  onChange={(e) => setTaskDescription(e.target.value)}
+                ></textarea>
               </div>
 
               <div className={styles.formGroup}>
@@ -268,7 +281,11 @@ const Tasks = ({ db, onUpdateDb }) => {
 
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Project</label>
-                <select className={styles.formSelect}>
+                <select 
+                  className={styles.formSelect}
+                  value={taskProject}
+                  onChange={(e) => setTaskProject(e.target.value)}
+                >
                   <option>Select Project...</option>
                   <option>NSG-ERP Core</option>
                   <option>Mobile App</option>
@@ -278,10 +295,15 @@ const Tasks = ({ db, onUpdateDb }) => {
 
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Sprint ID</label>
-                <select className={styles.formSelect}>
-                  <option>Sprint 42 (Current)</option>
-                  <option>Sprint 43 (Next)</option>
-                  <option>Backlog</option>
+                <select 
+                  className={styles.formSelect}
+                  value={taskSprint}
+                  onChange={(e) => setTaskSprint(e.target.value)}
+                >
+                  {[...new Set(['Sprint 14', 'Sprint 13', ...((db?.tasks || []).map(t => t.sprint).filter(Boolean))])].map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                  <option value="Backlog">Backlog</option>
                 </select>
               </div>
 
@@ -317,7 +339,12 @@ const Tasks = ({ db, onUpdateDb }) => {
 
               <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                 <label className={styles.formLabel}>Acceptance Criteria</label>
-                <textarea className={styles.formTextarea} placeholder="- Given... When... Then..."></textarea>
+                <textarea 
+                  className={styles.formTextarea} 
+                  placeholder="- Given... When... Then..."
+                  value={taskAcceptance}
+                  onChange={(e) => setTaskAcceptance(e.target.value)}
+                ></textarea>
               </div>
 
               <button className={styles.submitBtn} onClick={handleCreateTask}>Create Task</button>
@@ -458,7 +485,16 @@ const Tasks = ({ db, onUpdateDb }) => {
                   {prReviews.map(pr => (
                     <tr key={pr.id}>
                       <td className={styles.taskTitle}>{pr.title}</td>
-                      <td><a href="#" className={styles.prLink}>{pr.prUrl}</a></td>
+                      <td>
+                        <a 
+                          href={pr.prUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className={styles.prLink}
+                        >
+                          {pr.prUrl}
+                        </a>
+                      </td>
                       <td>{pr.author}</td>
                       <td>{pr.openedAt}</td>
                       <td>
