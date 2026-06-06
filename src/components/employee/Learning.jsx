@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import './Employee.css';
 
 const DEFAULT_QUIZ_QUESTIONS = [
-  { id: 1, question: 'What is the NSG Code of Conduct primarily concerned with?', options: ['Maximizing individual profits', 'Ethical behavior, integrity and company values', 'Marketing strategy', 'Competitor analysis'], correct: 1 },
+  { id: 1, question: 'What is the HMNS Code of Conduct primarily concerned with?', options: ['Maximizing individual profits', 'Ethical behavior, integrity and company values', 'Marketing strategy', 'Competitor analysis'], correct: 1 },
   { id: 2, question: 'What should you do if you witness workplace harassment?', options: ['Ignore it and move on', 'Discuss it only with friends outside the company', 'Report it to HR or your Team Lead immediately', 'Handle it yourself informally'], correct: 2 },
   { id: 3, question: 'How many days of Casual Leave (CL) are employees entitled to per year?', options: ['6 days', '10 days', '12 days', '15 days'], correct: 2 },
   { id: 4, question: 'Which of the following best describes confidentiality of company data?', options: ['Company data can be shared with anyone if it is useful', 'Company data must be protected and only shared on a need-to-know basis', 'Only financial data is confidential', "Data security is the IT department's problem alone"], correct: 1 },
@@ -10,7 +10,7 @@ const DEFAULT_QUIZ_QUESTIONS = [
 ];
 
 const MODULES = [
-  { id: 1, title: 'NSG Corporate Values & Ethics', duration: '30 min', icon: '🏢', description: 'Company culture, code of conduct, and professional ethics.' },
+  { id: 1, title: 'HMNS Corporate Values & Ethics', duration: '30 min', icon: '🏢', description: 'Company culture, code of conduct, and professional ethics.' },
   { id: 2, title: 'Technical Guidelines & Security Policy', duration: '45 min', icon: '🔒', description: 'IT security protocols, data handling, and compliance rules.' }
 ];
 

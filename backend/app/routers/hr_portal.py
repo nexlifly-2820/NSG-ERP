@@ -72,7 +72,7 @@ class EmployeeResponse(BaseModel):
     bank_name: Optional[str]
     account_number: Optional[str]
     ifsc_code: Optional[str]
-    grade: int
+    grade: Optional[int] = 1
     manager: Optional[str]
     photo: Optional[str]
     documents: Optional[str]

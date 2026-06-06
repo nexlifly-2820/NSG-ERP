@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Building2, Network, Briefcase, Clock, CalendarDays, Plus, 
   Trash2, Edit2, Save, AlertCircle, ChevronDown, ChevronRight, Upload,
@@ -7,7 +7,7 @@ import {
 import '../CEO.css';
 
 // ==========================================
-// INITIAL MOCK DATA
+// INITIAL MOCK DATA FALLBACKS
 // ==========================================
 const TABS = [
   { id: 'profile', label: 'Company Profile', icon: Building2 },
@@ -85,7 +85,7 @@ const CustomModal = ({ isOpen, title, fields, onSave, onClose }) => {
               )}
             </div>
           ))}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px' }}>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '32px' }}>
              <button type="button" onClick={onClose} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #CBD5E1', background: '#FFF', cursor: 'pointer', fontWeight: 600, color: 'var(--ceo-text-secondary)' }}>Cancel</button>
              <button type="submit" style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: 'var(--ceo-primary)', color: '#FFF', cursor: 'pointer', fontWeight: 600, boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>Save</button>
           </div>
@@ -138,7 +138,13 @@ const DeptTreeNode = ({ dept, level = 0, onAdd, onEdit, onDelete }) => {
         <span style={{ fontWeight: 600, flex: 1, fontSize: '15px', color: 'var(--ceo-text-primary)' }}>{dept.name}</span>
         <span className="ceo-badge neutral" style={{ marginRight: '16px', fontSize: '11px' }}><Users size={12} style={{marginRight:4}}/>{dept.headcount} EMP</span>
         
-        <div style={{ display: 'flex', gap: '8px', opacity: isHovered ? 1 : 0, transition: 'opacity 0.2s' }}>
+        <div style={{ 
+          display: 'flex', 
+          gap: '8px', 
+          opacity: 1, 
+          transition: 'opacity 0.2s',
+          marginLeft: 'auto'
+        }}>
           <button className="ceo-btn" style={{ padding: '6px', background: '#FFF' }} title="Add Sub-Department" onClick={() => onAdd(dept.id)}>
             <Plus size={14} color="var(--ceo-primary)" />
           </button>
@@ -164,79 +170,199 @@ const DeptTreeNode = ({ dept, level = 0, onAdd, onEdit, onDelete }) => {
 
 
 // ==========================================
-// MAIN PAGE
+// MAIN PAGE (LIVE DATA CONNECTED)
 // ==========================================
 export default function CompanySetup() {
   const [activeTab, setActiveTab] = useState('profile');
   
-  // States for mock data
+  // Database States
   const [deptTree, setDeptTree] = useState(initialDeptTree);
   const [designations, setDesignations] = useState(initialDesignations);
   const [shifts, setShifts] = useState(initialShifts);
   const [holidays, setHolidays] = useState(initialHolidays);
-  const [profileData, setProfileData] = useState({ name: 'NSG Technologies Pvt Ltd', gst: '27AADCN4521E1Z8', cin: 'U74900MH2010PTC123456' });
+  const [profileData, setProfileData] = useState({ 
+    name: 'NSG Technologies Pvt Ltd', 
+    gst: '27AADCN4521E1Z8', 
+    cin: 'U74900MH2010PTC123456',
+    address: 'Unit 401, Mindspace IT Park, Malad West, Mumbai, Maharashtra 400064',
+    fy: 'apr',
+    currency: 'inr'
+  });
   const [logoFile, setLogoFile] = useState(null);
   
   // UI States
+  const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
-  const [modalConfig, setModalConfig] = useState(null); // { title, fields, onSave }
+  const [modalConfig, setModalConfig] = useState(null);
   const fileInputRef = useRef(null);
+
+  const token = localStorage.getItem('nsg_jwt_token');
 
   const showToast = (msg) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(''), 3000);
   };
 
-  const handleSaveProfile = (e) => {
-    e.preventDefault();
-    setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
-      showToast('Profile configuration saved securely.');
-    }, 1000);
+  // ─── API Integration ──────────────────────────────────────────────────────────
+
+  const fetchSettings = async () => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/ceo-portal/configs', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const configs = await res.json();
+        
+        setProfileData({
+          name: configs.company_name || 'NSG Technologies Pvt Ltd',
+          gst: configs.company_gst || '27AADCN4521E1Z8',
+          cin: configs.company_cin || 'U74900MH2010PTC123456',
+          address: configs.company_address || 'Unit 401, Mindspace IT Park, Malad West, Mumbai, Maharashtra 400064',
+          fy: configs.company_fy || 'apr',
+          currency: configs.company_currency || 'inr'
+        });
+
+        if (configs.company_logo) {
+          setLogoFile(configs.company_logo);
+        }
+
+        if (configs.department_tree) {
+          try {
+            setDeptTree(JSON.parse(configs.department_tree));
+          } catch (e) {
+            console.error("Error parsing department tree", e);
+          }
+        }
+
+        if (configs.designation_list) {
+          try {
+            setDesignations(JSON.parse(configs.designation_list));
+          } catch (e) {
+            console.error("Error parsing designations", e);
+          }
+        }
+
+        if (configs.working_hours_shifts) {
+          try {
+            setShifts(JSON.parse(configs.working_hours_shifts));
+          } catch (e) {
+            console.error("Error parsing shifts", e);
+          }
+        }
+
+        if (configs.company_holidays) {
+          try {
+            setHolidays(JSON.parse(configs.company_holidays));
+          } catch (e) {
+            console.error("Error parsing holidays", e);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch settings", err);
+      showToast("Error loading company configurations.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleLogoUpload = (e) => {
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const saveSetting = async (key, value) => {
+    if (!token) return false;
+    try {
+      const res = await fetch('/api/ceo-portal/configs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ key, value })
+      });
+      return res.ok;
+    } catch (e) {
+      console.error(`Error saving config ${key}:`, e);
+      return false;
+    }
+  };
+
+  // ─── Event Handlers ──────────────────────────────────────────────────────────
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    setIsSaving(true);
+    
+    const p1 = saveSetting('company_name', profileData.name);
+    const p2 = saveSetting('company_gst', profileData.gst);
+    const p3 = saveSetting('company_cin', profileData.cin);
+    const p4 = saveSetting('company_address', profileData.address);
+    const p5 = saveSetting('company_fy', profileData.fy);
+    const p6 = saveSetting('company_currency', profileData.currency);
+    
+    const results = await Promise.all([p1, p2, p3, p4, p5, p6]);
+    setIsSaving(false);
+    if (results.every(r => r)) {
+      showToast('Profile configuration saved securely.');
+    } else {
+      showToast('Error saving profile settings.');
+    }
+  };
+
+  const handleLogoUpload = async (e) => {
     if(e.target.files && e.target.files[0]){
-      setLogoFile(e.target.files[0].name);
-      showToast('Logo file selected: ' + e.target.files[0].name);
+      const fileName = e.target.files[0].name;
+      setIsSaving(true);
+      const success = await saveSetting('company_logo', fileName);
+      setIsSaving(false);
+      if (success) {
+        setLogoFile(fileName);
+        showToast('Logo file selected and saved: ' + fileName);
+      } else {
+        showToast('Error uploading logo');
+      }
     }
   };
 
   // --- Department Tree Helpers ---
   const addNodeToTree = (tree, parentId, newNode) => {
-    if (!parentId) return [...tree, newNode]; // Root add
+    if (!parentId) return [...tree, newNode];
     return tree.map(node => {
-      if (node.id === parentId) return { ...node, children: [...(node.children || []), newNode] };
-      if (node.children) return { ...node, children: addNodeToTree(node.children, parentId, newNode) };
+      if (node.id == parentId) return { ...node, children: [...(node.children || []), newNode] };
+      if (node.children && node.children.length > 0) return { ...node, children: addNodeToTree(node.children, parentId, newNode) };
       return node;
     });
   };
   const editNodeInTree = (tree, id, newName) => {
     return tree.map(node => {
-      if (node.id === id) return { ...node, name: newName };
-      if (node.children) return { ...node, children: editNodeInTree(node.children, id, newName) };
+      if (node.id == id) return { ...node, name: newName };
+      if (node.children && node.children.length > 0) return { ...node, children: editNodeInTree(node.children, id, newName) };
       return node;
     });
   };
   const deleteNodeFromTree = (tree, id) => {
-    return tree.filter(node => node.id !== id).map(node => {
-      if (node.children) return { ...node, children: deleteNodeFromTree(node.children, id) };
+    return tree.filter(node => node.id != id).map(node => {
+      if (node.children && node.children.length > 0) return { ...node, children: deleteNodeFromTree(node.children, id) };
       return node;
     });
   };
 
-  // --- Handlers ---
   const handleDeptAdd = (parentId = null) => {
     setModalConfig({
       title: parentId ? 'Add Sub-Department' : 'Add Root Department',
       fields: [{ name: 'name', label: 'Department Name' }],
-      onSave: (data) => {
+      onSave: async (data) => {
         const newNode = { id: Date.now(), name: data.name, headcount: 0, children: [] };
-        setDeptTree(addNodeToTree(deptTree, parentId, newNode));
+        const updatedTree = addNodeToTree(deptTree, parentId, newNode);
+        setDeptTree(updatedTree);
         setModalConfig(null);
-        showToast('Department added');
+        const success = await saveSetting('department_tree', JSON.stringify(updatedTree));
+        if (success) showToast('Department added and saved');
+        else showToast('Department added locally but failed to save');
       }
     });
   };
@@ -245,18 +371,24 @@ export default function CompanySetup() {
     setModalConfig({
       title: 'Edit Department',
       fields: [{ name: 'name', label: 'Department Name', defaultValue: dept.name }],
-      onSave: (data) => {
-        setDeptTree(editNodeInTree(deptTree, dept.id, data.name));
+      onSave: async (data) => {
+        const updatedTree = editNodeInTree(deptTree, dept.id, data.name);
+        setDeptTree(updatedTree);
         setModalConfig(null);
-        showToast('Department updated');
+        const success = await saveSetting('department_tree', JSON.stringify(updatedTree));
+        if (success) showToast('Department updated and saved');
+        else showToast('Department updated locally but failed to save');
       }
     });
   };
 
-  const handleDeptDelete = (id, name) => {
+  const handleDeptDelete = async (id, name) => {
     if(window.confirm(`Are you sure you want to delete ${name}? This will also delete all sub-departments.`)) {
-      setDeptTree(deleteNodeFromTree(deptTree, id));
-      showToast('Department deleted');
+      const updatedTree = deleteNodeFromTree(deptTree, id);
+      setDeptTree(updatedTree);
+      const success = await saveSetting('department_tree', JSON.stringify(updatedTree));
+      if (success) showToast('Department deleted and saved');
+      else showToast('Department deleted locally but failed to save');
     }
   };
 
@@ -268,16 +400,30 @@ export default function CompanySetup() {
         { name: 'dept', label: 'Department', defaultValue: item?.dept },
         { name: 'level', label: 'Band Level', defaultValue: item?.level }
       ],
-      onSave: (data) => {
+      onSave: async (data) => {
+        let updatedDesignations;
         if(item) {
-          setDesignations(designations.map(d => d.id === item.id ? { ...d, count: item.count, ...data } : d));
+          updatedDesignations = designations.map(d => d.id === item.id ? { ...d, count: item.count, ...data } : d);
         } else {
-          setDesignations([...designations, { id: Date.now(), count: 0, ...data }]);
+          updatedDesignations = [...designations, { id: Date.now(), count: 0, ...data }];
         }
+        setDesignations(updatedDesignations);
         setModalConfig(null);
-        showToast(item ? 'Designation updated' : 'Designation created');
+        const success = await saveSetting('designation_list', JSON.stringify(updatedDesignations));
+        if (success) showToast(item ? 'Designation updated' : 'Designation created');
+        else showToast('Designation changes failed to save');
       }
     });
+  };
+
+  const handleDesigDelete = async (id) => {
+    if(window.confirm('Delete designation?')) {
+      const updatedDesignations = designations.filter(d => d.id !== id);
+      setDesignations(updatedDesignations);
+      const success = await saveSetting('designation_list', JSON.stringify(updatedDesignations));
+      if (success) showToast('Designation deleted');
+      else showToast('Designation failed to delete');
+    }
   };
 
   const handleShiftAddEdit = (item = null) => {
@@ -289,16 +435,30 @@ export default function CompanySetup() {
         { name: 'end', label: 'End Time (e.g. 06:00 PM)', defaultValue: item?.end },
         { name: 'days', label: 'Working Days', defaultValue: item?.days || 'Mon-Fri' }
       ],
-      onSave: (data) => {
+      onSave: async (data) => {
+        let updatedShifts;
         if(item) {
-          setShifts(shifts.map(s => s.id === item.id ? { ...s, ...data } : s));
+          updatedShifts = shifts.map(s => s.id === item.id ? { ...s, ...data } : s);
         } else {
-          setShifts([...shifts, { id: Date.now(), ...data }]);
+          updatedShifts = [...shifts, { id: Date.now(), ...data }];
         }
+        setShifts(updatedShifts);
         setModalConfig(null);
-        showToast(item ? 'Shift updated' : 'Shift added');
+        const success = await saveSetting('working_hours_shifts', JSON.stringify(updatedShifts));
+        if (success) showToast(item ? 'Shift updated' : 'Shift added');
+        else showToast('Shift changes failed to save');
       }
     });
+  };
+
+  const handleShiftDelete = async (id) => {
+    if(window.confirm('Delete shift?')) {
+      const updatedShifts = shifts.filter(s => s.id !== id);
+      setShifts(updatedShifts);
+      const success = await saveSetting('working_hours_shifts', JSON.stringify(updatedShifts));
+      if (success) showToast('Shift deleted');
+      else showToast('Shift failed to delete');
+    }
   };
 
   const handleHolidayAddEdit = (item = null) => {
@@ -309,17 +469,42 @@ export default function CompanySetup() {
         { name: 'date', label: 'Date (e.g. Dec 25, 2026)', defaultValue: item?.date },
         { name: 'type', label: 'Type', type: 'select', options: ['Mandatory', 'Optional'], defaultValue: item?.type }
       ],
-      onSave: (data) => {
+      onSave: async (data) => {
+        let updatedHolidays;
         if(item) {
-          setHolidays(holidays.map(h => h.id === item.id ? { ...h, ...data } : h));
+          updatedHolidays = holidays.map(h => h.id === item.id ? { ...h, ...data } : h);
         } else {
-          setHolidays([...holidays, { id: Date.now(), ...data }]);
+          updatedHolidays = [...holidays, { id: Date.now(), ...data }];
         }
+        setHolidays(updatedHolidays);
         setModalConfig(null);
-        showToast(item ? 'Holiday updated' : 'Holiday added');
+        const success = await saveSetting('company_holidays', JSON.stringify(updatedHolidays));
+        if (success) showToast(item ? 'Holiday updated' : 'Holiday added');
+        else showToast('Holiday changes failed to save');
       }
     });
   };
+
+  const handleHolidayDelete = async (id) => {
+    if(window.confirm('Delete holiday?')) {
+      const updatedHolidays = holidays.filter(h => h.id !== id);
+      setHolidays(updatedHolidays);
+      const success = await saveSetting('company_holidays', JSON.stringify(updatedHolidays));
+      if (success) showToast('Holiday deleted');
+      else showToast('Holiday failed to delete');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '600px', gap: '12px' }}>
+        <Clock className="spin" size={32} color="var(--ceo-primary)" style={{ opacity: 0.6 }} />
+        <div style={{ color: 'var(--ceo-text-secondary)', fontSize: '15px', fontWeight: 600 }}>
+          Loading company configurations...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
@@ -436,12 +621,12 @@ export default function CompanySetup() {
                   
                   <div className="ceo-form-group" style={{ gridColumn: '1 / -1' }}>
                     <label>Registered Address</label>
-                    <textarea className="ceo-form-input" required rows={3} defaultValue="Unit 401, Mindspace IT Park, Malad West, Mumbai, Maharashtra 400064"></textarea>
+                    <textarea className="ceo-form-input" required rows={3} value={profileData.address || ''} onChange={(e) => setProfileData({...profileData, address: e.target.value})} />
                   </div>
                   
                   <div className="ceo-form-group">
                     <label>Financial Year Start</label>
-                    <select className="ceo-form-input" defaultValue="apr">
+                    <select className="ceo-form-input" value={profileData.fy || 'apr'} onChange={(e) => setProfileData({...profileData, fy: e.target.value})}>
                       <option value="apr">April (Recommended)</option>
                       <option value="jan">January</option>
                       <option value="jul">July</option>
@@ -450,7 +635,7 @@ export default function CompanySetup() {
                   
                   <div className="ceo-form-group">
                     <label>Default Currency</label>
-                    <select className="ceo-form-input" defaultValue="inr">
+                    <select className="ceo-form-input" value={profileData.currency || 'inr'} onChange={(e) => setProfileData({...profileData, currency: e.target.value})}>
                       <option value="inr">INR (₹)</option>
                       <option value="usd">USD ($)</option>
                       <option value="eur">EUR (€)</option>
@@ -520,12 +705,7 @@ export default function CompanySetup() {
                         <td>{des.count}</td>
                         <td style={{ textAlign: 'right' }}>
                           <button className="ceo-btn" style={{ padding: '6px', marginRight: '8px' }} onClick={() => handleDesigAddEdit(des)}><Edit2 size={14}/></button>
-                          <button className="ceo-btn" style={{ padding: '6px' }} onClick={() => {
-                            if(window.confirm('Delete designation?')) {
-                              setDesignations(designations.filter(d => d.id !== des.id));
-                              showToast('Designation deleted');
-                            }
-                          }}><Trash2 size={14} color="var(--ceo-danger)"/></button>
+                          <button className="ceo-btn" style={{ padding: '6px' }} onClick={() => handleDesigDelete(des.id)}><Trash2 size={14} color="var(--ceo-danger)"/></button>
                         </td>
                       </tr>
                     ))}
@@ -563,12 +743,7 @@ export default function CompanySetup() {
                         <td>{shift.days}</td>
                         <td style={{ textAlign: 'right' }}>
                           <button className="ceo-btn" style={{ padding: '6px', marginRight: '8px' }} onClick={() => handleShiftAddEdit(shift)}><Edit2 size={14}/></button>
-                          <button className="ceo-btn" style={{ padding: '6px' }} onClick={() => {
-                            if(window.confirm('Delete shift?')) {
-                              setShifts(shifts.filter(s => s.id !== shift.id));
-                              showToast('Shift deleted');
-                            }
-                          }}><Trash2 size={14} color="var(--ceo-danger)"/></button>
+                          <button className="ceo-btn" style={{ padding: '6px' }} onClick={() => handleShiftDelete(shift.id)}><Trash2 size={14} color="var(--ceo-danger)"/></button>
                         </td>
                       </tr>
                     ))}
@@ -608,12 +783,7 @@ export default function CompanySetup() {
                         </td>
                         <td style={{ textAlign: 'right' }}>
                           <button className="ceo-btn" style={{ padding: '6px', marginRight: '8px' }} onClick={() => handleHolidayAddEdit(hol)}><Edit2 size={14}/></button>
-                          <button className="ceo-btn" style={{ padding: '6px' }} onClick={() => {
-                            if(window.confirm('Delete holiday?')) {
-                              setHolidays(holidays.filter(h => h.id !== hol.id));
-                              showToast('Holiday deleted');
-                            }
-                          }}><Trash2 size={14} color="var(--ceo-danger)"/></button>
+                          <button className="ceo-btn" style={{ padding: '6px' }} onClick={() => handleHolidayDelete(hol.id)}><Trash2 size={14} color="var(--ceo-danger)"/></button>
                         </td>
                       </tr>
                     ))}

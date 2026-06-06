@@ -144,7 +144,7 @@ export default function HuddleModal({ peer, onClose }) {
 
         <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', letterSpacing: '-0.3px' }}>
-            Launching NSG ERP Huddle...
+            Launching HMNS ERP Huddle...
           </h3>
           <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8' }}>
             Establishing direct client-side video link for {peer.name || 'Workspace'}
@@ -224,7 +224,7 @@ export default function HuddleModal({ peer, onClose }) {
             }}
           />
           <span style={{ fontSize: '13px', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase', color: '#10b981' }}>
-            NSG ERP Live Meeting
+            HMNS ERP Live Meeting
           </span>
           <span style={{ fontSize: '13px', color: '#64748b' }}>|</span>
           <span style={{ fontSize: '13px', color: '#cbd5e1' }}>

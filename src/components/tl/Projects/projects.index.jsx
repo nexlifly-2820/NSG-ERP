@@ -6,6 +6,11 @@ import { Briefcase, Calendar, Users, ListTodo, KanbanSquare, GitCommit, Search, 
 const Projects = ({ db, onUpdateDb }) => {
   const [activeProject, setActiveProject] = useState(null);
   const [activeView, setActiveView] = useState('board'); // board, create_sprint, kanban, timeline
+
+  // 1. My Projects Board Data — from backend
+  const [projectsData, setProjectsData] = useState([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
+
   const [activeFilter, setActiveFilter] = useState('All');
 
   // Sprint Config States
@@ -15,40 +20,102 @@ const Projects = ({ db, onUpdateDb }) => {
   const [endDate, setEndDate] = useState('');
   const [spTarget, setSpTarget] = useState(40);
 
-  // 1. My Projects Board Data
-  const projectsData = [
-    { id: 1, name: 'NSG ERP Core', client: 'Internal', status: 'Active', sprintCount: 4, budgetUsed: 65, deadline: '2026-06-15' },
-    { id: 2, name: 'Video Huddles v2', client: 'External - Alpha Corp', status: 'On Hold', sprintCount: 2, budgetUsed: 30, deadline: '2026-07-01' },
-    { id: 3, name: 'Payroll Engine', client: 'Internal', status: 'Completed', sprintCount: 8, budgetUsed: 95, deadline: '2026-04-10' },
-  ];
-
   // 2. Create Sprint Form Data
   const [productBacklog, setProductBacklog] = useState([
-    { id: 'b1', title: 'Implement OAuth 2.0 Login', points: 5, okr: 'Q2-Obj-1', description: 'Add secure OAuth 2.0 authentication flow to the login portal. Ensure compliance with security guidelines.', priority: 'High', assignee: 'Select Team Member...', project: 'NSG-ERP Core', labels: 'frontend, security, auth', criteria: '- Given user is on login page\n- When they click "Login with Google"\n- Then they are redirected to Google Auth\n- And upon success, they receive a JWT token.' },
+    { id: 'b1', title: 'Implement OAuth 2.0 Login', points: 5, okr: 'Q2-Obj-1', description: 'Add secure OAuth 2.0 authentication flow to the login portal.', priority: 'High', assignee: 'Select Team Member...', project: 'NSG-ERP Core', labels: 'frontend, security, auth', criteria: '- Given user is on login page\n- When they click "Login with Google"\n- Then they are redirected to Google Auth\n- And upon success, they receive a JWT token.' },
     { id: 'b2', title: 'Design Database Schema for Video Huddles', points: 8, okr: 'Q2-Obj-2', description: 'Draft the initial ERD and schema migrations for the video huddles feature.', priority: 'Medium', assignee: 'Michael Chang', project: 'NSG-ERP Core', labels: 'backend, database', criteria: '- Must support multiple participants\n- Must track connection states' },
     { id: 'b3', title: 'Setup CI/CD Pipeline', points: 3, okr: 'Q2-Obj-1', description: 'Configure GitHub Actions for automated testing and deployment.', priority: 'Critical', assignee: 'David Miller', project: 'Infrastructure', labels: 'devops, ci-cd', criteria: '- Runs tests on PR\n- Deploys to staging on merge' },
     { id: 'b4', title: 'Refactor Auth Middleware', points: 2, okr: 'Q2-Obj-3', description: 'Clean up the authentication middleware to use the new caching service.', priority: 'Low', assignee: 'Sarah Jenkins', project: 'NSG-ERP Core', labels: 'backend, tech-debt', criteria: '- Uses Redis for session caching\n- Response time < 50ms' },
   ]);
   const [sprintBacklog, setSprintBacklog] = useState([]);
 
-  // 3. Kanban Task Board Data
+  // 3. Kanban Task Board Data — from backend
   const [kanbanData, setKanbanData] = useState({
-    todo: [
-      { id: 't1', title: 'Refactor Leaves Request Flow', points: 3, priority: 'Medium', assignee: 'SJ', blocked: false, date: '27-05-26', progress: 50 },
-      { id: 't2', title: 'Draft Annual Leave Approval', points: 5, priority: 'Medium', assignee: 'BS', blocked: false, date: '28-05-26', progress: 0 }
-    ],
-    inProgress: [
-      { id: 't3', title: 'Implement Payroll Dashboard', points: 2, priority: 'High', assignee: 'MC', blocked: false, date: '25-05-26', progress: 33 }
-    ],
+    todo: [],
+    inProgress: [],
     codeReview: [],
-    testing: [
-      { id: 't4', title: 'Setup WebSocket Client', points: 8, priority: 'High', assignee: 'ER', blocked: false, date: '24-05-26', progress: 67 }
-    ],
-    completed: [
-      { id: 't5', title: 'Optimize Main Sidebar Layout', points: 1, priority: 'Low', assignee: 'MC', blocked: false, date: '18-05-26', progress: 100 },
-      { id: 't6', title: 'Fix Biometric Face Scanning', points: 4, priority: 'High', assignee: 'SJ', blocked: false, date: '20-05-26', progress: 100 }
-    ]
+    testing: [],
+    completed: []
   });
+  const [kanbanLoading, setKanbanLoading] = useState(false);
+
+  const token = () => localStorage.getItem('nsg_jwt_token');
+
+  // Fetch real projects from backend
+  useEffect(() => {
+    const fetchProjects = async () => {
+      setProjectsLoading(true);
+      try {
+        const res = await fetch('/api/team-lead/projects', {
+          headers: { 'Authorization': `Bearer ${token()}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setProjectsData(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch projects:', err);
+      } finally {
+        setProjectsLoading(false);
+      }
+    };
+    fetchProjects();
+  }, []);
+
+  // Fetch real tasks from backend for Kanban board
+  const fetchTasks = async () => {
+    setKanbanLoading(true);
+    try {
+      const res = await fetch('/api/team-lead/tasks', {
+        headers: { 'Authorization': `Bearer ${token()}` }
+      });
+      if (res.ok) {
+        const tasks = await res.json();
+        // Map task status → kanban column
+        const columns = { todo: [], inProgress: [], codeReview: [], testing: [], completed: [] };
+        tasks.forEach(t => {
+          const card = {
+            id: String(t.id),
+            title: t.title,
+            points: t.sp,
+            priority: t.priority || 'medium',
+            assignee: t.user_id ? String(t.user_id) : 'UN',
+            blocked: t.pr_status === 'rejected',
+            date: t.due || '',
+            progress: t.status === 'done' ? 100 : t.status === 'in-progress' ? 50 : 0,
+            dbId: t.id
+          };
+          if (t.status === 'in-progress') columns.inProgress.push(card);
+          else if (t.status === 'done') columns.completed.push(card);
+          else if (t.status === 'blocked') columns.codeReview.push(card);
+          else columns.todo.push(card);
+        });
+        setKanbanData(columns);
+      }
+    } catch (err) {
+      console.error('Failed to fetch tasks:', err);
+    } finally {
+      setKanbanLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeView === 'kanban') {
+      fetchTasks();
+    }
+  }, [activeView]);
+
+  useEffect(() => {
+    const handleNewTask = (e) => {
+      const task = e.detail;
+      setKanbanData(prev => ({
+        ...prev,
+        todo: [...prev.todo, task]
+      }));
+    };
+    window.addEventListener('add_kanban_task', handleNewTask);
+    return () => window.removeEventListener('add_kanban_task', handleNewTask);
+  }, []);
 
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const [selectedTaskDetails, setSelectedTaskDetails] = useState(null);
@@ -185,31 +252,36 @@ const Projects = ({ db, onUpdateDb }) => {
           </div>
         </div>
 
+        {projectsLoading ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Loading projects from server...</div>
+        ) : (
         <div className={styles.projectGrid}>
-          {projectsData.filter(p => activeFilter === 'All' || p.status === activeFilter).map(proj => (
+          {projectsData.filter(p => activeFilter === 'All' || p.status === activeFilter).map(proj => {
+            const budgetPct = proj.budget > 0 ? Math.min(100, Math.round((proj.used / proj.budget) * 100)) : 0;
+            return (
             <div key={proj.id} className={styles.projectCard}>
               <div className={styles.pCardHeader}>
-                <span className={`${styles.pBadge} ${styles[proj.status.toLowerCase().replace(' ', '')]}`}>{proj.status}</span>
+                <span className={`${styles.pBadge} ${styles[(proj.status || 'active').toLowerCase().replace(' ', '')]}`}>{proj.status}</span>
                 <span className={styles.pClient}>{proj.client}</span>
               </div>
               <h3 className={styles.pTitle}>{proj.name}</h3>
 
               <div className={styles.pStats}>
                 <div className={styles.pStatItem}>
-                  <GitCommit size={14} /> {proj.sprintCount} Sprints
+                  <Calendar size={14} /> Due {proj.deadline || 'TBD'}
                 </div>
                 <div className={styles.pStatItem}>
-                  <Calendar size={14} /> Due {proj.deadline}
+                  ₹{(proj.used/1000).toFixed(0)}K / ₹{(proj.budget/1000).toFixed(0)}K
                 </div>
               </div>
 
               <div className={styles.pProgressBox}>
                 <div className={styles.pProgressText}>
                   <span>Budget Used</span>
-                  <strong>{proj.budgetUsed}%</strong>
+                  <strong>{budgetPct}%</strong>
                 </div>
                 <div className={styles.pProgressBar}>
-                  <div className={styles.pProgressFill} style={{ width: `${proj.budgetUsed}%` }}></div>
+                  <div className={styles.pProgressFill} style={{ width: `${budgetPct}%`, background: budgetPct > 90 ? '#ef4444' : budgetPct > 75 ? '#f59e0b' : undefined }}></div>
                 </div>
               </div>
 
@@ -225,8 +297,10 @@ const Projects = ({ db, onUpdateDb }) => {
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
+        )}
       </div>
     );
   };
@@ -729,7 +803,7 @@ const Projects = ({ db, onUpdateDb }) => {
                 <div className={styles.mMetaList}>
                   <div className={styles.mMetaRow}>
                     <div className={styles.mMetaLabel}><KanbanSquare size={14} /> Project Name</div>
-                    <div className={styles.mMetaValueBox}>NSG ERP Platform</div>
+                    <div className={styles.mMetaValueBox}>HMNS ERP Platform</div>
                   </div>
                   <div className={styles.mMetaRow}>
                     <div className={styles.mMetaLabel}><Menu size={14} /> Task Name</div>

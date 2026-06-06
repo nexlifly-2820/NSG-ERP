@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Check, Lock, AlertCircle, Pencil, Trash2, Plus } from 'lucide-react';
 
 const DEFAULT_QUIZ_QUESTIONS = [
-  { id: 1, question: 'What is the NSG Code of Conduct primarily concerned with?', options: ['Maximizing individual profits', 'Ethical behavior, integrity and company values', 'Marketing strategy', 'Competitor analysis'], correct: 1 },
+  { id: 1, question: 'What is the HMNS Code of Conduct primarily concerned with?', options: ['Maximizing individual profits', 'Ethical behavior, integrity and company values', 'Marketing strategy', 'Competitor analysis'], correct: 1 },
   { id: 2, question: 'What should you do if you witness workplace harassment?', options: ['Ignore it and move on', 'Discuss it only with friends outside the company', 'Report it to HR or your Team Lead immediately', 'Handle it yourself informally'], correct: 2 },
   { id: 3, question: 'How many days of Casual Leave (CL) are employees entitled to per year?', options: ['6 days', '10 days', '12 days', '15 days'], correct: 2 },
   { id: 4, question: 'Which of the following best describes confidentiality of company data?', options: ['Company data can be shared with anyone if it is useful', 'Company data must be protected and only shared on a need-to-know basis', 'Only financial data is confidential', "Data security is the IT department's problem alone"], correct: 1 },
@@ -520,6 +520,7 @@ export function LearningLndView({ db, onUpdateDb }) {
             <thead>
               <tr>
                 <th style={{ padding: '16px 40px', textAlign: 'left' }}>Training Track Course</th>
+                <th style={{ padding: '16px 40px', textAlign: 'left' }}>Executive Department</th>
                 <th style={{ padding: '16px 40px', textAlign: 'left' }}>Engineering Department</th>
                 <th style={{ padding: '16px 40px', textAlign: 'left' }}>Sales Department</th>
                 <th style={{ padding: '16px 40px', textAlign: 'left' }}>IT Department</th>
@@ -528,7 +529,8 @@ export function LearningLndView({ db, onUpdateDb }) {
             </thead>
             <tbody>
               <tr>
-                <td style={{ padding: '16px 40px' }}><strong>NSG Corporate Inductions (L1)</strong></td>
+                <td style={{ padding: '16px 40px' }}><strong>HMNS Corporate Inductions (L1)</strong></td>
+                <td style={{ padding: '16px 40px' }}><span style={{ color: 'var(--accent-green)', fontWeight: 'bold' }}>Mandatory ✓</span></td>
                 <td style={{ padding: '16px 40px' }}><span style={{ color: 'var(--accent-green)', fontWeight: 'bold' }}>Mandatory ✓</span></td>
                 <td style={{ padding: '16px 40px' }}><span style={{ color: 'var(--accent-green)', fontWeight: 'bold' }}>Mandatory ✓</span></td>
                 <td style={{ padding: '16px 40px' }}><span style={{ color: 'var(--accent-green)', fontWeight: 'bold' }}>Mandatory ✓</span></td>
@@ -536,6 +538,7 @@ export function LearningLndView({ db, onUpdateDb }) {
               </tr>
               <tr>
                 <td style={{ padding: '16px 40px' }}><strong>Systems Architecture &amp; security (L2)</strong></td>
+                <td style={{ padding: '16px 40px' }}><span style={{ color: 'var(--text-muted)' }}>Not Assigned</span></td>
                 <td style={{ padding: '16px 40px' }}><span style={{ color: 'var(--accent-green)', fontWeight: 'bold' }}>Mandatory ✓</span></td>
                 <td style={{ padding: '16px 40px' }}><span style={{ color: 'var(--text-muted)' }}>Not Assigned</span></td>
                 <td style={{ padding: '16px 40px' }}><span style={{ color: 'var(--accent-green)', fontWeight: 'bold' }}>Mandatory ✓</span></td>
@@ -571,6 +574,7 @@ export function LearningLndView({ db, onUpdateDb }) {
                 <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: 8 }}>Department Scope</label>
                 <select value={trackDept} onChange={e => setTrackDept(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }}>
                   <option value="All">All Departments</option>
+                  <option value="Executive">Executive</option>
                   <option value="Engineering">Engineering</option>
                   <option value="Sales">Sales</option>
                   <option value="IT">IT</option>

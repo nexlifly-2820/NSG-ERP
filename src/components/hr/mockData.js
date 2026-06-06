@@ -90,7 +90,7 @@ export const INITIAL_TDS_DECLARATIONS = [
 ];
 
 export const INITIAL_TRAINING_TRACKS = [
-  { id: 1, name: 'NSG Corporate Inductions', department: 'All', modules: [{ id: 1, title: 'Company Policies & Handbook', duration: 30, has_quiz: true }, { id: 2, title: 'IT & Security Guidelines', duration: 45, has_quiz: true }], is_mandatory: true },
+  { id: 1, name: 'HMNS Corporate Inductions', department: 'All', modules: [{ id: 1, title: 'Company Policies & Handbook', duration: 30, has_quiz: true }, { id: 2, title: 'IT & Security Guidelines', duration: 45, has_quiz: true }], is_mandatory: true },
 ];
 
 export const INITIAL_TRAINING_PROGRESS = [

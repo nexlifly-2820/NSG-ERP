@@ -445,3 +445,94 @@ def submit_scorecard(req: ScorecardCreateRequest, current_user: models.User = De
     db.refresh(scorecard)
     return scorecard
 
+
+# ─── 7. Projects ─────────────────────────────────────────────────────────────
+
+class ProjectResponse(BaseModel):
+    id: int
+    name: str
+    client: str
+    budget: float
+    used: float
+    status: str
+    deadline: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ProjectCreateRequest(BaseModel):
+    name: str
+    client: str
+    budget: float
+    used: float = 0.0
+    status: str = "Active"
+    deadline: Optional[str] = None
+
+
+class ProjectUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    client: Optional[str] = None
+    budget: Optional[float] = None
+    used: Optional[float] = None
+    status: Optional[str] = None
+    deadline: Optional[str] = None
+
+
+@router.get("/projects", response_model=List[ProjectResponse])
+def get_projects(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_manager_role(current_user)
+    return db.query(models.Project).order_by(models.Project.id.desc()).all()
+
+
+@router.post("/projects", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
+def create_project(req: ProjectCreateRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_manager_role(current_user)
+    project = models.Project(
+        name=req.name,
+        client=req.client,
+        budget=req.budget,
+        used=req.used,
+        status=req.status,
+        deadline=req.deadline
+    )
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
+@router.patch("/projects/{id}", response_model=ProjectResponse)
+def update_project(id: int, req: ProjectUpdateRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_manager_role(current_user)
+    project = db.query(models.Project).filter(models.Project.id == id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found.")
+    if req.name is not None:
+        project.name = req.name
+    if req.client is not None:
+        project.client = req.client
+    if req.budget is not None:
+        project.budget = req.budget
+    if req.used is not None:
+        project.used = req.used
+    if req.status is not None:
+        project.status = req.status
+    if req.deadline is not None:
+        project.deadline = req.deadline
+    db.commit()
+    db.refresh(project)
+    return project
+
+
+@router.post("/projects/{id}/signoff", response_model=ProjectResponse)
+def signoff_project(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_manager_role(current_user)
+    project = db.query(models.Project).filter(models.Project.id == id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found.")
+    project.status = "Completed"
+    db.commit()
+    db.refresh(project)
+    return project
+

@@ -569,6 +569,19 @@ class AppraisalScorecard(Base):
     comments = Column(Text, nullable=False)
 
 
+class Project(Base):
+    __tablename__ = "projects"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    client = Column(String, nullable=False)
+    budget = Column(Float, nullable=False)
+    used = Column(Float, default=0.0)
+    status = Column(String, default="Active")  # Active, At Risk, Completed, On Hold
+    deadline = Column(String, nullable=True)  # stored as string e.g. "Dec 31, 2025"
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class Promotion(Base):
     __tablename__ = "promotions"
 

@@ -481,7 +481,7 @@ export function ExitFnFView({ db, onUpdateDb }) {
               
               <div style={{ marginTop: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                 <div>
-                  <div>System Checked: NSG ERP Failsafe</div>
+                  <div>System Checked: HMNS ERP Failsafe</div>
                   <span style={{ color: 'var(--accent-green)', fontWeight: 'bold' }}>Assets &amp; FnF Cleared ✓</span>
                 </div>
                 <div style={{ textAlign: 'right' }}>

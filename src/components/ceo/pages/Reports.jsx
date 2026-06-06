@@ -88,7 +88,7 @@ export default function Reports() {
     
     // Simulate Department
     if (selectedDept !== 'All Departments') {
-      const multipliers = { 'Engineering': 0.4, 'Sales': 0.2, 'HR': 0.05, 'Marketing': 0.15, 'Operations': 0.2 };
+      const multipliers = { 'Executive': 0.05, 'Engineering': 0.4, 'Sales': 0.2, 'HR': 0.05, 'Marketing': 0.15, 'Operations': 0.2 };
       const m = multipliers[selectedDept] || 1;
       
       result = result.map(item => {
@@ -394,6 +394,7 @@ export default function Reports() {
             <Filter size={16} color="var(--ceo-text-secondary)" />
             <select value={selectedDept} onChange={e => setSelectedDept(e.target.value)} style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '13px', fontWeight: 500, cursor: 'pointer', paddingRight: '8px' }}>
               <option value="All Departments">All Departments</option>
+              <option value="Executive">Executive</option>
               <option value="Engineering">Engineering</option>
               <option value="Sales">Sales</option>
               <option value="HR">HR</option>

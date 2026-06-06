@@ -1,28 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  Search, Filter, LayoutGrid, List, CheckCircle, 
-  AlertTriangle, Clock, Target, PlayCircle, Lock
+  Search, CheckCircle, AlertTriangle, Clock, Target, Plus, RefreshCw, AlertCircle
 } from 'lucide-react';
 import '../CEO.css';
 
-// ==========================================
-// MOCK DATA
-// ==========================================
 export default function Projects() {
-  const [signoffProject, setSignoffProject] = useState(null);
-  const [signature, setSignature] = useState(false); // mock digital signature
-
-  const [projects, setProjects] = useState([
-    { id: 1, name: "ERP Migration V2", client: "Internal", budget: 1500000, used: 1250000, status: "Active", deadline: "Dec 31, 2025" },
-    { id: 2, name: "Q3 Marketing Campaign", client: "Acme Corp", budget: 500000, used: 480000, status: "At Risk", deadline: "Oct 15, 2025" },
-    { id: 3, name: "Data Center Upgrade", client: "TechCorp", budget: 2000000, used: 900000, status: "Active", deadline: "Feb 28, 2026" },
-    { id: 4, name: "Mobile App Rebuild", client: "FinBank", budget: 850000, used: 200000, status: "Active", deadline: "Nov 30, 2025" },
-    { id: 5, name: "Q1 Training Program", client: "Internal", budget: 150000, used: 150000, status: "Completed", deadline: "Aug 10, 2025" }
-  ]);
-  const [editProject, setEditProject] = useState(null);
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+
+  const [signoffProject, setSignoffProject] = useState(null);
+  const [signature, setSignature] = useState(false);
+  const [signingOff, setSigningOff] = useState(false);
+
+  const [editProject, setEditProject] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newProject, setNewProject] = useState({ name: '', client: '', budget: '', used: '', status: 'Active', deadline: '' });
+  const [creating, setCreating] = useState(false);
+
+  const token = () => localStorage.getItem('nsg_jwt_token');
+
+  const fetchProjects = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/ceo-portal/projects', {
+        headers: { 'Authorization': `Bearer ${token()}` }
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setProjects(data);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to load projects from server.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchProjects(); }, []);
 
   const getBudgetColor = (used, total) => {
     const pct = used / total;
@@ -31,17 +52,79 @@ export default function Projects() {
     return 'var(--ceo-success)';
   };
 
-  const handleSignoff = () => {
-    // Perform sign off logic
-    setProjects(prev => prev.map(p => p.id === signoffProject.id ? { ...p, status: 'Completed' } : p));
-    setSignoffProject(null);
-    setSignature(false);
+  const handleSignoff = async () => {
+    if (!signature || !signoffProject) return;
+    setSigningOff(true);
+    try {
+      const res = await fetch(`/api/ceo-portal/projects/${signoffProject.id}/signoff`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token()}` }
+      });
+      if (!res.ok) throw new Error('Signoff failed');
+      const updated = await res.json();
+      setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
+      setSignoffProject(null);
+      setSignature(false);
+    } catch (err) {
+      alert('Failed to sign off project: ' + err.message);
+    } finally {
+      setSigningOff(false);
+    }
   };
 
-  const handleSaveEdit = (e) => {
+  const handleSaveEdit = async (e) => {
     e.preventDefault();
-    setProjects(prev => prev.map(p => p.id === editProject.id ? editProject : p));
-    setEditProject(null);
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/ceo-portal/projects/${editProject.id}`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token()}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editProject.name,
+          client: editProject.client,
+          budget: Number(editProject.budget),
+          used: Number(editProject.used),
+          status: editProject.status,
+          deadline: editProject.deadline
+        })
+      });
+      if (!res.ok) throw new Error('Save failed');
+      const updated = await res.json();
+      setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
+      setEditProject(null);
+    } catch (err) {
+      alert('Failed to save project: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCreateProject = async (e) => {
+    e.preventDefault();
+    setCreating(true);
+    try {
+      const res = await fetch('/api/team-lead/projects', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token()}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newProject.name,
+          client: newProject.client,
+          budget: Number(newProject.budget),
+          used: Number(newProject.used) || 0,
+          status: newProject.status,
+          deadline: newProject.deadline
+        })
+      });
+      if (!res.ok) throw new Error('Create failed');
+      const created = await res.json();
+      setProjects(prev => [created, ...prev]);
+      setShowCreateModal(false);
+      setNewProject({ name: '', client: '', budget: '', used: '', status: 'Active', deadline: '' });
+    } catch (err) {
+      alert('Failed to create project: ' + err.message);
+    } finally {
+      setCreating(false);
+    }
   };
 
   const filteredProjects = projects.filter(proj => {
@@ -50,6 +133,29 @@ export default function Projects() {
     const matchesStatus = statusFilter === 'All' || proj.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '300px', gap: '16px' }}>
+        <div style={{ width: '40px', height: '40px', border: '3px solid var(--ceo-border)', borderTopColor: 'var(--ceo-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+        <p style={{ color: 'var(--ceo-text-secondary)', fontSize: '14px' }}>Loading live project portfolio...</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', gap: '16px', textAlign: 'center', padding: '24px' }}>
+        <AlertCircle size={48} color="var(--ceo-danger)" />
+        <h2 style={{ fontSize: '18px', fontWeight: 600 }}>Connection Error</h2>
+        <p style={{ color: 'var(--ceo-text-secondary)', maxWidth: '400px', fontSize: '14px' }}>{error}</p>
+        <button className="ceo-btn ceo-btn-primary" onClick={fetchProjects}>
+          <RefreshCw size={14} style={{ marginRight: '6px' }} /> Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', paddingBottom: '32px', position: 'relative' }}>
@@ -72,30 +178,35 @@ export default function Projects() {
               style={{ paddingLeft: '36px', height: '40px', width: '100%' }} 
             />
           </div>
-          
           <select 
             value={statusFilter} 
             onChange={(e) => setStatusFilter(e.target.value)} 
             className="ceo-form-input" 
-            style={{ height: '40px', cursor: 'pointer', minWidth: '120px' }}
+            style={{ height: '40px', cursor: 'pointer', minWidth: '130px' }}
           >
             <option value="All">All Statuses</option>
             <option value="Active">Active</option>
             <option value="At Risk">At Risk</option>
+            <option value="On Hold">On Hold</option>
             <option value="Completed">Completed</option>
           </select>
+          <button className="ceo-btn ceo-btn-primary" onClick={() => setShowCreateModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '40px', whiteSpace: 'nowrap' }}>
+            <Plus size={16} /> New Project
+          </button>
         </div>
       </div>
 
       {/* PROJECTS GRID */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 350px), 1fr))', gap: '24px' }}>
           {filteredProjects.length === 0 ? (
-            <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: 'var(--ceo-text-muted)' }}>No projects found matching your criteria.</div>
+            <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: 'var(--ceo-text-muted)' }}>
+              No projects found matching your criteria.
+            </div>
           ) : (
             filteredProjects.map(proj => (
             <div key={proj.id} className="ceo-command-panel" style={{ padding: '24px', opacity: proj.status === 'Completed' ? 0.7 : 1 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-                <span className={`ceo-badge ${proj.status === 'At Risk' ? 'critical' : proj.status === 'Active' ? 'success' : 'neutral'}`}>
+                <span className={`ceo-badge ${proj.status === 'At Risk' ? 'critical' : proj.status === 'Active' ? 'success' : proj.status === 'On Hold' ? 'warning' : 'neutral'}`}>
                   {proj.status}
                 </span>
                 <span className="ceo-typography-meta"><Clock size={12} style={{ display: 'inline', marginRight: '4px' }}/> {proj.deadline}</span>
@@ -116,22 +227,31 @@ export default function Projects() {
                   <div style={{ 
                     height: '100%', 
                     width: `${Math.min(100, (proj.used / proj.budget) * 100)}%`, 
-                    background: getBudgetColor(proj.used, proj.budget) 
+                    background: getBudgetColor(proj.used, proj.budget),
+                    borderRadius: '4px',
+                    transition: 'width 0.5s ease'
                   }}></div>
                 </div>
               </div>
 
               <div style={{ borderTop: '1px solid var(--ceo-border)', paddingTop: '16px', display: 'flex', justifyContent: 'space-between' }}>
-                <button className="ceo-btn" onClick={() => setEditProject(proj)}>
+                <button className="ceo-btn" onClick={() => setEditProject({...proj})}>
                   Edit
                 </button>
-                <button className="ceo-btn" onClick={() => setSignoffProject(proj)} disabled={proj.status === 'Completed'}>
+                <button 
+                  className="ceo-btn" 
+                  onClick={() => { setSignoffProject(proj); setSignature(false); }} 
+                  disabled={proj.status === 'Completed'}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
                   <Target size={16} /> {proj.status === 'Completed' ? 'Signed-off' : 'Sign-off Milestone'}
                 </button>
               </div>
             </div>
           )))}
-        </div>      {/* SIGNOFF MODAL */}
+        </div>
+
+      {/* SIGNOFF MODAL */}
       {signoffProject && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div className="ceo-command-panel" style={{ width: '500px', maxWidth: '90vw' }}>
@@ -164,16 +284,17 @@ export default function Projects() {
                   style={{ 
                     height: '100px', 
                     background: 'var(--ceo-bg)', 
-                    border: '1px dashed var(--ceo-border)', 
+                    border: `1px dashed ${signature ? 'var(--ceo-primary)' : 'var(--ceo-border)'}`, 
                     borderRadius: '8px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    transition: 'border-color 0.2s'
                   }}
                 >
                   {signature ? (
-                    <span style={{ fontFamily: 'cursive', fontSize: '32px', color: 'var(--ceo-primary)' }}>CEO Approved</span>
+                    <span style={{ fontFamily: 'cursive', fontSize: '32px', color: 'var(--ceo-primary)' }}>CEO Approved ✓</span>
                   ) : (
                     <span className="ceo-typography-meta">Click to sign</span>
                   )}
@@ -181,8 +302,14 @@ export default function Projects() {
               </div>
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                <button className="ceo-btn" onClick={() => setSignoffProject(null)}>Cancel</button>
-                <button className="ceo-btn ceo-btn-primary" onClick={handleSignoff} disabled={!signature}>Authorize Sign-off</button>
+                <button className="ceo-btn" onClick={() => { setSignoffProject(null); setSignature(false); }}>Cancel</button>
+                <button 
+                  className="ceo-btn ceo-btn-primary" 
+                  onClick={handleSignoff} 
+                  disabled={!signature || signingOff}
+                >
+                  {signingOff ? 'Processing...' : 'Authorize Sign-off'}
+                </button>
               </div>
             </div>
           </div>
@@ -211,6 +338,7 @@ export default function Projects() {
                   <select className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} value={editProject.status} onChange={e => setEditProject({...editProject, status: e.target.value})}>
                     <option value="Active">Active</option>
                     <option value="At Risk">At Risk</option>
+                    <option value="On Hold">On Hold</option>
                     <option value="Completed">Completed</option>
                   </select>
                 </div>
@@ -218,27 +346,79 @@ export default function Projects() {
               <div style={{ display: 'flex', gap: '16px' }}>
                 <div style={{ flex: 1 }}>
                   <label className="ceo-typography-meta">Total Budget (₹)</label>
-                  <input required type="number" className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} value={editProject.budget} onChange={e => setEditProject({...editProject, budget: Number(e.target.value)})} />
+                  <input required type="number" className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} value={editProject.budget} onChange={e => setEditProject({...editProject, budget: e.target.value})} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label className="ceo-typography-meta">Used Budget (₹)</label>
-                  <input required type="number" className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} value={editProject.used} onChange={e => setEditProject({...editProject, used: Number(e.target.value)})} />
+                  <input required type="number" className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} value={editProject.used} onChange={e => setEditProject({...editProject, used: e.target.value})} />
                 </div>
               </div>
               <div>
                 <label className="ceo-typography-meta">Deadline</label>
-                <input required className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} value={editProject.deadline} onChange={e => setEditProject({...editProject, deadline: e.target.value})} />
+                <input required className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} value={editProject.deadline || ''} onChange={e => setEditProject({...editProject, deadline: e.target.value})} />
               </div>
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px' }}>
                 <button type="button" className="ceo-btn" onClick={() => setEditProject(null)}>Cancel</button>
-                <button type="submit" className="ceo-btn ceo-btn-primary">Save Changes</button>
+                <button type="submit" className="ceo-btn ceo-btn-primary" disabled={saving}>
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
 
+      {/* CREATE PROJECT MODAL */}
+      {showCreateModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="ceo-command-panel" style={{ width: '500px', maxWidth: '90vw' }}>
+            <div className="ceo-command-header">
+              <div className="ceo-typography-section-title">Add New Project</div>
+            </div>
+            <form onSubmit={handleCreateProject} className="ceo-command-content" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label className="ceo-typography-meta">Project Name</label>
+                <input required className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} value={newProject.name} onChange={e => setNewProject({...newProject, name: e.target.value})} placeholder="e.g. NSG ERP Phase 2" />
+              </div>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <label className="ceo-typography-meta">Client</label>
+                  <input required className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} value={newProject.client} onChange={e => setNewProject({...newProject, client: e.target.value})} placeholder="e.g. Internal" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label className="ceo-typography-meta">Status</label>
+                  <select className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} value={newProject.status} onChange={e => setNewProject({...newProject, status: e.target.value})}>
+                    <option value="Active">Active</option>
+                    <option value="At Risk">At Risk</option>
+                    <option value="On Hold">On Hold</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <label className="ceo-typography-meta">Total Budget (₹)</label>
+                  <input required type="number" className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} value={newProject.budget} onChange={e => setNewProject({...newProject, budget: e.target.value})} placeholder="e.g. 1000000" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label className="ceo-typography-meta">Used Budget (₹)</label>
+                  <input type="number" className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} value={newProject.used} onChange={e => setNewProject({...newProject, used: e.target.value})} placeholder="0" />
+                </div>
+              </div>
+              <div>
+                <label className="ceo-typography-meta">Deadline</label>
+                <input required className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} value={newProject.deadline} onChange={e => setNewProject({...newProject, deadline: e.target.value})} placeholder="e.g. Dec 31, 2026" />
+              </div>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px' }}>
+                <button type="button" className="ceo-btn" onClick={() => setShowCreateModal(false)}>Cancel</button>
+                <button type="submit" className="ceo-btn ceo-btn-primary" disabled={creating}>
+                  <Plus size={14} style={{ marginRight: '4px' }} />{creating ? 'Creating...' : 'Create Project'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

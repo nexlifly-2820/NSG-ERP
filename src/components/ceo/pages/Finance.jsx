@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   IndianRupee, TrendingUp, TrendingDown, AlertTriangle, 
   Plus, Check, X, Calculator, Settings, Clock, CheckCircle,
@@ -100,83 +100,89 @@ const KpiCard = ({ title, value, trend, up }) => (
   </div>
 );
 
-const OverviewTab = () => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-    {/* SECTION 1: KPI STRIP */}
-    <div className="ceo-grid-6">
-      <KpiCard title="Total Revenue" value={kpiData.revenue.val} trend={kpiData.revenue.trend} up={kpiData.revenue.up} />
-      <KpiCard title="Gross Profit" value={kpiData.grossProfit.val} trend={kpiData.grossProfit.trend} up={kpiData.grossProfit.up} />
-      <KpiCard title="Net Profit" value={kpiData.netProfit.val} trend={kpiData.netProfit.trend} up={kpiData.netProfit.up} />
-      <KpiCard title="Operating Exp" value={kpiData.opex.val} trend={kpiData.opex.trend} up={kpiData.opex.up} />
-      <KpiCard title="Cash Position" value={kpiData.cash.val} trend={kpiData.cash.trend} up={kpiData.cash.up} />
-      <KpiCard title="Burn Rate" value={kpiData.burnRate.val} trend={kpiData.burnRate.trend} up={kpiData.burnRate.up} />
-    </div>
+const OverviewTab = ({ data }) => {
+  const kpis = data?.kpiData || kpiData;
+  const revTrend = data?.revenueTrend || revenueTrend;
+  const cashFlow = data?.cashFlowData || cashFlowData;
 
-    {/* SECTION 2 & 5: PERFORMANCE & REVENUE INTELLIGENCE */}
-    <div className="ceo-grid-2-1">
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* SECTION 1: KPI STRIP */}
+      <div className="ceo-grid-6">
+        <KpiCard title="Total Revenue" value={kpis.revenue.val} trend={kpis.revenue.trend} up={kpis.revenue.up} />
+        <KpiCard title="Gross Profit" value={kpis.grossProfit.val} trend={kpis.grossProfit.trend} up={kpis.grossProfit.up} />
+        <KpiCard title="Net Profit" value={kpis.netProfit.val} trend={kpis.netProfit.trend} up={kpis.netProfit.up} />
+        <KpiCard title="Operating Exp" value={kpis.opex.val} trend={kpis.opex.trend} up={kpis.opex.up} />
+        <KpiCard title="Cash Position" value={kpis.cash.val} trend={kpis.cash.trend} up={kpis.cash.up} />
+        <KpiCard title="Burn Rate" value={kpis.burnRate.val} trend={kpis.burnRate.trend} up={kpis.burnRate.up} />
+      </div>
+
+      {/* SECTION 2 & 5: PERFORMANCE & REVENUE INTELLIGENCE */}
+      <div className="ceo-grid-2-1">
+        <div className="ceo-command-panel">
+          <div className="ceo-command-header"><div className="ceo-typography-card-title">Revenue & Profitability Intelligence (M)</div></div>
+          <div className="ceo-command-content" style={{ padding: '24px', height: '300px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={revTrend}>
+                <defs>
+                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--ceo-primary)" stopOpacity={0.2}/><stop offset="95%" stopColor="var(--ceo-primary)" stopOpacity={0}/></linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--ceo-border)" />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} fontSize={12} />
+                <YAxis axisLine={false} tickLine={false} fontSize={12} tickFormatter={(v) => `₹${v}`} />
+                <Tooltip />
+                <Area type="monotone" dataKey="revenue" name="Revenue" stroke="var(--ceo-primary)" fillOpacity={1} fill="url(#colorRev)" strokeWidth={3} />
+                <Area type="monotone" dataKey="profit" name="Net Profit" stroke="var(--ceo-success)" fill="transparent" strokeWidth={3} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        
+        {/* SECTION 2 RIGHT: HEALTH SCORES */}
+        <div className="ceo-command-panel">
+          <div className="ceo-command-header"><div className="ceo-typography-card-title">Financial Health Panel</div></div>
+          <div className="ceo-command-content" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {[
+              { label: 'Cash Health Score', score: '92/100', status: 'Excellent', color: 'var(--ceo-success)' },
+              { label: 'Budget Adherence', score: '88/100', status: 'Good', color: 'var(--ceo-primary)' },
+              { label: 'Profit Margin Score', score: '78/100', status: 'Monitor', color: 'var(--ceo-warning)' },
+              { label: 'Compliance Score', score: '100/100', status: 'Perfect', color: 'var(--ceo-success)' }
+            ].map(h => (
+              <div key={h.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '16px', borderBottom: '1px solid var(--ceo-divider)' }}>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ceo-text-secondary)' }}>{h.label}</div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--ceo-text-primary)', marginTop: '4px' }}>{h.score}</div>
+                </div>
+                <div style={{ padding: '4px 12px', background: `${h.color}20`, color: h.color, borderRadius: '20px', fontSize: '12px', fontWeight: 700 }}>
+                  {h.status}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* SECTION 3: CASH FLOW CONTROL CENTER */}
       <div className="ceo-command-panel">
-        <div className="ceo-command-header"><div className="ceo-typography-card-title">Revenue & Profitability Intelligence (M)</div></div>
+        <div className="ceo-command-header"><div className="ceo-typography-card-title">Cash Flow Control Center (M)</div></div>
         <div className="ceo-command-content" style={{ padding: '24px', height: '300px' }}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={revenueTrend}>
-              <defs>
-                <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="var(--ceo-primary)" stopOpacity={0.2}/><stop offset="95%" stopColor="var(--ceo-primary)" stopOpacity={0}/></linearGradient>
-              </defs>
+            <BarChart data={cashFlow}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--ceo-border)" />
               <XAxis dataKey="month" axisLine={false} tickLine={false} fontSize={12} />
               <YAxis axisLine={false} tickLine={false} fontSize={12} tickFormatter={(v) => `₹${v}`} />
-              <Tooltip />
-              <Area type="monotone" dataKey="revenue" name="Revenue" stroke="var(--ceo-primary)" fillOpacity={1} fill="url(#colorRev)" strokeWidth={3} />
-              <Area type="monotone" dataKey="profit" name="Net Profit" stroke="var(--ceo-success)" fill="transparent" strokeWidth={3} />
-            </AreaChart>
+              <Tooltip cursor={{fill: '#F8FAFC'}} />
+              <Bar dataKey="in" name="Cash Inflow" fill="var(--ceo-success)" radius={[4,4,0,0]} barSize={32} />
+              <Bar dataKey="out" name="Cash Outflow" fill="var(--ceo-danger)" radius={[4,4,0,0]} barSize={32} />
+            </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
-      
-      {/* SECTION 2 RIGHT: HEALTH SCORES */}
-      <div className="ceo-command-panel">
-        <div className="ceo-command-header"><div className="ceo-typography-card-title">Financial Health Panel</div></div>
-        <div className="ceo-command-content" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {[
-            { label: 'Cash Health Score', score: '92/100', status: 'Excellent', color: 'var(--ceo-success)' },
-            { label: 'Budget Adherence', score: '88/100', status: 'Good', color: 'var(--ceo-primary)' },
-            { label: 'Profit Margin Score', score: '78/100', status: 'Monitor', color: 'var(--ceo-warning)' },
-            { label: 'Compliance Score', score: '100/100', status: 'Perfect', color: 'var(--ceo-success)' }
-          ].map(h => (
-            <div key={h.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '16px', borderBottom: '1px solid var(--ceo-divider)' }}>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ceo-text-secondary)' }}>{h.label}</div>
-                <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--ceo-text-primary)', marginTop: '4px' }}>{h.score}</div>
-              </div>
-              <div style={{ padding: '4px 12px', background: `${h.color}20`, color: h.color, borderRadius: '20px', fontSize: '12px', fontWeight: 700 }}>
-                {h.status}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
+  );
+};
 
-    {/* SECTION 3: CASH FLOW CONTROL CENTER */}
-    <div className="ceo-command-panel">
-      <div className="ceo-command-header"><div className="ceo-typography-card-title">Cash Flow Control Center (M)</div></div>
-      <div className="ceo-command-content" style={{ padding: '24px', height: '300px' }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={cashFlowData}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--ceo-border)" />
-            <XAxis dataKey="month" axisLine={false} tickLine={false} fontSize={12} />
-            <YAxis axisLine={false} tickLine={false} fontSize={12} tickFormatter={(v) => `₹${v}`} />
-            <Tooltip cursor={{fill: '#F8FAFC'}} />
-            <Bar dataKey="in" name="Cash Inflow" fill="var(--ceo-success)" radius={[4,4,0,0]} barSize={32} />
-            <Bar dataKey="out" name="Cash Outflow" fill="var(--ceo-danger)" radius={[4,4,0,0]} barSize={32} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  </div>
-);
-
-const GovernanceTab = ({ budgets, setBudgets }) => (
+const GovernanceTab = ({ budgets, approvals, onActionApproval, onActionBudget }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
     
     {/* SECTION 10: FINANCIAL RISK MONITORING */}
@@ -197,7 +203,7 @@ const GovernanceTab = ({ budgets, setBudgets }) => (
 
     {/* SECTION 9: EXECUTIVE APPROVAL CENTER */}
     <div className="ceo-command-panel">
-      <div className="ceo-command-header"><div className="ceo-typography-card-title"><Briefcase size={18} color="var(--ceo-primary)" /> Executive Approval Center (CapEx & Contracts)</div></div>
+      <div className="ceo-command-header"><div className="ceo-typography-card-title"><Briefcase size={18} color="var(--ceo-primary)" /> Executive Approval Center (CapEx & Reimbursements)</div></div>
       <div className="ceo-command-content" style={{ padding: 0 }}>
         <table className="ceo-erp-table">
           <thead>
@@ -206,21 +212,32 @@ const GovernanceTab = ({ budgets, setBudgets }) => (
               <th>Description</th>
               <th>Amount</th>
               <th>Risk Assessment</th>
-              <th style={{ paddingRight: '24px', textAlign: 'right' }}>Action</th>
+              <th style={{ paddingRight: '24px', textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {executiveApprovals.map(ex => (
-              <tr key={ex.id}>
-                <td style={{ paddingLeft: '24px', fontWeight: 600 }}>{ex.type}</td>
-                <td>{ex.title}</td>
-                <td style={{ fontWeight: 700 }}>{ex.amount}</td>
-                <td><span className={`ceo-badge ${ex.risk === 'High' ? 'danger' : 'warning'}`}>{ex.risk}</span></td>
-                <td style={{ paddingRight: '24px', textAlign: 'right' }}>
-                  <button className="ceo-btn ceo-btn-primary" style={{ padding: '6px 16px', fontSize: '13px' }}>Review</button>
+            {approvals && approvals.length > 0 ? (
+              approvals.map(ex => (
+                <tr key={`${ex.rawType}-${ex.id}`}>
+                  <td style={{ paddingLeft: '24px', fontWeight: 600 }}>{ex.type}</td>
+                  <td>{ex.title}</td>
+                  <td style={{ fontWeight: 700 }}>{ex.amount}</td>
+                  <td><span className={`ceo-badge ${ex.risk === 'High' ? 'danger' : ex.risk === 'Medium' ? 'warning' : 'success'}`}>{ex.risk}</span></td>
+                  <td style={{ paddingRight: '24px', textAlign: 'right' }}>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <button className="ceo-btn ceo-btn-primary" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => onActionApproval(ex.id, ex.rawType, 'approve')}>Approve</button>
+                      <button className="ceo-btn" style={{ padding: '6px 12px', fontSize: '12px', background: '#FFF' }} onClick={() => onActionApproval(ex.id, ex.rawType, 'reject')}>Reject</button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="5" style={{ padding: '24px', textAlign: 'center', color: 'var(--ceo-text-muted)', fontSize: '14px' }}>
+                  No pending CapEx/reimbursement approvals.
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
@@ -241,7 +258,7 @@ const GovernanceTab = ({ budgets, setBudgets }) => (
             </tr>
           </thead>
           <tbody>
-            {budgets.map(b => (
+            {budgets && budgets.map(b => (
               <tr key={b.id} style={{ opacity: b.status === 'approved' ? 0.6 : 1 }}>
                 <td style={{ paddingLeft: '24px', fontWeight: 600 }}>{b.dept}</td>
                 <td>
@@ -253,11 +270,13 @@ const GovernanceTab = ({ budgets, setBudgets }) => (
                 <td style={{ paddingRight: '24px', textAlign: 'right' }}>
                   {b.status === 'pending' ? (
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                      <button className="ceo-btn ceo-btn-primary" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => setBudgets(budgets.map(x => x.id === b.id ? {...x, status: 'approved'} : x))}>Approve</button>
-                      <button className="ceo-btn" style={{ padding: '6px 12px', fontSize: '12px', background: '#FFF' }}>Reject</button>
+                      <button className="ceo-btn ceo-btn-primary" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => onActionBudget(b.id, 'approve')}>Approve</button>
+                      <button className="ceo-btn" style={{ padding: '6px 12px', fontSize: '12px', background: '#FFF' }} onClick={() => onActionBudget(b.id, 'reject')}>Reject</button>
                     </div>
                   ) : (
-                    <span className="ceo-badge success">Approved</span>
+                    <span className={`ceo-badge ${b.status === 'approved' ? 'success' : 'danger'}`}>
+                      {b.status === 'approved' ? 'Approved' : 'Rejected'}
+                    </span>
                   )}
                 </td>
               </tr>
@@ -269,83 +288,104 @@ const GovernanceTab = ({ budgets, setBudgets }) => (
   </div>
 );
 
-const ArApTab = () => (
-  <div className="ceo-grid-2">
-    
-    {/* SECTION 7: ACCOUNTS RECEIVABLE */}
-    <div className="ceo-command-panel">
-      <div className="ceo-command-header"><div className="ceo-typography-card-title">Accounts Receivable (Incoming Cash)</div></div>
-      <div className="ceo-command-content" style={{ padding: 0 }}>
-        <table className="ceo-erp-table">
-          <thead>
-            <tr>
-              <th style={{ paddingLeft: '24px' }}>Client & Invoice</th>
-              <th>Amount</th>
-              <th style={{ paddingRight: '24px', textAlign: 'right' }}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {arData.map(ar => (
-              <tr key={ar.invoice}>
-                <td style={{ paddingLeft: '24px' }}>
-                  <div style={{ fontWeight: 600 }}>{ar.client}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--ceo-text-muted)' }}>{ar.invoice}</div>
-                </td>
-                <td style={{ fontWeight: 700, color: 'var(--ceo-success)' }}>{ar.amount}</td>
-                <td style={{ paddingRight: '24px', textAlign: 'right' }}>
-                  <span className={`ceo-badge ${ar.status === 'High Risk' ? 'danger' : ar.status === 'Overdue' ? 'warning' : 'neutral'}`}>
-                    {ar.status} {ar.daysOverdue > 0 ? `(${ar.daysOverdue}d)` : ''}
-                  </span>
-                </td>
+const ArApTab = ({ ar, ap }) => {
+  const arList = ar || arData;
+  const apList = ap || apData;
+
+  return (
+    <div className="ceo-grid-2">
+      
+      {/* SECTION 7: ACCOUNTS RECEIVABLE */}
+      <div className="ceo-command-panel">
+        <div className="ceo-command-header"><div className="ceo-typography-card-title">Accounts Receivable (Incoming Cash)</div></div>
+        <div className="ceo-command-content" style={{ padding: 0 }}>
+          <table className="ceo-erp-table">
+            <thead>
+              <tr>
+                <th style={{ paddingLeft: '24px' }}>Client & Invoice</th>
+                <th>Amount</th>
+                <th style={{ paddingRight: '24px', textAlign: 'right' }}>Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {arList.map(arItem => (
+                <tr key={arItem.invoice}>
+                  <td style={{ paddingLeft: '24px' }}>
+                    <div style={{ fontWeight: 600 }}>{arItem.client}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--ceo-text-muted)' }}>{arItem.invoice}</div>
+                  </td>
+                  <td style={{ fontWeight: 700, color: 'var(--ceo-success)' }}>{arItem.amount}</td>
+                  <td style={{ paddingRight: '24px', textAlign: 'right' }}>
+                    <span className={`ceo-badge ${arItem.status === 'High Risk' ? 'danger' : arItem.status === 'Overdue' ? 'warning' : 'neutral'}`}>
+                      {arItem.status} {arItem.daysOverdue > 0 ? `(${arItem.daysOverdue}d)` : ''}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* SECTION 8: ACCOUNTS PAYABLE */}
+      <div className="ceo-command-panel">
+        <div className="ceo-command-header"><div className="ceo-typography-card-title">Accounts Payable (Outgoing Cash)</div></div>
+        <div className="ceo-command-content" style={{ padding: 0 }}>
+          <table className="ceo-erp-table">
+            <thead>
+              <tr>
+                <th style={{ paddingLeft: '24px' }}>Vendor & Ref</th>
+                <th>Amount</th>
+                <th style={{ paddingRight: '24px', textAlign: 'right' }}>Due Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {apList.map(apItem => (
+                <tr key={apItem.ref}>
+                  <td style={{ paddingLeft: '24px' }}>
+                    <div style={{ fontWeight: 600 }}>{apItem.vendor}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--ceo-text-muted)' }}>{apItem.ref}</div>
+                  </td>
+                  <td style={{ fontWeight: 700 }}>{apItem.amount}</td>
+                  <td style={{ paddingRight: '24px', textAlign: 'right', fontSize: '13px', color: 'var(--ceo-text-secondary)' }}>
+                    {apItem.dueDate}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
+  );
+};
 
-    {/* SECTION 8: ACCOUNTS PAYABLE */}
-    <div className="ceo-command-panel">
-      <div className="ceo-command-header"><div className="ceo-typography-card-title">Accounts Payable (Outgoing Cash)</div></div>
-      <div className="ceo-command-content" style={{ padding: 0 }}>
-        <table className="ceo-erp-table">
-          <thead>
-            <tr>
-              <th style={{ paddingLeft: '24px' }}>Vendor & Ref</th>
-              <th>Amount</th>
-              <th style={{ paddingRight: '24px', textAlign: 'right' }}>Due Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {apData.map(ap => (
-              <tr key={ap.ref}>
-                <td style={{ paddingLeft: '24px' }}>
-                  <div style={{ fontWeight: 600 }}>{ap.vendor}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--ceo-text-muted)' }}>{ap.ref}</div>
-                </td>
-                <td style={{ fontWeight: 700 }}>{ap.amount}</td>
-                <td style={{ paddingRight: '24px', textAlign: 'right', fontSize: '13px', color: 'var(--ceo-text-secondary)' }}>
-                  {ap.dueDate}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-);
+const OperationsTab = ({ payroll, statutory, components, onSaveSalaryStructure }) => {
+  const [localComponents, setLocalComponents] = useState(components);
+  const [editingId, setEditingId] = useState(null);
 
+  React.useEffect(() => {
+    setLocalComponents(components);
+  }, [components]);
 
-
-const OperationsTab = ({ components, setComponents, editingId, setEditingId }) => {
-  const updateComponent = (id, field, val) => setComponents(components.map(c => c.id === id ? { ...c, [field]: val } : c));
-  const removeComponent = (id) => setComponents(components.filter(c => c.id !== id));
+  const updateComponent = (id, field, val) => setLocalComponents(localComponents.map(c => c.id === id ? { ...c, [field]: val } : c));
+  const removeComponent = (id) => {
+    const updated = localComponents.filter(c => c.id !== id);
+    setLocalComponents(updated);
+    onSaveSalaryStructure(updated);
+  };
   const addComponent = () => {
     const newId = Date.now();
-    setComponents([...components, { id: newId, name: '', type: 'Fixed', calc: 'Flat', value: 0, tax: true }]);
+    setLocalComponents([...localComponents, { id: newId, name: '', type: 'Fixed', calc: 'Flat', value: 0, tax: true }]);
     setEditingId(newId);
   };
+  const saveComponent = (id) => {
+    setEditingId(null);
+    onSaveSalaryStructure(localComponents);
+  };
+
+  const payrollList = payroll || mockPayroll;
+  const statList = statutory || mockStatutory;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -367,7 +407,7 @@ const OperationsTab = ({ components, setComponents, editingId, setEditingId }) =
               </tr>
             </thead>
             <tbody>
-              {mockPayroll.map(pay => (
+              {payrollList.map(pay => (
                 <tr key={pay.id}>
                   <td style={{ paddingLeft: '24px', fontWeight: 500 }}>{pay.name}</td>
                   <td style={{ color: 'var(--ceo-text-secondary)', fontSize: '13px' }}>{pay.dept}</td>
@@ -397,7 +437,7 @@ const OperationsTab = ({ components, setComponents, editingId, setEditingId }) =
                 </tr>
               </thead>
               <tbody>
-                {mockStatutory.map(stat => (
+                {statList.map(stat => (
                   <tr key={stat.id}>
                     <td style={{ paddingLeft: '24px', fontWeight: 500 }}>{stat.type}</td>
                     <td style={{ fontWeight: 600 }}>{stat.amount}</td>
@@ -425,7 +465,7 @@ const OperationsTab = ({ components, setComponents, editingId, setEditingId }) =
                 </tr>
               </thead>
               <tbody>
-                {components.map(comp => (
+                {localComponents.map(comp => (
                   <tr key={comp.id}>
                     <td style={{ paddingLeft: '24px' }}>
                       {editingId === comp.id ? <input className="ceo-form-input" value={comp.name} onChange={e => updateComponent(comp.id, 'name', e.target.value)} /> : comp.name || '(Unnamed)'}
@@ -435,7 +475,7 @@ const OperationsTab = ({ components, setComponents, editingId, setEditingId }) =
                     </td>
                     <td style={{ paddingRight: '24px', textAlign: 'right' }}>
                       {editingId === comp.id ? (
-                        <button className="ceo-btn" onClick={() => setEditingId(null)} style={{ background: 'var(--ceo-success)', color: 'white', padding: '4px 8px', fontSize: '12px' }}>Save</button>
+                        <button className="ceo-btn" onClick={() => saveComponent(comp.id)} style={{ background: 'var(--ceo-success)', color: 'white', padding: '4px 8px', fontSize: '12px' }}>Save</button>
                       ) : (
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                           <button className="ceo-btn" onClick={() => setEditingId(comp.id)} style={{ padding: '4px', border: 'none' }}><Settings size={14} /></button>
@@ -460,14 +500,120 @@ const OperationsTab = ({ components, setComponents, editingId, setEditingId }) =
 // ==========================================
 export default function Finance() {
   const [activeTab, setActiveTab] = useState('overview');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [data, setData] = useState(null);
 
-  // Shared States (Lifted)
-  const [budgets, setBudgets] = useState(mockBudgets);
-  const [components, setComponents] = useState([
-    { id: 1, name: 'Basic Salary', type: 'Fixed', calc: 'Flat', value: 45000, tax: true },
-    { id: 2, name: 'HRA', type: 'Fixed', calc: '% of Basic', value: 50, tax: false }
-  ]);
-  const [editingId, setEditingId] = useState(null);
+  const token = localStorage.getItem('nsg_jwt_token');
+
+  const fetchFinanceData = async () => {
+    if (!token) return;
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/ceo-portal/finance/data', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const val = await res.json();
+        setData(val);
+      } else {
+        setError('Failed to fetch finance dashboard data.');
+      }
+    } catch (e) {
+      console.error(e);
+      setError('Connection error loading finance data.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFinanceData();
+  }, []);
+
+  const handleActionApproval = async (id, rawType, action) => {
+    if (!token) return;
+    try {
+      const endpoint = rawType === 'expense' 
+        ? `/api/ceo-portal/expenses/${id}/${action}`
+        : `/api/ceo-portal/loans/${id}/${action}`;
+      
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchFinanceData();
+      } else {
+        alert(`Failed to ${action} approval.`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert(`Error during ${action} action.`);
+    }
+  };
+
+  const handleActionBudget = async (id, action) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/ceo-portal/finance/budgets/${id}/${action}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchFinanceData();
+      } else {
+        alert(`Failed to ${action} budget.`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert(`Error during budget action.`);
+    }
+  };
+
+  const handleSaveSalaryStructure = async (components) => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/ceo-portal/finance/salary-structure', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ components })
+      });
+      if (res.ok) {
+        fetchFinanceData();
+      } else {
+        alert('Failed to save salary structure.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error saving salary structure.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '300px', flexDirection: 'column', gap: '16px' }}>
+        <div className="ceo-spinner" style={{ width: '40px', height: '40px', border: '3px solid var(--ceo-border)', borderTopColor: 'var(--ceo-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+        <p style={{ color: 'var(--ceo-text-secondary)', fontSize: '14px', fontWeight: 500 }}>Loading live financial systems...</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '300px', gap: '16px', textAlign: 'center', padding: '24px' }}>
+        <AlertCircle size={48} color="var(--ceo-danger)" />
+        <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}>System Integration Error</h2>
+        <p style={{ color: 'var(--ceo-text-secondary)', maxWidth: '400px', fontSize: '14px' }}>{error}</p>
+        <button className="ceo-btn ceo-btn-primary" onClick={fetchFinanceData}>Retry Connection</button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', paddingBottom: '32px' }}>
@@ -504,13 +650,27 @@ export default function Finance() {
 
       {/* DYNAMIC TAB RENDERING */}
       <div style={{ flex: 1 }}>
-        {activeTab === 'overview' && <OverviewTab />}
-        {activeTab === 'governance' && <GovernanceTab budgets={budgets} setBudgets={setBudgets} />}
-        {activeTab === 'arap' && <ArApTab />}
-
-        {activeTab === 'operations' && <OperationsTab components={components} setComponents={setComponents} editingId={editingId} setEditingId={setEditingId} />}
+        {activeTab === 'overview' && <OverviewTab data={data} />}
+        {activeTab === 'governance' && (
+          <GovernanceTab 
+            budgets={data?.budgets} 
+            approvals={data?.executiveApprovals}
+            onActionApproval={handleActionApproval}
+            onActionBudget={handleActionBudget}
+          />
+        )}
+        {activeTab === 'arap' && <ArApTab ar={data?.arData} ap={data?.apData} />}
+        {activeTab === 'operations' && (
+          <OperationsTab 
+            payroll={data?.payrollRegister}
+            statutory={data?.statutory}
+            components={data?.salaryStructure || []} 
+            onSaveSalaryStructure={handleSaveSalaryStructure}
+          />
+        )}
       </div>
       
     </div>
   );
 }
+

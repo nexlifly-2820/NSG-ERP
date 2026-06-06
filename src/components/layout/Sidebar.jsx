@@ -42,14 +42,9 @@ export default function Sidebar({ activeRole, activeTab, setActiveTab }) {
   return (
     <aside className="app-sidebar">
       {/* Brand Header */}
-      <div className="sidebar-brand">
-        <div className="brand-icon" style={{ backgroundColor: roleLogoColor, color: currentRoleColor }}>
-          <RoleIconComponent size={24} />
-        </div>
-        <div className="brand-text">
-          <h2>NSG ERP</h2>
-          <span style={{ color: currentRoleColor }}>{roleLabel}</span>
-        </div>
+      <div className="sidebar-brand" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px', marginBottom: '24px' }}>
+        <img src="/hmns-logo.png" alt="HMNS Software" style={{ width: '160px', height: 'auto', objectFit: 'contain', background: '#fff', padding: '6px 10px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }} />
+        <span style={{ color: currentRoleColor, fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', paddingLeft: '4px', marginTop: '2px' }}>{roleLabel}</span>
       </div>
 
       {/* Main Navigation */}

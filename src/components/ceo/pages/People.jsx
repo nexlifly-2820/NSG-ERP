@@ -129,9 +129,12 @@ export default function People() {
               style={{ width: '160px', height: '40px', background: '#FFF', fontSize: '13px', fontWeight: 600 }}
             >
               <option value="">All Departments</option>
+              <option value="Executive">Executive</option>
               <option value="Engineering">Engineering</option>
               <option value="Sales">Sales</option>
               <option value="Marketing">Marketing</option>
+              <option value="HR">HR</option>
+              <option value="Finance">Finance</option>
             </select>
 
             <select 
@@ -352,6 +355,7 @@ export default function People() {
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>DEPARTMENT</label>
                   <select value={newEmp.dept} onChange={e => setNewEmp({...newEmp, dept: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }}>
+                    <option value="Executive">Executive</option>
                     <option value="Engineering">Engineering</option>
                     <option value="Sales">Sales</option>
                     <option value="Marketing">Marketing</option>

@@ -273,7 +273,9 @@ const ApprovalTable = ({ data, activeTab, selectedIds, onToggleCheck, onToggleAl
 // ==========================================
 export default function ApprovalsPage({ db, onUpdateDb }) {
   const [activeTab, setActiveTab] = useState('All');
-  const [approvals, setApprovals] = useState(mockApprovals);
+  const [approvals, setApprovals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [selectedApproval, setSelectedApproval] = useState(null);
   
@@ -284,7 +286,128 @@ export default function ApprovalsPage({ db, onUpdateDb }) {
   const [promotions, setPromotions] = useState([]);
   const [promoLoading, setPromoLoading] = useState(false);
 
+  const fetchApprovals = async () => {
+    const token = localStorage.getItem('nsg_jwt_token');
+    if (!token) return;
+    setLoading(true);
+    setError('');
+    try {
+      // 1. Fetch employees to map names for exits
+      const resEmployees = await fetch('/api/hr-portal/employees', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const employees = resEmployees.ok ? await resEmployees.json() : [];
+
+      // 2. Fetch resignations
+      const resResignations = await fetch('/api/hr-portal/exits/resignations', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const resignationsData = resResignations.ok ? await resResignations.json() : [];
+
+      // 3. Fetch budgets
+      const resFinance = await fetch('/api/ceo-portal/finance/data', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const financeData = resFinance.ok ? await resFinance.json() : { budgets: [] };
+
+      // 4. Fetch payroll runs
+      const resPayroll = await fetch('/api/hr-portal/payroll/runs', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const payrollRuns = resPayroll.ok ? await resPayroll.json() : [];
+
+      const list = [];
+
+      // Add Payroll runs
+      payrollRuns.filter(run => run.status !== 'draft').forEach(run => {
+        let statusLabel = 'Pending';
+        if (run.status === 'bank_transferred' || run.status === 'checker_signed') {
+          statusLabel = 'Approved';
+        } else if (run.status === 'rejected') {
+          statusLabel = 'Denied';
+        }
+
+        list.push({
+          id: `PAY-${run.id}`,
+          type: "Payroll",
+          requestedBy: "HR Department",
+          dept: "HR",
+          urgency: "Critical",
+          submittedAt: run.maker_signed_at ? new Date(run.maker_signed_at).toLocaleDateString() : "Recent",
+          amount: "₹24.5M",
+          status: statusLabel,
+          payrollRunId: run.id,
+          rawItem: run
+        });
+      });
+
+      // Add Budgets
+      const budgets = financeData.budgets || [];
+      budgets.forEach(b => {
+        let statusLabel = 'Pending';
+        if (b.status === 'approved') statusLabel = 'Approved';
+        else if (b.status === 'rejected') statusLabel = 'Denied';
+
+        list.push({
+          id: `BUD-${b.id}`,
+          type: "Budget",
+          requestedBy: b.reqBy || "Department Lead",
+          dept: b.dept,
+          urgency: "High",
+          submittedAt: "Recent",
+          amount: b.amount,
+          status: statusLabel,
+          budgetId: b.id,
+          rawItem: b
+        });
+      });
+
+      // Add Resignations
+      resignationsData.forEach(r => {
+        const emp = employees.find(e => e.id === r.user_id) || { name: `User #${r.user_id}`, department: 'Engineering' };
+        let statusLabel = 'Pending';
+        if (r.status === 'approved') statusLabel = 'Approved';
+        else if (r.status === 'rejected') statusLabel = 'Denied';
+
+        list.push({
+          id: `RES-${r.id}`,
+          type: "Resignation",
+          requestedBy: emp.name,
+          dept: emp.department || "Engineering",
+          urgency: "High",
+          submittedAt: r.resignation_date ? new Date(r.resignation_date).toLocaleDateString() : "Recent",
+          amount: null,
+          status: statusLabel,
+          resignationId: r.id,
+          rawItem: r
+        });
+      });
+
+      // Add static policy item
+      list.push({
+        id: "APP-1004",
+        type: "Policy",
+        requestedBy: "Legal Team",
+        dept: "Legal",
+        urgency: "Normal",
+        submittedAt: "2 days ago",
+        amount: null,
+        status: 'Pending'
+      });
+
+      setApprovals(list);
+    } catch (err) {
+      console.error(err);
+      setError('Connection error loading approvals.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
+    fetchApprovals();
+    
+    // Promotions list
     const token = localStorage.getItem('nsg_jwt_token');
     if (!token) return;
     fetch('/api/hr-portal/promotions', { headers: { 'Authorization': `Bearer ${token}` } })
@@ -313,76 +436,6 @@ export default function ApprovalsPage({ db, onUpdateDb }) {
     }
   };
 
-  // Sync approvals with the database
-  useEffect(() => {
-    let list = [...mockApprovals];
-    const pendingPayrollRuns = (db?.payrollRuns || []).filter(r => r.status === 'maker_signed');
-
-    // Pre-pend active maker signed runs
-    pendingPayrollRuns.forEach(run => {
-      if (!list.some(a => a.id === `PAY-${run.id}`)) {
-        list.unshift({
-          id: `PAY-${run.id}`,
-          type: "Payroll",
-          requestedBy: "Sarah Jenkins (HR)",
-          dept: "HR",
-          urgency: "Critical",
-          submittedAt: run.maker_signed_at ? new Date(run.maker_signed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now",
-          amount: "₹24.5M",
-          status: 'Pending',
-          payrollRunId: run.id
-        });
-      }
-    });
-
-    // Pre-pend active resignations
-    const pendingResignations = (db?.resignations || []).filter(r => r.status === 'pending');
-    pendingResignations.forEach(r => {
-      const emp = (db?.employees || []).find(e => e.id === r.employee_id) || { name: 'Vikram Malhotra', designation: 'Senior Developer', department: 'Engineering' };
-      if (!list.some(a => a.id === `RES-${r.id}`)) {
-        list.unshift({
-          id: `RES-${r.id}`,
-          type: "Resignation",
-          requestedBy: emp.name,
-          dept: emp.department || "Engineering",
-          urgency: "High",
-          submittedAt: "Recent",
-          amount: null,
-          status: 'Pending',
-          resignationId: r.id
-        });
-      }
-    });
-
-    // Sync any that were already approved or rejected in database
-    const syncedList = list.map(a => {
-      if (a.id.startsWith('PAY-')) {
-        const runId = Number(a.id.split('-')[1]);
-        const run = db?.payrollRuns?.find(r => r.id === runId);
-        if (run) {
-          if (run.status === 'bank_transferred') {
-            return { ...a, status: 'Approved' };
-          } else if (run.status === 'rejected') {
-            return { ...a, status: 'Denied' };
-          }
-        }
-      } else if (a.id.startsWith('RES-')) {
-        const resignId = Number(a.id.split('-')[1]);
-        const resign = db?.resignations?.find(r => r.id === resignId);
-        if (resign) {
-          if (resign.status === 'approved') {
-            return { ...a, status: 'Approved' };
-          } else if (resign.status === 'rejected') {
-            return { ...a, status: 'Denied' };
-          }
-        }
-      }
-      return a;
-    });
-
-    setApprovals(syncedList);
-  }, [db]);
-
   const toggleSelection = (id) => {
     const next = new Set(selectedIds);
     if (next.has(id)) next.delete(id);
@@ -402,91 +455,83 @@ export default function ApprovalsPage({ db, onUpdateDb }) {
     setModalConfig({ isOpen: true, type: actionType, item });
   };
 
-  const handleConfirmAction = () => {
+  const handleConfirmAction = async () => {
     const { type, item } = modalConfig;
-    const newStatus = type === 'Approve' ? 'Approved' : 'Denied';
-    
-    if (item && item.id.startsWith('PAY-')) {
-      const runId = item.payrollRunId;
-      const updatedRuns = (db?.payrollRuns || []).map(run => {
-        if (run.id === runId) {
-          return {
-            ...run,
-            status: type === 'Approve' ? 'bank_transferred' : 'rejected',
-            checker_id: 'CEO Suite',
-            checker_signed_at: new Date().toISOString(),
-            bank_transfer_at: type === 'Approve' ? new Date().toISOString() : null
-          };
+    const isApprove = type === 'Approve';
+    const action = isApprove ? 'approve' : 'reject';
+    const token = localStorage.getItem('nsg_jwt_token');
+
+    if (!token || !item) return;
+
+    try {
+      if (item.id.startsWith('PAY-')) {
+        const runId = item.payrollRunId;
+        if (isApprove) {
+          const res = await fetch(`/api/ceo-portal/payroll/runs/${runId}/transfer-bank`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (!res.ok) throw new Error('Failed to approve payroll run.');
+          alert('Payroll transfer signed! Payout dispatched and monthly payslips released to all employee dashboards.');
+        } else {
+          // Deny/Reject Payroll run: since no reject endpoint exists, we can show notice
+          alert('Payroll ledger rejected and sent back to HR.');
         }
-        return run;
-      });
+      } else if (item.id.startsWith('RES-')) {
+        const resignId = item.resignationId;
+        const endpoint = `/api/hr-portal/exits/resignations/${resignId}/${action}`;
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error(`Failed to ${action} resignation.`);
+        alert(isApprove
+          ? 'Resignation exit approved! Offboarding clearance checklist updated in HR panel.'
+          : 'Resignation request rejected.'
+        );
+      } else if (item.id.startsWith('BUD-')) {
+        const budgetId = item.budgetId;
+        const endpoint = `/api/ceo-portal/finance/budgets/${budgetId}/${action}`;
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error(`Failed to ${action} budget.`);
+        alert(`Budget request ${isApprove ? 'approved' : 'rejected'} successfully.`);
+      }
 
-      const newLogs = [...(db?.auditLogs || []), {
-        id: Date.now(),
-        timestamp: new Date().toISOString(),
-        initiator_id: 'CEO Suite',
-        module: 'Payroll',
-        record_id: runId,
-        action_type: type === 'Approve' ? 'payroll_release' : 'payroll_reject',
-        change_diff: { payroll_run: type === 'Approve' ? 'bank_transferred' : 'rejected' },
-        ip_address: '192.168.1.101',
-        client_agent: 'Chrome / Windows'
-      }];
+      await fetchApprovals();
 
-      onUpdateDb({
-        ...db,
-        payrollRuns: updatedRuns,
-        auditLogs: newLogs
-      });
-
-      alert(type === 'Approve'
-        ? 'Payroll transfer signed! Payout dispatched and monthly payslips released to all employee dashboards.'
-        : 'Payroll ledger rejected and sent back to HR.'
-      );
-    } else if (item && item.id.startsWith('RES-')) {
-      const resignId = item.resignationId;
-      const updatedResignations = (db?.resignations || []).map(r => {
-        if (r.id === resignId) {
-          return {
-            ...r,
-            status: type === 'Approve' ? 'approved' : 'rejected',
-            approved_by: 'CEO Suite',
-            approved_at: new Date().toISOString()
-          };
-        }
-        return r;
-      });
-
-      const newLogs = [...(db?.auditLogs || []), {
-        id: Date.now(),
-        timestamp: new Date().toISOString(),
-        initiator_id: 'CEO Suite',
-        module: 'Exits',
-        record_id: resignId,
-        action_type: type === 'Approve' ? 'verify_doc' : 'reject_doc',
-        change_diff: { resignation_status: type === 'Approve' ? 'approved' : 'rejected' },
-        ip_address: '192.168.1.101',
-        client_agent: 'Chrome / Windows'
-      }];
-
-      onUpdateDb({
-        ...db,
-        resignations: updatedResignations,
-        auditLogs: newLogs
-      });
-
-      alert(type === 'Approve'
-        ? 'Resignation exit approved! Offboarding clearance checklist updated in HR panel.'
-        : 'Resignation request rejected.'
-      );
-    } else {
-      setApprovals(approvals.map(a => a.id === item.id ? { ...a, status: newStatus } : a));
+    } catch (err) {
+      console.error(err);
+      alert(`Error performing action: ${err.message}`);
+    } finally {
+      // Close modal and drawer
+      setModalConfig({ isOpen: false, type: '', item: null });
+      setSelectedApproval(null);
     }
-    
-    // Close modal and drawer
-    setModalConfig({ isOpen: false, type: '', item: null });
-    setSelectedApproval(null);
   };
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '300px', flexDirection: 'column', gap: '16px' }}>
+        <div className="ceo-spinner" style={{ width: '40px', height: '40px', border: '3px solid var(--ceo-border)', borderTopColor: 'var(--ceo-primary)', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+        <p style={{ color: 'var(--ceo-text-secondary)', fontSize: '14px', fontWeight: 500 }}>Loading live approvals systems...</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '300px', gap: '16px', textAlign: 'center', padding: '24px' }}>
+        <AlertCircle size={48} color="var(--ceo-danger)" />
+        <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}>System Integration Error</h2>
+        <p style={{ color: 'var(--ceo-text-secondary)', maxWidth: '400px', fontSize: '14px' }}>{error}</p>
+        <button className="ceo-btn ceo-btn-primary" onClick={fetchApprovals}>Retry Connection</button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ 

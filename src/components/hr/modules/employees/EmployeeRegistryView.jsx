@@ -379,10 +379,13 @@ export function EmployeeRegistryView({ db, onUpdateDb, queryParams, setQueryPara
         </div>
         <select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px 16px', borderRadius: '8px', outline: 'none' }}>
           <option value="All">All Departments</option>
+          <option value="Executive">Executive</option>
           <option value="Engineering">Engineering</option>
           <option value="IT">IT</option>
           <option value="Marketing">Marketing</option>
           <option value="Sales">Sales</option>
+          <option value="Human Resources">Human Resources</option>
+          <option value="Finance">Finance</option>
         </select>
       </div>
 
@@ -745,10 +748,13 @@ export function EmployeeRegistryView({ db, onUpdateDb, queryParams, setQueryPara
 
               <label style={{ fontSize: '12px' }}>Department</label>
               <select value={newDept} onChange={(e) => setNewDept(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}>
+                <option value="Executive">Executive</option>
                 <option value="Engineering">Engineering</option>
                 <option value="IT">IT</option>
                 <option value="Marketing">Marketing</option>
                 <option value="Sales">Sales</option>
+                <option value="Human Resources">Human Resources</option>
+                <option value="Finance">Finance</option>
               </select>
 
               <label style={{ fontSize: '12px' }}>Designation / Title</label>
