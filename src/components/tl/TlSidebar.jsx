@@ -9,6 +9,7 @@ export default function TlSidebar({ activeTab, setActiveTab }) {
   const isApprovalsActive = activeTab === 'approvals';
   const isPerformanceActive = activeTab === 'performance';
   const isAttendanceActive = activeTab === 'attendance';
+  const isTimesheetsActive = activeTab === 'timesheets';
   const isReportsActive = activeTab === 'reports';
   const isEscalationsActive = activeTab === 'escalations';
   const isMessagingActive = activeTab === 'messaging';

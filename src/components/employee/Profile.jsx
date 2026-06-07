@@ -218,20 +218,23 @@ export default function Profile({ db, onUpdateDb, currentUser }) {
     showToast('Personal details updated successfully');
   };
 
-  const handleUpdateBank = (updatedBank) => {
-    setBankData(updatedBank);
-    // Write bank fields back to db.employees so HR Payroll uses the correct account
-    if (db && onUpdateDb) {
-      const updatedEmployees = (db.employees || []).map(e =>
-        e.id === EMPLOYEE_ID
-          ? { ...e, bank_name: updatedBank.bankName, account_number: updatedBank.accountNumber, ifsc_code: updatedBank.ifscCode, bank_status: 'pending' }
-          : e
-      );
-      onUpdateDb({ ...db, employees: updatedEmployees });
-    } else {
-      localStorage.setItem('nsg_employee_profile_bank', JSON.stringify(updatedBank));
-    }
-    showToast('Bank details submitted for verification');
+  const handleUpdateBank = async (updatedBank) => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('http://localhost:8000/employee-portal/profile/update-bank', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          bank_name: updatedBank.bankName,
+          account_number: updatedBank.accountNumber,
+          ifsc_code: updatedBank.ifscCode
+        })
+      });
+      if (res.ok) {
+        setBankData(updatedBank);
+        showToast('Bank details submitted for verification');
+      }
+    } catch (e) { console.error(e); }
   };
 
   const handleSimulateBankVerify = (status) => {

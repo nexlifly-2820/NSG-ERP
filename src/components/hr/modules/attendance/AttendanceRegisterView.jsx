@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Clock } from 'lucide-react';
+import { Clock, Calendar, List } from 'lucide-react';
 
 export function AttendanceRegisterView({ db, onUpdateDb }) {
+  const [viewMode, setViewMode] = useState('list');
   const [showRoster, setShowRoster] = useState(false);
   const [isRequestOpen, setIsRequestOpen] = useState(false);
   const [denyingId, setDenyingId] = useState(null);
@@ -89,6 +90,55 @@ export function AttendanceRegisterView({ db, onUpdateDb }) {
 
   const activeCorrections = db.attendanceCorrections || [];
 
+  let mappedLogs = db.attendanceLogs || [];
+  if (db.employees && db.employees.length > 0 && mappedLogs.length > 0) {
+    const sampleLog = mappedLogs[0];
+    const match = db.employees.find(e => String(e.id) === String(sampleLog.employee_id));
+    if (!match) {
+      const mockIds = [...new Set(mappedLogs.map(l => l.employee_id))];
+      const idMap = {};
+      mockIds.forEach((mId, i) => { idMap[mId] = db.employees[i % db.employees.length].id; });
+      mappedLogs = mappedLogs.map(l => ({ ...l, employee_id: idMap[l.employee_id] }));
+    }
+  }
+
+  const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+  const today = new Date();
+  const currentMonth = today.getMonth();
+  const currentYear = today.getFullYear();
+  const daysInMonth = getDaysInMonth(currentYear, currentMonth);
+  const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+  const logsByEmpAndDay = {};
+  mappedLogs.forEach(log => {
+    const dateObj = new Date(log.date);
+    if (dateObj.getMonth() === currentMonth && dateObj.getFullYear() === currentYear) {
+      if (!logsByEmpAndDay[log.employee_id]) logsByEmpAndDay[log.employee_id] = {};
+      logsByEmpAndDay[log.employee_id][dateObj.getDate()] = log;
+    }
+  });
+
+  const renderCalendarCell = (empId, day) => {
+    const date = new Date(currentYear, currentMonth, day);
+    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+    if (isWeekend) {
+      return <div style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-muted)', textAlign: 'center', padding: '8px 4px', fontSize: '12px' }} title="Weekend">W</div>;
+    }
+    const log = logsByEmpAndDay[empId]?.[day];
+    if (!log) {
+      if (date > today) return <div style={{ textAlign: 'center', padding: '8px 4px', fontSize: '12px', color: 'var(--text-muted)' }}>-</div>;
+      return <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', textAlign: 'center', padding: '8px 4px', fontSize: '12px', fontWeight: 'bold' }} title="Absent">A</div>;
+    }
+    
+    if (log.exception_flag === 'absent' || !log.clock_in) {
+      return <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', textAlign: 'center', padding: '8px 4px', fontSize: '12px', fontWeight: 'bold' }} title="Absent">A</div>;
+    } else if (log.exception_flag === 'late') {
+      return <div style={{ backgroundColor: 'rgba(234, 179, 8, 0.1)', color: '#eab308', textAlign: 'center', padding: '8px 4px', fontSize: '12px', fontWeight: 'bold' }} title="Late">L</div>;
+    } else {
+      return <div style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#22c55e', textAlign: 'center', padding: '8px 4px', fontSize: '12px', fontWeight: 'bold' }} title="Present">P</div>;
+    }
+  };
+
   return (
     <div className="component-container">
       <div className="component-header">
@@ -97,6 +147,20 @@ export function AttendanceRegisterView({ db, onUpdateDb }) {
           <p>Review presence registers, oversee shifts schedule swap requests, and approve missed-punch overrides.</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: '8px', border: '1px solid var(--border-color)', padding: '4px', borderRadius: '8px', backgroundColor: 'var(--bg-secondary)' }}>
+            <button 
+              onClick={() => setViewMode('list')}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '6px', border: 'none', backgroundColor: viewMode === 'list' ? 'var(--bg-tertiary)' : 'transparent', color: viewMode === 'list' ? 'var(--text-primary)' : 'var(--text-muted)', cursor: 'pointer', fontWeight: '600', fontSize: '12px' }}
+            >
+              <List size={16} /> List View
+            </button>
+            <button 
+              onClick={() => setViewMode('calendar')}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '6px', border: 'none', backgroundColor: viewMode === 'calendar' ? 'var(--bg-tertiary)' : 'transparent', color: viewMode === 'calendar' ? 'var(--text-primary)' : 'var(--text-muted)', cursor: 'pointer', fontWeight: '600', fontSize: '12px' }}
+            >
+              <Calendar size={16} /> Calendar Grid
+            </button>
+          </div>
           <button className="print-btn" onClick={() => setShowRoster(!showRoster)}>
             {showRoster ? 'Hide Shift Roster' : 'View Shift Roster Planner'}
           </button>
@@ -151,39 +215,82 @@ export function AttendanceRegisterView({ db, onUpdateDb }) {
 
       <div style={{ width: '100%' }}>
         {/* Attendance Register */}
-        <div className="table-container" style={{ margin: 0, overflowX: 'auto', width: '100%' }}>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th style={{ padding: '16px 40px', textAlign: 'left' }}>Employee Name</th>
-                <th style={{ padding: '16px 40px', textAlign: 'left' }}>Punch Date</th>
-                <th style={{ padding: '16px 40px', textAlign: 'left' }}>Clock In Time</th>
-                <th style={{ padding: '16px 40px', textAlign: 'left' }}>Clock Out Time</th>
-                <th style={{ padding: '16px 40px', textAlign: 'left' }}>Work Mode</th>
-                <th style={{ padding: '16px 40px', textAlign: 'left' }}>Punch Flags</th>
-              </tr>
-            </thead>
-            <tbody>
-              {db.attendanceLogs.map(log => {
-                const emp = db.employees.find(e => e.id === log.employee_id) || { name: 'Unknown' };
-                return (
-                  <tr key={log.id}>
-                    <td style={{ padding: '16px 40px' }}><strong>{emp.name}</strong></td>
-                    <td style={{ padding: '16px 40px' }}>{log.date}</td>
-                    <td style={{ padding: '16px 40px' }}>{log.clock_in ? new Date(log.clock_in).toLocaleTimeString() : <span style={{ color: 'red' }}>Missed</span>}</td>
-                    <td style={{ padding: '16px 40px' }}>{log.clock_out ? new Date(log.clock_out).toLocaleTimeString() : <span style={{ color: 'red' }}>Missed</span>}</td>
-                    <td style={{ padding: '16px 40px' }}><span className="badge-pill bg-pink">{log.work_mode.toUpperCase()}</span></td>
-                    <td style={{ padding: '16px 40px' }}>
-                      <span className={`badge-pill ${log.exception_flag === 'none' ? 'badge-green' : 'badge-gold'}`}>
-                        {log.exception_flag}
-                      </span>
+        {/* Attendance Views */}
+        {viewMode === 'list' ? (
+          <div className="table-container" style={{ margin: 0, overflowX: 'auto', width: '100%' }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th style={{ padding: '16px 40px', textAlign: 'left' }}>Employee Name</th>
+                  <th style={{ padding: '16px 40px', textAlign: 'left' }}>Punch Date</th>
+                  <th style={{ padding: '16px 40px', textAlign: 'left' }}>Clock In Time</th>
+                  <th style={{ padding: '16px 40px', textAlign: 'left' }}>Clock Out Time</th>
+                  <th style={{ padding: '16px 40px', textAlign: 'left' }}>Work Mode</th>
+                  <th style={{ padding: '16px 40px', textAlign: 'left' }}>Punch Flags</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mappedLogs.map(log => {
+                  const emp = db.employees.find(e => String(e.id) === String(log.employee_id)) || { name: 'Unknown' };
+                  return (
+                    <tr key={log.id}>
+                      <td style={{ padding: '16px 40px' }}><strong>{emp.name}</strong></td>
+                      <td style={{ padding: '16px 40px' }}>{log.date}</td>
+                      <td style={{ padding: '16px 40px' }}>{log.clock_in ? new Date(log.clock_in).toLocaleTimeString() : <span style={{ color: '#ef4444' }}>Missed</span>}</td>
+                      <td style={{ padding: '16px 40px' }}>{log.clock_out ? new Date(log.clock_out).toLocaleTimeString() : <span style={{ color: '#ef4444' }}>Missed</span>}</td>
+                      <td style={{ padding: '16px 40px' }}><span className="badge-pill bg-pink">{log.work_mode.toUpperCase()}</span></td>
+                      <td style={{ padding: '16px 40px' }}>
+                        <span className={`badge-pill ${log.exception_flag === 'none' ? 'badge-green' : 'badge-gold'}`}>
+                          {log.exception_flag}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="table-container" style={{ margin: 0, overflowX: 'auto', width: '100%', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '12px' }}>
+            <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '15px' }}>{today.toLocaleString('default', { month: 'long', year: 'numeric' })} Overview</h3>
+              <div style={{ display: 'flex', gap: '16px', fontSize: '12px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '12px', height: '12px', backgroundColor: 'rgba(34, 197, 94, 0.1)', border: '1px solid #22c55e', borderRadius: '2px' }}></div> Present</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '12px', height: '12px', backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', borderRadius: '2px' }}></div> Absent</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><div style={{ width: '12px', height: '12px', backgroundColor: 'rgba(234, 179, 8, 0.1)', border: '1px solid #eab308', borderRadius: '2px' }}></div> Late</span>
+              </div>
+            </div>
+            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={{ padding: '12px 16px', position: 'sticky', left: 0, backgroundColor: 'var(--bg-primary)', zIndex: 10, minWidth: '180px', borderRight: '1px solid var(--border-color)' }}>Employee Name</th>
+                  {daysArray.map(day => (
+                    <th key={day} style={{ padding: '12px 0', minWidth: '36px', textAlign: 'center', fontSize: '12px', borderBottom: '1px solid var(--border-color)' }}>
+                      {day}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {db.employees.map(emp => (
+                  <tr key={emp.id}>
+                    <td style={{ padding: '12px 16px', position: 'sticky', left: 0, backgroundColor: 'var(--bg-primary)', zIndex: 10, borderRight: '1px solid var(--border-color)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <img src={emp.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=random`} alt={emp.name} style={{ width: '28px', height: '28px', borderRadius: '50%' }} />
+                        <span style={{ fontWeight: '600', fontSize: '13px' }}>{emp.name}</span>
+                      </div>
                     </td>
+                    {daysArray.map(day => (
+                      <td key={day} style={{ borderRight: '1px solid var(--bg-tertiary)', borderBottom: '1px solid var(--bg-tertiary)', padding: 0 }}>
+                        {renderCalendarCell(emp.id, day)}
+                      </td>
+                    ))}
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* 🔔 REGULARIZATION REQUESTS DETAILS POPUP MODAL */}

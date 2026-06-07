@@ -16,7 +16,9 @@ export default function Dashboard({ db, onUpdateDb }) {
     activeBlockers: 0,
     pendingApprovalsCount: 0,
     okrProgressAverage: 75,
-    riskIndex: 'Low'
+    riskIndex: 'Low',
+    monthlyPayroll: 0,
+    activeProjects: 0
   });
   const [approvalsList, setApprovalsList] = useState([]);
   const [escalationsList, setEscalationsList] = useState([]);
@@ -154,7 +156,7 @@ export default function Dashboard({ db, onUpdateDb }) {
         // Find users in this department
         const deptUserIds = employees.filter(e => e.department === dept).map(e => e.id);
         if (deptUserIds.length === 0) {
-          return calculatedDates.map(() => Math.floor(Math.random() * 5) + 95); // Default healthy percentage (95-100)
+          return calculatedDates.map(() => 0); // Real data, if no users, 0%
         }
 
         return calculatedDates.map(dateStr => {
@@ -168,7 +170,7 @@ export default function Dashboard({ db, onUpdateDb }) {
           const presentLogs = dayLogs.filter(log => ["present", "late", "half-day"].includes(log.status));
           
           if (dayLogs.length === 0) {
-            return 95; // Default if no check-ins scheduled
+            return 0; // Realistic - no check-ins = 0%
           }
           return Math.round((presentLogs.length / dayLogs.length) * 100);
         });
@@ -183,7 +185,9 @@ export default function Dashboard({ db, onUpdateDb }) {
           activeBlockers: mappedEscalations.length,
           pendingApprovalsCount: combinedApprovals.length,
           okrProgressAverage: 75,
-          riskIndex: mappedEscalations.length <= 2 ? 'Low' : 'High'
+          riskIndex: mappedEscalations.length <= 2 ? 'Low' : 'High',
+          monthlyPayroll: 0,
+          activeProjects: 0
         });
       }
       setApprovalsList(combinedApprovals);
@@ -299,11 +303,16 @@ export default function Dashboard({ db, onUpdateDb }) {
   };
 
   // Dynamic KPI mapping
-  const activeProjectsCount = new Set((db?.tasks || []).map(t => t.project)).size || 3;
+  const formatCurrency = (val) => {
+    if (val >= 1000000) return `₹${(val / 1000000).toFixed(1)}M`;
+    if (val >= 1000) return `₹${(val / 1000).toFixed(1)}k`;
+    return `₹${val}`;
+  };
+
   const kpiData = [
     { id: 'hc', label: "Total Headcount", value: summaryData.headcount.toString(), trend: "up", trendValue: "+4%", icon: Users, color: "var(--ceo-primary)" },
-    { id: 'pr', label: "Monthly Payroll", value: "₹24.5M", trend: "up", trendValue: "+2%", icon: IndianRupee, color: "var(--ceo-danger)" },
-    { id: 'pj', label: "Active Projects", value: activeProjectsCount.toString(), trend: "flat", trendValue: "0", icon: Layers, color: "var(--ceo-purple)" },
+    { id: 'pr', label: "Monthly Payroll", value: formatCurrency(summaryData.monthlyPayroll || 0), trend: "up", trendValue: "+2%", icon: IndianRupee, color: "var(--ceo-danger)" },
+    { id: 'pj', label: "Active Projects", value: (summaryData.activeProjects || 0).toString(), trend: "flat", trendValue: "0", icon: Layers, color: "var(--ceo-purple)" },
     { id: 'es', label: "Escalations", value: summaryData.activeBlockers.toString(), trend: summaryData.activeBlockers > 0 ? "up" : "down", trendValue: summaryData.activeBlockers > 0 ? `+${summaryData.activeBlockers}` : "0", icon: AlertCircle, color: "var(--ceo-warning)" },
   ];
 

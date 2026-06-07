@@ -49,6 +49,44 @@ class CandidateResponse(BaseModel):
 class StageUpdateRequest(BaseModel):
     stage: str
 
+class InterviewCreate(BaseModel):
+    candidate_id: int
+    candidate_name: str
+    role: str
+    interviewer: str
+    scheduled_at: datetime
+
+class InterviewResponse(BaseModel):
+    id: int
+    candidate_id: int
+    candidate_name: str
+    role: str
+    interviewer: str
+    scheduled_at: datetime
+    status: str
+
+    class Config:
+        from_attributes = True
+
+class JobOfferCreate(BaseModel):
+    candidate_id: int
+    basic_pay: float
+    hra: float
+    allowance: float
+
+class JobOfferResponse(BaseModel):
+    id: int
+    candidate_id: int
+    basic_pay: float
+    hra: float
+    allowance: float
+    gross_ctc: float
+    status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 class EmployeeCreateRequest(BaseModel):
     name: str
     email: EmailStr
@@ -636,6 +674,40 @@ def delete_candidate(id: int, current_user: models.User = Depends(security.get_c
     db.delete(cand)
     db.commit()
     return {"status": "success", "message": "Candidate profile deleted."}
+
+@router.post("/interviews", response_model=InterviewResponse, status_code=status.HTTP_201_CREATED)
+def schedule_interview(req: InterviewCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_hr_role(current_user)
+    
+    interview = models.Interview(
+        candidate_id=req.candidate_id,
+        candidate_name=req.candidate_name,
+        role=req.role,
+        interviewer=req.interviewer,
+        scheduled_at=req.scheduled_at
+    )
+    db.add(interview)
+    db.commit()
+    db.refresh(interview)
+    return interview
+
+@router.post("/offers", response_model=JobOfferResponse, status_code=status.HTTP_201_CREATED)
+def create_job_offer(req: JobOfferCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_hr_role(current_user)
+    
+    gross = req.basic_pay + req.hra + req.allowance
+    offer = models.JobOffer(
+        candidate_id=req.candidate_id,
+        basic_pay=req.basic_pay,
+        hra=req.hra,
+        allowance=req.allowance,
+        gross_ctc=gross
+    )
+    db.add(offer)
+    db.commit()
+    db.refresh(offer)
+    return offer
+
 
 # 3. Employee Registry Module
 @router.get("/employees", response_model=List[EmployeeResponse])
@@ -1857,5 +1929,88 @@ def decide_promotion(id: int, req: PromotionDecide, current_user: models.User = 
 
     return {"status": "success", "decision": req.decision, "employee": promo.name}
 
+# ─── Helpdesk (HR view) ───────────────────────────────────────────────────────
 
+class SupportTicketResponse(BaseModel):
+    id: int
+    user_id: int
+    title: str
+    description: str
+    category: str
+    priority: str
+    status: str
+    created_at: datetime
+    employee_name: Optional[str] = "Employee"
 
+    class Config:
+        from_attributes = True
+
+@router.get("/tickets", response_model=List[SupportTicketResponse])
+def get_all_tickets(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_hr_role(current_user)
+    tickets = db.query(models.SupportTicket).order_by(models.SupportTicket.created_at.desc()).all()
+    res = []
+    for t in tickets:
+        u = db.query(models.User).filter(models.User.id == t.user_id).first()
+        t_dict = {
+            "id": t.id,
+            "user_id": t.user_id,
+            "title": t.title,
+            "description": t.description,
+            "category": t.category,
+            "priority": t.priority,
+            "status": t.status,
+            "created_at": t.created_at,
+            "employee_name": u.name if u else f"User #{t.user_id}"
+        }
+        res.append(t_dict)
+    return res
+
+@router.post("/tickets/{id}/resolve")
+def resolve_ticket(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_hr_role(current_user)
+    t = db.query(models.SupportTicket).filter(models.SupportTicket.id == id).first()
+    if not t:
+        raise HTTPException(status_code=404, detail="Ticket not found.")
+    t.status = "Resolved"
+    db.commit()
+    db.refresh(t)
+    return {"status": "success"}
+
+# ─── Department Schema Builder ──────────────────────────────────────────────
+
+class SchemaField(BaseModel):
+    name: str
+    type: str
+    label: str
+
+class DepartmentSchemaRequest(BaseModel):
+    schema_fields: List[SchemaField]
+
+@router.get("/schemas")
+def get_all_schemas(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_hr_role(current_user)
+    schemas = db.query(models.DepartmentSchema).all()
+    res = {}
+    for s in schemas:
+        try:
+            res[s.department] = json.loads(s.schema_json)
+        except Exception:
+            res[s.department] = []
+    return res
+
+@router.post("/schemas/{dept}")
+def update_schema(dept: str, req: DepartmentSchemaRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_hr_role(current_user)
+    s = db.query(models.DepartmentSchema).filter(models.DepartmentSchema.department == dept).first()
+    fields_dict = [f.dict() for f in req.schema_fields]
+    json_str = json.dumps(fields_dict)
+    
+    if s:
+        s.schema_json = json_str
+    else:
+        new_schema = models.DepartmentSchema(department=dept, schema_json=json_str)
+        db.add(new_schema)
+        
+    db.commit()
+    return {"status": "success"}

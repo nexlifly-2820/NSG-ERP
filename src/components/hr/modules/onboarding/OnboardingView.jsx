@@ -173,42 +173,26 @@ export function OnboardingView({ db, onUpdateDb, queryParams, setQueryParams }) 
     ]}
   ];
 
-  const handleToggleTask = (taskId) => {
-    const updatedTasks = onboardingTasks.map(t => {
-      if (t.id === taskId) {
-        const isCompleting = t.status !== 'completed';
-        return {
-          ...t,
-          status: isCompleting ? 'completed' : 'pending',
-          completed_at: isCompleting ? new Date().toISOString().split('T')[0] : null
-        };
-      }
-      return t;
-    });
-
-    // Enforce L&D state auto completion if compliance quiz is checked
-    const clickedTask = onboardingTasks.find(t => t.id === taskId);
-    let updatedTrainingProgress = db.trainingProgress;
-    if (clickedTask && clickedTask.task_name.includes('Compliance Induction Quiz')) {
-      const isCompleting = clickedTask.status !== 'completed';
-      updatedTrainingProgress = db.trainingProgress?.map(p => {
-        if (p.employee_id === clickedTask.instance_id) {
-          return {
-            ...p,
-            passed: isCompleting,
-            completed_modules: isCompleting ? 2 : 0,
-            quiz_score: isCompleting ? 90 : 0
-          };
-        }
-        return p;
+  const handleToggleTask = async (taskId) => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/hr-portal/onboarding/tasks/${taskId}/toggle`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
       });
+      if (res.ok) {
+        // re-fetch data
+        const tasksRes = await fetch('/api/hr-portal/onboarding/tasks', { headers: { 'Authorization': `Bearer ${token}` } });
+        if (tasksRes.ok) {
+          const newTasks = await tasksRes.json();
+          onUpdateDb({ ...db, onboardingTasks: newTasks });
+        }
+      } else {
+        alert('Failed to toggle task.');
+      }
+    } catch (e) {
+      console.error(e);
     }
-
-    onUpdateDb({
-      ...db,
-      onboardingTasks: updatedTasks,
-      trainingProgress: updatedTrainingProgress
-    });
   };
 
   const handleCreateTemplateTask = (e) => {
@@ -252,66 +236,74 @@ export function OnboardingView({ db, onUpdateDb, queryParams, setQueryParams }) 
     });
   };
 
-  const handleSimulateEsign = (requestId) => {
-    const request = esignRequests.find(r => r.id === requestId);
-    if (!request) return;
-
-    const updatedEsigns = esignRequests.map(r => {
-      if (r.id === requestId) {
-        return { ...r, status: 'signed', signed_at: new Date().toISOString() };
+  const handleSimulateEsign = async (requestId) => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/hr-portal/onboarding/esign-requests/${requestId}/simulate-sign`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        // refresh data
+        const [esignRes, tasksRes] = await Promise.all([
+          fetch('/api/hr-portal/onboarding/esign-requests', { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch('/api/hr-portal/onboarding/tasks', { headers: { 'Authorization': `Bearer ${token}` } })
+        ]);
+        const updates = { ...db };
+        if (esignRes.ok) updates.esignRequests = await esignRes.json();
+        if (tasksRes.ok) updates.onboardingTasks = await tasksRes.json();
+        onUpdateDb(updates);
+        notify('Employee e-signed document via OTP secure portal. Onboarding task updated.');
+      } else {
+        alert('Failed to simulate esign.');
       }
-      return r;
-    });
-
-    const updatedTasks = onboardingTasks.map(t => {
-      if (t.instance_id === request.employee_id && t.requires_esign) {
-        return {
-          ...t,
-          status: 'completed',
-          completed_at: new Date().toISOString().split('T')[0]
-        };
-      }
-      return t;
-    });
-
-    onUpdateDb({
-      ...db,
-      esignRequests: updatedEsigns,
-      onboardingTasks: updatedTasks
-    });
-
-    notify('Employee e-signed document via OTP secure portal. Onboarding task updated.');
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleSendEsignRequest = (emp) => {
-    const newRequest = {
-      id: +new Date(),
-      employee_id: emp.id,
-      document_name: 'Mandatory NDA Policy Handbook',
-      status: 'pending',
-      sent_at: new Date().toISOString(),
-      signed_at: null
-    };
-
-    onUpdateDb({
-      ...db,
-      esignRequests: [...esignRequests, newRequest]
-    });
-
-    notify(`E-signature request for NDA Policy dispatched to ${emp.name} email queue.`, 'info');
+  const handleSendEsignRequest = async (emp) => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const reqPayload = { employee_id: emp.id, document_name: 'Mandatory NDA Policy Handbook' };
+      const res = await fetch('/api/hr-portal/onboarding/esign-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(reqPayload)
+      });
+      if (res.ok) {
+        const newReq = await res.json();
+        onUpdateDb({ ...db, esignRequests: [...esignRequests, newReq] });
+        notify(`E-signature request for NDA Policy dispatched to ${emp.name} email queue.`, 'info');
+      } else {
+        alert('Failed to send request.');
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleSendOverdueReminder = (task) => {
     notify(`Alert sent to ${task.assigned_to} for: ${task.task_name}`, 'info');
   };
 
-  const handleDeleteEsign = (requestId) => {
+  const handleDeleteEsign = async (requestId) => {
     if (!window.confirm('Are you sure you want to void and delete this E-Signature request?')) return;
-    const updatedEsigns = esignRequests.filter(r => r.id !== requestId);
-    onUpdateDb({
-      ...db,
-      esignRequests: updatedEsigns
-    });
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/hr-portal/onboarding/esign-requests/${requestId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const updatedEsigns = esignRequests.filter(r => r.id !== requestId);
+        onUpdateDb({ ...db, esignRequests: updatedEsigns });
+      } else {
+        alert('Failed to delete request.');
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleResetToDemoData = () => {
@@ -396,8 +388,8 @@ export function OnboardingView({ db, onUpdateDb, queryParams, setQueryParams }) 
     <div className="component-container">
       <div className="component-header">
         <div>
-          <h1>Active Onboarding Workspace</h1>
-          <p>Supervise task checklist progressions, workstation allocations, and signed induction credentials.</p>
+          <h1>Employee Onboarding</h1>
+          <p>Welcome new hires, track their setup tasks, and manage their documents.</p>
         </div>
       </div>
 
@@ -405,10 +397,10 @@ export function OnboardingView({ db, onUpdateDb, queryParams, setQueryParams }) 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', marginBottom: '20px', paddingBottom: '4px' }}>
         <div style={{ display: 'flex', gap: '16px' }}>
           {[
-            { id: 'active', label: 'Active Checklists' },
-            { id: 'templates', label: 'Template Builder' },
-            { id: 'overdue', label: 'Overdue Alerts' },
-            { id: 'esign', label: 'E-Sign Portal' }
+            { id: 'active', label: 'New Hires' },
+            { id: 'templates', label: 'Setup Checklists' },
+            { id: 'overdue', label: 'Overdue Tasks' },
+            { id: 'esign', label: 'Signed Documents' }
           ].map(tab => (
             <button
               key={tab.id}
@@ -536,7 +528,10 @@ export function OnboardingView({ db, onUpdateDb, queryParams, setQueryParams }) 
           })}
 
           {activeProbationers.length === 0 && (
-            <p style={{ color: 'var(--text-muted)', textAlign: 'center', gridColumn: 'span 3', padding: '32px' }}>No active hires enqueued under probation checklists.</p>
+            <p style={{ color: 'var(--text-muted)', textAlign: 'center', gridColumn: 'span 3', padding: '32px', fontSize: '15px' }}>
+              <span style={{ fontSize: '32px', display: 'block', marginBottom: '8px' }}>👋</span>
+              No new hires are currently onboarding.
+            </p>
           )}
         </div>
       )}

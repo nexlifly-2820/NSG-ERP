@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, RefreshCw, MapPin, Loader, CheckCircle2, Building2 } from 'lucide-react';
-import { HOLIDAYS, LEAVE_POLICIES } from '../../mockData';
+import { Calendar, RefreshCw, MapPin, Loader, CheckCircle2, Building2, Save, Plus, Trash2, Sliders } from 'lucide-react';
+import { HOLIDAYS as MOCK_HOLIDAYS, LEAVE_POLICIES as MOCK_LEAVE_POLICIES } from '../../mockData';
 
 export function HrSettingsView({ db, onUpdateDb }) {
   const [geofence, setGeofence] = useState(() => db.geofenceSettings || {
@@ -9,8 +9,117 @@ export function HrSettingsView({ db, onUpdateDb }) {
     longitude: 77.5946,
     radius: 100
   });
+
+  const [leavePolicies, setLeavePolicies] = useState(() => db.leavePolicies || MOCK_LEAVE_POLICIES);
+  const [holidays, setHolidays] = useState(() => db.holidays || MOCK_HOLIDAYS);
+  const [newHoliday, setNewHoliday] = useState({ name: '', date: '' });
+
   const [gpsLoading, setGpsLoading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const handlePolicyChange = (id, newMax) => {
+    setLeavePolicies(prev => prev.map(p => p.id === id ? { ...p, max_balance: Number(newMax) } : p));
+  };
+
+  const handleSavePolicies = () => {
+    onUpdateDb({ ...db, leavePolicies });
+    if (window.toast) window.toast.success("Leave policies saved successfully!");
+    else alert("Leave policies saved successfully!");
+  };
+
+  const handleAddHoliday = () => {
+    if (!newHoliday.name || !newHoliday.date) return;
+    const newH = { ...newHoliday, id: Date.now() };
+    setHolidays(prev => [...prev, newH]);
+    setNewHoliday({ name: '', date: '' });
+  };
+
+  const handleDeleteHoliday = (id) => {
+    setHolidays(prev => prev.filter(h => h.id !== id));
+  };
+
+  const handleSaveHolidays = () => {
+    onUpdateDb({ ...db, holidays });
+    if (window.toast) window.toast.success("Holiday calendar saved successfully!");
+    else alert("Holiday calendar saved successfully!");
+  };
+
+  // --- SCHEMA BUILDER ---
+  const [schemas, setSchemas] = useState({});
+  const [selectedDept, setSelectedDept] = useState("IT");
+  const [isAddingDept, setIsAddingDept] = useState(false);
+  const [newDeptName, setNewDeptName] = useState("");
+  const [newField, setNewField] = useState({ name: '', label: '', type: 'text' });
+  const [schemaLoading, setSchemaLoading] = useState(false);
+
+  useEffect(() => {
+    fetchSchemas();
+  }, []);
+
+  const fetchSchemas = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/hr-portal/schemas', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setSchemas(await res.json());
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAddField = () => {
+    if (!newField.label) {
+      if (window.toast) window.toast.error("Please enter a Display Label before adding a field.");
+      else alert("Please enter a Display Label before adding a field.");
+      return;
+    }
+    if (!newField.name) {
+      if (window.toast) window.toast.error("Please enter a DB Field Name before adding a field.");
+      else alert("Please enter a DB Field Name before adding a field.");
+      return;
+    }
+    const deptSchema = schemas[selectedDept] || [];
+    setSchemas({
+      ...schemas,
+      [selectedDept]: [...deptSchema, { ...newField }]
+    });
+    setNewField({ name: '', label: '', type: 'text' });
+  };
+
+  const handleDeleteField = (idx) => {
+    const deptSchema = [...(schemas[selectedDept] || [])];
+    deptSchema.splice(idx, 1);
+    setSchemas({
+      ...schemas,
+      [selectedDept]: deptSchema
+    });
+  };
+
+  const handleSaveSchema = async () => {
+    setSchemaLoading(true);
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/hr-portal/schemas/${selectedDept}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ schema_fields: schemas[selectedDept] || [] })
+      });
+      if (res.ok) {
+        if (window.toast) window.toast.success(`${selectedDept} Schema saved successfully!`);
+        else alert(`${selectedDept} Schema saved successfully!`);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setSchemaLoading(false);
+  };
+  // ----------------------
 
   useEffect(() => {
     const fetchGeofenceSettings = async () => {
@@ -36,12 +145,7 @@ export function HrSettingsView({ db, onUpdateDb }) {
     fetchGeofenceSettings();
   }, []);
 
-  const handleResetDemoData = () => {
-    if (confirm('Are you sure you want to reset the client-side simulated database? This will restore all original seed values.')) {
-      localStorage.removeItem('nsg_hr_db');
-      window.location.reload();
-    }
-  };
+
 
   const handleSaveGeofence = async () => {
     const token = localStorage.getItem('nsg_jwt_token');
@@ -114,41 +218,216 @@ export function HrSettingsView({ db, onUpdateDb }) {
     <div className="component-container">
       <div className="component-header">
         <div>
-          <h1>HR Settings &amp; Holiday calendar</h1>
-          <p>Tweak carryover leaf policies, add official holiday timelines, or reset your local simulator data.</p>
-        </div>
-        <div>
-          <button className="print-btn" style={{ backgroundColor: 'red', color: '#fff', border: 'none' }} onClick={handleResetDemoData}>
-            <RefreshCw size={16} /> Reset Demo Data
-          </button>
+          <h1>HR Settings &amp; Holiday Calendar</h1>
+          <p>Tweak carryover leave policies, manage official holiday timelines, and configure GPS geofencing.</p>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         {/* Leave Policies */}
-        <div className="card flex-1" style={{ borderLeft: '4px solid var(--accent-pink)' }}>
+        <div className="card flex-1" style={{ borderLeft: '4px solid var(--accent-pink)', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', minWidth: '300px' }}>
           <h3>Leave Policies Quick Config</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {LEAVE_POLICIES.map(p => (
-              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span>{p.type} Policy:</span>
-                <strong>{p.max_balance} days Max</strong>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+            {leavePolicies.map(p => (
+              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>{p.type} Policy:</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input 
+                    type="number" 
+                    value={p.max_balance} 
+                    onChange={(e) => handlePolicyChange(p.id, e.target.value)}
+                    style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '6px', borderRadius: '4px', width: '60px', textAlign: 'right' }}
+                  />
+                  <span style={{ color: 'var(--text-muted)' }}>days Max</span>
+                </div>
               </div>
             ))}
+            <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="print-btn" onClick={handleSavePolicies} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', cursor: 'pointer', borderRadius: '6px' }}>
+                <Save size={16} /> Save Policies
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Holidays */}
-        <div className="card flex-1" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
+        <div className="card flex-1" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', minWidth: '350px' }}>
           <h3>Holiday Calendar Roster</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {HOLIDAYS.map(h => (
-              <div key={h.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span>{h.name}:</span>
-                <strong>{h.date}</strong>
-              </div>
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
+            <div style={{ maxHeight: '200px', overflowY: 'auto', paddingRight: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {holidays.map(h => (
+                <div key={h.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', backgroundColor: 'var(--bg-primary)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                  <span style={{ fontWeight: '500' }}>{h.name}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>{h.date}</span>
+                    <button onClick={() => handleDeleteHoliday(h.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px' }}>
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', marginTop: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+              <input 
+                type="text" 
+                placeholder="Holiday Name" 
+                value={newHoliday.name}
+                onChange={e => setNewHoliday({...newHoliday, name: e.target.value})}
+                style={{ flex: 1, backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}
+              />
+              <input 
+                type="date" 
+                value={newHoliday.date}
+                onChange={e => setNewHoliday({...newHoliday, date: e.target.value})}
+                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}
+              />
+              <button onClick={handleAddHoliday} style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '8px', borderRadius: '6px', cursor: 'pointer' }}>
+                <Plus size={16} />
+              </button>
+            </div>
+            
+            <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="print-btn" onClick={handleSaveHolidays} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', cursor: 'pointer', borderRadius: '6px' }}>
+                <Save size={16} /> Save Calendar
+              </button>
+            </div>
           </div>
+        </div>
+      </div>
+
+      {/* Custom Task Forms (Schema Builder) */}
+      <div className="card" style={{ borderLeft: '4px solid #8b5cf6', width: '100%', marginTop: '24px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', boxSizing: 'border-box' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+          <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)', border: 'none', padding: 0 }}>
+            <Sliders size={20} style={{ color: '#8b5cf6' }} /> Custom Task Forms (Schema Builder)
+          </h3>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {isAddingDept ? (
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <input
+                  type="text"
+                  placeholder="New Dept Name"
+                  value={newDeptName}
+                  onChange={e => setNewDeptName(e.target.value)}
+                  style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '6px 12px', borderRadius: '4px' }}
+                />
+                <button
+                  onClick={() => {
+                    if (newDeptName.trim()) {
+                      setSelectedDept(newDeptName.trim());
+                      setIsAddingDept(false);
+                      setNewDeptName("");
+                    }
+                  }}
+                  style={{ backgroundColor: '#8b5cf6', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  OK
+                </button>
+                <button
+                  onClick={() => setIsAddingDept(false)}
+                  style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <select 
+                value={selectedDept} 
+                onChange={(e) => {
+                  if (e.target.value === '__ADD_NEW__') {
+                    setIsAddingDept(true);
+                  } else {
+                    setSelectedDept(e.target.value);
+                  }
+                }}
+                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '6px 12px', borderRadius: '4px' }}
+              >
+                {[...new Set(['IT', 'Sales', 'Marketing', 'HR', 'Finance', ...Object.keys(schemas)])].map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+                <option value="__ADD_NEW__">+ Add Custom Department...</option>
+              </select>
+            )}
+          </div>
+        </div>
+
+        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px', lineHeight: '1.5' }}>
+          Dynamically manage custom input fields for <b>{selectedDept}</b> employee task submissions. These fields will be generated automatically in the Employee Tasks UI without requiring code changes.
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', backgroundColor: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+          {/* Current Schema Fields */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {(!schemas[selectedDept] || schemas[selectedDept].length === 0) ? (
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No custom fields defined for {selectedDept}.</div>
+            ) : (
+              schemas[selectedDept].map((f, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-secondary)', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                    <span style={{ fontWeight: '600', fontSize: '13px', minWidth: '150px' }}>{f.label}</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', backgroundColor: 'var(--bg-primary)', padding: '4px 8px', borderRadius: '4px' }}>name: {f.name}</span>
+                    <span style={{ fontSize: '11px', color: '#8b5cf6', backgroundColor: '#8b5cf620', padding: '4px 8px', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 'bold' }}>{f.type}</span>
+                  </div>
+                  <button onClick={() => handleDeleteField(idx)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Add New Field */}
+          <div style={{ display: 'flex', gap: '8px', marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '16px', alignItems: 'flex-end' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Display Label</label>
+              <input 
+                type="text" 
+                placeholder="e.g. Deal Value" 
+                value={newField.label}
+                onChange={e => setNewField({...newField, label: e.target.value, name: e.target.value.toLowerCase().replace(/\s+/g, '_')})}
+                style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}
+              />
+            </div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>DB Field Name (Auto)</label>
+              <input 
+                type="text" 
+                placeholder="deal_value" 
+                value={newField.name}
+                onChange={e => setNewField({...newField, name: e.target.value})}
+                style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}
+              />
+            </div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Input Type</label>
+              <select 
+                value={newField.type}
+                onChange={e => setNewField({...newField, type: e.target.value})}
+                style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}
+              >
+                <option value="text">Text</option>
+                <option value="number">Number</option>
+                <option value="textarea">Textarea (Long)</option>
+                <option value="url">URL / Link</option>
+                <option value="date">Date</option>
+              </select>
+            </div>
+            <button onClick={handleAddField} style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', height: '37px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Plus size={16} /> Add Field
+            </button>
+          </div>
+        </div>
+
+        <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+          <button 
+            onClick={handleSaveSchema} 
+            disabled={schemaLoading}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 20px', fontSize: '13px', backgroundColor: '#8b5cf6', color: '#fff', border: 'none', fontWeight: 'bold', cursor: 'pointer', borderRadius: '6px' }}
+          >
+            {schemaLoading ? <Loader size={16} className="att-spin" /> : <Save size={16} />}
+            {schemaLoading ? 'Saving...' : `Save ${selectedDept} Schema`}
+          </button>
         </div>
       </div>
 

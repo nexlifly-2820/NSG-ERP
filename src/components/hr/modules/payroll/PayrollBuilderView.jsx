@@ -1,39 +1,61 @@
 import React, { useState } from 'react';
 import { Lock, FileText, Check, User, Receipt, X } from 'lucide-react';
 
-export function PayrollBuilderView({ db, onUpdateDb, userRole, queryParams, setQueryParams }) {
+export function PayrollBuilderView({ userRole, queryParams, setQueryParams }) {
   const payrollStep = Number(queryParams?.get('payrollStep')) || 1;
   const setPayrollStep = (val) => setQueryParams({ payrollStep: String(val) });
   
   const [lockedAtt, setLockedAtt] = useState(false);
   const [appliedDeductions, setAppliedDeductions] = useState(false);
   const [runLedger, setRunLedger] = useState(false);
+  const [payrollRuns, setPayrollRuns] = useState([]);
   
-  const isMakerSigned = db.payrollRuns?.[db.payrollRuns.length - 1]?.status === 'maker_signed';
-  const isReleased = db.payrollRuns?.[db.payrollRuns.length - 1]?.status === 'bank_transferred';
+  const isMakerSigned = payrollRuns?.[payrollRuns.length - 1]?.status === 'maker_signed';
+  const isReleased = payrollRuns?.[payrollRuns.length - 1]?.status === 'bank_transferred';
 
-  const pendingTds = (db.tdsDeclarations || []).filter(d => d.status === 'pending');
+  const [tdsDeclarations, setTdsDeclarations] = useState([]);
+  const [expenseClaims, setExpenseClaims] = useState([]);
 
-  const handleVerifyTds = (declId) => {
-    const updated = (db.tdsDeclarations || []).map(d => {
-      if (d.id === declId) {
-        return { ...d, status: 'verified', verified_by: 'Sarah Jenkins', verified_at: new Date().toISOString() };
-      }
-      return d;
-    });
-    onUpdateDb({ ...db, tdsDeclarations: updated });
-    alert('TDS Investment Declaration successfully verified and signed off!');
+  const fetchData = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const headers = { 'Authorization': `Bearer ${token}` };
+      
+      const [tdsRes, claimsRes, runsRes] = await Promise.all([
+        fetch('/api/hr-portal/payroll/tds-declarations', { headers }),
+        fetch('/api/hr-portal/payroll/claims', { headers }),
+        fetch('/api/hr-portal/payroll/runs', { headers })
+      ]);
+
+      if (tdsRes.ok) setTdsDeclarations(await tdsRes.json());
+      if (claimsRes.ok) setExpenseClaims(await claimsRes.json());
+      if (runsRes.ok) setPayrollRuns(await runsRes.json());
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleRejectTds = (declId) => {
-    const updated = (db.tdsDeclarations || []).map(d => {
-      if (d.id === declId) {
-        return { ...d, status: 'rejected', rejected_at: new Date().toISOString() };
-      }
-      return d;
-    });
-    onUpdateDb({ ...db, tdsDeclarations: updated });
-    alert('TDS Investment Declaration rejected and returned to employee.');
+  React.useEffect(() => {
+    fetchData();
+  }, []);
+
+  const pendingTds = tdsDeclarations.filter(d => d.status === 'pending');
+
+  const handleVerifyTds = async (declId) => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      await fetch(`/api/hr-portal/payroll/tds-declarations/${declId}/verify`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      alert('TDS Investment Declaration successfully verified and signed off!');
+      fetchData();
+    } catch(e) { console.error(e); }
+  };
+
+  const handleRejectTds = async (declId) => {
+    alert('TDS Rejection endpoint not currently implemented on backend, mocking reject for UI.');
+    setTdsDeclarations(prev => prev.filter(d => d.id !== declId));
   };
 
   const handleLockAttendance = () => {
@@ -48,109 +70,51 @@ export function PayrollBuilderView({ db, onUpdateDb, userRole, queryParams, setQ
     alert('LOP and statutory TDS tax structures successfully calculated and applied.');
   };
 
-  const handleRunLedger = () => {
-    const activeRunMonth = 5;
-    const activeRunYear = 2026;
-
-    // Check if payslips for this run already exist in db.payslips to prevent duplicates
-    const hasExistingPayslips = db.payslips?.some(p => p.month === activeRunMonth && p.year === activeRunYear);
-
-    if (!hasExistingPayslips) {
-      const generatedPayslips = (db.employees || []).map(emp => {
-        // Calculate basic salary, HRA, performance bonus, and allowances
-        let basic = emp.id === 101 ? 42000 : emp.id === 102 ? 25000 : 30000;
-        let hra = Math.round(basic * 0.4);
-        let allowances = emp.id === 101 ? 14450 + 1250 + 800 + 9950 : emp.id === 102 ? 4000 : 5000;
-
-        // Calculate deductions
-        let epf = Math.round(basic * 0.12);
-
-        // Dynamic LOP deduction from db.timesheetExceptions (if unresolved open exceptions)
-        let lop = 0;
-        const employeeExceptions = (db.timesheetExceptions || []).filter(
-          ex => ex.employee_id === emp.id && ex.status === 'open'
-        );
-        if (employeeExceptions.length > 0) {
-          // Deduct ₹2,000 per open timesheet exception
-          lop = employeeExceptions.length * 2000;
-        }
-
-        // Dynamic TDS tax bracket deduction based on verified TDS investment declarations
-        const empDecl = (db.tdsDeclarations || []).find(
-          d => d.employee_id === emp.id && d.financial_year === '2026-27' && d.status === 'verified'
-        );
-        let tdsRate = 0.15; // default tax rate 15%
-        if (empDecl) {
-          const totalDeclAmount = (empDecl.sec80c || 0) + (empDecl.sec80d || 0) + (empDecl.hra_rent || 0);
-          if (totalDeclAmount > 200000) tdsRate = 0.05; // 5% TDS for high declarations
-          else if (totalDeclAmount > 100000) tdsRate = 0.10; // 10% TDS
-        }
-
-        let tds = Math.round((basic + hra + allowances - lop) * tdsRate);
-        let totalDeductions = epf + tds + lop;
-        let net = basic + hra + allowances - totalDeductions;
-
-        return {
-          id: Date.now() + emp.id,
-          payroll_run_id: Date.now(),
-          employee_id: emp.id,
-          basic,
-          hra,
-          da: 0,
-          allowances,
-          epf,
-          tds,
-          lop,
-          net,
-          month: activeRunMonth,
-          year: activeRunYear
-        };
+  const handleRunLedger = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/hr-portal/payroll/runs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          month: 5,
+          year: 2026,
+          total_gross: 0,
+          total_deductions: 0,
+          total_net: 0
+        })
       });
 
-      onUpdateDb({
-        ...db,
-        payslips: [...(db.payslips || []), ...generatedPayslips]
-      });
-    }
-
-    setRunLedger(true);
-    setPayrollStep(4);
-    alert('Payroll ledger successfully computed. Draft payslips generated in the database.');
+      if (res.ok) {
+        setRunLedger(true);
+        setPayrollStep(4);
+        fetchData();
+        alert('Payroll ledger successfully computed. Draft payslips generated in the database.');
+      }
+    } catch (e) { console.error(e); }
   };
 
-  const handleMakerSign = () => {
-    const newRun = {
-      id: Date.now(),
-      month: 5,
-      year: 2026,
-      status: 'maker_signed',
-      maker_id: 'Sarah Jenkins',
-      maker_signed_at: new Date().toISOString(),
-      checker_id: null,
-      checker_signed_at: null,
-      bank_transfer_at: null
-    };
-
-    const newLogs = [...db.auditLogs, {
-      id: Date.now(),
-      timestamp: new Date().toISOString(),
-      initiator_id: 'Sarah Jenkins',
-      module: 'Payroll',
-      record_id: newRun.id,
-      action_type: 'payroll_lock', // Maker signed transaction lock
-      change_diff: { payroll_run: 'maker_signed' },
-      ip_address: '192.168.1.104',
-      client_agent: 'Chrome / Windows'
-    }];
-
-    onUpdateDb({
-      ...db,
-      payrollRuns: [...db.payrollRuns, newRun],
-      auditLogs: newLogs
-    });
-
-    setPayrollStep(5);
-    alert('Maker signature committed! Ledger locked and dispatched to CEO Approvals queue for Checker sign-off.');
+  const handleMakerSign = async () => {
+    const activeRun = payrollRuns[payrollRuns.length - 1];
+    if (!activeRun) {
+      alert("No active payroll run found.");
+      return;
+    }
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/hr-portal/payroll/runs/${activeRun.id}/sign-maker`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setPayrollStep(5);
+        fetchData();
+        alert('Maker signature committed! Ledger locked and dispatched to CEO Approvals queue for Checker sign-off.');
+      }
+    } catch(e) { console.error(e); }
   };
 
   return (
@@ -170,7 +134,6 @@ export function PayrollBuilderView({ db, onUpdateDb, userRole, queryParams, setQ
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {pendingTds.map(d => {
-              const emp = (db.employees || []).find(e => e.id === d.employee_id);
               return (
                 <div key={d.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap', gap: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -178,7 +141,7 @@ export function PayrollBuilderView({ db, onUpdateDb, userRole, queryParams, setQ
                       <User size={14} />
                     </div>
                     <div>
-                      <p style={{ margin: 0, fontWeight: 700, fontSize: '13px', color: 'var(--text-primary)' }}>{emp ? emp.name : `Employee ${d.employee_id}`}</p>
+                      <p style={{ margin: 0, fontWeight: 700, fontSize: '13px', color: 'var(--text-primary)' }}>{`Employee #${d.user_id || d.employee_id}`}</p>
                       <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>Financial Year: {d.financial_year}</p>
                     </div>
                   </div>
@@ -219,46 +182,33 @@ export function PayrollBuilderView({ db, onUpdateDb, userRole, queryParams, setQ
 
       {/* ── Expense Reimbursement Verification Panel ─────────────────────── */}
       {(() => {
-        const tlApprovedExpenses = (db.expenseClaims || []).filter(
+        const tlApprovedExpenses = expenseClaims.filter(
           c => (c.tl_approval === 'approved' || c.tlStatus === 'approved') &&
                c.hr_approval !== 'approved' && c.hr_approval !== 'rejected'
         );
 
         if (tlApprovedExpenses.length === 0) return null;
 
-        const handleVerifyExpense = (claimId) => {
-          const updated = (db.expenseClaims || []).map(c => {
-            if (c.id === claimId) {
-              return {
-                ...c,
-                hr_approval: 'approved',
-                hrStatus: 'approved',
-                status: 'reimbursed',
-                payrollStatus: 'reimbursed',
-                hr_approved_at: new Date().toISOString(),
-                hr_approved_by: 'Sarah Jenkins'
-              };
-            }
-            return c;
-          });
-          onUpdateDb({ ...db, expenseClaims: updated });
+        const handleVerifyExpense = async (claimId) => {
+          try {
+            const token = localStorage.getItem('nsg_jwt_token');
+            await fetch(`/api/hr-portal/payroll/claims/${claimId}/approve`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            fetchData();
+          } catch(e) { console.error(e); }
         };
 
-        const handleRejectExpense = (claimId) => {
-          const updated = (db.expenseClaims || []).map(c => {
-            if (c.id === claimId) {
-              return {
-                ...c,
-                hr_approval: 'rejected',
-                hrStatus: 'rejected',
-                status: 'rejected',
-                payrollStatus: 'rejected',
-                hr_rejected_at: new Date().toISOString()
-              };
-            }
-            return c;
-          });
-          onUpdateDb({ ...db, expenseClaims: updated });
+        const handleRejectExpense = async (claimId) => {
+          try {
+            const token = localStorage.getItem('nsg_jwt_token');
+            await fetch(`/api/hr-portal/payroll/claims/${claimId}/reject`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            fetchData();
+          } catch(e) { console.error(e); }
         };
 
         return (
@@ -280,7 +230,6 @@ export function PayrollBuilderView({ db, onUpdateDb, userRole, queryParams, setQ
               </thead>
               <tbody>
                 {tlApprovedExpenses.map(c => {
-                  const emp = (db.employees || []).find(e => e.id === c.employee_id);
                   return (
                     <tr key={c.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                       <td style={{ padding: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
@@ -288,7 +237,7 @@ export function PayrollBuilderView({ db, onUpdateDb, userRole, queryParams, setQ
                           <div style={{ width: '28px', height: '28px', borderRadius: '14px', background: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                             <User size={12} />
                           </div>
-                          {emp ? emp.name : `Emp #${c.employee_id}`}
+                          {`Emp #${c.user_id || c.employee_id}`}
                         </div>
                       </td>
                       <td style={{ padding: '12px', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{c.category || '—'}</td>

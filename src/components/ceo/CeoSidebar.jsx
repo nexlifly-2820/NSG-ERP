@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   LayoutDashboard, Building, DollarSign, CheckSquare, 
   Briefcase, BarChart2, Settings, Megaphone, 
-  Target, Users, MessageSquare 
+  Target, Users, MessageSquare, Box, Lock 
 } from 'lucide-react';
 
 export default function CeoSidebar({ activeTab, setActiveTab }) {
@@ -19,6 +19,8 @@ export default function CeoSidebar({ activeTab, setActiveTab }) {
     { id: 'strategyOKRs', label: 'Strategy & OKRs', icon: <Target size={18} /> },
     { id: 'people', label: 'People', icon: <Users size={18} /> },
     { id: 'messaging', label: 'Messaging', icon: <MessageSquare size={18} /> },
+    { id: 'vendors', label: 'Vendor Management', icon: <Box size={18} /> },
+    { id: 'vault', label: 'Document Vault', icon: <Lock size={18} /> },
    
   ];
 

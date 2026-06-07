@@ -8,7 +8,7 @@ export function LeaveManagementView() {
 
   const fetchData = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('nsg_jwt_token');
       const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
       const empRes = await fetch('/api/hr-portal/employees', { headers });
       if(empRes.ok) setEmployees(await empRes.json());
@@ -46,7 +46,7 @@ export function LeaveManagementView() {
     if (daysCount <= 0) return alert('Please specify a positive number of days.');
     
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('nsg_jwt_token');
       const res = await fetch('/api/hr-portal/leaves/on-behalf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -71,7 +71,7 @@ export function LeaveManagementView() {
     e.preventDefault();
     if (!editingBalance) return;
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('nsg_jwt_token');
       const res = await fetch(`/api/hr-portal/leave-balances/${editingBalance.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -94,7 +94,7 @@ export function LeaveManagementView() {
     e.preventDefault();
     if (!editingRequest) return;
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('nsg_jwt_token');
       const res = await fetch(`/api/hr-portal/leaves/${editingRequest.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -116,7 +116,7 @@ export function LeaveManagementView() {
   const handleDeleteLeaveRequest = async (id) => {
     if (!window.confirm('Are you sure you want to delete this request?')) return;
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('nsg_jwt_token');
       const res = await fetch(`/api/hr-portal/leaves/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -129,7 +129,7 @@ export function LeaveManagementView() {
 
   const handleApproveLeave = async (id) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('nsg_jwt_token');
       const res = await fetch(`/api/hr-portal/leaves/${id}/approve`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -143,7 +143,7 @@ export function LeaveManagementView() {
   const handleDenyLeave = async (id) => {
     if (!denyComment.trim()) return alert('Please specify a reason for denying this leave request.');
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('nsg_jwt_token');
       const res = await fetch(`/api/hr-portal/leaves/${id}/deny`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },

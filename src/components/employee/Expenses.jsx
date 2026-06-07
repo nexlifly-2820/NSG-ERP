@@ -16,23 +16,34 @@ const defaultClaims = [
 export default function Expenses({ db, onUpdateDb, currentUser }) {
   const employeeId = currentUser?.id || 102;
 
-  // Read and filter claims from the central database
-  const employeeClaims = db
-    ? (db.expenseClaims || []).filter(c => c.employee_id === employeeId)
-    : defaultClaims;
+  const [claims, setClaims] = useState([]);
 
-  // Map database fields to the UI-compatible fields, sorting so newest is first
-  const claims = [...employeeClaims]
-    .map(c => ({
-      ...c,
-      id: c.id || `EXP-${c.id}`,
-      date: c.claim_date || c.date || '',
-      receiptName: c.receipt_url || c.receiptName || 'receipt.pdf',
-      tlStatus: c.tl_approval || c.tlStatus || 'pending',
-      hrStatus: c.hr_approval || c.hrStatus || 'pending',
-      payrollStatus: c.status || c.payrollStatus || 'pending'
-    }))
-    .reverse();
+  const fetchClaims = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/employee-portal/expenses/my-claims', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const formatted = data.map(c => ({
+          ...c,
+          id: `EXP-${c.id}`,
+          originalId: c.id,
+          date: c.claim_date,
+          receiptName: c.receipt_url || 'receipt.pdf',
+          tlStatus: c.tl_approval,
+          hrStatus: c.hr_approval,
+          payrollStatus: c.status
+        }));
+        setClaims(formatted);
+      }
+    } catch (e) { console.error('Failed to fetch claims', e); }
+  };
+
+  useEffect(() => {
+    fetchClaims();
+  }, []);
 
   const [selectedClaim, setSelectedClaim] = useState(null);
   const [toast, setToast] = useState(null);
@@ -60,41 +71,38 @@ export default function Expenses({ db, onUpdateDb, currentUser }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handleSubmitClaim = (newClaimData) => {
-    const newClaim = {
-      id: `EXP-${Math.floor(100 + Math.random() * 900)}`,
-      employee_id: employeeId,
-      claim_date: newClaimData.date || new Date().toISOString().split('T')[0],
-      date: newClaimData.date || new Date().toISOString().split('T')[0],
-      category: newClaimData.category,
-      amount: Number(newClaimData.amount),
-      description: newClaimData.description,
-      receipt_url: newClaimData.receiptName || 'receipt.pdf',
-      receiptName: newClaimData.receiptName || 'receipt.pdf',
-      tl_approval: 'pending',
-      tlStatus: 'pending',
-      hr_approval: 'pending',
-      hrStatus: 'pending',
-      status: 'pending',
-      payrollStatus: 'pending'
-    };
-
-    if (db && onUpdateDb) {
-      onUpdateDb({
-        ...db,
-        expenseClaims: [...(db.expenseClaims || []), newClaim]
+  const handleSubmitClaim = async (newClaimData) => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/employee-portal/expenses/claim', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          amount: newClaimData.amount,
+          category: newClaimData.category,
+          receipt_url: newClaimData.receiptName || 'receipt.pdf'
+        })
       });
-    }
 
-    setSelectedClaim(newClaim);
+      if (res.ok) {
+        const newClaim = await res.json();
+        setToast(`Claim submitted for ₹${newClaimData.amount.toLocaleString('en-IN')}`);
+        setTimeout(() => setToast(null), 3000);
+        fetchClaims();
 
-    // Trigger Success Toast
-    setToast(`Claim submitted for ₹${newClaimData.amount.toLocaleString('en-IN')}`);
-    setTimeout(() => setToast(null), 3000);
-
-    // Switch view on mobile to show the new claim in history list
-    if (isMobile) {
-      setMobileTab('history');
+        // Switch view on mobile to show the new claim in history list
+        if (isMobile) {
+          setMobileTab('history');
+        }
+      } else {
+        alert('Failed to submit claim.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error submitting claim.');
     }
   };
 
@@ -115,12 +123,8 @@ export default function Expenses({ db, onUpdateDb, currentUser }) {
   const handleConfirmCancel = () => {
     if (!confirmCancelId) return;
 
-    if (db && onUpdateDb) {
-      onUpdateDb({
-        ...db,
-        expenseClaims: (db.expenseClaims || []).filter(c => c.id !== confirmCancelId)
-      });
-    }
+    // Ideally call API to cancel here, mocking removal for now since no backend endpoint exists
+    setClaims(prev => prev.filter(c => c.id !== confirmCancelId));
 
     // Clear selection or update selection
     const updatedClaims = claims.filter(c => c.id !== confirmCancelId);

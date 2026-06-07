@@ -8,6 +8,7 @@ import Employee from './components/employee/Employee';
 import Login from './components/auth/Login';
 import './index.css';
 import { ToastProvider } from './components/common/ToastProvider.jsx';
+import { ThemeProvider } from './components/common/ThemeContext.jsx';
 
 // Seed defaults from HR package to establish unified global DB state
 import {
@@ -528,38 +529,40 @@ export default function App() {
   if (!isAuthorized) return null;
 
   return (
-    <ToastProvider>
-      <div className="app-container">
-        {/* Sidebar Panel */}
-        <Sidebar 
-          activeRole={route.role} 
-          activeTab={route.tab} 
-          setActiveTab={(tab) => navigateTo(route.role, tab)} 
-        />
-
-        {/* Main Panel Viewport */}
-        <main className="main-content">
-          {/* Header Navigation */}
-          <Navbar 
+    <ThemeProvider>
+      <ToastProvider>
+        <div className="app-container">
+          {/* Sidebar Panel */}
+          <Sidebar 
             activeRole={route.role} 
-            setActiveRole={(role) => navigateTo(role, 'dashboard')} 
-            navigateTo={navigateTo}
-            hrDb={db}
-            currentUser={user}
-            onLogout={handleLogout}
+            activeTab={route.tab} 
+            setActiveTab={(tab) => navigateTo(route.role, tab)} 
           />
 
-          {/* Dynamic Inner Layout Body */}
-          {renderActiveComponent()}
-        </main>
-      </div>
-      <style>{`
-        @keyframes toastSlideIn {
-          from { transform: translateX(100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-      `}</style>
-    </ToastProvider>
+          {/* Main Panel Viewport */}
+          <main className="main-content">
+            {/* Header Navigation */}
+            <Navbar 
+              activeRole={route.role} 
+              setActiveRole={(role) => navigateTo(role, 'dashboard')} 
+              navigateTo={navigateTo}
+              hrDb={db}
+              currentUser={user}
+              onLogout={handleLogout}
+            />
+
+            {/* Dynamic Inner Layout Body */}
+            {renderActiveComponent()}
+          </main>
+        </div>
+        <style>{`
+          @keyframes toastSlideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+          }
+        `}</style>
+      </ToastProvider>
+    </ThemeProvider>
   );
 }
 

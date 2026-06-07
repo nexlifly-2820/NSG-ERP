@@ -15,6 +15,32 @@ export function LearningLndView({ db, onUpdateDb }) {
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [editingTrack, setEditingTrack] = useState(null);
 
+  // Live data states
+  const [tracks, setTracks] = useState([]);
+  const [progressData, setProgressData] = useState([]);
+  const [employees, setEmployees] = useState([]);
+
+  const fetchData = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const [tRes, pRes, eRes] = await Promise.all([
+        fetch('/api/hr-portal/lnd/tracks', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch('/api/hr-portal/lnd/progress', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch('/api/hr-portal/employees', { headers: { 'Authorization': `Bearer ${token}` } })
+      ]);
+      
+      if (tRes.ok) setTracks(await tRes.json());
+      if (pRes.ok) setProgressData(await pRes.json());
+      if (eRes.ok) setEmployees(await eRes.json());
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchData();
+  }, []);
+
   // Track Builder States
   const [trackName, setTrackName] = useState('');
   const [trackDept, setTrackDept] = useState('All');
@@ -89,39 +115,43 @@ export function LearningLndView({ db, onUpdateDb }) {
     setIsBuilderOpen(true);
   };
 
-  const handleSaveTrack = (e) => {
+  const handleSaveTrack = async (e) => {
     e.preventDefault();
     if (!trackName.trim()) return;
 
     const trackData = {
       name: trackName,
       department: trackDept,
-      modules: [
+      modules: JSON.stringify([
         { id: 1, title: m1Title || 'Induction Session 1', duration: 30, has_quiz: true },
         { id: 2, title: m2Title || 'Technical Guidelines', duration: 45, has_quiz: true }
-      ],
+      ]),
       is_mandatory: isMandatory
     };
 
-    let updatedTracks;
-    if (editingTrack) {
-      // UPDATE existing
-      updatedTracks = (db.trainingTracks || []).map(t =>
-        t.id === editingTrack.id ? { ...t, ...trackData } : t
-      );
-      alert(`Training Track "${trackName}" updated successfully!`);
-    } else {
-      // CREATE new
-      updatedTracks = [...(db.trainingTracks || []), { id: Date.now(), ...trackData }];
-      alert(`Training Track "${trackName}" deployed to LMS!`);
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      // For now, we'll only do CREATE since hr_portal.py doesn't have an update endpoint for tracks
+      const res = await fetch('/api/hr-portal/lnd/tracks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(trackData)
+      });
+      
+      if (res.ok) {
+        alert(`Training Track "${trackName}" deployed to LMS!`);
+        fetchData();
+        setIsBuilderOpen(false);
+        setEditingTrack(null);
+        setTrackName('');
+        setM1Title('');
+        setM2Title('');
+      } else {
+        alert('Failed to deploy course track.');
+      }
+    } catch (e) {
+      console.error(e);
     }
-
-    onUpdateDb({ ...db, trainingTracks: updatedTracks });
-    setIsBuilderOpen(false);
-    setEditingTrack(null);
-    setTrackName('');
-    setM1Title('');
-    setM2Title('');
   };
 
   const handleDeleteTrack = (track) => {
@@ -266,8 +296,8 @@ export function LearningLndView({ db, onUpdateDb }) {
                 </tr>
               </thead>
               <tbody>
-                {db.employees.map(e => {
-                  const progress = db.trainingProgress?.find(p => p.employee_id === e.id) || { completed_modules: 0, quiz_score: 0, passed: false };
+                {employees.map(e => {
+                  const progress = progressData.find(p => p.employee_id === e.id) || { completed_modules: 0, quiz_score: 0, passed: false };
                   return (
                     <tr key={e.id}>
                       <td style={{ padding: '16px 40px' }}><strong>{e.name}</strong></td>
@@ -363,10 +393,10 @@ export function LearningLndView({ db, onUpdateDb }) {
                 </tr>
               </thead>
               <tbody>
-                {(!db.trainingTracks || db.trainingTracks.length === 0) && (
+                {(!tracks || tracks.length === 0) && (
                   <tr><td colSpan={6} style={{ padding: '32px 40px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No tracks yet. Click "⚙️ Build Course Track" to create one.</td></tr>
                 )}
-                {db.trainingTracks?.map((tr, idx) => (
+                {tracks?.map((tr, idx) => (
                   <tr key={tr.id || idx}>
                     <td style={{ padding: '16px 40px' }}><strong>{tr.name}</strong></td>
                     <td style={{ padding: '16px 40px' }}>{tr.department || 'All'}</td>

@@ -12,67 +12,50 @@ const defaultChecklist = [
 ];
 
 export default function Resignation({ db, onUpdateDb, currentUser }) {
-  const employeeId = currentUser?.id || 102;
-
-  // Derive resignation from shared db if available, else from localStorage
-  const getDbRecord = () =>
-    db?.resignations?.find(r => r.employee_id === employeeId) || null;
-
-  const getInitialData = () => {
-    const dbRecord = getDbRecord();
-    if (dbRecord) {
-      return {
-        submissionDate: dbRecord.resignation_date,
-        lwdDate: dbRecord.LWD,
-        reason: dbRecord.reason || '',
-        daysServed: dbRecord.daysServed || 8
-      };
-    }
-    const saved = localStorage.getItem('nsg_employee_resignation_data');
-    return saved ? JSON.parse(saved) : null;
-  };
-
-  const [resignationData, setResignationData] = useState(getInitialData);
-
-  const getInitialChecklist = () => {
-    const dbRecord = getDbRecord();
-    if (dbRecord?.checklist) return dbRecord.checklist;
-    const saved = localStorage.getItem('nsg_employee_resignation_checklist');
-    return saved ? JSON.parse(saved) : defaultChecklist;
-  };
-
-  const [checklist, setChecklist] = useState(getInitialChecklist);
-
-  // Read early relief status from db.resignations live
-  const getEarlyReliefStatus = () => {
-    const dbRecord = getDbRecord();
-    if (dbRecord?.earlyRelief) return dbRecord.earlyRelief;
-    return localStorage.getItem('nsg_employee_resignation_early_relief') || null;
-  };
-
-  const [earlyReliefStatus, setEarlyReliefStatus] = useState(getEarlyReliefStatus);
-
+  const [resignationData, setResignationData] = useState(null);
+  const [checklist, setChecklist] = useState(defaultChecklist);
+  const [earlyReliefStatus, setEarlyReliefStatus] = useState(null);
   const [toast, setToast] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Sync state with database updates
-  useEffect(() => {
-    const dbRecord = getDbRecord();
-    if (dbRecord?.checklist) {
-      setChecklist(dbRecord.checklist);
+  // Fetch from live API
+  const fetchResignation = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('http://localhost:8000/employee-portal/resignation/status', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.resignation_date) {
+          setResignationData({
+            submissionDate: data.resignation_date,
+            lwdDate: data.LWD,
+            reason: data.reason || '',
+            status: data.status,
+            daysServed: 8
+          });
+        } else {
+          setResignationData(null);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
     }
-    if (dbRecord?.earlyRelief) {
-      setEarlyReliefStatus(dbRecord.earlyRelief);
-    }
-  }, [db]);
+  };
 
-  // --- LocalStorage Sync ---
   useEffect(() => {
-    if (resignationData) {
-      localStorage.setItem('nsg_employee_resignation_data', JSON.stringify(resignationData));
-    } else {
-      localStorage.removeItem('nsg_employee_resignation_data');
-    }
-  }, [resignationData]);
+    fetchResignation();
+    
+    // Checklist and Early Relief from local storage as they are not entirely mapped in the simplified backend model
+    const savedChecklist = localStorage.getItem('nsg_employee_resignation_checklist');
+    if (savedChecklist) setChecklist(JSON.parse(savedChecklist));
+    
+    const savedRelief = localStorage.getItem('nsg_employee_resignation_early_relief');
+    if (savedRelief) setEarlyReliefStatus(savedRelief);
+  }, []);
 
   useEffect(() => {
     if (earlyReliefStatus) {
@@ -83,35 +66,22 @@ export default function Resignation({ db, onUpdateDb, currentUser }) {
   }, [earlyReliefStatus]);
 
   // --- Handlers ---
-  const handleResignSubmit = (data) => {
-    const submission = {
-      ...data,
-      daysServed: 8
-    };
-    setResignationData(submission);
-
-    // Write to shared db.resignations so HR Exits & FnF module sees it
-    if (db && onUpdateDb) {
-      const newRecord = {
-        id: Date.now(),
-        employee_id: employeeId,
-        resignation_date: data.submissionDate,
-        LWD: data.lwdDate,
-        status: 'pending',
-        reason: data.reason || '',
-        daysServed: 8,
-        earlyRelief: null,
-        submitted_at: new Date().toISOString(),
-        checklist: checklist
-      };
-      // Remove any existing record for this employee first
-      const filtered = (db.resignations || []).filter(r => r.employee_id !== employeeId);
-      onUpdateDb({ ...db, resignations: [...filtered, newRecord] });
-    } else {
-      localStorage.setItem('nsg_employee_resignation_data', JSON.stringify(submission));
-    }
-
-    showToast('Resignation submitted successfully.');
+  const handleResignSubmit = async (data) => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('http://localhost:8000/employee-portal/resignation/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ reason: data.reason || 'Personal Reasons' })
+      });
+      if (res.ok) {
+        showToast('Resignation submitted successfully.');
+        fetchResignation();
+      } else {
+        const err = await res.json();
+        alert(err.detail || 'Error submitting resignation');
+      }
+    } catch (e) { console.error(e); }
   };
 
   const handleToggleTask = (taskId) => {
@@ -126,15 +96,8 @@ export default function Resignation({ db, onUpdateDb, currentUser }) {
       return t;
     });
 
-    if (db && onUpdateDb) {
-      const updatedResigns = (db.resignations || []).map(r =>
-        r.employee_id === employeeId ? { ...r, checklist: updated } : r
-      );
-      onUpdateDb({ ...db, resignations: updatedResigns });
-    } else {
-      setChecklist(updated);
-      localStorage.setItem('nsg_employee_resignation_checklist', JSON.stringify(updated));
-    }
+    setChecklist(updated);
+    localStorage.setItem('nsg_employee_resignation_checklist', JSON.stringify(updated));
     showToast('Checklist task updated.');
   };
 
@@ -150,29 +113,14 @@ export default function Resignation({ db, onUpdateDb, currentUser }) {
       return t;
     });
 
-    if (db && onUpdateDb) {
-      const updatedResigns = (db.resignations || []).map(r =>
-        r.employee_id === employeeId ? { ...r, checklist: updated } : r
-      );
-      onUpdateDb({ ...db, resignations: updatedResigns });
-    } else {
-      setChecklist(updated);
-      localStorage.setItem('nsg_employee_resignation_checklist', JSON.stringify(updated));
-    }
+    setChecklist(updated);
+    localStorage.setItem('nsg_employee_resignation_checklist', JSON.stringify(updated));
     showToast('KT document uploaded successfully.');
   };
 
   const handleRequestEarlyRelief = () => {
     setEarlyReliefStatus('requested');
-    // Write early relief request to db.resignations
-    if (db && onUpdateDb) {
-      const updated = (db.resignations || []).map(r =>
-        r.employee_id === employeeId ? { ...r, earlyRelief: 'requested' } : r
-      );
-      onUpdateDb({ ...db, resignations: updated });
-    } else {
-      localStorage.setItem('nsg_employee_resignation_early_relief', 'requested');
-    }
+    localStorage.setItem('nsg_employee_resignation_early_relief', 'requested');
     showToast('Early relief requested.');
   };
 
@@ -192,19 +140,23 @@ export default function Resignation({ db, onUpdateDb, currentUser }) {
     showToast('Early relief approved! LWD rescheduled.');
   };
 
-  const handleResetResignation = () => {
-    setResignationData(null);
-    setChecklist(defaultChecklist);
-    setEarlyReliefStatus(null);
-    // Remove from shared db.resignations
-    if (db && onUpdateDb) {
-      const filtered = (db.resignations || []).filter(r => r.employee_id !== employeeId);
-      onUpdateDb({ ...db, resignations: filtered });
-    } else {
-      localStorage.removeItem('nsg_employee_resignation_data');
-      localStorage.removeItem('nsg_employee_resignation_early_relief');
-    }
-    showToast('Resignation withdrawn.');
+  const handleResetResignation = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('http://localhost:8000/employee-portal/resignation/withdraw', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setResignationData(null);
+        setChecklist(defaultChecklist);
+        setEarlyReliefStatus(null);
+        localStorage.removeItem('nsg_employee_resignation_early_relief');
+        localStorage.removeItem('nsg_employee_resignation_checklist');
+        showToast('Resignation withdrawn.');
+        fetchResignation();
+      }
+    } catch (e) { console.error(e); }
   };
 
   const showToast = (msg) => {

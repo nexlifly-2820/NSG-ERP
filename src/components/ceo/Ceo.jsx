@@ -10,6 +10,8 @@ import Settings from './pages/Settings';
 import Announcements from './pages/Announcements';
 import StrategyOKRs from './pages/StrategyOKRs';
 import Messaging from './pages/Messaging';
+import Vendors from './pages/Vendors';
+import DocumentVault from './pages/DocumentVault';
 import './CEO.css';
 
 export default function Ceo({ activeTab, db, onUpdateDb, queryParams, setQueryParams, currentUser }) {
@@ -27,6 +29,8 @@ export default function Ceo({ activeTab, db, onUpdateDb, queryParams, setQueryPa
       case 'strategyOKRs': return <StrategyOKRs {...props} />;
       case 'people': return <People {...props} />;
       case 'messaging': return <Messaging {...props} />;
+      case 'vendors': return <Vendors {...props} />;
+      case 'vault': return <DocumentVault {...props} />;
       default: return <Dashboard {...props} />;
     }
   };

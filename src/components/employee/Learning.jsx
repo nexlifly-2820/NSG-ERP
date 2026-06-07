@@ -25,29 +25,8 @@ export default function Learning({ db, onUpdateDb, currentUser }) {
     ? db.quizQuestions
     : DEFAULT_QUIZ_QUESTIONS;
 
-  // Load progress from db
-  const getProgress = () =>
-    db?.trainingProgress?.find(p => p.employee_id === employeeId) ||
-    { completed_modules: 0, quiz_score: 0, passed: false };
-
-  const [progress, setProgress] = useState(getProgress);
-  const [completedModules, setCompletedModules] = useState(() => {
-    const p = getProgress();
-    const done = new Set();
-    if (p.completed_modules >= 1) done.add(1);
-    if (p.completed_modules >= 2) done.add(2);
-    return done;
-  });
-
-  // Sync from db when it changes
-  useEffect(() => {
-    const p = getProgress();
-    setProgress(p);
-    const done = new Set();
-    if (p.completed_modules >= 1) done.add(1);
-    if (p.completed_modules >= 2) done.add(2);
-    setCompletedModules(done);
-  }, [db]);
+  const [progress, setProgress] = useState({ completed_modules: 0, quiz_score: 0, passed: false });
+  const [completedModules, setCompletedModules] = useState(new Set());
 
   // Quiz state
   const [showQuiz, setShowQuiz] = useState(false);
@@ -58,31 +37,54 @@ export default function Learning({ db, onUpdateDb, currentUser }) {
   // Active module viewer
   const [activeModule, setActiveModule] = useState(null);
 
+  const fetchProgress = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('http://localhost:8000/employee-portal/learning/progress', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data) {
+          setProgress(data);
+          const done = new Set();
+          if (data.completed_modules >= 1) done.add(1);
+          if (data.completed_modules >= 2) done.add(2);
+          setCompletedModules(done);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    fetchProgress();
+  }, []);
+
+  const updateProgressAPI = async (payload) => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      await fetch('http://localhost:8000/employee-portal/learning/progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      fetchProgress();
+    } catch (e) { console.error(e); }
+  };
+
   const handleMarkComplete = (modId) => {
     const newCompleted = new Set(completedModules);
     newCompleted.add(modId);
     setCompletedModules(newCompleted);
 
     const count = newCompleted.size;
-    const existingIndex = db?.trainingProgress?.findIndex(p => p.employee_id === employeeId);
-    let updatedProgress;
-
-    if (existingIndex !== undefined && existingIndex !== -1) {
-      updatedProgress = db.trainingProgress.map(p =>
-        p.employee_id === employeeId ? { ...p, completed_modules: count } : p
-      );
-    } else {
-      updatedProgress = [...(db?.trainingProgress || []), {
-        id: Date.now(),
-        employee_id: employeeId,
-        track_id: 1,
-        completed_modules: count,
-        quiz_score: progress.quiz_score || 0,
-        passed: progress.passed || false
-      }];
-    }
-
-    onUpdateDb({ ...db, trainingProgress: updatedProgress });
+    updateProgressAPI({
+      completed_modules: count,
+      quiz_score: progress.quiz_score || 0,
+      passed: progress.passed || false
+    });
     setActiveModule(null);
   };
 
@@ -97,33 +99,12 @@ export default function Learning({ db, onUpdateDb, currentUser }) {
     setQuizScore(score);
     setSubmitted(true);
 
-    // Update DB
-    const existingIndex = db?.trainingProgress?.findIndex(p => p.employee_id === employeeId);
-    let updatedProgress;
-    if (existingIndex !== undefined && existingIndex !== -1) {
-      updatedProgress = db.trainingProgress.map(p =>
-        p.employee_id === employeeId ? { ...p, quiz_score: score, passed } : p
-      );
-    } else {
-      updatedProgress = [...(db?.trainingProgress || []), {
-        id: Date.now(),
-        employee_id: employeeId,
-        track_id: 1,
-        completed_modules: completedModules.size,
-        quiz_score: score,
-        passed
-      }];
-    }
-
-    // Also complete the onboarding quiz task if applicable
-    const updatedTasks = db?.onboardingTasks?.map(t => {
-      if (t.instance_id === employeeId && t.task_name?.includes('Induction Quiz') && passed) {
-        return { ...t, status: 'completed', completed_at: new Date().toISOString().split('T')[0] };
-      }
-      return t;
+    updateProgressAPI({
+      completed_modules: completedModules.size,
+      quiz_score: score,
+      passed
     });
 
-    onUpdateDb({ ...db, trainingProgress: updatedProgress, onboardingTasks: updatedTasks || db?.onboardingTasks || [] });
     setProgress(prev => ({ ...prev, quiz_score: score, passed }));
   };
 

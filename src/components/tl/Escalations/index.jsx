@@ -1,38 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from './escalations.module.css';
 import { ShieldAlert, ListChecks, Clock, Send, CheckCircle2, Eye, BellRing, AlertCircle, Trash } from 'lucide-react';
 
 const Escalations = () => {
-  const [escalations, setEscalations] = useState([
-    {
-      id: 1,
-      title: 'Database connection pooling failure in production replica',
-      taskLink: 'TASK-842',
-      submittedAt: '2 hours ago',
-      severity: 'Critical',
-      ceoViewed: true,
-      resolved: false
-    },
-    {
-      id: 2,
-      title: 'Third-party API rate limit exceeded during sync',
-      taskLink: 'TASK-915',
-      submittedAt: '1 day ago',
-      severity: 'High',
-      ceoViewed: false,
-      resolved: true
-    },
-    {
-      id: 3,
-      title: 'Missing Figma assets for the new HR module',
-      taskLink: 'TASK-773',
-      submittedAt: '3 days ago',
-      severity: 'Medium',
-      ceoViewed: true,
-      resolved: true
-    }
-  ]);
-
+  const [escalations, setEscalations] = useState([]);
   const [formState, setFormState] = useState({
     taskId: '',
     description: '',
@@ -40,66 +11,82 @@ const Escalations = () => {
     severity: 'Medium'
   });
 
-  const mockSLAs = [
-    {
-      id: 1,
-      title: 'PR #402: Implement biometric face scanning',
-      assignee: 'David Miller',
-      openedAt: 'May 23, 10:00 AM',
-      hoursPending: 42,
-      isOverdue: true
-    },
-    {
-      id: 2,
-      title: 'PR #415: Update dashboard widget layouts',
-      assignee: 'Sarah Jenkins',
-      openedAt: 'May 24, 02:30 PM',
-      hoursPending: 14,
-      isOverdue: false
-    },
-    {
-      id: 3,
-      title: 'PR #418: Fix authentication token refresh bug',
-      assignee: 'Michael Chang',
-      openedAt: 'May 22, 09:15 AM',
-      hoursPending: 68,
-      isOverdue: true
+  const token = localStorage.getItem('nsg_jwt_token');
+
+  const fetchEscalations = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/team-lead/escalations', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEscalations(data);
+      }
+    } catch (e) {
+      console.error(e);
     }
+  };
+
+  useEffect(() => {
+    fetchEscalations();
+  }, [token]);
+
+  const mockSLAs = [
+    { id: 1, title: 'PR #402: Implement biometric face scanning', assignee: 'David Miller', openedAt: 'May 23, 10:00 AM', hoursPending: 42, isOverdue: true },
+    { id: 2, title: 'PR #415: Update dashboard widget layouts', assignee: 'Sarah Jenkins', openedAt: 'May 24, 02:30 PM', hoursPending: 14, isOverdue: false },
+    { id: 3, title: 'PR #418: Fix authentication token refresh bug', assignee: 'Michael Chang', openedAt: 'May 22, 09:15 AM', hoursPending: 68, isOverdue: true }
   ];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formState.taskId || !formState.description) {
       alert('Please fill out the Task ID and Blocker Description.');
       return;
     }
 
-    const newBlocker = {
-      id: Date.now(),
-      title: formState.description,
-      taskLink: formState.taskId,
-      submittedAt: 'Just now',
-      severity: formState.severity,
-      ceoViewed: false,
-      resolved: false
-    };
-
-    setEscalations([newBlocker, ...escalations]);
-    setFormState({
-      taskId: '',
-      description: '',
-      dependencies: '',
-      severity: 'Medium'
-    });
+    if (!token) return;
+    try {
+      const res = await fetch('/api/team-lead/escalations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: formState.description,
+          task_link: formState.taskId,
+          severity: formState.severity,
+          dependencies: formState.dependencies,
+          description: formState.description
+        })
+      });
+      if (res.ok) {
+        fetchEscalations();
+        setFormState({ taskId: '', description: '', dependencies: '', severity: 'Medium' });
+      } else {
+        alert('Failed to raise escalation');
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleResolve = (id) => {
-    setEscalations(prev => prev.map(esc => {
-      if (esc.id === id) {
-        return { ...esc, resolved: true };
+  const handleResolve = async (id) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/team-lead/escalations/${id}/resolve`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchEscalations();
+      } else {
+        alert('Failed to resolve escalation');
       }
-      return esc;
-    }));
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
@@ -188,8 +175,8 @@ const Escalations = () => {
                 {escalations.map(esc => (
                   <tr key={esc.id}>
                     <td style={{ fontWeight: 600, fontSize: '13px', lineHeight: '1.4' }}>{esc.title}</td>
-                    <td><a href="#" className={styles.taskLink}>{esc.taskLink}</a></td>
-                    <td style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>{esc.submittedAt}</td>
+                    <td><a href="#" className={styles.taskLink}>{esc.task_link || esc.taskLink}</a></td>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>{esc.submitted_at ? new Date(esc.submitted_at).toLocaleString() : esc.submittedAt}</td>
                     <td>
                       <span className={`${styles.badge} ${styles['badge' + esc.severity]}`}>
                         {esc.severity === 'Critical' && <AlertCircle size={10}/>}
@@ -197,7 +184,7 @@ const Escalations = () => {
                       </span>
                     </td>
                     <td>
-                      {esc.ceoViewed ? (
+                      {esc.ceo_viewed || esc.ceoViewed ? (
                         <span className={`${styles.badge} ${styles.badgeCeo}`}><Eye size={10}/> VIEWED</span>
                       ) : (
                         <span className={`${styles.badge} ${styles.badgePending}`}>PENDING</span>

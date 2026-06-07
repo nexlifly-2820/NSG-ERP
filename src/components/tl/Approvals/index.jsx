@@ -6,51 +6,85 @@ import { AlertTriangle, MapPin, CheckCircle, Clock, FileText, Camera, GitCommit,
 const Approvals = ({ db, onUpdateDb }) => {
   const [activeTab, setActiveTab] = useState('leave');
   
-  // Compute leaves list dynamically from shared database
-  const allEmployees = db?.employees || [];
-  const dbLeaveRequests = db?.leaveRequests || [];
+  const [leaves, setLeaves] = useState([]);
+  const [corrections, setCorrections] = useState([]);
+  
+  const fetchLeaves = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/tl-portal/leaves/pending', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        // Format to match UI expectations
+        const formatted = data.map(r => ({
+          id: r.id,
+          employee: `Emp #${r.employee_id}`, // Note: normally joined with employee name
+          employee_id: r.employee_id,
+          type: r.leave_type === 'CL' ? 'Casual Leave' : r.leave_type === 'SL' ? 'Sick Leave' : r.leave_type === 'EL' ? 'Earned Leave' : r.leave_type === 'CompOff' ? 'Comp Off' : r.leave_type,
+          days: r.days,
+          dates: `${r.from_date} – ${r.to_date}`,
+          reason: r.reason,
+          status: r.status,
+          overlapWarning: null
+        }));
+        setLeaves(formatted);
+      }
+    } catch (e) { console.error(e); }
+  };
 
-  const leaves = dbLeaveRequests
-    .filter(r => r.status === 'pending')
-    .map(r => {
-      const emp = allEmployees.find(e => e.id === r.employee_id) || { name: 'Unknown Employee' };
-      return {
-        id: r.id,
-        employee: emp.name,
-        employee_id: r.employee_id,
-        type: r.leave_type === 'CL' ? 'Casual Leave' : r.leave_type === 'SL' ? 'Sick Leave' : r.leave_type === 'EL' ? 'Earned Leave' : r.leave_type === 'CompOff' ? 'Comp Off' : r.leave_type,
-        days: r.days,
-        dates: `${r.from_date} – ${r.to_date}`,
-        reason: r.reason,
-        status: r.status,
-        overlapWarning: dbLeaveRequests.some(other => other.id !== r.id && other.employee_id === r.employee_id && (other.status === 'hr_approved' || other.status === 'tl_approved') && other.from_date <= r.to_date && other.to_date >= r.from_date)
-          ? "This employee has another approved leave overlapping these dates!"
-          : null
-      };
-    });
+  const fetchCorrections = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/attendance/corrections', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        const formatted = data.map(c => ({
+          id: c.id,
+          employee: `Emp #${c.user_id}`,
+          date: c.correction_date,
+          requestedTimes: `${new Date(c.requested_clock_in).toLocaleTimeString()} - ${new Date(c.requested_clock_out).toLocaleTimeString()}`,
+          reason: c.reason,
+          status: c.status,
+          photoEvidence: false,
+          gpsCoords: 'Not provided'
+        }));
+        setCorrections(formatted);
+      }
+    } catch (e) { console.error(e); }
+  };
 
-  // Compute expenses list dynamically from database
-  const dbExpenseClaims = db?.expenseClaims || [];
-  const expenses = dbExpenseClaims
-    .filter(c => c.tl_approval === 'pending' || (c.tlStatus === 'pending' && c.tl_approval !== 'approved'))
-    .map(c => {
-      const emp = allEmployees.find(e => e.id === c.employee_id) || { name: 'Unknown Employee' };
-      return {
-        id: c.id,
-        employee: emp.name,
-        employee_id: c.employee_id,
-        category: c.category || 'Other',
-        amount: c.amount || 0,
-        date: c.claim_date || c.date || '',
-        description: c.description || '',
-        receiptName: c.receipt_url || c.receiptName || 'receipt.pdf',
-        status: c.tl_approval || 'pending'
-      };
-    });
+  React.useEffect(() => {
+    if (activeTab === 'leave') fetchLeaves();
+    if (activeTab === 'corrections') fetchCorrections();
+    if (activeTab === 'expense') fetchExpenses();
+  }, [activeTab]);
+
+  const [expenses, setExpenses] = useState([]);
+
+  const fetchExpenses = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/tl-portal/expenses/pending', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        const formatted = data.map(c => ({
+          id: c.id,
+          employee: `Emp #${c.user_id || c.employee_id || 102}`, // Need to lookup name normally
+          employee_id: c.user_id || c.employee_id,
+          category: c.category || 'Other',
+          amount: c.amount || 0,
+          date: c.claim_date || c.date || '',
+          description: c.description || '',
+          receiptName: c.receipt_url || c.receiptName || 'receipt.pdf',
+          status: c.tl_approval || 'pending'
+        }));
+        setExpenses(formatted);
+      }
+    } catch (e) { console.error(e); }
+  };
 
   const [timesheets, setTimesheets] = useState(timesheetReviews);
   const [wfhs, setWfhs] = useState(wfhRequests);
-  const [corrections, setCorrections] = useState(attendanceCorrections);
 
   const [selectedId, setSelectedId] = useState(null);
 
@@ -59,43 +93,41 @@ const Approvals = ({ db, onUpdateDb }) => {
     setSelectedId(null);
   };
 
-  const handleAction = (id, actionType) => {
-    if (activeTab === 'leave') {
-      if (db && onUpdateDb) {
-        const updatedRequests = db.leaveRequests.map(r => {
-          if (r.id === id) {
-            return {
-              ...r,
-              status: actionType === 'approve' ? 'tl_approved' : 'rejected',
-              tl_approved_at: actionType === 'approve' ? new Date().toISOString() : null
-            };
-          }
-          return r;
+  const handleAction = async (id, actionType) => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      if (activeTab === 'leave') {
+        const action = actionType === 'approve' ? 'approve' : 'reject';
+        await fetch(`/api/tl-portal/leaves/${id}/${action}`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
         });
-        onUpdateDb({ ...db, leaveRequests: updatedRequests });
-      }
-    } else if (activeTab === 'expense') {
-      if (db && onUpdateDb) {
-        const updatedClaims = db.expenseClaims.map(c => {
-          if (c.id === id) {
-            return {
-              ...c,
-              tl_approval: actionType === 'approve' ? 'approved' : 'denied',
-              tlStatus: actionType === 'approve' ? 'approved' : 'denied'
-            };
-          }
-          return c;
+        fetchLeaves();
+      } else if (activeTab === 'corrections') {
+        const action = actionType === 'approve' ? 'approve' : 'deny';
+        const body = actionType === 'deny' ? JSON.stringify({ comment: 'Denied by TL' }) : null;
+        await fetch(`/api/attendance/corrections/${id}/${action}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body
         });
-        onUpdateDb({ ...db, expenseClaims: updatedClaims });
+        fetchCorrections();
+      } else if (activeTab === 'expense') {
+        const action = actionType === 'approve' ? 'approve' : 'reject';
+        await fetch(`/api/tl-portal/expenses/${id}/${action}`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        fetchExpenses();
+      } else if (activeTab === 'timesheet') {
+        setTimesheets(prev => prev.filter(item => item.id !== id));
+      } else if (activeTab === 'wfh') {
+        setWfhs(prev => prev.filter(item => item.id !== id));
       }
-    } else if (activeTab === 'timesheet') {
-      setTimesheets(prev => prev.filter(item => item.id !== id));
-    } else if (activeTab === 'wfh') {
-      setWfhs(prev => prev.filter(item => item.id !== id));
-    } else if (activeTab === 'corrections') {
-      setCorrections(prev => prev.filter(item => item.id !== id));
+      if (selectedId === id) setSelectedId(null);
+    } catch (e) {
+      console.error("Action failed", e);
     }
-    if (selectedId === id) setSelectedId(null);
   };
 
   // Helper to get current list and selected item

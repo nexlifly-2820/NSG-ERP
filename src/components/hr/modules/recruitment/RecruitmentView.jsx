@@ -29,6 +29,11 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
   const [hra, setHra] = useState(12000);
   const [allowance, setAllowance] = useState(8000);
 
+  // Interview Scheduler States
+  const [schedCandidateId, setSchedCandidateId] = useState('');
+  const [schedInterviewer, setSchedInterviewer] = useState('John Doe (Engineering Lead)');
+  const [schedDateTime, setSchedDateTime] = useState('');
+
   // Resume Analyzer States
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState('');
@@ -139,16 +144,78 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
     }
   };
 
-  const handleScheduleInterview = (e) => {
+  const handleScheduleInterview = async (e) => {
     e.preventDefault();
-    notify('Interview scheduled (demo — not saved to database yet).', 'info');
-    setShowScheduler(false);
+    if (!schedCandidateId) {
+      notify('Please select a candidate.', 'warning');
+      return;
+    }
+    const cand = candidates.find(c => String(c.id) === schedCandidateId);
+    const token = localStorage.getItem('nsg_jwt_token');
+    
+    try {
+      const res = await fetch('/api/hr-portal/interviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          candidate_id: Number(schedCandidateId),
+          candidate_name: cand?.name || 'Unknown',
+          role: cand?.role || 'Unknown',
+          interviewer: schedInterviewer,
+          scheduled_at: new Date(schedDateTime).toISOString()
+        })
+      });
+      if (!res.ok) throw new Error('Failed to schedule interview');
+      
+      notify('Interview scheduled and saved to database successfully.', 'success');
+      setShowScheduler(false);
+      
+      // Auto-move to interview stage
+      if (cand && cand.stage !== 'interview') {
+        handleMoveStage(cand.id, 'interview');
+      }
+    } catch (err) {
+      notify(`Error: ${err.message}`, 'error');
+    }
   };
 
-  const handleCreateOffer = (e) => {
+  const handleCreateOffer = async (e) => {
     e.preventDefault();
-    notify(`Offer generated: ₹${basicPay + hra + allowance}/month gross CTC (demo — not saved to database yet).`, 'info');
-    setShowOfferForm(false);
+    if (!selectedCandidate) {
+      notify('No candidate selected for offer.', 'warning');
+      return;
+    }
+    const token = localStorage.getItem('nsg_jwt_token');
+    
+    try {
+      const res = await fetch('/api/hr-portal/offers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          candidate_id: Number(selectedCandidate.id),
+          basic_pay: basicPay,
+          hra: hra,
+          allowance: allowance
+        })
+      });
+      if (!res.ok) throw new Error('Failed to create offer');
+      
+      notify(`Offer generated: ₹${basicPay + hra + allowance}/month gross CTC and saved to database.`, 'success');
+      setShowOfferForm(false);
+      
+      // Auto-move to offer stage
+      if (selectedCandidate.stage !== 'offer') {
+        handleMoveStage(selectedCandidate.id, 'offer');
+      }
+    } catch (err) {
+      notify(`Error: ${err.message}`, 'error');
+    }
   };
 
   // Mock analysis generator helper
@@ -382,6 +449,15 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
                     }}>
                       📄 Analyze
                     </button>
+                    {st.id !== 'joined' && (
+                      <button style={{ background: 'none', border: '1px solid #ef4444', color: '#ef4444', cursor: 'pointer', borderRadius: '4px', padding: '2px 6px', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={() => {
+                        if (window.confirm(`Are you sure you want to reject ${cand.name}?`)) {
+                          handleMoveStage(cand.id, 'rejected');
+                        }
+                      }}>
+                        ✕ Reject
+                      </button>
+                    )}
                     {st.id === 'interview' && (
                       <button style={{ background: 'none', border: '1px solid var(--accent-pink)', color: 'var(--accent-pink)', cursor: 'pointer', borderRadius: '4px', padding: '2px 6px', fontSize: '10px' }} onClick={() => {
                         setSelectedCandidate(cand);
@@ -405,19 +481,21 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
             <h3>📅 Schedule Video Interview</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', margin: '16px 0' }}>
               <label style={{ fontSize: '12px' }}>Candidate Name</label>
-              <input type="text" placeholder="John Doe" required style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
+              <select value={schedCandidateId} onChange={e => setSchedCandidateId(e.target.value)} required style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}>
+                <option value="">Select a Candidate...</option>
+                {candidates.filter(c => ['applied', 'screening', 'interview'].includes(c.stage)).map(c => (
+                  <option key={c.id} value={c.id}>{c.name} - {c.role}</option>
+                ))}
+              </select>
               
-              <label style={{ fontSize: '12px' }}>Role</label>
-              <input type="text" placeholder="Senior Architect" required style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
-
               <label style={{ fontSize: '12px' }}>Interviewer (TL)</label>
-              <select style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}>
+              <select value={schedInterviewer} onChange={e => setSchedInterviewer(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}>
                 <option>John Doe (Engineering Lead)</option>
                 <option>Vikram Sen (Sales Director)</option>
               </select>
 
               <label style={{ fontSize: '12px' }}>Scheduled Date & Time</label>
-              <input type="datetime-local" required style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
+              <input type="datetime-local" value={schedDateTime} onChange={e => setSchedDateTime(e.target.value)} required style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
             </div>
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
               <button type="button" style={{ background: 'none', border: '1px solid var(--border-color)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }} onClick={() => setShowScheduler(false)}>Cancel</button>

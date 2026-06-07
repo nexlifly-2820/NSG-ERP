@@ -184,9 +184,10 @@
 
 /* ── Detail Panel ────────────────────────────────────────────────────────────── */
 .tk-detail-panel {
-  background: var(--tk-surface);
-  border: 1px solid var(--tk-border);
-  border-radius: 12px;
+  background: linear-gradient(145deg, var(--tk-surface), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
   overflow: hidden;
   position: sticky;
   top: 20px;
@@ -419,4 +420,17 @@
 .tk-empty {
   padding: 40px; text-align: center;
   color: var(--tk-text-muted); font-size: 0.85rem;
+}
+
+/* ── Empty State ─────────────────────────────────────────────────────────────────── */
+.tk-empty-state {
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  color: var(--tk-text-muted);
+  text-align: center;
+  font-style: italic;
+  margin-bottom: 8px;
 }

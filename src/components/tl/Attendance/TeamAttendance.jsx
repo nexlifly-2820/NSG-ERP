@@ -23,6 +23,7 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
 
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth()); // current month
   const [selectedYear, setSelectedYear] = useState(2026);
+  const [viewMode, setViewMode] = useState('monthly');
   const [showAllTeam, setShowAllTeam] = useState(false);
   const [showAllLate, setShowAllLate] = useState(false);
   const [showAllMissed, setShowAllMissed] = useState(false);
@@ -66,6 +67,7 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
     const emps = db?.employees || [];
     return emps.map(emp => {
       const rec = { id: emp.emp_id || `NSG-${emp.id}`, dbId: emp.id, name: emp.name };
+      let presentCount = 0, absentCount = 0, leaveCount = 0, offCount = 0, lateCount = 0, wfhCount = 0;
       daysInMonth.forEach(day => {
         const isWeekend = day.dayStr === 'sat' || day.dayStr === 'sun';
         
@@ -117,8 +119,16 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
           }
         }
 
+        if (status === 'Present') presentCount++;
+        if (status === 'Late') { presentCount++; lateCount++; }
+        if (status === 'Absent') absentCount++;
+        if (status === 'Leave') leaveCount++;
+        if (status === 'Off') offCount++;
+        if (status === 'WFH') { presentCount++; wfhCount++; }
+
         rec[day.dateNum] = { status, in: timeIn, out: timeOut };
       });
+      rec.totals = { present: presentCount, absent: absentCount, leave: leaveCount, off: offCount, late: lateCount, wfh: wfhCount };
       return rec;
     });
   }, [db, daysInMonth, selectedMonth, selectedYear]);
@@ -126,6 +136,18 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
   const lateArrivalsData = useMemo(() => {
     const lates = [];
     const logs = db?.attendanceLogs || [];
+    
+    // Calculate monthly cumulative lates
+    const monthLatesMap = {};
+    logs.forEach(l => {
+      if (l.is_late) {
+        const d = new Date(l.date);
+        const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
+        if (!monthLatesMap[monthKey]) monthLatesMap[monthKey] = {};
+        monthLatesMap[monthKey][l.employee_id] = (monthLatesMap[monthKey][l.employee_id] || 0) + 1;
+      }
+    });
+
     logs.forEach(l => {
       if (l.is_late) {
         const emp = (db?.employees || []).find(e => e.id === l.employee_id);
@@ -136,19 +158,43 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
           
           const actualTime = l.clock_in ? new Date(l.clock_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
           
+          // Calculate late by minutes
+          let lateMinutes = 0;
+          if (l.clock_in) {
+             const inDate = new Date(l.clock_in);
+             const expectedIn = new Date(inDate);
+             expectedIn.setHours(9, 0, 0, 0); // Assuming 09:00 AM is the standard clock-in
+             if (inDate > expectedIn) {
+                lateMinutes = Math.floor((inDate - expectedIn) / 60000);
+             }
+          }
+
+          let lateText = lateMinutes > 0 ? `${lateMinutes} mins` : 'Late Arrival';
+          if (lateMinutes >= 60) {
+             const hrs = Math.floor(lateMinutes / 60);
+             const mins = lateMinutes % 60;
+             lateText = mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`;
+          }
+
+          const monthKey = `${logDate.getFullYear()}-${logDate.getMonth()}`;
+          const totalLates = monthLatesMap[monthKey][l.employee_id] || 1;
+          const cumulativeText = `${totalLates} time${totalLates > 1 ? 's' : ''} this month`;
+
           lates.push({
             id: l.id,
             name: emp.name,
             date: `${monthName} ${dayNum}`,
             scheduled: '09:00 AM',
             actual: actualTime,
-            minutes: 'Late Arrival',
-            cumulative: 'Flagged late',
-            highlight: true
+            minutes: lateText,
+            cumulative: cumulativeText,
+            highlight: totalLates >= 3
           });
         }
       }
     });
+    // Sort by date descending
+    lates.sort((a, b) => new Date(b.date) - new Date(a.date));
     return lates;
   }, [db]);
 
@@ -346,6 +392,34 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
               ))}
             </select>
 
+            <div style={{ display: 'flex', backgroundColor: '#f1f5f9', borderRadius: '6px', padding: '2px', marginLeft: '8px' }}>
+              <button 
+                onClick={() => setViewMode('daily')}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '4px',
+                  border: 'none',
+                  backgroundColor: viewMode === 'daily' ? '#fff' : 'transparent',
+                  color: viewMode === 'daily' ? '#4f46e5' : '#64748b',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  boxShadow: viewMode === 'daily' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                }}>Daily Grid</button>
+              <button 
+                onClick={() => setViewMode('monthly')}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '4px',
+                  border: 'none',
+                  backgroundColor: viewMode === 'monthly' ? '#fff' : 'transparent',
+                  color: viewMode === 'monthly' ? '#4f46e5' : '#64748b',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  boxShadow: viewMode === 'monthly' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                }}>Monthly Summary</button>
+            </div>
           </div>
           
           <button 
@@ -395,26 +469,35 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
               {showAllTeam ? 'Show less' : 'View all team'}
             </button>
           </div>
-          <div style={{ overflowX: 'auto', transform: 'rotateX(180deg)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '600px', transform: 'rotateX(180deg)' }}>
+          <div style={{ overflowX: 'auto', transform: viewMode === 'daily' ? 'rotateX(180deg)' : 'none' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: viewMode === 'daily' ? '600px' : 'auto', transform: viewMode === 'daily' ? 'rotateX(180deg)' : 'none' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid #f3f4f6', color: '#6b7280', fontSize: '12px', fontWeight: '700', textTransform: 'uppercase' }}>
-                  <th style={{ padding: '0 0 16px 0', position: 'sticky', left: 0, backgroundColor: '#fff', zIndex: 1, minWidth: '200px' }}>Employee</th>
-                  {daysInMonth.map(day => (
+                  <th style={{ padding: '0 0 16px 0', position: viewMode === 'daily' ? 'sticky' : 'static', left: 0, backgroundColor: '#fff', zIndex: 1, minWidth: '200px' }}>Employee</th>
+                  {viewMode === 'daily' ? daysInMonth.map(day => (
                     <th key={day.dateNum} style={{ padding: '0 0 16px 0', minWidth: '120px' }}>{day.label}</th>
-                  ))}
+                  )) : (
+                    <>
+                      <th style={{ padding: '0 0 16px 0', minWidth: '80px' }}>Present</th>
+                      <th style={{ padding: '0 0 16px 0', minWidth: '80px' }}>Absent</th>
+                      <th style={{ padding: '0 0 16px 0', minWidth: '80px' }}>Late</th>
+                      <th style={{ padding: '0 0 16px 0', minWidth: '80px' }}>Leave</th>
+                      <th style={{ padding: '0 0 16px 0', minWidth: '80px' }}>WFH</th>
+                      <th style={{ padding: '0 0 16px 0', minWidth: '80px' }}>Off Days</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {(showAllTeam ? teamGridData : teamGridData.slice(0, 5)).map((row, idx) => (
                   <tr key={idx} style={{ borderBottom: idx === (showAllTeam ? teamGridData.length : 5) - 1 ? 'none' : '1px solid #f3f4f6' }}>
-                    <td style={{ padding: '16px 0', position: 'sticky', left: 0, backgroundColor: '#fff', zIndex: 1 }}>
+                    <td style={{ padding: '16px 0', position: viewMode === 'daily' ? 'sticky' : 'static', left: 0, backgroundColor: '#fff', zIndex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <span style={{ fontWeight: '700', fontSize: '12px', color: '#64748b', backgroundColor: '#f1f5f9', padding: '4px 8px', borderRadius: '4px' }}>{row.id}</span>
                         <span style={{ fontWeight: '600', color: '#1e293b', fontSize: '14px' }}>{row.name}</span>
                       </div>
                     </td>
-                    {daysInMonth.map((day) => (
+                    {viewMode === 'daily' ? daysInMonth.map((day) => (
                       <td key={day.dateNum} style={{ padding: '16px 0' }}>
                         <div style={{ fontWeight: '600', fontSize: '13px', marginBottom: '4px', color: 
                           row[day.dateNum].status === 'Leave' ? '#9333ea' : 
@@ -427,7 +510,16 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
                           In: {row[day.dateNum].in} <br/> Out: {row[day.dateNum].out}
                         </div>
                       </td>
-                    ))}
+                    )) : (
+                      <>
+                        <td style={{ padding: '16px 0', fontWeight: '700', color: '#10b981', fontSize: '14px' }}>{row.totals?.present || 0}</td>
+                        <td style={{ padding: '16px 0', fontWeight: '700', color: '#ef4444', fontSize: '14px' }}>{row.totals?.absent || 0}</td>
+                        <td style={{ padding: '16px 0', fontWeight: '700', color: '#f59e0b', fontSize: '14px' }}>{row.totals?.late || 0}</td>
+                        <td style={{ padding: '16px 0', fontWeight: '700', color: '#9333ea', fontSize: '14px' }}>{row.totals?.leave || 0}</td>
+                        <td style={{ padding: '16px 0', fontWeight: '700', color: '#3b82f6', fontSize: '14px' }}>{row.totals?.wfh || 0}</td>
+                        <td style={{ padding: '16px 0', fontWeight: '700', color: '#94a3b8', fontSize: '14px' }}>{row.totals?.off || 0}</td>
+                      </>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -469,7 +561,13 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {(showAllLate ? lateArrivalsData : lateArrivalsData.slice(0, 3)).map((row) => (
+                  {lateArrivalsData.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} style={{ padding: '16px 0', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', fontSize: '13px' }}>
+                        No late arrivals to report.
+                      </td>
+                    </tr>
+                  ) : (showAllLate ? lateArrivalsData : lateArrivalsData.slice(0, 3)).map((row) => (
                     <tr key={row.id} style={{ borderBottom: '1px solid #f8fafc' }}>
                       <td style={{ padding: '12px 0', fontWeight: '600', color: '#1e293b', fontSize: '13px' }}>
                         {row.name}
@@ -505,7 +603,11 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
               </button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {(showAllMissed ? missedPunchesData : missedPunchesData.slice(0, 2)).map((alert) => (
+              {missedPunchesData.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#94a3b8', fontStyle: 'italic', fontSize: '13px', padding: '16px 0' }}>
+                  No missed punches to report.
+                </div>
+              ) : (showAllMissed ? missedPunchesData : missedPunchesData.slice(0, 2)).map((alert) => (
                 <div key={alert.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', border: '1px solid #f1f5f9', borderRadius: '8px', backgroundColor: '#fafafa' }}>
                   <div>
                     <div style={{ fontWeight: '600', color: '#1e293b', fontSize: '13px', marginBottom: '2px' }}>{alert.name}</div>

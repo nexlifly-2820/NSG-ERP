@@ -4,36 +4,58 @@ import GrievanceChat from './GrievanceChat';
 import FaqBase from './FaqBase';
 import { ShieldCheck, Ticket } from 'lucide-react';
 
-export default function Help({ db, onUpdateDb, currentUser }) {
-  const EMPLOYEE_ID = currentUser?.id || 102;
+export default function Help({ currentUser }) {
+  const [tickets, setTickets] = useState([]);
+  const [toast, setToast] = useState(null);
+  
+  const token = localStorage.getItem('nsg_jwt_token');
 
-  // Read existing tickets from shared db, filtered for this employee
-  const getInitialTickets = () => {
-    if (db?.supportTickets) {
-      return db.supportTickets.filter(t => t.employee_id === EMPLOYEE_ID);
+  const fetchTickets = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/employee-portal/helpdesk/my-tickets', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTickets(data);
+      }
+    } catch (e) {
+      console.error(e);
     }
-    const saved = localStorage.getItem('nsg_employee_support_tickets');
-    return saved ? JSON.parse(saved) : [];
   };
 
-  const [tickets, setTickets] = useState(getInitialTickets);
+  useEffect(() => {
+    fetchTickets();
+  }, [token]);
 
-  const [toast, setToast] = useState(null);
-
-  const handleSubmitTicket = (newTicket) => {
-    const ticketWithMeta = { ...newTicket, employee_id: EMPLOYEE_ID, employee_name: currentUser?.name || 'Jane Smith' };
-
-    // Write to shared db.supportTickets so HR Messaging can see it
-    if (db && onUpdateDb) {
-      const updatedTickets = [ticketWithMeta, ...(db.supportTickets || [])];
-      onUpdateDb({ ...db, supportTickets: updatedTickets });
-      setTickets(updatedTickets.filter(t => t.employee_id === EMPLOYEE_ID));
-    } else {
-      setTickets((prev) => [ticketWithMeta, ...prev]);
-      localStorage.setItem('nsg_employee_support_tickets', JSON.stringify([ticketWithMeta, ...tickets]));
+  const handleSubmitTicket = async (newTicket) => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/employee-portal/helpdesk/ticket', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: newTicket.issueType, // using issueType as title
+          description: newTicket.description,
+          category: newTicket.issueType,
+          priority: newTicket.priority
+        })
+      });
+      
+      if (res.ok) {
+        showToast('Support ticket logged successfully.');
+        fetchTickets();
+      } else {
+        alert('Failed to log ticket');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Network error');
     }
-
-    showToast('Support ticket logged successfully.');
   };
 
   const showToast = (msg) => {
@@ -144,7 +166,7 @@ export default function Help({ db, onUpdateDb, currentUser }) {
                         </span>
                       </div>
                       <span style={{ fontSize: '11px', color: 'var(--text-muted)', wordBreak: 'break-all' }}>
-                        Category: {tkt.issueType} | Logged: {tkt.createdAt}
+                        Category: {tkt.category} | Logged: {tkt.created_at ? new Date(tkt.created_at).toLocaleString() : ''}
                       </span>
                       <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.4', wordBreak: 'break-word' }}>
                         {tkt.description}

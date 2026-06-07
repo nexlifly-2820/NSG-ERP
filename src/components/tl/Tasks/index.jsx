@@ -1,11 +1,58 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from './tasks.module.css';
 import { PlusSquare, List, XCircle, GitPullRequest, Edit, UserPlus, RotateCcw, Check, X } from 'lucide-react';
 
-const Tasks = ({ db, onUpdateDb, currentUser }) => {
+export default function Tasks({ currentUser }) {
   const [activeView, setActiveView] = useState('create'); // 'create', 'list', 'rejected', 'pr'
   const [subtasks, setSubtasks] = useState(['']);
   const [groupBy, setGroupBy] = useState('None');
+  
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [tasks, setTasks] = useState([]);
+
+  const [taskTitle, setTaskTitle] = useState('');
+  const [taskPoints, setTaskPoints] = useState('');
+  const [taskPriority, setTaskPriority] = useState('Medium');
+  const [taskAssignee, setTaskAssignee] = useState('');
+  const [taskDescription, setTaskDescription] = useState('');
+  const [taskProject, setTaskProject] = useState('NSG-ERP Core');
+  const [taskSprint, setTaskSprint] = useState('Sprint 14');
+  const [taskAcceptance, setTaskAcceptance] = useState('');
+  const [taskDue, setTaskDue] = useState('');
+  const [editingTaskId, setEditingTaskId] = useState(null);
+
+  const [reassignModalOpen, setReassignModalOpen] = useState(false);
+  const [reassignTaskId, setReassignTaskId] = useState(null);
+  const [reassignAssigneeId, setReassignAssigneeId] = useState('');
+
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectTaskId, setRejectTaskId] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+
+  useEffect(() => {
+    fetchTeamMembers();
+    fetchTasks();
+  }, []);
+
+  const fetchTeamMembers = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('http://localhost:8000/team-lead/team-members', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) setTeamMembers(await res.json());
+    } catch (e) { console.error(e); }
+  };
+
+  const fetchTasks = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('http://localhost:8000/team-lead/tasks', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) setTasks(await res.json());
+    } catch (e) { console.error(e); }
+  };
 
   const handleAddSubtask = () => setSubtasks([...subtasks, '']);
   const handleRemoveSubtask = (index) => setSubtasks(subtasks.filter((_, i) => i !== index));
@@ -15,7 +62,53 @@ const Tasks = ({ db, onUpdateDb, currentUser }) => {
     setSubtasks(newSubtasks);
   };
 
-  // --- Dynamic Database Mapping ---
+  const handleEditTask = (task) => {
+    setTaskTitle(task.title);
+    setTaskDescription(task.description);
+    setTaskProject(task.project);
+    setTaskSprint(task.sprint);
+    setTaskPriority(task.priority);
+    setTaskAssignee(task.user_id || '');
+    setTaskPoints(task.sp || '');
+    setTaskDue(task.due || '');
+    setTaskAcceptance(task.acceptance ? task.acceptance.join('\n') : '');
+    setSubtasks(task.subtasks && task.subtasks.length > 0 ? task.subtasks.map(s => s.title) : ['']);
+    setEditingTaskId(task.id);
+    setActiveView('create');
+  };
+
+  const handleReassignTask = (taskId) => {
+    setReassignTaskId(taskId);
+    setReassignAssigneeId('');
+    setReassignModalOpen(true);
+  };
+
+  const submitReassign = async () => {
+    if (!reassignAssigneeId) {
+      if (window.toast) window.toast.error("Please select a new assignee");
+      return;
+    }
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`http://localhost:8000/team-lead/tasks/${reassignTaskId}/reassign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ new_assignee_id: parseInt(reassignAssigneeId) })
+      });
+      if (res.ok) {
+        if (window.toast) window.toast.success("Task reassigned successfully!");
+        setReassignModalOpen(false);
+        fetchTasks();
+      } else {
+        const data = await res.json();
+        if (window.toast) window.toast.error(data.detail || "Failed to reassign task");
+      }
+    } catch (err) { console.error(err); }
+  };
+
   const getStatusLabel = (status) => {
     if (status === 'pending') return 'To Do';
     if (status === 'in-progress') return 'In Progress';
@@ -24,156 +117,146 @@ const Tasks = ({ db, onUpdateDb, currentUser }) => {
     return status;
   };
 
+  const getAssigneeName = (id) => {
+    const member = teamMembers.find(m => m.id === id);
+    return member ? member.name : `Unassigned`;
+  };
+
   const getAssigneeAvatar = (name) => {
     if (!name || name === 'Unassigned') return 'UN';
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
-  const allTasks = db?.tasks || [];
-
-  const taskList = allTasks.map(t => ({
+  const taskList = tasks.map(t => ({
     id: t.id,
     project: t.project || 'NSG-ERP Core',
     title: t.title,
-    assignee: t.assignee,
-    avatar: t.avatar || getAssigneeAvatar(t.assignee),
+    assignee: getAssigneeName(t.user_id),
+    avatar: getAssigneeAvatar(getAssigneeName(t.user_id)),
     priority: t.priority ? t.priority.charAt(0).toUpperCase() + t.priority.slice(1) : 'Medium',
     status: getStatusLabel(t.status),
     points: t.sp || 1,
     due: t.due || 'TBD'
   }));
   
-  const [taskTitle, setTaskTitle] = useState('');
-  const [taskPoints, setTaskPoints] = useState('');
-  const [taskPriority, setTaskPriority] = useState('Medium');
-  const [taskAssignee, setTaskAssignee] = useState('Select Team Member...');
-  const [taskDescription, setTaskDescription] = useState('');
-  const [taskProject, setTaskProject] = useState('NSG-ERP Core');
-  const [taskSprint, setTaskSprint] = useState('Sprint 14');
-  const [taskAcceptance, setTaskAcceptance] = useState('');
-
-  const handleCreateTask = (e) => {
+  const handleCreateTask = async (e) => {
     e.preventDefault();
-    
-    if(!taskTitle.trim()) {
-      alert("Please enter a task title");
+    if(!taskTitle.trim() || !taskAssignee) {
+      alert("Please enter a task title and select an assignee");
       return;
     }
-
-    const assignedUser = taskAssignee === 'Select Team Member...' ? 'Unassigned' : taskAssignee;
     const priorityVal = taskPriority.toLowerCase();
-
-    const newDbTask = {
-      id: Date.now(),
+    const payload = {
       project: taskProject,
       sprint: taskSprint,
       title: taskTitle.trim(),
       description: taskDescription.trim() || 'Created via TL sprint board',
       priority: priorityVal,
-      status: 'pending',
       sp: parseInt(taskPoints) || 1,
-      assignee: assignedUser,
-      avatar: assignedUser !== 'Unassigned' ? assignedUser.split(' ').map(n => n[0]).join('').toUpperCase() : 'UN',
-      due: '2026-06-15',
-      subtasks: subtasks.filter(t => t.trim() !== '').map((s, idx) => ({ id: Date.now() + idx, title: s, done: false })),
-      acceptance: taskAcceptance.trim() ? taskAcceptance.split('\n').map(c => c.trim().replace(/^-\s*/, '')).filter(Boolean) : [
-        'Meets general code quality guidelines',
-        'Verified on local staging build'
-      ],
-      prStatus: null,
-      prUrl: '',
-      rejectedReason: ''
+      due: taskDue || '2026-06-15',
+      assignee_id: parseInt(taskAssignee),
+      subtasks: subtasks.filter(t => t.trim() !== ''),
+      acceptance: taskAcceptance.split('\n').map(a => a.trim().replace(/^- /, '')).filter(a => a !== '')
     };
-
-    if (db && onUpdateDb) {
-      const currentTasks = Array.isArray(db.tasks) ? db.tasks : [];
-      const updatedTasks = [...currentTasks, newDbTask];
-      onUpdateDb({ ...db, tasks: updatedTasks });
-    }
-    
-    // Dispatch to global kanban board in Projects module
-    const kanbanTask = {
-      id: `t${newDbTask.id}`,
-      title: newDbTask.title,
-      points: newDbTask.sp,
-      priority: taskPriority,
-      assignee: newDbTask.avatar,
-      blocked: false
-    };
-    window.dispatchEvent(new CustomEvent('add_kanban_task', { detail: kanbanTask }));
-
-    setTaskTitle('');
-    setTaskPoints('');
-    setTaskPriority('Medium');
-    setTaskAssignee('Select Team Member...');
-    setTaskDescription('');
-    setTaskProject('NSG-ERP Core');
-    setTaskSprint('Sprint 14');
-    setTaskAcceptance('');
-    setSubtasks(['']);
-    setActiveView('list');
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      let url = 'http://localhost:8000/team-lead/tasks';
+      let method = 'POST';
+      if (editingTaskId) {
+        url = `http://localhost:8000/team-lead/tasks/${editingTaskId}`;
+        method = 'PATCH';
+      }
+      const res = await fetch(url, {
+        method,
+        headers: { 
+            'Content-Type': 'application/json', 
+            'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        setTaskTitle('');
+        setTaskDescription('');
+        setTaskAssignee('');
+        setTaskPoints('');
+        setTaskDue('');
+        setTaskAcceptance('');
+        setEditingTaskId(null);
+        setActiveView('list');
+        fetchTasks();
+        if (window.toast) window.toast.success(editingTaskId ? "Task updated successfully!" : "Task created successfully!");
+        else alert(editingTaskId ? "Task updated successfully!" : "Task created successfully!");
+        setSubtasks(['']);
+      }
+    } catch (e) { console.error(e); }
   };
 
-  const handleApprovePr = (taskId) => {
-    if (db && onUpdateDb) {
-      const currentTasks = Array.isArray(db.tasks) ? db.tasks : [];
-      const updatedTasks = currentTasks.map(t => {
-        if (t.id === taskId) {
-          return { ...t, prStatus: 'approved', status: 'done', rejectedReason: '' };
-        }
-        return t;
+  const handleApprovePr = async (taskId) => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`http://localhost:8000/team-lead/tasks/${taskId}/approve-pr`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      onUpdateDb({ ...db, tasks: updatedTasks });
-    }
+      if (res.ok) fetchTasks();
+    } catch (e) { console.error(e); }
   };
 
   const handleRejectPr = (taskId) => {
-    const reason = prompt("Enter revision notes / rejection reason for the developer:");
-    if (reason === null) return;
-    
-    if (db && onUpdateDb) {
-      const currentTasks = Array.isArray(db.tasks) ? db.tasks : [];
-      const updatedTasks = currentTasks.map(t => {
-        if (t.id === taskId) {
-          return { ...t, prStatus: 'rejected', status: 'blocked', rejectedReason: reason || 'Rework requested.' };
-        }
-        return t;
-      });
-      onUpdateDb({ ...db, tasks: updatedTasks });
-    }
+    setRejectTaskId(taskId);
+    setRejectReason('');
+    setRejectModalOpen(true);
   };
 
-  const rejectedTasks = allTasks
-    .filter(t => t.prStatus === 'rejected')
+  const submitRejectPr = async () => {
+    if (!rejectReason.trim()) {
+      if (window.toast) window.toast.error("Please provide a reason.");
+      return;
+    }
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`http://localhost:8000/team-lead/tasks/${rejectTaskId}/reject-pr`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ reason: rejectReason })
+      });
+      if (res.ok) {
+        if (window.toast) window.toast.success("PR Rejected successfully.");
+        setRejectModalOpen(false);
+        fetchTasks();
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const rejectedTasks = tasks
+    .filter(t => t.pr_status === 'rejected')
     .map(t => ({
       id: t.id,
       title: t.title,
-      reason: t.rejectedReason || 'Rework required.',
-      rejectedBy: currentUser?.name || 'Marcus Vance',
+      reason: t.rejected_reason || 'Rework required.',
+      rejectedBy: 'Marcus Vance',
       rejectedAt: 'Recently',
       resubmitDue: t.due || 'TBD'
     }));
 
-  const prReviews = allTasks
-    .filter(t => t.prStatus === 'submitted')
+  const prReviews = tasks
+    .filter(t => t.pr_status === 'submitted')
     .map(t => ({
       id: t.id,
       title: t.title,
-      prUrl: t.prUrl || '#PR',
-      author: t.assignee,
+      prUrl: t.pr_url || '#PR',
+      author: getAssigneeName(t.user_id),
       openedAt: 'Today',
       hoursPending: 2
     }));
 
   const getGroupedTasks = () => {
     if (groupBy === 'None') return { 'All Tasks': taskList };
-    
     return taskList.reduce((acc, task) => {
       let key = 'Other';
       if (groupBy === 'Assignee') key = task.assignee;
       if (groupBy === 'Priority') key = task.priority;
       if (groupBy === 'Sprint') key = 'Sprint 42'; 
-      
       if (!acc[key]) acc[key] = [];
       acc[key].push(task);
       return acc;
@@ -182,148 +265,80 @@ const Tasks = ({ db, onUpdateDb, currentUser }) => {
 
   return (
     <div className={styles.container}>
-      {/* Navigation Toolbar */}
       <div className={styles.topToolbar}>
-        <button 
-          className={`${styles.navTab} ${activeView === 'create' ? styles.activeTab : ''}`}
-          onClick={() => setActiveView('create')}
-        >
+        <button className={`${styles.navTab} ${activeView === 'create' ? styles.activeTab : ''}`} onClick={() => setActiveView('create')}>
           <PlusSquare size={16} /> Task Creation Form
         </button>
-        <button 
-          className={`${styles.navTab} ${activeView === 'list' ? styles.activeTab : ''}`}
-          onClick={() => setActiveView('list')}
-        >
+        <button className={`${styles.navTab} ${activeView === 'list' ? styles.activeTab : ''}`} onClick={() => setActiveView('list')}>
           <List size={16} /> Task List View
         </button>
-        <button 
-          className={`${styles.navTab} ${activeView === 'rejected' ? styles.activeTab : ''}`}
-          onClick={() => setActiveView('rejected')}
-        >
+        <button className={`${styles.navTab} ${activeView === 'rejected' ? styles.activeTab : ''}`} onClick={() => setActiveView('rejected')}>
           <XCircle size={16} /> Rejected Tasks Queue
         </button>
-        <button 
-          className={`${styles.navTab} ${activeView === 'pr' ? styles.activeTab : ''}`}
-          onClick={() => setActiveView('pr')}
-        >
+        <button className={`${styles.navTab} ${activeView === 'pr' ? styles.activeTab : ''}`} onClick={() => setActiveView('pr')}>
           <GitPullRequest size={16} /> PR Review Gates
         </button>
       </div>
 
       <div className={styles.viewContainer}>
-        
-        {/* View 1: Task Creation Form */}
         {activeView === 'create' && (
           <div>
             <div className={styles.sectionTitle}>Create New Task</div>
             <div className={styles.formGrid}>
-              
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Task Title</label>
-                <input 
-                  type="text" 
-                  className={styles.formInput} 
-                  placeholder="e.g. Build Payment Gateway UI" 
-                  value={taskTitle}
-                  onChange={(e) => setTaskTitle(e.target.value)}
-                />
+                <input type="text" className={styles.formInput} placeholder="e.g. Build Payment Gateway UI" value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} />
               </div>
-
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Assignee</label>
-                <select 
-                  className={styles.formSelect}
-                  value={taskAssignee}
-                  onChange={(e) => setTaskAssignee(e.target.value)}
-                >
-                  <option>Select Team Member...</option>
-                  <option>Jane Smith</option>
-                  <option>Sarah Jenkins</option>
-                  <option>Michael Chang</option>
-                  <option>David Miller</option>
+                <select className={styles.formSelect} value={taskAssignee} onChange={(e) => setTaskAssignee(e.target.value)}>
+                  <option value="">Select Team Member...</option>
+                  {teamMembers.map(m => (
+                    <option key={m.id} value={m.id}>{m.name} ({m.designation})</option>
+                  ))}
                 </select>
               </div>
-
               <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                 <label className={styles.formLabel}>Description</label>
-                <textarea 
-                  className={styles.formTextarea} 
-                  placeholder="Detailed description of the task..."
-                  value={taskDescription}
-                  onChange={(e) => setTaskDescription(e.target.value)}
-                ></textarea>
+                <textarea className={styles.formTextarea} placeholder="Detailed description of the task..." value={taskDescription} onChange={(e) => setTaskDescription(e.target.value)}></textarea>
               </div>
-
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Story Points</label>
-                <input 
-                  type="number" 
-                  className={styles.formInput} 
-                  placeholder="e.g. 3, 5, 8" 
-                  value={taskPoints}
-                  onChange={(e) => setTaskPoints(e.target.value)}
-                />
+                <input type="number" className={styles.formInput} placeholder="e.g. 3, 5, 8" value={taskPoints} onChange={(e) => setTaskPoints(e.target.value)} />
               </div>
-
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Priority</label>
-                <select 
-                  className={styles.formSelect}
-                  value={taskPriority}
-                  onChange={(e) => setTaskPriority(e.target.value)}
-                >
+                <select className={styles.formSelect} value={taskPriority} onChange={(e) => setTaskPriority(e.target.value)}>
                   <option>Low</option>
                   <option>Medium</option>
                   <option>High</option>
                   <option>Critical</option>
                 </select>
               </div>
-
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Project</label>
-                <select 
-                  className={styles.formSelect}
-                  value={taskProject}
-                  onChange={(e) => setTaskProject(e.target.value)}
-                >
+                <select className={styles.formSelect} value={taskProject} onChange={(e) => setTaskProject(e.target.value)}>
                   <option>Select Project...</option>
                   <option>NSG-ERP Core</option>
                   <option>Mobile App</option>
                   <option>Marketing Website</option>
                 </select>
               </div>
-
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Sprint ID</label>
-                <select 
-                  className={styles.formSelect}
-                  value={taskSprint}
-                  onChange={(e) => setTaskSprint(e.target.value)}
-                >
-                  {[...new Set(['Sprint 14', 'Sprint 13', ...((db?.tasks || []).map(t => t.sprint).filter(Boolean))])].map(s => (
+                <select className={styles.formSelect} value={taskSprint} onChange={(e) => setTaskSprint(e.target.value)}>
+                  {[...new Set(['Sprint 14', 'Sprint 13', ...((tasks || []).map(t => t.sprint).filter(Boolean))])].map(s => (
                     <option key={s} value={s}>{s}</option>
                   ))}
                   <option value="Backlog">Backlog</option>
                 </select>
               </div>
-
-              <div className={`${styles.formGroup} ${styles.fullWidth}`}>
-                <label className={styles.formLabel}>Labels (Comma separated)</label>
-                <input type="text" className={styles.formInput} placeholder="frontend, bug, ui" />
-              </div>
-
               <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                 <label className={styles.formLabel}>Subtasks</label>
                 <div className={styles.subtaskList}>
                   {subtasks.map((subtask, idx) => (
                     <div key={idx} className={styles.subtaskItem}>
-                      <input 
-                        type="text" 
-                        className={styles.subtaskInput} 
-                        placeholder={`Subtask ${idx + 1}...`}
-                        value={subtask}
-                        onChange={(e) => handleSubtaskChange(idx, e.target.value)}
-                      />
+                      <input type="text" className={styles.subtaskInput} placeholder={`Subtask ${idx + 1}...`} value={subtask} onChange={(e) => handleSubtaskChange(idx, e.target.value)} />
                       {subtasks.length > 1 && (
                         <button type="button" className={styles.removeSubtaskBtn} onClick={() => handleRemoveSubtask(idx)}>
                           <X size={16} />
@@ -336,23 +351,15 @@ const Tasks = ({ db, onUpdateDb, currentUser }) => {
                   </button>
                 </div>
               </div>
-
               <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                 <label className={styles.formLabel}>Acceptance Criteria</label>
-                <textarea 
-                  className={styles.formTextarea} 
-                  placeholder="- Given... When... Then..."
-                  value={taskAcceptance}
-                  onChange={(e) => setTaskAcceptance(e.target.value)}
-                ></textarea>
+                <textarea className={styles.formTextarea} placeholder="- Given... When... Then..." value={taskAcceptance} onChange={(e) => setTaskAcceptance(e.target.value)}></textarea>
               </div>
-
-              <button className={styles.submitBtn} onClick={handleCreateTask}>Create Task</button>
+              <button className={styles.submitBtn} onClick={handleCreateTask}>{editingTaskId ? "Update Task" : "Create Task"}</button>
             </div>
           </div>
         )}
 
-        {/* View 2: Task List View */}
         {activeView === 'list' && (
           <div>
             <div className={styles.sectionTitle}>
@@ -367,7 +374,6 @@ const Tasks = ({ db, onUpdateDb, currentUser }) => {
                 </select>
               </div>
             </div>
-            
             <div className={styles.dataTableWrapper}>
               {Object.entries(getGroupedTasks()).map(([groupName, tasks]) => (
                 <div key={groupName} style={{ marginBottom: groupBy === 'None' ? 0 : '24px' }}>
@@ -414,8 +420,8 @@ const Tasks = ({ db, onUpdateDb, currentUser }) => {
                           <td>{task.due}</td>
                           <td>
                             <div className={styles.actionGroup}>
-                              <button className={`${styles.actionBtn} ${styles.primary}`}><Edit size={12}/> Edit</button>
-                              <button className={styles.actionBtn}><UserPlus size={12}/> Reassign</button>
+                              <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => handleEditTask(task)}><Edit size={12}/> Edit</button>
+                              <button className={`${styles.actionBtn}`} onClick={() => handleReassignTask(task.id)}><UserPlus size={12}/> Reassign</button>
                             </div>
                           </td>
                         </tr>
@@ -428,7 +434,6 @@ const Tasks = ({ db, onUpdateDb, currentUser }) => {
           </div>
         )}
 
-        {/* View 3: Rejected Tasks Queue */}
         {activeView === 'rejected' && (
           <div>
             <div className={styles.sectionTitle}>Requires Rework & Fixes</div>
@@ -465,7 +470,6 @@ const Tasks = ({ db, onUpdateDb, currentUser }) => {
           </div>
         )}
 
-        {/* View 4: PR Review Gates Panel */}
         {activeView === 'pr' && (
           <div>
             <div className={styles.sectionTitle}>Pending Pull Requests</div>
@@ -486,12 +490,7 @@ const Tasks = ({ db, onUpdateDb, currentUser }) => {
                     <tr key={pr.id}>
                       <td className={styles.taskTitle}>{pr.title}</td>
                       <td>
-                        <a 
-                          href={pr.prUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className={styles.prLink}
-                        >
+                        <a href={pr.prUrl} target="_blank" rel="noopener noreferrer" className={styles.prLink}>
                           {pr.prUrl}
                         </a>
                       </td>
@@ -516,9 +515,61 @@ const Tasks = ({ db, onUpdateDb, currentUser }) => {
           </div>
         )}
 
+        {reassignModalOpen && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ backgroundColor: 'var(--bg-primary)', padding: '24px', borderRadius: '8px', width: '400px', border: '1px solid var(--border-color)' }}>
+              <h3 style={{ marginTop: 0, marginBottom: '16px' }}>Reassign Task</h3>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Select New Assignee</label>
+                <select className={styles.formSelect} value={reassignAssigneeId} onChange={(e) => setReassignAssigneeId(e.target.value)}>
+                  <option value="">Choose...</option>
+                  {teamMembers.map(m => (
+                    <option key={m.id} value={m.id}>{m.name} ({m.designation})</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end' }}>
+                <button onClick={() => setReassignModalOpen(false)} style={{ backgroundColor: 'transparent', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>
+                  Cancel
+                </button>
+                <button onClick={submitReassign} style={{ backgroundColor: '#8b5cf6', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>
+                  Confirm Reassign
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {rejectModalOpen && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ backgroundColor: 'var(--bg-primary)', padding: '24px', borderRadius: '8px', width: '400px', border: '1px solid var(--border-color)' }}>
+              <h3 style={{ marginTop: 0, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: '#ef4444' }}>
+                <XCircle size={20} /> Request Changes
+              </h3>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Revision Notes / Reason</label>
+                <textarea 
+                  className={styles.formTextarea} 
+                  rows={4} 
+                  placeholder="Explain what needs to be changed..." 
+                  value={rejectReason} 
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  style={{resize: 'vertical'}}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end' }}>
+                <button onClick={() => setRejectModalOpen(false)} style={{ backgroundColor: 'transparent', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>
+                  Cancel
+                </button>
+                <button onClick={submitRejectPr} style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>
+                  Reject PR
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
-};
-
-export default Tasks;
+}

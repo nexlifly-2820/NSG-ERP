@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from typing import List, Optional
+from pydantic import BaseModel, field_validator
+from typing import List, Optional, Dict, Any
 from datetime import date, datetime
+import json
 
 from app import models, database
 from app.core import security
@@ -35,7 +36,19 @@ class TaskResponse(BaseModel):
     prStatus: Optional[str] = None
     prUrl: Optional[str] = None
     rejectedReason: Optional[str] = None
+    customData: Optional[str] = None
     subtasks: List[SubtaskResponse]
+    acceptance: Optional[List[str]] = []
+
+    @field_validator('acceptance', mode='before')
+    @classmethod
+    def parse_acceptance(cls, v):
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except Exception:
+                return []
+        return v or []
 
     class Config:
         from_attributes = True
@@ -62,6 +75,7 @@ def get_my_tasks(current_user: models.User = Depends(security.get_current_user),
             prStatus=t.pr_status,
             prUrl=t.pr_url,
             rejectedReason=t.rejected_reason,
+            customData=t.custom_data,
             subtasks=[SubtaskResponse(id=st.id, title=st.title, done=st.done) for st in t.subtasks]
         ))
     return resp_tasks
@@ -88,7 +102,7 @@ def submit_pr(id: int, req: PRSubmitRequest, current_user: models.User = Depends
     if not task:
         raise HTTPException(status_code=404, detail="Task not found.")
         
-    task.pr_status = "pending"
+    task.pr_status = "submitted"
     task.pr_url = req.prUrl
     task.status = "done"  # Automatically mark task as done or keep as in-progress pending approval
     db.commit()
@@ -106,10 +120,26 @@ def submit_pr(id: int, req: PRSubmitRequest, current_user: models.User = Depends
         prStatus=task.pr_status,
         prUrl=task.pr_url,
         rejectedReason=task.rejected_reason,
+        customData=task.custom_data,
         subtasks=[SubtaskResponse(id=st.id, title=st.title, done=st.done) for st in task.subtasks]
     )
 
-
+@router.get("/tasks/schema")
+def get_task_schema(db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
+    user_dept = current_user.department if current_user.department else "IT"
+    
+    schema_record = db.query(models.DepartmentSchema).filter(models.DepartmentSchema.department == user_dept).first()
+    
+    if schema_record:
+        import json
+        try:
+            schema_data = json.loads(schema_record.schema_json)
+        except Exception:
+            schema_data = []
+    else:
+        schema_data = [{"name": "notes", "type": "text", "label": "Additional Notes"}]
+        
+    return {"department": user_dept, "schema": schema_data}
 # ─── 2. LEAVE SCHEMAS & ROUTES ────────────────────────────────────────────────
 
 class LeaveBalanceResponse(BaseModel):
@@ -295,7 +325,7 @@ class UserProfileResponse(BaseModel):
     email: str
     role: str
     department: Optional[str] = None
-    is_active: bool
+    is_active: Optional[bool] = True
 
     class Config:
         from_attributes = True
@@ -385,7 +415,48 @@ def get_my_assets(current_user: models.User = Depends(security.get_current_user)
     return db.query(models.Asset).filter(models.Asset.user_id == current_user.id).all()
 
 
-# ─── 7. HELPDESK SCHEMAS & ROUTES ─────────────────────────────────────────────
+# ─── 7. LEARNING & TRAINING SCHEMAS & ROUTES ───────────────────────────────────
+
+class TrainingProgressUpdate(BaseModel):
+    completed_modules: int
+    quiz_score: float
+    passed: bool
+
+class TrainingProgressResponse(BaseModel):
+    id: int
+    track_id: int
+    completed_modules: int
+    quiz_score: float
+    passed: bool
+
+    class Config:
+        from_attributes = True
+
+@router.get("/learning/progress", response_model=Optional[TrainingProgressResponse])
+def get_training_progress(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    return db.query(models.TrainingProgress).filter(models.TrainingProgress.employee_id == current_user.id, models.TrainingProgress.track_id == 1).first()
+
+@router.post("/learning/progress", response_model=TrainingProgressResponse)
+def update_training_progress(req: TrainingProgressUpdate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    progress = db.query(models.TrainingProgress).filter(models.TrainingProgress.employee_id == current_user.id, models.TrainingProgress.track_id == 1).first()
+    if not progress:
+        progress = models.TrainingProgress(
+            employee_id=current_user.id,
+            track_id=1,
+            completed_modules=req.completed_modules,
+            quiz_score=req.quiz_score,
+            passed=req.passed
+        )
+        db.add(progress)
+    else:
+        progress.completed_modules = req.completed_modules
+        progress.quiz_score = req.quiz_score
+        progress.passed = req.passed
+    db.commit()
+    db.refresh(progress)
+    return progress
+
+# ─── 8. HELPDESK SCHEMAS & ROUTES ─────────────────────────────────────────────
 
 class TicketCreate(BaseModel):
     title: str

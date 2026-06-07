@@ -35,23 +35,47 @@ export default function Assets({ db, onUpdateDb, currentUser }) {
     return saved ? JSON.parse(saved) : defaultIssued;
   };
 
-  const [requests, setRequests] = useState(getInitialRequests);
-  const [issuedAssets, setIssuedAssets] = useState(getInitialAssets);
+  const [requests, setRequests] = useState([]);
+  const [issuedAssets, setIssuedAssets] = useState([]);
   const [toast, setToast] = useState(null);
 
-  const hasResigned = db?.resignations?.some(r => r.employee_id === EMPLOYEE_ID) || false;
-
+  const [hasResigned, setHasResigned] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [activeTab, setActiveTab] = useState('request'); // 'request', 'assets', 'noc'
 
+  const fetchData = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      // Fetch Assets
+      const assetsRes = await fetch('http://localhost:8000/employee-portal/resignation/my-assets', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (assetsRes.ok) {
+        setIssuedAssets(await assetsRes.json());
+      }
+      
+      // Fetch Resignation to know if NOC is required
+      const resigRes = await fetch('http://localhost:8000/employee-portal/resignation/status', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (resigRes.ok) {
+        const resigData = await resigRes.json();
+        setHasResigned(!!resigData);
+      }
+
+      // We still fall back to localStorage for requests as the backend model is not fully implemented
+      const savedRequests = localStorage.getItem('nsg_employee_asset_requests');
+      if (savedRequests) {
+        setRequests(JSON.parse(savedRequests));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
-    if (db?.assetRequests) {
-      setRequests(db.assetRequests.filter(r => r.employee_id === EMPLOYEE_ID));
-    }
-    if (db?.assets) {
-      setIssuedAssets(db.assets.filter(a => a.employee_id === EMPLOYEE_ID));
-    }
-  }, [db, EMPLOYEE_ID]);
+    fetchData();
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {

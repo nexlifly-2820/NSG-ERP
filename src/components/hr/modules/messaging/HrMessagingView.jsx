@@ -83,11 +83,44 @@ export function HrMessagingView({ db, onUpdateDb, currentUser }) {
   const [huddlePeer, setHuddlePeer] = useState(null);
 
   const [dbChannels, setDbChannels] = useState([]);
+  const [tickets, setTickets] = useState([]);
   const socketRef = useRef(null);
 
   const inputRef   = useRef(null);
   const menuRef    = useRef(null);
   const messagesEndRef = useRef(null);
+
+  const fetchTickets = async () => {
+    const token = localStorage.getItem('nsg_jwt_token');
+    if (!token) return;
+    try {
+      const res = await fetch('/api/hr-portal/tickets', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTickets(data);
+      }
+    } catch (e) {
+      console.error("Failed to load tickets", e);
+    }
+  };
+
+  const resolveTicket = async (id) => {
+    const token = localStorage.getItem('nsg_jwt_token');
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/hr-portal/tickets/${id}/resolve`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchTickets();
+      }
+    } catch (e) {
+      console.error("Failed to resolve ticket", e);
+    }
+  };
 
   const fetchChannelsAndMessages = async () => {
     const token = localStorage.getItem('nsg_jwt_token');
@@ -151,6 +184,7 @@ export function HrMessagingView({ db, onUpdateDb, currentUser }) {
 
   useEffect(() => {
     fetchChannelsAndMessages();
+    fetchTickets();
   }, []);
 
   // Initialize WebSocket connection for real-time messaging
@@ -527,9 +561,9 @@ export function HrMessagingView({ db, onUpdateDb, currentUser }) {
                   <MessageSquare size={13} style={{ color: selectedChannel === 'support-tickets' ? 'var(--accent-pink)' : 'var(--text-muted)', flexShrink: 0 }} />
                   🎫 Support Tickets
                 </span>
-                {(db.supportTickets || []).filter(t => t.status === 'Open').length > 0 && (
+                {tickets.filter(t => t.status === 'open').length > 0 && (
                   <span style={{ fontSize: '9px', fontWeight: '700', backgroundColor: '#ef4444', color: '#fff', borderRadius: '10px', padding: '1px 6px' }}>
-                    {(db.supportTickets || []).filter(t => t.status === 'Open').length}
+                    {tickets.filter(t => t.status === 'open').length}
                   </span>
                 )}
               </div>
@@ -576,16 +610,16 @@ export function HrMessagingView({ db, onUpdateDb, currentUser }) {
               <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px' }}>
                 <strong style={{ fontSize: '15px' }}>🎫 Employee Support Tickets</strong>
                 <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '8px' }}>
-                  {(db.supportTickets || []).filter(t => t.status === 'Open').length} open
+                  {tickets.filter(t => t.status === 'open').length} open
                 </span>
               </div>
               <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {(db.supportTickets || []).length === 0 ? (
+                {tickets.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', fontSize: '13px', fontStyle: 'italic' }}>
                     No support tickets yet. Employee submissions will appear here.
                   </div>
                 ) : (
-                  (db.supportTickets || []).map((tkt) => (
+                  tickets.map((tkt) => (
                     <div key={tkt.id} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -594,23 +628,18 @@ export function HrMessagingView({ db, onUpdateDb, currentUser }) {
                             color: tkt.priority === 'High' ? '#ef4444' : tkt.priority === 'Medium' ? '#f59e0b' : 'var(--text-muted)' }}>
                             {tkt.priority}
                           </span>
-                          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{tkt.issueType}</span>
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{tkt.category}</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px',
-                            backgroundColor: tkt.status === 'Open' ? 'rgba(59,130,246,0.1)' : 'rgba(16,185,129,0.1)',
-                            color: tkt.status === 'Open' ? '#3b82f6' : '#10b981' }}>
+                            backgroundColor: tkt.status === 'open' ? 'rgba(59,130,246,0.1)' : 'rgba(16,185,129,0.1)',
+                            color: tkt.status === 'open' ? '#3b82f6' : '#10b981' }}>
                             {tkt.status}
                           </span>
-                          {tkt.status === 'Open' && onUpdateDb && (
+                          {tkt.status === 'open' && (
                             <button
                               type="button"
-                              onClick={() => {
-                                const updated = (db.supportTickets || []).map(t =>
-                                  t.id === tkt.id ? { ...t, status: 'Resolved', resolvedAt: new Date().toLocaleDateString(), resolvedBy: 'HR' } : t
-                                );
-                                onUpdateDb({ ...db, supportTickets: updated });
-                              }}
+                              onClick={() => resolveTicket(tkt.id)}
                               style={{ fontSize: '10px', fontWeight: '700', padding: '3px 10px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--accent-pink)', color: '#fff', cursor: 'pointer' }}
                             >
                               ✓ Mark Resolved
@@ -621,8 +650,8 @@ export function HrMessagingView({ db, onUpdateDb, currentUser }) {
                       <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>{tkt.description}</p>
                       <div style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'flex', gap: '12px' }}>
                         <span>From: <strong>{tkt.employee_name || 'Employee'}</strong></span>
-                        <span>Logged: {tkt.createdAt}</span>
-                        {tkt.resolvedAt && <span>Resolved: {tkt.resolvedAt} by {tkt.resolvedBy}</span>}
+                        <span>Logged: {new Date(tkt.created_at).toLocaleString()}</span>
+                        {tkt.status === 'Resolved' && <span>Resolved</span>}
                       </div>
                     </div>
                   ))

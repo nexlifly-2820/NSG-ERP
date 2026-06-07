@@ -184,7 +184,7 @@ function ApplyLeaveForm({ prefillType, onSuccess, onRefreshData }) {
     };
 
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('nsg_jwt_token');
       const res = await fetch('/api/employee-portal/leave/request', {
         method: 'POST',
         headers: {
@@ -366,7 +366,7 @@ export default function Leave() {
 
   const fetchData = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('nsg_jwt_token');
       const headers = { 'Authorization': `Bearer ${token}` };
       
       const balRes = await fetch('/api/employee-portal/leave/my-balances', { headers });
@@ -418,7 +418,7 @@ export default function Leave() {
 
   async function handleCancelConfirm(id) {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('nsg_jwt_token');
       const res = await fetch(`/api/employee-portal/leave/request/${id}/cancel`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }

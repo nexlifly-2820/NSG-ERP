@@ -1,38 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-export function TimesheetExceptionsView({ db, onUpdateDb }) {
-  const handleApplyLOP = (id) => {
-    const item = db.timesheetExceptions.find(x => x.id === id);
-    if (!item) return;
+export function TimesheetExceptionsView() {
+  const [exceptions, setExceptions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-    const updated = db.timesheetExceptions.map(x => {
-      if (x.id === id) {
-        return { ...x, status: 'lop_applied' };
+  const fetchExceptions = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('http://localhost:8000/hr-portal/timesheets/exceptions', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setExceptions(await res.json());
       }
-      return x;
-    });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const emp = db.employees.find(e => e.id === item.employee_id) || { name: 'Staff' };
+  useEffect(() => {
+    fetchExceptions();
+  }, []);
 
-    const newLogs = [...db.auditLogs, {
-      id: Date.now(),
-      timestamp: new Date().toISOString(),
-      initiator_id: 'Sarah Jenkins',
-      module: 'Timesheets',
-      record_id: item.id,
-      action_type: 'payroll_lock', // LOP locking payroll trigger
-      change_diff: { LOP_deductions_applied: emp.name },
-      ip_address: '192.168.1.104',
-      client_agent: 'Chrome / Windows'
-    }];
-
-    onUpdateDb({
-      ...db,
-      timesheetExceptions: updated,
-      auditLogs: newLogs
-    });
-
-    alert(`Loss-of-Pay (LOP) deduction rules locked for ${emp.name} timesheet exception.`);
+  const handleApplyLOP = async (id, empName) => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`http://localhost:8000/hr-portal/timesheets/exceptions/${id}/resolve`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (res.ok) {
+        alert(`Loss-of-Pay (LOP) deduction rules locked / resolved for ${empName} timesheet exception.`);
+        fetchExceptions();
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
@@ -45,45 +51,51 @@ export function TimesheetExceptionsView({ db, onUpdateDb }) {
       </div>
 
       <div className="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Employee Name</th>
-              <th>Date of Exception</th>
-              <th>Logged Hours</th>
-              <th>Expected Shift Hours</th>
-              <th>Exception Flag</th>
-              <th>Action Panel</th>
-            </tr>
-          </thead>
-          <tbody>
-            {db.timesheetExceptions.map(item => {
-              const emp = db.employees.find(e => e.id === item.employee_id) || { name: 'Unknown' };
-              return (
-                <tr key={item.id} style={item.status === 'lop_applied' ? { opacity: 0.5 } : {}}>
-                  <td><strong>{emp.name}</strong></td>
-                  <td>{item.date}</td>
-                  <td><span style={{ color: 'red', fontWeight: 'bold' }}>{item.logged_hours}h</span></td>
-                  <td>{item.target_hours}h</td>
-                  <td>
-                    <span className="badge-pill bg-pink">
-                      {item.exception_type.toUpperCase()}
-                    </span>
-                  </td>
-                  <td>
-                    {item.status === 'open' ? (
-                      <button style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }} onClick={() => handleApplyLOP(item.id)}>
-                        Apply LOP Deduction
-                      </button>
-                    ) : (
-                      <span className="badge-pill bg-blue">LOP Applied</span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        {loading ? (
+          <p style={{ padding: '20px' }}>Loading exceptions...</p>
+        ) : exceptions.length === 0 ? (
+          <p style={{ padding: '20px' }}>No timesheet exceptions found.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Employee ID</th>
+                <th>Date of Exception</th>
+                <th>Logged Hours</th>
+                <th>Expected Shift Hours</th>
+                <th>Exception Flag</th>
+                <th>Action Panel</th>
+              </tr>
+            </thead>
+            <tbody>
+              {exceptions.map(item => {
+                const isResolved = item.status === 'resolved' || item.status === 'lop_applied';
+                return (
+                  <tr key={item.id} style={isResolved ? { opacity: 0.5 } : {}}>
+                    <td><strong>Employee #{item.employee_id}</strong></td>
+                    <td>{item.date}</td>
+                    <td><span style={{ color: 'red', fontWeight: 'bold' }}>{item.logged_hours}h</span></td>
+                    <td>{item.target_hours}h</td>
+                    <td>
+                      <span className="badge-pill bg-pink">
+                        {item.exception_type.toUpperCase()}
+                      </span>
+                    </td>
+                    <td>
+                      {!isResolved ? (
+                        <button style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }} onClick={() => handleApplyLOP(item.id, `Employee #${item.employee_id}`)}>
+                          Apply LOP / Resolve
+                        </button>
+                      ) : (
+                        <span className="badge-pill bg-blue">Resolved</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

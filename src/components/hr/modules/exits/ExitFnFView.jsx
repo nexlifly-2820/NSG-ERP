@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CheckCircle, Lock, Edit } from 'lucide-react';
 
 export function ExitFnFView({ db, onUpdateDb }) {
@@ -8,17 +8,40 @@ export function ExitFnFView({ db, onUpdateDb }) {
   const [hrSign, setHrSign] = useState('');
   const [isCalibrateOpen, setIsCalibrateOpen] = useState(false);
 
+  // Live data states
+  const [resignations, setResignations] = useState([]);
+  const [employees, setEmployees] = useState([]);
+
   // FnF computation states
   const [earnedSalary, setEarnedSalary] = useState(35000);
   const [reimbursements, setReimbursements] = useState(5000);
   const [gratuity, setGratuity] = useState(0);
   const [fnfComputed, setFnfComputed] = useState(false);
 
-  const activeResignation = db.resignations?.find(r => r.id === selectedResignId) || { id: 1, employee_id: 103, status: 'pending', reason: 'Higher studies.' };
-  const exitingEmp = db.employees.find(e => e.id === activeResignation.employee_id) || { name: 'Staff', bank_name: 'HDFC', account_number: '0000', email: 'staff@nsg.com' };
+  const fetchData = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const [resRes, empRes] = await Promise.all([
+        fetch('/api/hr-portal/exits/resignations', { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch('/api/hr-portal/employees', { headers: { 'Authorization': `Bearer ${token}` } })
+      ]);
+      
+      if (resRes.ok) setResignations(await resRes.json());
+      if (empRes.ok) setEmployees(await empRes.json());
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
-  // Derive live asset return verification states from the central database
-  const employeeAssets = db.assets?.filter(a => a.employee_id === exitingEmp.id) || [];
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const activeResignation = resignations.find(r => r.id === selectedResignId) || resignations[0] || { id: 1, employee_id: 103, status: 'pending', reason: 'Higher studies.' };
+  const exitingEmp = employees.find(e => e.id === activeResignation.employee_id) || { name: 'Staff', bank_name: 'HDFC', account_number: '0000', email: 'staff@nsg.com' };
+
+  // Derive live asset return verification states from the central database (fallback to db prop for missing APIs)
+  const employeeAssets = db?.assets?.filter(a => a.employee_id === exitingEmp.id) || [];
   const assetLaptop = employeeAssets.find(a => a.type === 'Laptop')?.returnStatus === 'Signed';
   const assetToken = employeeAssets.find(a => a.type === 'Access Card')?.returnStatus === 'Signed';
   const assetPhone = employeeAssets.find(a => a.type === 'Headset')?.returnStatus === 'Signed';
@@ -83,33 +106,23 @@ export function ExitFnFView({ db, onUpdateDb }) {
 
   const totalFnFPayout = earnedSalary + elEncashment + reimbursements + gratuity - loanDeduction;
 
-  const handleApproveResignation = () => {
-    const updated = db.resignations.map(r => {
-      if (r.id === selectedResignId) {
-        return { ...r, status: 'approved', LWD: relievingDate };
+  const handleApproveResignation = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/hr-portal/exits/resignations/${selectedResignId}/approve`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchData();
+        alert(`Resignation exit approved for ${exitingEmp.name}! Corporate offboarding lists enqueued.`);
+      } else {
+        alert('Failed to approve resignation.');
       }
-      return r;
-    });
-
-    const newLogs = [...db.auditLogs, {
-      id: Date.now(),
-      timestamp: new Date().toISOString(),
-      initiator_id: 'Sarah Jenkins',
-      module: 'Exits',
-      record_id: selectedResignId,
-      action_type: 'verify_doc',
-      change_diff: { exit_status: 'approved', last_working_day: relievingDate },
-      ip_address: '192.168.1.104',
-      client_agent: 'Chrome / Windows'
-    }];
-
-    onUpdateDb({
-      ...db,
-      resignations: updated,
-      auditLogs: newLogs
-    });
-
-    alert(`Resignation exit approved for ${exitingEmp.name}! Corporate offboarding lists enqueued.`);
+    } catch (e) {
+      console.error(e);
+      alert('Error approving resignation.');
+    }
   };
 
   const handleComputeFnF = () => {
@@ -124,6 +137,8 @@ export function ExitFnFView({ db, onUpdateDb }) {
       return;
     }
 
+    // simulated finalized action for now (since no specific HR finalized API exists in hr_portal.py for this action except approve/reject)
+    // we just use the local state update to simulate it
     const newLogs = [...db.auditLogs, {
       id: Date.now(),
       timestamp: new Date().toISOString(),

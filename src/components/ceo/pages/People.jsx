@@ -12,7 +12,7 @@ const MOCK_DATA = [
 ];
 
 export default function People() {
-  const [employees, setEmployees] = useState(MOCK_DATA);
+  const [employees, setEmployees] = useState([]);
   const [selectedEmp, setSelectedEmp] = useState(null);
   const [activeTab, setActiveTab] = useState('Info');
   
@@ -29,6 +29,36 @@ export default function People() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDept, setSelectedDept] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const token = localStorage.getItem('nsg_jwt_token');
+        const res = await fetch('/api/hr-portal/employees', { headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.ok) {
+          const data = await res.json();
+          const formatted = data.map(emp => ({
+            ...emp,
+            id: `EMP-${emp.id}`,
+            role: emp.role || 'Employee',
+            dept: emp.department || 'Operations',
+            joinDate: emp.date_joined || '12 Jan 2023',
+            status: 'Active',
+            avatar: `https://ui-avatars.com/api/?name=${emp.name.replace(/ /g, '+')}&background=0F172A&color=fff`,
+            leaves: { casual: 10, sick: 5 }
+          }));
+          setEmployees(formatted);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEmployees();
+  }, []);
 
   const handleAddEmployee = (e) => {
     e.preventDefault();
@@ -65,7 +95,7 @@ export default function People() {
       const matchStatus = selectedStatus ? emp.status === selectedStatus : true;
       return matchSearch && matchDept && matchStatus;
     });
-  }, [searchTerm, selectedDept, selectedStatus]);
+  }, [employees, searchTerm, selectedDept, selectedStatus]);
 
   // Dynamic KPIs based on filtered data (simulating a large org even with small mock data)
   // For realism, if no filters, show org-wide stats. If filtered, show subset stats.

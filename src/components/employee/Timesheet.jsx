@@ -162,23 +162,12 @@ function DayTotalBadge({ total }) {
 
 // ─── Main Timesheet ───────────────────────────────────────────────────────────
 
-export default function Timesheet({ db, onUpdateDb, currentUser }) {
-  const employeeId = currentUser?.id || 102;
+export default function Timesheet() {
   const [weekOffset, setWeekOffset] = useState(0);
 
-  const userTasks = (db?.tasks || []).filter(t => !t.assignee || t.assignee === 'Jane Smith');
-  const availableTasks = userTasks.length > 0
-    ? userTasks.map(t => ({ id: t.id, name: t.title, sprint: t.sprint }))
-    : SPRINT_TASKS;
-
-  const [rows, setRows] = useState(() =>
-    availableTasks.slice(0, 3).map(t => ({
-      taskId: t.id,
-      name: t.name,
-      sprint: t.sprint,
-      hours: { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0 },
-    }))
-  );
+  const [availableTasks, setAvailableTasks] = useState([]);
+  
+  const [rows, setRows] = useState([]);
   const [status, setStatus] = useState('draft');
   const [rejectedReason, setRejectedReason] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -192,57 +181,80 @@ export default function Timesheet({ db, onUpdateDb, currentUser }) {
   const canSubmit = allDaysFilled && status === 'draft';
   const isLocked = status === 'submitted' || status === 'approved';
 
-  // Sync with central database on weekOffset change or db update
+  const weekStartDateStr = dates[0].toISOString().slice(0, 10);
+
+  // Fetch Available Tasks
   useEffect(() => {
-    if (!db) return;
-    const weekStartDateStr = dates[0].toISOString().slice(0, 10);
-    const match = (db.timesheets || []).find(t => t.employee_id === employeeId && t.week_start_date === weekStartDateStr);
-    
-    if (match) {
-      setRows(match.rows || []);
-      setStatus(match.status || 'draft');
-      setRejectedReason(match.rejection_comment || '');
-    } else {
-      // Default to empty draft for the week
-      setRows(availableTasks.slice(0, 3).map(t => ({
-        taskId: t.id,
-        name: t.name,
-        sprint: t.sprint,
-        hours: { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0 },
-      })));
-      setStatus('draft');
-      setRejectedReason('');
-    }
-  }, [weekOffset, db, employeeId]);
+    const fetchTasks = async () => {
+      try {
+        const token = localStorage.getItem('nsg_jwt_token');
+        const res = await fetch('http://localhost:8000/employee-portal/tasks/my-tasks', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setAvailableTasks(data.map(t => ({ id: t.id, name: t.title, sprint: t.sprint })));
+        }
+      } catch (e) { console.error(e); }
+    };
+    fetchTasks();
+  }, []);
+
+  // Fetch Timesheet for Week
+  useEffect(() => {
+    const fetchTimesheet = async () => {
+      try {
+        const token = localStorage.getItem('nsg_jwt_token');
+        const res = await fetch(`http://localhost:8000/timesheets/my-timesheets?week_start_date=${weekStartDateStr}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0) {
+            const ts = data[0];
+            setRows(ts.rows || []);
+            setStatus(ts.status || 'draft');
+            setRejectedReason(ts.rejection_comment || '');
+          } else {
+            // Setup defaults
+            setRows(availableTasks.slice(0, 3).map(t => ({
+              taskId: t.id,
+              name: t.name,
+              sprint: t.sprint,
+              hours: { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0 },
+            })));
+            setStatus('draft');
+            setRejectedReason('');
+          }
+        }
+      } catch (e) { console.error(e); }
+    };
+    // Re-run whenever week offset or available tasks change (so we have default tasks if empty)
+    fetchTimesheet();
+  }, [weekStartDateStr, availableTasks.length]);
 
   // Autosave draft edits to global database
-  const triggerAutoSave = (updatedRows) => {
-    if (!db || !onUpdateDb || status === 'submitted' || status === 'approved') return;
-    const weekStartDateStr = dates[0].toISOString().slice(0, 10);
+  const triggerAutoSave = async (updatedRows) => {
+    if (status === 'submitted' || status === 'approved') return;
     
-    const existingTimesheets = db.timesheets || [];
-    const index = existingTimesheets.findIndex(t => t.employee_id === employeeId && t.week_start_date === weekStartDateStr);
-    
-    let updatedTimesheets = [...existingTimesheets];
-    const tsObject = {
-      id: index >= 0 ? existingTimesheets[index].id : +new Date(),
-      employee_id: employeeId,
-      week_start_date: weekStartDateStr,
-      status: 'draft',
-      rejection_comment: '',
-      rows: updatedRows
-    };
-
-    if (index >= 0) {
-      updatedTimesheets[index] = tsObject;
-    } else {
-      updatedTimesheets.push(tsObject);
+    // Clear existing timer
+    if (autoSaveTimer.current) {
+      clearTimeout(autoSaveTimer.current);
     }
-
-    onUpdateDb({
-      ...db,
-      timesheets: updatedTimesheets
-    });
+    
+    autoSaveTimer.current = setTimeout(async () => {
+      try {
+        const token = localStorage.getItem('nsg_jwt_token');
+        await fetch('http://localhost:8000/timesheets/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({
+            week_start_date: weekStartDateStr,
+            rows: updatedRows
+          })
+        });
+      } catch (e) { console.error(e); }
+    }, 1000); // 1s debounce
   };
 
   function updateHours(rowIdx, day, val) {
@@ -268,26 +280,30 @@ export default function Timesheet({ db, onUpdateDb, currentUser }) {
     triggerAutoSave(updatedRows);
   }
 
-  function handleSubmit() {
-    if (!db || !onUpdateDb) return;
-    const weekStartDateStr = dates[0].toISOString().slice(0, 10);
-    const updatedTimesheets = (db.timesheets || []).map(t => {
-      if (t.employee_id === employeeId && t.week_start_date === weekStartDateStr) {
-        return {
-          ...t,
-          status: 'submitted'
-        };
+  const handleSubmit = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      // Ensure it's saved first
+      await fetch('http://localhost:8000/timesheets/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          week_start_date: weekStartDateStr,
+          rows: rows
+        })
+      });
+      // Then submit
+      const res = await fetch('http://localhost:8000/timesheets/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ week_start_date: weekStartDateStr })
+      });
+      if (res.ok) {
+        setStatus('submitted');
+        setShowSubmitModal(false);
       }
-      return t;
-    });
-
-    onUpdateDb({
-      ...db,
-      timesheets: updatedTimesheets
-    });
-    setStatus('submitted');
-    setShowSubmitModal(false);
-  }
+    } catch (e) { console.error(e); }
+  };
 
   const inputRefs = useRef({});
   function handleKeyDown(e, rowIdx, dayIdx) {

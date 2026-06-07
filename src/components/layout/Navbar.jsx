@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Bell, Search, ChevronDown, Check, Shield, Briefcase, Award, Users,
-  Mail, CalendarOff, UserPlus, AlertTriangle, FileText, LogOut, X
+  Mail, CalendarOff, UserPlus, AlertTriangle, FileText, LogOut, X, Moon, Sun
 } from 'lucide-react';
+import { useTheme } from '../common/ThemeContext';
 
 export default function Navbar({ activeRole, setActiveRole, navigateTo, hrDb = {}, currentUser = {}, onLogout }) {
   const [showRoleDropdown, setShowRoleDropdown]   = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [wsNotifications, setWsNotifications]     = useState([]);
   const [readIds, setReadIds]                     = useState(() => {
     try { return JSON.parse(localStorage.getItem('nsg_notif_read') || '[]'); } catch { return []; }
   });
+  const { theme, toggleTheme } = useTheme();
 
   const bellRef   = useRef(null);
   const roleRef   = useRef(null);
@@ -117,9 +120,40 @@ export default function Navbar({ activeRole, setActiveRole, navigateTo, hrDb = {
     return notifs;
   };
 
-  const notifications = buildNotifications();
+  const notifications = [...wsNotifications, ...buildNotifications()];
   const unreadNotifs  = notifications.filter(n => !readIds.includes(n.id));
   const unreadCount   = unreadNotifs.length;
+
+  // Global Notifications via WebSocket
+  useEffect(() => {
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const userName = currentUser.name || 'User';
+    const wsUrl = `${wsProtocol}//${window.location.hostname}:8000/employee-portal/ws/${encodeURIComponent(userName)}`;
+    const socket = new WebSocket(wsUrl);
+
+    socket.onmessage = (event) => {
+      try {
+        const newMsg = JSON.parse(event.data);
+        const liveNotif = {
+          id: `ws-${Date.now()}`,
+          icon: Mail,
+          color: '#3b82f6',
+          title: `New Message: ${newMsg.sender}`,
+          sub: newMsg.text,
+          role: activeRole,
+          tab: 'messaging',
+          time: 'Just now'
+        };
+        setWsNotifications(prev => [liveNotif, ...prev]);
+      } catch (e) {
+        console.error("WebSocket Notification Error", e);
+      }
+    };
+
+    return () => {
+      socket.close();
+    };
+  }, [currentUser, activeRole]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -160,6 +194,15 @@ export default function Navbar({ activeRole, setActiveRole, navigateTo, hrDb = {
 
       {/* Right Controls */}
       <div className="navbar-right">
+
+        {/* ── Theme Toggle ─────────────────────────────────────────── */}
+        <button
+          className="nav-icon-button"
+          onClick={toggleTheme}
+          title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+        >
+          {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+        </button>
 
         {/* ── Bell Notification ─────────────────────────────────────────── */}
         <div className="nav-action-wrapper" ref={bellRef}>

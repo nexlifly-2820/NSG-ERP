@@ -175,12 +175,17 @@ def get_dashboard_summary(current_user: models.User = Depends(security.get_curre
     
     total_approvals = pending_payroll + pending_claims + pending_leaves
     
+    total_payroll = db.query(func.sum(models.Payslip.net)).scalar() or 0.0
+    active_projects = db.query(models.Task.project).distinct().count()
+    
     return {
         "headcount": total_headcount,
         "activeBlockers": active_blockers,
         "pendingApprovalsCount": total_approvals,
         "okrProgressAverage": 75.0, # Strategy completion average placeholder
-        "riskIndex": "Low" if active_blockers <= 2 else "High"
+        "riskIndex": "Low" if active_blockers <= 2 else "High",
+        "monthlyPayroll": total_payroll,
+        "activeProjects": active_projects
     }
 
 # 2. Corporate Announcements

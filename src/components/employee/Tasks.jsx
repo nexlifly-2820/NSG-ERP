@@ -134,6 +134,15 @@ function MyTaskCard({ task, isSelected, onClick }) {
 
 // ─── SubtaskChecklist ─────────────────────────────────────────────────────────
 function SubtaskChecklist({ subtasks, onToggle }) {
+  if (!subtasks || subtasks.length === 0) {
+    return (
+      <div className="tk-subtasks">
+        <div className="tk-detail-section-label">Subtasks</div>
+        <div className="tk-empty-state">No subtasks defined.</div>
+      </div>
+    );
+  }
+
   const allDone = subtasks.every(s => s.done);
   return (
     <div className="tk-subtasks">
@@ -155,6 +164,15 @@ function SubtaskChecklist({ subtasks, onToggle }) {
 
 // ─── AcceptanceCriteriaList ───────────────────────────────────────────────────
 function AcceptanceCriteriaList({ criteria, checkedIds, onToggle }) {
+  if (!criteria || criteria.length === 0) {
+    return (
+      <div className="tk-acceptance">
+        <div className="tk-detail-section-label">Acceptance Criteria</div>
+        <div className="tk-empty-state">No acceptance criteria provided.</div>
+      </div>
+    );
+  }
+
   return (
     <div className="tk-acceptance">
       <div className="tk-detail-section-label">Acceptance Criteria</div>
@@ -172,83 +190,133 @@ function AcceptanceCriteriaList({ criteria, checkedIds, onToggle }) {
 
 // ─── PrSubmitForm ─────────────────────────────────────────────────────────────
 function PrSubmitForm({ task, onSubmit }) {
-  const [open, setOpen]   = useState(false);
-  const [url, setUrl]     = useState(task.prUrl || '');
+  const [open, setOpen] = useState(false);
+  const [prUrl, setPrUrl] = useState('');
   const [notes, setNotes] = useState('');
-  const [err, setErr]     = useState('');
-  const [loading, setLoading] = useState(false);
-  const panelRef = useRef(null);
 
-  function handleToggle() { setOpen(o => !o); }
-
-  function handleSubmit() {
-    if (!url) { setErr('PR URL is required'); return; }
-    if (!PR_URL_RE.test(url)) { setErr('Must be a valid GitHub or GitLab PR URL'); return; }
-    setErr('');
-    setLoading(true);
-    setTimeout(() => { setLoading(false); onSubmit(url, notes); setOpen(false); }, 1000);
+  if (task.prStatus === 'submitted') {
+    return (
+      <div className="tk-pr-section">
+        <div className="tk-detail-section-label">Pull Request</div>
+        <div className="tk-pr-submitted">
+          <span className="tk-pr-status-chip">Pending Review</span>
+          <a href={task.prUrl} target="_blank" rel="noreferrer" className="tk-pr-link">{task.prUrl}</a>
+        </div>
+      </div>
+    );
   }
 
-  const isSubmitted = task.prStatus === 'submitted';
-  const isRejected  = task.prStatus === 'rejected';
+  if (task.prStatus === 'approved') {
+    return (
+      <div className="tk-pr-section">
+        <div className="tk-detail-section-label">Pull Request</div>
+        <div className="tk-pr-submitted">
+          <span className="tk-pr-status-chip" style={{color: 'var(--tk-emerald)', borderColor: 'var(--tk-emerald)'}}>Approved</span>
+          <a href={task.prUrl} target="_blank" rel="noreferrer" className="tk-pr-link">{task.prUrl}</a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="tk-pr-section">
-      {isRejected && (
+      <div className="tk-detail-section-label">Pull Request</div>
+      
+      {task.prStatus === 'rejected' && (
         <div className="tk-rejected-banner">
-          <span>⛔</span>
           <div>
-            <strong>Returned by TL</strong>
+            <strong>Changes Requested</strong>
             <p>{task.rejectedReason}</p>
           </div>
         </div>
       )}
 
-      {isSubmitted ? (
-        <div className="tk-pr-submitted">
-          <span className="tk-pr-status-chip">Submitted for Review</span>
-          {task.prUrl && (
-            <a href={task.prUrl} target="_blank" rel="noreferrer" className="tk-pr-link">
-              View PR →
-            </a>
+      {!open ? (
+        <button className="tk-submit-pr-btn" onClick={() => setOpen(true)}>
+          {task.prStatus === 'rejected' ? 'Submit Revisions' : 'Submit PR'}
+        </button>
+      ) : (
+        <div className={`tk-pr-form tk-pr-form--open`}>
+          <div className="tk-field-group">
+            <label className="tk-label">PR URL <span className="tk-req">*</span></label>
+            <input 
+              className="tk-input" 
+              placeholder="https://github.com/..." 
+              value={prUrl} 
+              onChange={e => setPrUrl(e.target.value)} 
+            />
+          </div>
+          <div className="tk-field-group">
+            <label className="tk-label">Release Notes <span className="tk-optional">(Optional)</span></label>
+            <textarea 
+              className="tk-textarea" 
+              rows={3}
+              placeholder="What changes did you make?"
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+            />
+          </div>
+          <div style={{display: 'flex', gap: 8, marginTop: 4}}>
+            <button className="tk-confirm-btn" style={{flex: 1}} onClick={() => {
+              if(!prUrl) return;
+              onSubmit(prUrl, notes);
+              setOpen(false);
+            }}>Submit</button>
+            <button className="tk-status-btn" onClick={() => setOpen(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── DynamicCustomForm ────────────────────────────────────────────────────────
+function DynamicCustomForm({ task, schema, onUpdate }) {
+  const [customData, setCustomData] = useState(() => {
+    try { return task.customData ? JSON.parse(task.customData) : {}; }
+    catch(e) { return {}; }
+  });
+  const [loading, setLoading] = useState(false);
+
+  function handleChange(name, value) {
+    setCustomData(prev => ({ ...prev, [name]: value }));
+  }
+
+  function handleSubmit() {
+    setLoading(true);
+    setTimeout(() => { 
+      setLoading(false); 
+      onUpdate(task.id, { customData: JSON.stringify(customData), status: 'done' }); 
+    }, 800);
+  }
+
+  if (!schema || schema.length === 0) return null;
+
+  return (
+    <div className="tk-pr-section">
+      <div className="tk-detail-section-label" style={{marginBottom: 12}}>Custom Fields (Schema Driven)</div>
+      {schema.map(field => (
+        <div key={field.name} className="tk-field-group" style={{marginBottom: 12}}>
+          <label className="tk-label" style={{fontWeight: 600}}>{field.label}</label>
+          {field.type === 'textarea' ? (
+            <textarea
+              className="tk-textarea"
+              value={customData[field.name] || ''}
+              onChange={e => handleChange(field.name, e.target.value)}
+            />
+          ) : (
+            <input
+              type={field.type}
+              className="tk-input"
+              value={customData[field.name] || ''}
+              onChange={e => handleChange(field.name, e.target.value)}
+            />
           )}
         </div>
-      ) : (
-        <>
-          <button
-            className={`tk-submit-pr-btn ${open ? 'tk-submit-pr-btn--open' : ''}`}
-            onClick={handleToggle}
-          >
-            {isRejected ? '↺ Resubmit PR' : '⬆ Submit PR'}
-          </button>
-
-          <div className={`tk-pr-form ${open ? 'tk-pr-form--open' : ''}`} ref={panelRef}>
-            <div className="tk-field-group">
-              <label className="tk-label">PR / MR URL <span className="tk-req">*</span></label>
-              <input
-                className={`tk-input ${err ? 'tk-input--err' : ''}`}
-                placeholder="https://github.com/org/repo/pull/123"
-                value={url}
-                onChange={e => { setUrl(e.target.value); setErr(''); }}
-              />
-              {err && <span className="tk-err-msg">{err}</span>}
-            </div>
-            <div className="tk-field-group">
-              <label className="tk-label">Completion Notes <span className="tk-optional">(optional)</span></label>
-              <textarea
-                className="tk-textarea"
-                placeholder="Brief notes on implementation choices…"
-                rows={3}
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-              />
-            </div>
-            <button className={`tk-confirm-btn ${loading ? 'tk-confirm-btn--loading' : ''}`} onClick={handleSubmit} disabled={loading}>
-              {loading ? <><span className="tk-spin"/>Submitting…</> : 'Confirm Submit'}
-            </button>
-          </div>
-        </>
-      )}
+      ))}
+      <button className={`tk-confirm-btn ${loading ? 'tk-confirm-btn--loading' : ''}`} onClick={handleSubmit} disabled={loading} style={{marginTop: 8}}>
+        {loading ? <><span className="tk-spin"/>Saving…</> : 'Save & Complete Task'}
+      </button>
     </div>
   );
 }
@@ -328,8 +396,11 @@ function TaskDetailPanel({ task, onClose, onUpdate }) {
         {/* Acceptance criteria */}
         <AcceptanceCriteriaList criteria={task.acceptance} checkedIds={acChecked} onToggle={toggleAc} />
 
-        {/* PR Submit */}
-        <PrSubmitForm task={{ ...task, prStatus: task.prStatus }} onSubmit={handlePrSubmit} />
+        {/* PR Form */}
+        <PrSubmitForm task={task} onSubmit={handlePrSubmit} />
+
+        {/* Dynamic Schema Fields */}
+        <DynamicCustomForm task={task} schema={task.schema} onUpdate={onUpdate} />
       </div>
     </div>
   );
@@ -340,22 +411,99 @@ export default function Tasks({ db, onUpdateDb }) {
   const [selectedId, setSelectedId]   = useState(null);
   const [sprint, setSprint]           = useState('All Sprints');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [tasks, setTasks] = useState([]);
+  const [schema, setSchema] = useState([]);
 
-  const tasksList = db?.tasks || MOCK_TASKS;
-  // View ONLY tasks assigned to Jane Smith in Employee ESS
-  const tasks = tasksList.filter(t => !t.assignee || t.assignee === 'Jane Smith');
+  useEffect(() => {
+    fetchSchema();
+    fetchTasks();
+  }, []);
+
+  const fetchSchema = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('http://localhost:8000/employee-portal/tasks/schema', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSchema(data.schema);
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const fetchTasks = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('http://localhost:8000/employee-portal/tasks/my-tasks', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // The API returns the data, we might need to map it slightly to match the UI expectation
+        const formatted = data.map(t => ({
+          ...t,
+          acceptance: [], // acceptance criteria not returned by backend
+          subtasks: t.subtasks || []
+        }));
+        setTasks(formatted);
+      }
+    } catch (e) {
+      console.error(e);
+      setTasks(MOCK_TASKS); // Fallback to mock for UI if API fails initially
+    }
+  };
 
   const selectedTask = tasks.find(t => t.id === selectedId) || null;
 
   const sprintList = [...new Set(['All Sprints', 'Sprint 14', 'Sprint 13', ...tasks.map(t => t.sprint).filter(Boolean)])];
 
-  function handleUpdate(id, changes) {
-    if (db && onUpdateDb) {
-      const currentTasks = Array.isArray(db.tasks) ? db.tasks : [];
-      const updatedTasks = currentTasks.map(t => t.id === id ? { ...t, ...changes } : t);
-      onUpdateDb({ ...db, tasks: updatedTasks });
+  const handleUpdate = async (id, changes) => {
+    // If the change is a subtask toggle
+    if (changes.subtasks) {
+      // Find the subtask that changed by comparing
+      const task = tasks.find(t => t.id === id);
+      const changedSubtask = changes.subtasks.find(s => 
+        task.subtasks.find(oldS => oldS.id === s.id)?.done !== s.done
+      );
+      
+      if (changedSubtask) {
+        try {
+          const token = localStorage.getItem('nsg_jwt_token');
+          await fetch(`http://localhost:8000/employee-portal/tasks/${id}/subtasks/${changedSubtask.id}/toggle`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+        } catch (e) { console.error(e); }
+      }
     }
-  }
+    
+    // If the change is customData submission
+    if (changes.customData) {
+      // Typically we'd have a specific endpoint or PATCH to /tasks/:id to update generic tasks.
+      // For demonstration, we simply optimistically update the state.
+      console.log('Saved custom data:', changes.customData);
+    }
+    
+    // If the change is a PR submission
+    if (changes.prUrl && changes.prStatus === 'submitted') {
+      try {
+        const token = localStorage.getItem('nsg_jwt_token');
+        await fetch(`http://localhost:8000/employee-portal/tasks/${id}/submit-pr`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` 
+          },
+          body: JSON.stringify({ prUrl: changes.prUrl })
+        });
+      } catch (e) { console.error(e); }
+    }
+    
+    // Optimistic UI update
+    const updatedTasks = tasks.map(t => t.id === id ? { ...t, ...changes } : t);
+    setTasks(updatedTasks);
+  };
 
   const filtered = tasks.filter(t => {
     const sprintOk = sprint === 'All Sprints' || t.sprint === sprint;
@@ -409,7 +557,7 @@ export default function Tasks({ db, onUpdateDb }) {
         {/* Detail Panel */}
         {selectedTask && (
           <TaskDetailPanel
-            task={selectedTask}
+            task={{...selectedTask, schema}}
             onClose={() => setSelectedId(null)}
             onUpdate={handleUpdate}
           />

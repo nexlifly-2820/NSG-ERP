@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+import json
 from typing import List, Optional
 from datetime import date, datetime
 
@@ -28,7 +29,8 @@ class UserProfileResponse(BaseModel):
     email: str
     role: str
     department: Optional[str] = None
-    is_active: bool
+    designation: Optional[str] = None
+    is_active: Optional[bool] = True
 
     class Config:
         from_attributes = True
@@ -42,7 +44,9 @@ class TaskCreateRequest(BaseModel):
     sp: int = 1
     due: Optional[date] = None
     assignee_id: int
+    custom_data: Optional[str] = None
     subtasks: List[str] = []
+    acceptance: Optional[List[str]] = []
 
 class SubtaskResponse(BaseModel):
     id: int
@@ -66,7 +70,19 @@ class TaskResponse(BaseModel):
     pr_status: Optional[str] = None
     pr_url: Optional[str] = None
     rejected_reason: Optional[str] = None
+    custom_data: Optional[str] = None
     subtasks: List[SubtaskResponse]
+    acceptance: Optional[List[str]] = []
+
+    @field_validator('acceptance', mode='before')
+    @classmethod
+    def parse_acceptance(cls, v):
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except Exception:
+                return []
+        return v or []
 
     class Config:
         from_attributes = True
@@ -145,7 +161,6 @@ class ScorecardResponse(BaseModel):
 
 # ─── Endpoints ───────────────────────────────────────────────────────────────
 
-# 1. Team Roster
 @router.get("/team-members", response_model=List[UserProfileResponse])
 def get_team_members(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     verify_manager_role(current_user)
@@ -181,7 +196,9 @@ def create_team_task(req: TaskCreateRequest, current_user: models.User = Depends
         priority=req.priority.lower(),
         status="pending",
         sp=req.sp,
-        due=req.due
+        due=req.due,
+        custom_data=req.custom_data,
+        acceptance=json.dumps(req.acceptance) if req.acceptance else None
     )
     db.add(db_task)
     db.flush()
@@ -237,6 +254,54 @@ def reject_task_pr(id: int, req: PRRejectRequest, current_user: models.User = De
         user_id=task.user_id,
         message=f"Your PR for task '{task.title}' was rejected. Reason: {req.reason}",
         type="danger",
+        read=False
+    )
+    db.add(notification)
+    
+    db.commit()
+    db.refresh(task)
+    return task
+
+@router.patch("/tasks/{id}", response_model=TaskResponse)
+def update_task(id: int, req: TaskCreateRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_manager_role(current_user)
+    task = db.query(models.Task).filter(models.Task.id == id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found.")
+    
+    task.title = req.title
+    task.project = req.project
+    task.sprint = req.sprint
+    task.description = req.description
+    task.priority = req.priority.lower()
+    task.sp = req.sp
+    task.due = req.due
+    task.custom_data = req.custom_data
+    
+    db.commit()
+    db.refresh(task)
+    return task
+
+class ReassignRequest(BaseModel):
+    new_assignee_id: int
+
+@router.post("/tasks/{id}/reassign", response_model=TaskResponse)
+def reassign_task(id: int, req: ReassignRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_manager_role(current_user)
+    task = db.query(models.Task).filter(models.Task.id == id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found.")
+        
+    assignee = db.query(models.User).filter(models.User.id == req.new_assignee_id).first()
+    if not assignee:
+        raise HTTPException(status_code=404, detail="New assignee not found.")
+        
+    task.user_id = req.new_assignee_id
+    
+    notification = models.Notification(
+        user_id=task.user_id,
+        message=f"You have been assigned a new task: '{task.title}'.",
+        type="info",
         read=False
     )
     db.add(notification)

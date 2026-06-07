@@ -146,6 +146,8 @@ class Task(Base):
     pr_status = Column(String, nullable=True)  # pending, approved, rejected
     pr_url = Column(String, nullable=True)
     rejected_reason = Column(String, nullable=True)
+    custom_data = Column(Text, nullable=True)  # JSON-serialized custom fields
+    acceptance = Column(Text, nullable=True)  # JSON-serialized array of strings
 
     # Relationships
     user = relationship("User", back_populates="tasks")
@@ -310,12 +312,12 @@ class ChatChannel(Base):
 
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
-
     id = Column(Integer, primary_key=True, index=True)
     channel_id = Column(String, ForeignKey("chat_channels.id", ondelete="CASCADE"), nullable=False)
     sender = Column(String, nullable=False)
     text = Column(Text, nullable=False)
-    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    timestamp = Column(DateTime, server_default=func.now())
+
 
 
 class Escalation(Base):
@@ -425,6 +427,13 @@ class TrainingProgress(Base):
 
     employee = relationship("User", foreign_keys=[employee_id])
     track = relationship("TrainingTrack")
+
+class DepartmentSchema(Base):
+    __tablename__ = "department_schemas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    department = Column(String, unique=True, index=True, nullable=False)
+    schema_json = Column(Text, nullable=False)
 
 
 class AuditLog(Base):

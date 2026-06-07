@@ -46,7 +46,7 @@ const Projects = ({ db, onUpdateDb }) => {
     const fetchProjects = async () => {
       setProjectsLoading(true);
       try {
-        const res = await fetch('/api/team-lead/projects', {
+        const res = await fetch('http://localhost:8000/team-lead/projects', {
           headers: { 'Authorization': `Bearer ${token()}` }
         });
         if (res.ok) {
@@ -66,7 +66,7 @@ const Projects = ({ db, onUpdateDb }) => {
   const fetchTasks = async () => {
     setKanbanLoading(true);
     try {
-      const res = await fetch('/api/team-lead/tasks', {
+      const res = await fetch('http://localhost:8000/team-lead/tasks', {
         headers: { 'Authorization': `Bearer ${token()}` }
       });
       if (res.ok) {

@@ -287,9 +287,8 @@ function TodayStatusCard({ clockState, clockInTime, clockOutTime, elapsed }) {
 
 const ROWS_PER_PAGE = 7;
 
-function getFormattedLogs(db, employeeId) {
-  const logs = (db?.attendanceLogs || []).filter(l => l.employee_id === employeeId);
-  return logs.map(l => {
+function getFormattedLogs(logs) {
+  return (logs || []).map(l => {
     const d = new Date(l.date);
     const inTimeStr = l.clock_in ? new Date(l.clock_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : null;
     const outTimeStr = l.clock_out ? new Date(l.clock_out).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : null;
@@ -317,10 +316,26 @@ function getFormattedLogs(db, employeeId) {
   }).reverse(); // Latest logs first
 }
 
-function AttendanceLogTable({ db, employeeId }) {
+function AttendanceLogTable() {
   const [monthOffset, setMonthOffset] = useState(0);
   const [page, setPage] = useState(1);
-  const logData = getFormattedLogs(db, employeeId);
+  const [logs, setLogs] = useState([]);
+  
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        const token = localStorage.getItem('nsg_jwt_token');
+        const res = await fetch('/api/attendance/my-logs', { headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.ok) {
+          const data = await res.json();
+          setLogs(data);
+        }
+      } catch (e) { console.error(e); }
+    };
+    fetchLogs();
+  }, []);
+
+  const logData = getFormattedLogs(logs);
 
   const currentDate = new Date();
   const displayDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - monthOffset, 1);
@@ -436,7 +451,7 @@ function AttendanceLogTable({ db, employeeId }) {
 //  WFH REQUEST FORM
 // ════════════════════════════════════════════════════════
 
-function WfhRequestForm({ db, onUpdateDb, employeeId }) {
+function WfhRequestForm() {
   const [form, setForm]       = useState({ wfh_date: '', wfh_reason: '' });
   const [errors, setErrors]   = useState({});
   const [gps, setGps]         = useState('idle');   // idle | searching | captured | failed
@@ -462,37 +477,37 @@ function WfhRequestForm({ db, onUpdateDb, employeeId }) {
     if (!navigator.geolocation) setGps('failed');
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const e = validate();
     if (Object.keys(e).length) { setErrors(e); return; }
     setLoading(true);
     
-    setTimeout(() => {
-      setLoading(false);
-      setToast({ type: 'success', msg: 'WFH request submitted successfully!' });
-
-      const newLog = {
-        id: +new Date(),
-        employee_id: employeeId,
-        date: form.wfh_date,
-        clock_in: `${form.wfh_date}T09:00:00Z`,
-        clock_out: `${form.wfh_date}T18:00:00Z`,
-        work_mode: 'wfh',
-        is_late: false,
-        exception_flag: 'none'
-      };
-
-      if (db && onUpdateDb) {
-        onUpdateDb({
-          ...db,
-          attendanceLogs: [...(db.attendanceLogs || []), newLog]
-        });
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/employee-portal/leave/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          leave_type: 'WFH',
+          from_date: form.wfh_date,
+          to_date: form.wfh_date,
+          days: 1,
+          reason: form.wfh_reason
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        setToast({ type: 'error', msg: err.detail || 'Failed to submit WFH request' });
+      } else {
+        setToast({ type: 'success', msg: 'WFH request submitted successfully!' });
+        setForm({ wfh_date: '', wfh_reason: '' });
+        setGps('idle'); setGpsCoords(null);
       }
-
-      setForm({ wfh_date: '', wfh_reason: '' });
-      setGps('idle'); setGpsCoords(null);
-      setTimeout(() => setToast(null), 4000);
-    }, 1200);
+    } catch (err) {
+      setToast({ type: 'error', msg: 'Network error' });
+    }
+    setLoading(false);
+    setTimeout(() => setToast(null), 4000);
   }
 
   const today = new Date().toISOString().slice(0, 10);
@@ -569,7 +584,7 @@ function WfhRequestForm({ db, onUpdateDb, employeeId }) {
 //  MISSED PUNCH CORRECTION FORM
 // ════════════════════════════════════════════════════════
 
-function CorrectionForm({ db, onUpdateDb, employeeId }) {
+function CorrectionForm() {
   const [form, setForm]       = useState({
     correction_date: '',
     missed_type:     'clock-in',
@@ -606,30 +621,32 @@ function CorrectionForm({ db, onUpdateDb, employeeId }) {
     if (Object.keys(e).length) { setErrors(e); return; }
     setLoading(true);
     
-    setTimeout(() => {
+    setTimeout(async () => {
       setLoading(false);
-      setToast({ type: 'success', msg: 'Correction request submitted for approval.' });
-
-      // Create new regularization request in db.attendanceCorrections
-      const newCorrection = {
-        id: +new Date(),
-        employee_id: employeeId,
-        correction_date: form.correction_date,
-        requested_clock_in: `${form.correction_date}T${form.requested_time}:00Z`,
-        requested_clock_out: `${form.correction_date}T18:00:00Z`, // default clock-out
-        reason: form.reason
-      };
-
-      if (db && onUpdateDb) {
-        onUpdateDb({
-          ...db,
-          attendanceCorrections: [...(db.attendanceCorrections || []), newCorrection]
+      try {
+        const token = localStorage.getItem('nsg_jwt_token');
+        const res = await fetch('/api/attendance/correction', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({
+            correction_date: form.correction_date,
+            requested_clock_in: `${form.correction_date}T${form.requested_time}:00Z`,
+            requested_clock_out: `${form.correction_date}T18:00:00Z`,
+            reason: form.reason
+          })
         });
+        if (!res.ok) {
+          const err = await res.json();
+          setToast({ type: 'error', msg: err.detail || 'Failed to submit correction' });
+          return;
+        }
+        setToast({ type: 'success', msg: 'Correction request submitted for approval.' });
+        setForm({ correction_date: '', missed_type: 'clock-in', requested_time: '', reason: '' });
+        setPhotoFile(null); setPhotoPreview(null);
+        setTimeout(() => setToast(null), 4000);
+      } catch (e) {
+        setToast({ type: 'error', msg: 'Network error' });
       }
-
-      setForm({ correction_date: '', missed_type: 'clock-in', requested_time: '', reason: '' });
-      setPhotoFile(null); setPhotoPreview(null);
-      setTimeout(() => setToast(null), 4000);
     }, 1200);
   }
 }
@@ -664,45 +681,64 @@ export default function Attendance({ db, onUpdateDb, currentUser }) {
 
   // Sync state from global db
   useEffect(() => {
-    if (!db) return;
-    const today = todayKey();
-    const todayLog = (db.attendanceLogs || []).find(l => l.employee_id === employeeId && l.date === today);
-    
-    if (todayLog) {
-      if (todayLog.clock_in && todayLog.clock_out) {
-        setClockState('already');
-        setClockInTime(new Date(todayLog.clock_in));
-        setClockOutTime(new Date(todayLog.clock_out));
-      } else if (todayLog.clock_in) {
-        setClockState('clocked-in');
-        setClockInTime(new Date(todayLog.clock_in));
-        setClockOutTime(null);
+    const fetchLogs = async () => {
+      try {
+        const token = localStorage.getItem('nsg_jwt_token');
+        const res = await fetch('/api/attendance/my-logs', { headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.ok) {
+          const logs = await res.json();
+          const today = todayKey();
+          const todayLog = logs.find(l => l.date === today);
+          
+          if (todayLog) {
+            if (todayLog.clock_in && todayLog.clock_out) {
+              setClockState('already');
+              setClockInTime(new Date(todayLog.clock_in));
+              setClockOutTime(new Date(todayLog.clock_out));
+            } else if (todayLog.clock_in) {
+              setClockState('clocked-in');
+              setClockInTime(new Date(todayLog.clock_in));
+              setClockOutTime(null);
+            }
+          } else {
+            setClockState('idle');
+            setClockInTime(null);
+            setClockOutTime(null);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to fetch logs", e);
       }
-    } else {
-      setClockState('idle');
-      setClockInTime(null);
-      setClockOutTime(null);
-    }
-  }, [db, employeeId]);
-
-  function saveClockIn(workMode) {
-    const now = new Date();
-    const newLog = {
-      id: +now,
-      employee_id: employeeId,
-      date: todayKey(),
-      clock_in: now.toISOString(),
-      clock_out: null,
-      work_mode: workMode,
-      is_late: now.getHours() >= 9 && now.getMinutes() > 30,
-      exception_flag: 'none'
     };
-    
-    if (db && onUpdateDb) {
-      onUpdateDb({
-        ...db,
-        attendanceLogs: [...(db.attendanceLogs || []), newLog]
+    fetchLogs();
+  }, []);
+
+  async function saveClockIn(workMode, lat, lng) {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const payload = { work_mode: workMode };
+      if (lat && lng) {
+        payload.latitude = lat;
+        payload.longitude = lng;
+      }
+      const res = await fetch('/api/attendance/clock-in', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(payload)
       });
+      if (!res.ok) {
+        const errorData = await res.json();
+        setClockState('idle');
+        setToast({ type: 'error', msg: errorData.detail || 'Clock in failed.' });
+        return;
+      }
+      const data = await res.json();
+      setClockState('clocked-in');
+      setClockInTime(new Date(data.clock_in));
+      setToast({ type: 'success', msg: `Clocked in successfully (${workMode}).` });
+    } catch (e) {
+      setClockState('idle');
+      setToast({ type: 'error', msg: 'Network error during clock in.' });
     }
   }
 
@@ -720,24 +756,8 @@ export default function Attendance({ db, onUpdateDb, currentUser }) {
 
     navigator.geolocation?.getCurrentPosition(
       (pos) => {
-        const userLat = pos.coords.latitude;
-        const userLng = pos.coords.longitude;
-
-        if (geofence.enabled) {
-          const dist = getHaversineDistance(userLat, userLng, geofence.latitude, geofence.longitude);
-          if (dist > geofence.radius) {
-            setGpsStatus('error');
-            setClockState('idle');
-            setToast({
-              type: 'error',
-              msg: `Outside office perimeter. Distance: ${dist.toFixed(0)}m, Allowed: ${geofence.radius}m. Please request WFH.`
-            });
-            return;
-          }
-        }
-
         setGpsStatus('ok');
-        saveClockIn('office');
+        saveClockIn('office', pos.coords.latitude, pos.coords.longitude);
       },
       () => {
         setGpsStatus('denied');
@@ -751,25 +771,24 @@ export default function Attendance({ db, onUpdateDb, currentUser }) {
     }
   }
 
-  function handleClockOut() {
-    const now = new Date();
-    const today = todayKey();
-    
-    if (db && onUpdateDb) {
-      const updatedLogs = (db.attendanceLogs || []).map(l => {
-        if (l.employee_id === employeeId && l.date === today) {
-          return {
-            ...l,
-            clock_out: now.toISOString()
-          };
-        }
-        return l;
+  async function handleClockOut() {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/attendance/clock-out', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      
-      onUpdateDb({
-        ...db,
-        attendanceLogs: updatedLogs
-      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        setToast({ type: 'error', msg: errorData.detail || 'Clock out failed.' });
+        return;
+      }
+      const data = await res.json();
+      setClockState('already');
+      setClockOutTime(new Date(data.clock_out));
+      setToast({ type: 'success', msg: 'Clocked out successfully.' });
+    } catch (e) {
+      setToast({ type: 'error', msg: 'Network error during clock out.' });
     }
   }
 
@@ -805,9 +824,9 @@ export default function Attendance({ db, onUpdateDb, currentUser }) {
 
         {/* Row 2: Log table | WFH form | Correction form */}
         <div className="att-bottom-grid">
-          <AttendanceLogTable db={db} employeeId={employeeId} />
-          <WfhRequestForm db={db} onUpdateDb={onUpdateDb} employeeId={employeeId} />
-          <CorrectionForm db={db} onUpdateDb={onUpdateDb} employeeId={employeeId} />
+          <AttendanceLogTable />
+          <WfhRequestForm />
+          <CorrectionForm />
         </div>
       </div>
     </div>
