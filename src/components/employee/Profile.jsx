@@ -323,7 +323,7 @@ export default function Profile({ db, onUpdateDb, currentUser }) {
     // Live data from db.employees — falls back to hardcoded if db not available
     const liveName = empRecord?.name || 'Jane Smith';
     const liveEmpId = empRecord?.emp_id || 'NSG-0102';
-    const liveEmail = empRecord?.email || 'jane.smith@nsgtech.com';
+    const liveEmail = empRecord?.email || 'jane.smith@hnms.com';
     const liveDept = empRecord?.department || 'IT';
     const liveDesignation = empRecord?.designation || 'Systems Executive';
 

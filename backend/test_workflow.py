@@ -7,9 +7,9 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from app.core import security
 
-emp_token = security.create_access_token(data={"sub": "emp@nsgtech.com"})
-tl_token = security.create_access_token(data={"sub": "tl@nsgtech.com"})
-hr_token = security.create_access_token(data={"sub": "hr@nsgtech.com"})
+emp_token = security.create_access_token(data={"sub": "emp@hnms.com"})
+tl_token = security.create_access_token(data={"sub": "tl@hnms.com"})
+hr_token = security.create_access_token(data={"sub": "hr@hnms.com"})
 
 # 2. Submit Expense Claim (Employee)
 print("\nSubmitting Expense Claim...")

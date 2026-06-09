@@ -7,9 +7,9 @@ cursor = conn.cursor()
 
 # 1. Add extra users to make headcount realistic
 users_to_add = [
-    (5, 'Amit Sharma', 'amit@nsgtech.com', '$2b$12$qpQGhqQe1gdNagfFKUIYg.3WfIGzV3slSobXb2oni/mDuMLl/F60i', 'employee', 'Sales', 'active', 'NSG-0105', 'Sales Representative'),
-    (6, 'Priya Patel', 'priya@nsgtech.com', '$2b$12$qpQGhqQe1gdNagfFKUIYg.3WfIGzV3slSobXb2oni/mDuMLl/F60i', 'employee', 'Engineering', 'active', 'NSG-0106', 'Software Architect'),
-    (7, 'Rahul Roy', 'rahul@nsgtech.com', '$2b$12$qpQGhqQe1gdNagfFKUIYg.3WfIGzV3slSobXb2oni/mDuMLl/F60i', 'employee', 'Marketing', 'active', 'NSG-0107', 'SEO Specialist')
+    (5, 'Amit Sharma', 'amit@hnms.com', '$2b$12$qpQGhqQe1gdNagfFKUIYg.3WfIGzV3slSobXb2oni/mDuMLl/F60i', 'employee', 'Sales', 'active', 'NSG-0105', 'Sales Representative'),
+    (6, 'Priya Patel', 'priya@hnms.com', '$2b$12$qpQGhqQe1gdNagfFKUIYg.3WfIGzV3slSobXb2oni/mDuMLl/F60i', 'employee', 'Engineering', 'active', 'NSG-0106', 'Software Architect'),
+    (7, 'Rahul Roy', 'rahul@hnms.com', '$2b$12$qpQGhqQe1gdNagfFKUIYg.3WfIGzV3slSobXb2oni/mDuMLl/F60i', 'employee', 'Marketing', 'active', 'NSG-0107', 'SEO Specialist')
 ]
 for u in users_to_add:
     cursor.execute("""

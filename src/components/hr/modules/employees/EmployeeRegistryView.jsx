@@ -905,7 +905,7 @@ export function EmployeeRegistryView({ db, onUpdateDb, queryParams, setQueryPara
               <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} required placeholder="Jane Doe" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
               
               <label style={{ fontSize: '12px' }}>Email Address</label>
-              <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} required placeholder="jane@nsgtech.com" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
+              <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} required placeholder="jane@hnms.com" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
 
               <label style={{ fontSize: '12px' }}>Department</label>
               <select value={newDept} onChange={(e) => setNewDept(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}>

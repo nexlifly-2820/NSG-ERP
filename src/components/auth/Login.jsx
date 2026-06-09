@@ -126,7 +126,7 @@ export default function Login({ onLoginSuccess }) {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@nsgtech.com"
+                placeholder="you@hnms.com"
                 style={{
                   width: '100%',
                   backgroundColor: '#f8fafc',
