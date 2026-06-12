@@ -38,7 +38,7 @@ class User(Base):
     leave_balances = relationship("LeaveBalance", back_populates="user", cascade="all, delete-orphan")
     leave_requests = relationship("LeaveRequest", back_populates="user", cascade="all, delete-orphan")
     expense_claims = relationship("ExpenseClaim", back_populates="user", cascade="all, delete-orphan")
-    payslips = relationship("Payslip", back_populates="user", cascade="all, delete-orphan")
+    payslips = relationship("Payslip", foreign_keys="[Payslip.user_id]", back_populates="user", cascade="all, delete-orphan")
     loans = relationship("Loan", back_populates="user", cascade="all, delete-orphan")
     assets = relationship("Asset", back_populates="user", cascade="all, delete-orphan")
     resignations = relationship("Resignation", back_populates="user", cascade="all, delete-orphan")
@@ -230,11 +230,17 @@ class Payslip(Base):
     epf = Column(Float, nullable=False)
     tds = Column(Float, nullable=False)
     net = Column(Float, nullable=False)
+    lop = Column(Float, default=0.0)
     month = Column(Integer, nullable=False)
     year = Column(Integer, nullable=False)
+    status = Column(String, default="pending")  # pending, paid
+    payment_method = Column(String, nullable=True)
+    transaction_ref = Column(String, nullable=True)
+    payment_date = Column(DateTime(timezone=True), nullable=True)
+    processed_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     # Relationships
-    user = relationship("User", back_populates="payslips")
+    user = relationship("User", foreign_keys=[user_id], back_populates="payslips")
 
 
 class Loan(Base):

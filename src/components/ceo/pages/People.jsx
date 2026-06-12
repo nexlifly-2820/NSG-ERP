@@ -12,12 +12,19 @@ export default function People() {
   
   // Add Employee Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newEmp, setNewEmp] = useState({ name: '', dept: 'Engineering', role: '', email: '', phone: '', status: 'Active' });
+  const [newEmp, setNewEmp] = useState({ name: '', dept: 'Engineering', role: '', email: '', phone: '', status: 'Active', sysRole: 'employee' });
 
   // Full Profile & Messaging State
   const [isFullProfileOpen, setIsFullProfileOpen] = useState(false);
   const [isMessageOpen, setIsMessageOpen] = useState(false);
   const [messageText, setMessageText] = useState('');
+
+  // Edit Profile & Password Reset State
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [editEmpData, setEditEmpData] = useState(null);
+  const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [updating, setUpdating] = useState(false);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,48 +33,161 @@ export default function People() {
 
   const [loading, setLoading] = useState(true);
 
-  React.useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        const token = localStorage.getItem('nsg_jwt_token');
-        const res = await fetch('/api/hr-portal/employees', { headers: { 'Authorization': `Bearer ${token}` } });
-        if (res.ok) {
-          const data = await res.json();
-          const formatted = data.map(emp => ({
-            ...emp,
-            id: `EMP-${emp.id}`,
-            role: emp.role || 'Employee',
-            dept: emp.department || 'Operations',
-            joinDate: emp.date_joined || '12 Jan 2023',
-            status: 'Active',
-            avatar: `https://ui-avatars.com/api/?name=${emp.name.replace(/ /g, '+')}&background=0F172A&color=fff`,
-            leaves: { casual: 10, sick: 5 }
-          }));
-          setEmployees(formatted);
-        }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
+  const fetchEmployees = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/ceo-portal/users', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        const formatted = data.map(emp => ({
+          ...emp,
+          id: emp.emp_id || `EMP-${emp.id}`,
+          dbId: emp.id,
+          role: emp.designation || 'Employee',
+          dept: emp.department || 'Operations',
+          joinDate: emp.join_date || '12 Jan 2023',
+          status: emp.status === 'active' ? 'Active' : (emp.status || 'Active'),
+          avatar: emp.photo || `https://ui-avatars.com/api/?name=${emp.name.replace(/ /g, '+')}&background=0F172A&color=fff`,
+          leaves: { casual: 10, sick: 5 },
+          sysRole: emp.role,
+          email: emp.email
+        }));
+        setEmployees(formatted);
       }
-    };
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
     fetchEmployees();
   }, []);
 
-  const handleAddEmployee = (e) => {
+  const handleAddEmployee = async (e) => {
     e.preventDefault();
     if (!newEmp.name || !newEmp.role || !newEmp.email) return;
-    const empId = `EMP-${Math.floor(Math.random() * 900) + 100}`;
-    const newRecord = {
-      ...newEmp,
-      id: empId,
-      joinDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      avatar: `https://ui-avatars.com/api/?name=${newEmp.name.replace(/ /g, '+')}&background=0F172A&color=fff`,
-      leaves: { casual: 0, sick: 0 }
-    };
-    setEmployees([newRecord, ...employees]);
-    setIsAddModalOpen(false);
-    setNewEmp({ name: '', dept: 'Engineering', role: '', email: '', phone: '', status: 'Active' });
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const response = await fetch('/api/ceo-portal/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: newEmp.name,
+          email: newEmp.email,
+          department: newEmp.dept,
+          designation: newEmp.role,
+          role: newEmp.sysRole,
+          phone: newEmp.phone,
+          join_date: new Date().toISOString().split('T')[0],
+          status: 'active'
+        })
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        alert(`Error: ${err.detail || 'Failed to add user'}`);
+        return;
+      }
+      
+      const result = await response.json();
+      alert(`User ${result.name} successfully added!\n\nRole: ${result.role}\nEmail: ${result.email}\nTemporary Password: ${result.temporary_password}\n\nPlease share these credentials.`);
+      
+      setIsAddModalOpen(false);
+      setNewEmp({ name: '', dept: 'Engineering', role: '', email: '', phone: '', status: 'Active', sysRole: 'employee' });
+      
+      // Reload employees
+      const res = await fetch('/api/ceo-portal/users', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        const formatted = data.map(emp => ({
+          ...emp,
+          id: emp.emp_id || `EMP-${emp.id}`,
+          role: emp.designation || 'Employee',
+          dept: emp.department || 'Operations',
+          joinDate: emp.join_date || '12 Jan 2023',
+          status: emp.status === 'active' ? 'Active' : (emp.status || 'Active'),
+          avatar: emp.photo || `https://ui-avatars.com/api/?name=${emp.name.replace(/ /g, '+')}&background=0F172A&color=fff`,
+          leaves: { casual: 10, sick: 5 },
+          sysRole: emp.role
+        }));
+        setEmployees(formatted);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error while adding user.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditProfileSubmit = async (e) => {
+    e.preventDefault();
+    if (!editEmpData || !selectedEmp) return;
+    setUpdating(true);
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/ceo-portal/users/${selectedEmp.dbId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: editEmpData.name,
+          email: editEmpData.email,
+          department: editEmpData.dept,
+          designation: editEmpData.role,
+          role: editEmpData.sysRole,
+          status: editEmpData.status.toLowerCase()
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Failed to update profile');
+      }
+      await fetchEmployees();
+      setIsEditProfileOpen(false);
+      setIsFullProfileOpen(false); // Close full profile to force refresh on next open
+      alert('Profile updated successfully.');
+    } catch (err) {
+      alert('Error updating profile: ' + err.message);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleResetPasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (!newPassword || !selectedEmp) return;
+    setUpdating(true);
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/ceo-portal/users/${selectedEmp.dbId}/password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ new_password: newPassword })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Failed to reset password');
+      }
+      setIsResetPasswordOpen(false);
+      setNewPassword('');
+      alert('Password reset successfully.');
+    } catch (err) {
+      alert('Error resetting password: ' + err.message);
+    } finally {
+      setUpdating(false);
+    }
   };
 
   const handleDownload = (filename) => {
@@ -377,6 +497,20 @@ export default function People() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>SYSTEM ACCESS ROLE *</label>
+                  <select value={newEmp.sysRole} onChange={e => setNewEmp({...newEmp, sysRole: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }}>
+                    <option value="employee">Employee</option>
+                    <option value="hr">Human Resources (HR)</option>
+                    <option value="tl">Team Lead (TL)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>DESIGNATION *</label>
+                  <input required value={newEmp.role} onChange={e => setNewEmp({...newEmp, role: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }} placeholder="e.g. Senior Dev" />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>DEPARTMENT</label>
                   <select value={newEmp.dept} onChange={e => setNewEmp({...newEmp, dept: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }}>
                     <option value="Executive">Executive</option>
@@ -388,15 +522,11 @@ export default function People() {
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>DESIGNATION *</label>
-                  <input required value={newEmp.role} onChange={e => setNewEmp({...newEmp, role: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }} placeholder="e.g. Senior Dev" />
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>EMAIL ADDRESS *</label>
                   <input required type="email" value={newEmp.email} onChange={e => setNewEmp({...newEmp, email: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }} placeholder="email@nsg.com" />
                 </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>PHONE NUMBER</label>
                   <input value={newEmp.phone} onChange={e => setNewEmp({...newEmp, phone: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }} placeholder="+91 98765..." />
@@ -462,6 +592,15 @@ export default function People() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Admin Actions */}
+              <div style={{ background: '#FFF', padding: '24px', borderRadius: '12px', border: '1px solid var(--ceo-border)' }}>
+                <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '16px' }}>ADMIN ACTIONS</h3>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button onClick={() => { setEditEmpData({...selectedEmp}); setIsEditProfileOpen(true); }} className="ceo-btn" style={{ fontWeight: 700 }}>Edit Profile</button>
+                  <button onClick={() => setIsResetPasswordOpen(true)} className="ceo-btn" style={{ fontWeight: 700, color: 'var(--ceo-danger)', border: '1px solid var(--ceo-danger)' }}>Reset Password</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -492,6 +631,93 @@ export default function People() {
                 }} className="ceo-btn ceo-btn-primary" style={{ fontWeight: 700 }}>Send Message</button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT PROFILE MODAL */}
+      {isEditProfileOpen && editEmpData && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
+          <div style={{ background: '#FFF', width: '500px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', overflow: 'hidden', animation: 'fadeIn 0.2s ease-out' }}>
+            <div style={{ padding: '24px', borderBottom: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC' }}>
+              <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--ceo-text-primary)' }}>Edit Profile</div>
+              <button onClick={() => setIsEditProfileOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--ceo-text-muted)' }}><XCircle size={20} /></button>
+            </div>
+            <form onSubmit={handleEditProfileSubmit} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>FULL NAME</label>
+                <input required value={editEmpData.name} onChange={e => setEditEmpData({...editEmpData, name: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>EMAIL ADDRESS</label>
+                  <input required type="email" value={editEmpData.email} onChange={e => setEditEmpData({...editEmpData, email: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>SYSTEM ROLE</label>
+                  <select value={editEmpData.sysRole} onChange={e => setEditEmpData({...editEmpData, sysRole: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }}>
+                    <option value="employee">Employee</option>
+                    <option value="hr">Human Resources (HR)</option>
+                    <option value="tl">Team Lead (TL)</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>DEPARTMENT</label>
+                  <select value={editEmpData.dept} onChange={e => setEditEmpData({...editEmpData, dept: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }}>
+                    <option value="Executive">Executive</option>
+                    <option value="Engineering">Engineering</option>
+                    <option value="Sales">Sales</option>
+                    <option value="Marketing">Marketing</option>
+                    <option value="HR">HR</option>
+                    <option value="Finance">Finance</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>DESIGNATION</label>
+                  <input required value={editEmpData.role} onChange={e => setEditEmpData({...editEmpData, role: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }} />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>STATUS</label>
+                <select value={editEmpData.status} onChange={e => setEditEmpData({...editEmpData, status: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }}>
+                  <option value="Active">Active</option>
+                  <option value="Probation">Probation</option>
+                  <option value="Terminated">Terminated</option>
+                  <option value="Resigned">Resigned</option>
+                </select>
+              </div>
+              <div style={{ marginTop: '12px', display: 'flex', gap: '12px', justifyContent: 'flex-end', borderTop: '1px solid var(--ceo-divider)', paddingTop: '24px' }}>
+                <button type="button" onClick={() => setIsEditProfileOpen(false)} className="ceo-btn" style={{ fontWeight: 700, padding: '10px 20px' }}>Cancel</button>
+                <button type="submit" className="ceo-btn ceo-btn-primary" disabled={updating} style={{ fontWeight: 700, padding: '10px 20px' }}>{updating ? 'Saving...' : 'Save Changes'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* RESET PASSWORD MODAL */}
+      {isResetPasswordOpen && selectedEmp && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
+          <div style={{ background: '#FFF', width: '400px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', overflow: 'hidden', animation: 'fadeIn 0.2s ease-out' }}>
+            <div style={{ padding: '24px', borderBottom: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC' }}>
+              <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--ceo-danger)' }}>Reset Password</div>
+              <button onClick={() => setIsResetPasswordOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--ceo-text-muted)' }}><XCircle size={20} /></button>
+            </div>
+            <form onSubmit={handleResetPasswordSubmit} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <p style={{ fontSize: '14px', color: 'var(--ceo-text-secondary)', lineHeight: 1.5 }}>
+                You are about to force reset the password for <strong>{selectedEmp.name}</strong>.
+              </p>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>NEW PASSWORD *</label>
+                <input required type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="ceo-form-input" style={{ width: '100%', padding: '12px' }} placeholder="Enter new password" />
+              </div>
+              <div style={{ marginTop: '12px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => setIsResetPasswordOpen(false)} className="ceo-btn" style={{ fontWeight: 700, padding: '10px 20px' }}>Cancel</button>
+                <button type="submit" className="ceo-btn" disabled={updating} style={{ fontWeight: 700, padding: '10px 20px', background: 'var(--ceo-danger)', color: '#FFF', border: 'none' }}>{updating ? 'Resetting...' : 'Reset Password'}</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

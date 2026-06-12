@@ -6,20 +6,7 @@ import {
 } from 'lucide-react';
 import '../CEO.css';
 
-const mockAnnouncements = [
-  { 
-    id: 1, title: 'Important Policy Update — April 2026', 
-    body: 'Please review the attached changes to the WFH policy. Managers must ensure team compliance by Friday.', 
-    priority: 'Urgent', audience: 'All Employees', date: 'Today, 09:00 AM', 
-    author: 'CEO Office', readPct: 65, readCount: 812
-  },
-  { 
-    id: 2, title: 'Q1 Townhall Recording Available', 
-    body: 'Thank you to everyone who joined our all-hands. The recording is now available on the intranet.', 
-    priority: 'Normal', audience: 'All Employees', date: 'Yesterday', 
-    author: 'CEO Office', readPct: 92, readCount: 1150
-  }
-];
+const mockAnnouncements = [];
 
 const formatAnnDate = (dateStr) => {
   if (!dateStr) return '';
@@ -69,11 +56,11 @@ export default function Announcements() {
         const data = await res.json();
         setAnnouncements(data);
       } else {
-        setAnnouncements(mockAnnouncements);
+        setAnnouncements([]);
       }
     } catch (err) {
       console.error("Failed to fetch announcements", err);
-      setAnnouncements(mockAnnouncements);
+      setAnnouncements([]);
     }
   };
 

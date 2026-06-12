@@ -317,6 +317,11 @@ class PayslipResponse(BaseModel):
     net: float
     month: int
     year: int
+    lop: Optional[float] = 0.0
+    status: Optional[str] = "pending"
+    payment_method: Optional[str] = None
+    transaction_ref: Optional[str] = None
+    payment_date: Optional[datetime] = None
 
     class Config:
         from_attributes = True

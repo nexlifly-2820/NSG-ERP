@@ -103,7 +103,7 @@ export default function Projects() {
     e.preventDefault();
     setCreating(true);
     try {
-      const res = await fetch('/api/team-lead/projects', {
+      const res = await fetch('/api/ceo-portal/projects', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token()}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({

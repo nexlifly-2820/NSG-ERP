@@ -1,4 +1,3 @@
-// Crash fix applied
 import React from 'react';
 import Dashboard from './pages/Dashboard';
 import Finance from './pages/Finance';
@@ -13,6 +12,7 @@ import StrategyOKRs from './pages/StrategyOKRs';
 import Messaging from './pages/Messaging';
 import Vendors from './pages/Vendors';
 import DocumentVault from './pages/DocumentVault';
+import CeoPayroll from './pages/Payroll/CeoPayroll';
 import './CEO.css';
 
 export default function Ceo({ activeTab, queryParams, setQueryParams, currentUser }) {
@@ -32,6 +32,7 @@ export default function Ceo({ activeTab, queryParams, setQueryParams, currentUse
       case 'messaging': return <Messaging {...props} />;
       case 'vendors': return <Vendors {...props} />;
       case 'vault': return <DocumentVault {...props} />;
+      case 'payroll': return <CeoPayroll {...props} />;
       default: return <Dashboard {...props} />;
     }
   };
@@ -42,5 +43,3 @@ export default function Ceo({ activeTab, queryParams, setQueryParams, currentUse
     </div>
   );
 }
-
-

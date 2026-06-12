@@ -21,7 +21,7 @@ export default function CeoSidebar({ activeTab, setActiveTab }) {
     { id: 'messaging', label: 'Messaging', icon: <MessageSquare size={18} /> },
     { id: 'vendors', label: 'Vendor Management', icon: <Box size={18} /> },
     { id: 'vault', label: 'Document Vault', icon: <Lock size={18} /> },
-   
+    { id: 'payroll', label: 'Payroll', icon: <DollarSign size={18} /> },
   ];
 
   return (

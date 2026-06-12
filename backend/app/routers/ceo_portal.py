@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 from datetime import date, datetime
 import json
@@ -24,6 +24,49 @@ def verify_ceo_role(user: models.User):
 
 # ─── Pydantic Validation Schemas ──────────────────────────────────────────────
 
+class UserCreateRequest(BaseModel):
+    name: str
+    email: EmailStr
+    department: str
+    designation: str
+    role: str
+    phone: Optional[str] = None
+    join_date: date
+    status: Optional[str] = "probation"
+
+class UserCreateResponse(BaseModel):
+    user_id: int
+    name: str
+    email: str
+    role: str
+    temporary_password: str
+
+class UserDetailResponse(BaseModel):
+    id: int
+    emp_id: Optional[str]
+    name: str
+    email: str
+    role: str
+    department: Optional[str]
+    designation: Optional[str]
+    status: str
+    join_date: Optional[date]
+    photo: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+class UserUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    department: Optional[str] = None
+    designation: Optional[str] = None
+    role: Optional[str] = None
+    status: Optional[str] = None
+
+class PasswordResetRequest(BaseModel):
+    new_password: str
+
 class AnnouncementCreate(BaseModel):
     title: str
     body: str
@@ -40,6 +83,34 @@ class AnnouncementResponse(BaseModel):
     author: str
     read_count: int
     read_pct: float
+
+    class Config:
+        from_attributes = True
+
+class ProjectCreate(BaseModel):
+    name: str
+    client: str
+    budget: float
+    used: Optional[float] = 0.0
+    status: Optional[str] = "Active"
+    deadline: str
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    client: Optional[str] = None
+    budget: Optional[float] = None
+    used: Optional[float] = None
+    status: Optional[str] = None
+    deadline: Optional[str] = None
+
+class ProjectResponse(BaseModel):
+    id: int
+    name: str
+    client: str
+    budget: float
+    used: float
+    status: str
+    deadline: Optional[str]
 
     class Config:
         from_attributes = True
@@ -192,6 +263,103 @@ def get_dashboard_summary(current_user: models.User = Depends(security.get_curre
         "activeProjects": active_projects
     }
 
+@router.get("/users", response_model=List[UserDetailResponse])
+def get_all_users_by_ceo(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_ceo_role(current_user)
+    return db.query(models.User).filter(models.User.role != "admin").all()
+
+@router.post("/users", response_model=UserCreateResponse, status_code=status.HTTP_201_CREATED)
+def create_user_by_ceo(req: UserCreateRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_ceo_role(current_user)
+    
+    exists = db.query(models.User).filter(models.User.email == req.email).first()
+    if exists:
+        raise HTTPException(status_code=400, detail="A user with this email already exists.")
+        
+    # Calculate emp_id
+    max_serial = 100
+    for u in db.query(models.User).all():
+        if u.emp_id and u.emp_id.startswith("NSG-0"):
+            try:
+                num = int(u.emp_id.split("-0")[-1])
+                if num > max_serial:
+                    max_serial = num
+            except ValueError:
+                pass
+    emp_id = f"NSG-0{max_serial + 1}"
+    
+    # Generate temporary password
+    import string, random
+    chars = string.ascii_letters + string.digits
+    temp_pwd_plain = f"{req.name.split(' ')[0]}@123" if req.name else "Welcome@123"
+    hashed_pwd = security.hash_password(temp_pwd_plain)
+    
+    db_user = models.User(
+        name=req.name,
+        email=req.email,
+        hashed_password=hashed_pwd,
+        role=req.role.lower(),
+        department=req.department,
+        designation=req.designation,
+        phone=req.phone,
+        join_date=req.join_date,
+        status=req.status,
+        emp_id=emp_id,
+        is_active=True
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    
+    return {
+        "user_id": db_user.id,
+        "name": db_user.name,
+        "email": db_user.email,
+        "role": db_user.role,
+        "temporary_password": temp_pwd_plain
+    }
+@router.patch("/users/{user_id}", response_model=UserDetailResponse)
+def update_user_by_ceo(user_id: int, req: UserUpdateRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_ceo_role(current_user)
+    
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found.")
+        
+    if req.name is not None:
+        db_user.name = req.name
+    if req.email is not None:
+        exists = db.query(models.User).filter(models.User.email == req.email, models.User.id != user_id).first()
+        if exists:
+            raise HTTPException(status_code=400, detail="Another user with this email already exists.")
+        db_user.email = req.email
+    if req.department is not None:
+        db_user.department = req.department
+    if req.designation is not None:
+        db_user.designation = req.designation
+    if req.role is not None:
+        db_user.role = req.role.lower()
+    if req.status is not None:
+        db_user.status = req.status
+        
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+@router.put("/users/{user_id}/password")
+def reset_user_password_by_ceo(user_id: int, req: PasswordResetRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_ceo_role(current_user)
+    
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found.")
+        
+    hashed_pwd = security.hash_password(req.new_password)
+    db_user.hashed_password = hashed_pwd
+    db.commit()
+    
+    return {"message": "Password updated successfully."}
+
 # 2. Corporate Announcements
 @router.get("/announcements", response_model=List[AnnouncementResponse])
 def get_announcements(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -230,6 +398,68 @@ def create_announcement(req: AnnouncementCreate, current_user: models.User = Dep
     db.commit()
     db.refresh(ann)
     return ann
+
+# 3. Enterprise Projects
+@router.get("/projects", response_model=List[ProjectResponse])
+def get_projects(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_ceo_role(current_user)
+    return db.query(models.Project).order_by(models.Project.created_at.desc()).all()
+
+@router.post("/projects", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
+def create_project(req: ProjectCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_ceo_role(current_user)
+    proj = models.Project(
+        name=req.name,
+        client=req.client,
+        budget=req.budget,
+        used=req.used,
+        status=req.status,
+        deadline=req.deadline
+    )
+    db.add(proj)
+    db.commit()
+    db.refresh(proj)
+    return proj
+
+@router.patch("/projects/{project_id}", response_model=ProjectResponse)
+def update_project(project_id: int, req: ProjectUpdate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_ceo_role(current_user)
+    proj = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+        
+    if req.name is not None: proj.name = req.name
+    if req.client is not None: proj.client = req.client
+    if req.budget is not None: proj.budget = req.budget
+    if req.used is not None: proj.used = req.used
+    if req.status is not None: proj.status = req.status
+    if req.deadline is not None: proj.deadline = req.deadline
+        
+    db.commit()
+    db.refresh(proj)
+    return proj
+
+@router.post("/projects/{project_id}/signoff", response_model=ProjectResponse)
+def signoff_project(project_id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_ceo_role(current_user)
+    proj = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+        
+    proj.status = "Completed"
+    
+    db_log = models.AuditLog(
+        initiator_id=current_user.name,
+        module="Projects",
+        action_type="signoff",
+        record_id=proj.id,
+        change_diff=json.dumps({"status": "Completed"})
+    )
+    db.add(db_log)
+    
+    db.commit()
+    db.refresh(proj)
+    return proj
 
 @router.delete("/announcements/{id}")
 def delete_announcement(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -529,7 +759,7 @@ def update_system_setting(req: ConfigValueRequest, current_user: models.User = D
     db_log = models.AuditLog(
         initiator_id=current_user.name,
         module="Settings",
-        action_type="verify_doc",
+        action_type="CHANGED",
         change_diff=json.dumps({"config_key": req.key, "new_value": req.value})
     )
     db.add(db_log)
@@ -915,6 +1145,42 @@ def ceo_signoff_project(id: int, current_user: models.User = Depends(security.ge
     return project
 
 
+# ─── Dashboard Summary & Pending Approvals ──────────────────────────────────
+
+@router.get("/dashboard/summary")
+def get_dashboard_summary(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_ceo_role(current_user)
+    headcount = db.query(models.User).filter(models.User.status == "active").count()
+    active_blockers = db.query(models.Escalation).filter(models.Escalation.resolved == False).count()
+    
+    pending_leaves = db.query(models.LeaveRequest).filter(models.LeaveRequest.status == "pending").count()
+    pending_expenses = db.query(models.ExpenseClaim).filter(models.ExpenseClaim.status == "pending").count()
+    pending_payroll = db.query(models.PayrollRun).filter(models.PayrollRun.status.in_(["maker_signed", "draft"])).count()
+    pending_loans = db.query(models.Loan).filter(models.Loan.status == "pending").count()
+    
+    pending_approvals = pending_leaves + pending_expenses + pending_payroll + pending_loans
+    
+    okrs = db.query(models.Objective).all()
+    avg_okr = sum([o.progress for o in okrs]) / len(okrs) if okrs else 75
+    
+    active_projects = db.query(models.Project).filter(models.Project.status == "Active").count()
+    
+    run = db.query(models.PayrollRun).order_by(models.PayrollRun.id.desc()).first()
+    monthly_payroll = 0
+    if run:
+        monthly_payroll = db.query(func.sum(models.Payslip.net)).filter(models.Payslip.month == run.month, models.Payslip.year == run.year).scalar() or 0
+        
+    return {
+        "headcount": headcount,
+        "activeBlockers": active_blockers,
+        "pendingApprovalsCount": pending_approvals,
+        "okrProgressAverage": round(avg_okr),
+        "riskIndex": "High" if active_blockers > 2 else "Low",
+        "monthlyPayroll": monthly_payroll,
+        "activeProjects": active_projects
+    }
+
+
 # ─── Reports / Analytics ─────────────────────────────────────────────────────
 
 from collections import defaultdict
@@ -1118,3 +1384,150 @@ def update_kr_progress(
     db.commit()
     db.refresh(kr)
     return {"status": "success", "message": "Key result progress updated successfully."}
+
+
+# ─── 7. Manual Payroll Processing (CEO Only) ─────────────────────────────────
+
+class ProcessPayrollRequest(BaseModel):
+    month: int
+    year: int
+    basic: float
+    hra: float
+    allowances: float
+    bonus: float
+    epf: float
+    tds: float
+    lop: float
+    payment_method: str
+    transaction_ref: str
+
+@router.get("/payroll/pending")
+def get_pending_payrolls(month: int, year: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_ceo_role(current_user)
+    
+    # Get all active users
+    users = db.query(models.User).filter(models.User.status == "active").all()
+    pending = []
+    
+    for u in users:
+        # Check if already paid for this month and year
+        existing = db.query(models.Payslip).filter(models.Payslip.user_id == u.id, models.Payslip.month == month, models.Payslip.year == year).first()
+        if existing and existing.status == "paid":
+            continue
+            
+        # Mock default CTC based on role
+        base = 45000
+        if u.role == "ceo": base = 150000
+        elif u.role == "hr": base = 60000
+        elif u.role == "tl": base = 80000
+        
+        hra = base * 0.4
+        allowances = base * 0.2
+        bonus = 0.0
+        
+        epf = base * 0.12
+        tds = base * 0.1
+        
+        gross = base + hra + allowances + bonus
+        deductions = epf + tds
+        net = gross - deductions
+        
+        pending.append({
+            "employee_id": u.id,
+            "employee_name": u.name,
+            "role": u.role,
+            "department": u.department,
+            "basic": base,
+            "hra": hra,
+            "allowances": allowances,
+            "bonus": bonus,
+            "epf": epf,
+            "tds": tds,
+            "lop": 0.0,
+            "net": net,
+            "status": "pending"
+        })
+        
+    return pending
+
+@router.post("/payroll/process/{user_id}")
+def process_manual_payroll(user_id: int, req: ProcessPayrollRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_ceo_role(current_user)
+    
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    gross = req.basic + req.hra + req.allowances + req.bonus
+    deductions = req.epf + req.tds + req.lop
+    net = gross - deductions
+    
+    # Check if exists
+    payslip = db.query(models.Payslip).filter(models.Payslip.user_id == user_id, models.Payslip.month == req.month, models.Payslip.year == req.year).first()
+    if not payslip:
+        payslip = models.Payslip(user_id=user_id, month=req.month, year=req.year)
+        db.add(payslip)
+        
+    payslip.basic = req.basic
+    payslip.hra = req.hra
+    payslip.allowances = req.allowances + req.bonus
+    payslip.da = 0.0
+    payslip.epf = req.epf
+    payslip.tds = req.tds
+    payslip.lop = req.lop
+    payslip.net = net
+    payslip.status = "paid"
+    payslip.payment_method = req.payment_method
+    payslip.transaction_ref = req.transaction_ref
+    payslip.payment_date = datetime.now()
+    payslip.processed_by_id = current_user.id
+    
+    # Log Action
+    db_log = models.AuditLog(
+        initiator_id=current_user.name,
+        module="Payroll",
+        action_type="process_payroll",
+        change_diff=json.dumps({"user_id": user_id, "month": req.month, "year": req.year, "net": net})
+    )
+    db.add(db_log)
+    
+    # Notification
+    db_notify = models.Notification(
+        user_id=user_id,
+        message=f"Your payroll for month {req.month}/{req.year} has been processed.",
+        type="success"
+    )
+    db.add(db_notify)
+    
+    db.commit()
+    return {"status": "success", "message": "Payroll processed successfully"}
+
+@router.get("/payroll/history")
+def get_payroll_history(month: Optional[int] = None, year: Optional[int] = None, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_ceo_role(current_user)
+    
+    query = db.query(models.Payslip).filter(models.Payslip.status == "paid")
+    if month:
+        query = query.filter(models.Payslip.month == month)
+    if year:
+        query = query.filter(models.Payslip.year == year)
+        
+    payslips = query.order_by(models.Payslip.payment_date.desc()).all()
+    
+    result = []
+    for p in payslips:
+        emp = p.user
+        result.append({
+            "id": p.id,
+            "employee_name": emp.name if emp else "Unknown",
+            "department": emp.department if emp else "Unknown",
+            "month": p.month,
+            "year": p.year,
+            "net": p.net,
+            "payment_method": p.payment_method,
+            "transaction_ref": p.transaction_ref,
+            "payment_date": p.payment_date.isoformat() if p.payment_date else None
+        })
+        
+    return result
+
