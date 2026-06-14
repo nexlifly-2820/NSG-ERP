@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   LayoutDashboard, CreditCard, User, UserMinus, 
   HelpCircle, Briefcase, MessageSquare,
-  Calendar, Clock, CheckSquare, Coins
+  Calendar, Clock, CheckSquare, Coins, Network, Target
 } from 'lucide-react';
 
 export default function EmployeeSidebar({ activeTab, setActiveTab, currentUser }) {
@@ -18,6 +18,8 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, currentUser }
   const isHelpActive = activeTab === 'help';
   const isAssetsActive = activeTab === 'assets';
   const isMessagingActive = activeTab === 'messaging';
+  const isOrgChartActive = activeTab === 'orgChart';
+  const isPerformanceActive = activeTab === 'performance';
 
   const activeStyle = {
     color: '#10b981',
@@ -104,6 +106,26 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, currentUser }
         <span>Expenses</span>
       </button>
 
+      {/* Org Chart Tab */}
+      <button
+        className={`nav-link ${isOrgChartActive ? 'active' : ''}`}
+        onClick={() => setActiveTab('orgChart')}
+        style={isOrgChartActive ? activeStyle : {}}
+      >
+        <Network size={18} />
+        <span>Org Chart</span>
+      </button>
+
+      {/* Performance Tab */}
+      <button
+        className={`nav-link ${isPerformanceActive ? 'active' : ''}`}
+        onClick={() => setActiveTab('performance')}
+        style={isPerformanceActive ? activeStyle : {}}
+      >
+        <Target size={18} />
+        <span>Performance</span>
+      </button>
+
       {/* Profile Tab */}
       <button
         className={`nav-link ${isProfileActive ? 'active' : ''}`}
@@ -155,4 +177,4 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, currentUser }
       </button>
     </div>
   );
-}
+}

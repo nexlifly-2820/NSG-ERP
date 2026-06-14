@@ -12,16 +12,7 @@ import '../../ceo/CEO.css';
 import EmojiPicker from 'emoji-picker-react';
 import { Download, Copy } from 'lucide-react';
 
-const DEFAULT_CHAT_CHANNELS = [
-  {
-    id: 'general-channel',
-    name: '#general-channel',
-    label: 'Company General Room',
-    type: 'staff',
-    members: ['ceo'],
-    messages: []
-  }
-];
+const DEFAULT_CHAT_CHANNELS = [];
 
 export default function Messages({ initialSelectedChannel, currentUser }) {
   const tlName = currentUser?.name || 'Michael Vance';
@@ -94,13 +85,12 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
     fetchChannelsAndMessages();
   }, []);
   
-  // === MOCK DATA ===
-  const chatChannels = dbChannels.length > 0 ? dbChannels : DEFAULT_CHAT_CHANNELS;
-  const myChannels = chatChannels.filter(c => c.id === "general-channel" || (c.members && c.members.includes(String(currentUser?.id || 'ceo'))));
+  const chatChannels = dbChannels;
+  const myChannels = chatChannels.filter(c => c.id === "general-channel" || (c.members && c.members.includes(String(currentUser?.id || 'tl'))));
 
   const [selectedChannel, setSelectedChannel] = useState(() => {
     if (initialSelectedChannel) return initialSelectedChannel;
-    return myChannels.length > 0 ? myChannels[0].id : 'general-channel';
+    return myChannels.length > 0 ? myChannels[0].id : '';
   });
 
   const [employees, setEmployees] = useState([]);
@@ -224,7 +214,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
   // Initialize WebSocket connection for real-time messaging
   useEffect(() => {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//127.0.0.1:8000/employee-portal/ws/${encodeURIComponent(tlName)}`;
+    const wsUrl = `${wsProtocol}//127.0.0.1:8000/chat/ws/${encodeURIComponent(tlName)}`;
     const socket = new WebSocket(wsUrl);
     socketRef.current = socket;
 
@@ -688,7 +678,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
       console.error("Failed to save channel to backend:", err);
     }
 
-    const currentChannels = dbChannels.length > 0 ? dbChannels : DEFAULT_CHAT_CHANNELS;
+    const currentChannels = dbChannels;
     const updated = [...currentChannels, newChan];
     setDbChannels(updated);
     

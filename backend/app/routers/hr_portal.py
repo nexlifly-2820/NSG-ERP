@@ -124,7 +124,6 @@ class EmployeeResponse(BaseModel):
 
 class EmployeeCreateResponse(BaseModel):
     employee: EmployeeResponse
-    temporary_password: str
 
 class EmployeeUpdateRequest(BaseModel):
     name: Optional[str] = None
@@ -501,7 +500,7 @@ class PromotionDecide(BaseModel):
 
 # 1. Telemetry Dashboard
 @router.get("/dashboard/metrics")
-def get_dashboard_metrics(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_dashboard_metrics(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
     
     total_employees = db.query(models.User).filter(models.User.role == "employee").count()
@@ -528,9 +527,9 @@ def get_dashboard_metrics(current_user: models.User = Depends(security.get_curre
 
 # 2. Recruitment Module (ATS Board)
 @router.get("/candidates", response_model=List[CandidateResponse])
-def get_candidates(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_candidates(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.Candidate).order_by(models.Candidate.created_at.desc()).all()
+    return db.query(models.Candidate).order_by(models.Candidate.created_at.desc()).offset(skip).limit(limit).all()
 
 @router.post("/candidates", response_model=CandidateResponse, status_code=status.HTTP_201_CREATED)
 def create_candidate(req: CandidateCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -614,9 +613,9 @@ def transition_candidate_to_employee(id: int, current_user: models.User = Depend
         phone=cand.phone,
         join_date=today,
         probation_end_date=probation_end,
-        bank_name="HDFC Bank",
-        account_number=f"50100{security.hash_password(cand.name)[:9]}", # Simulate account creation
-        ifsc_code="HDFC0000012",
+        bank_name=None,
+        account_number=None,
+        ifsc_code=None,
         grade=3,
         manager="John Doe",
         photo="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&fit=crop&q=80",
@@ -677,7 +676,7 @@ def transition_candidate_to_employee(id: int, current_user: models.User = Depend
     
     db.commit()
     db.refresh(db_emp)
-    return {"employee": db_emp, "temporary_password": default_pwd_plain}
+    return {"employee": db_emp}
 
 @router.delete("/candidates/{id}")
 def delete_candidate(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -725,14 +724,14 @@ def create_job_offer(req: JobOfferCreate, current_user: models.User = Depends(se
 
 # 3. Employee Registry Module
 @router.get("/employees", response_model=List[EmployeeResponse])
-def get_employees(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_employees(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.User).filter(models.User.role.in_(["employee", "tl"])).all()
+    return db.query(models.User).filter(models.User.role.in_(["employee", "tl"])).offset(skip).limit(limit).all()
 
 @router.get("/team-leads", response_model=List[EmployeeResponse])
-def get_team_leads(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_team_leads(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.User).filter(models.User.role == "tl").all()
+    return db.query(models.User).filter(models.User.role == "tl").offset(skip).limit(limit).all()
 
 @router.post("/employees", response_model=EmployeeCreateResponse, status_code=status.HTTP_201_CREATED)
 def add_employee(req: EmployeeCreateRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -772,9 +771,9 @@ def add_employee(req: EmployeeCreateRequest, current_user: models.User = Depends
         emp_id=emp_id,
         join_date=req.join_date,
         probation_end_date=probation_end,
-        bank_name="HDFC Bank",
-        account_number=f"50100{security.hash_password(req.name)[:9]}",
-        ifsc_code="HDFC0000012",
+        bank_name=None,
+        account_number=None,
+        ifsc_code=None,
         grade=3,
         manager="John Doe",
         manager_id=req.manager_id,
@@ -825,7 +824,7 @@ def add_employee(req: EmployeeCreateRequest, current_user: models.User = Depends
 
     db.commit()
     db.refresh(db_emp)
-    return {"employee": db_emp, "temporary_password": default_pwd_plain}
+    return {"employee": db_emp}
 
 @router.post("/employees/{id}/confirm-probation", response_model=EmployeeResponse)
 def confirm_probation(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -1073,9 +1072,9 @@ def verify_employee_document(id: int, req: DocumentVerifyRequest, current_user: 
 
 # 4. Onboarding & E-Sign
 @router.get("/onboarding/tasks", response_model=List[OnboardingTaskResponse])
-def get_onboarding_tasks(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_onboarding_tasks(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.OnboardingTask).all()
+    return db.query(models.OnboardingTask).offset(skip).limit(limit).all()
 
 @router.post("/onboarding/tasks/{id}/toggle", response_model=OnboardingTaskResponse)
 def toggle_onboarding_task(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -1101,9 +1100,9 @@ def toggle_onboarding_task(id: int, current_user: models.User = Depends(security
     return task
 
 @router.get("/onboarding/esign-requests", response_model=List[EsignRequestResponse])
-def get_esign_requests(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_esign_requests(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.EsignRequest).all()
+    return db.query(models.EsignRequest).offset(skip).limit(limit).all()
 
 @router.post("/onboarding/esign-requests", response_model=EsignRequestResponse)
 def create_esign_request(req: EsignRequestCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -1153,9 +1152,9 @@ def delete_esign_request(id: int, current_user: models.User = Depends(security.g
 
 # 5. Leaves & Timesheets Exceptions
 @router.get("/leaves/balances", response_model=List[LeaveBalanceResponse])
-def get_leave_balances(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_leave_balances(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.LeaveBalance).all()
+    return db.query(models.LeaveBalance).offset(skip).limit(limit).all()
 
 @router.put("/leaves/balances/{id}", response_model=LeaveBalanceResponse)
 def adjust_leave_balance(id: int, req: LeaveBalanceAdjustment, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -1173,9 +1172,9 @@ def adjust_leave_balance(id: int, req: LeaveBalanceAdjustment, current_user: mod
     return bal
 
 @router.get("/leaves/requests", response_model=List[LeaveRequestResponse])
-def get_leave_requests(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_leave_requests(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.LeaveRequest).order_by(models.LeaveRequest.from_date.desc()).all()
+    return db.query(models.LeaveRequest).order_by(models.LeaveRequest.from_date.desc()).offset(skip).limit(limit).all()
 
 @router.post("/leaves/requests/on-behalf", response_model=LeaveRequestResponse)
 def apply_leave_on_behalf(req: LeaveRequestOnBehalf, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -1320,9 +1319,9 @@ def delete_leave_request(id: int, current_user: models.User = Depends(security.g
     return {"status": "success", "message": "Leave request successfully deleted and balances restored if applicable."}
 
 @router.get("/timesheets/exceptions", response_model=List[TimesheetExceptionResponse])
-def get_timesheet_exceptions(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_timesheet_exceptions(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.TimesheetException).all()
+    return db.query(models.TimesheetException).offset(skip).limit(limit).all()
 
 @router.post("/timesheets/exceptions/{id}/resolve", response_model=TimesheetExceptionResponse)
 def resolve_timesheet_exception(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -1338,10 +1337,10 @@ def resolve_timesheet_exception(id: int, current_user: models.User = Depends(sec
 
 # 6. Payroll Builder, Claims, and TDS
 @router.get("/payroll/runs", response_model=List[PayrollRunResponse])
-def get_payroll_runs(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_payroll_runs(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
     security.check_rbac_permission(db, current_user, "View Salary")
-    return db.query(models.PayrollRun).all()
+    return db.query(models.PayrollRun).offset(skip).limit(limit).all()
 
 @router.post("/payroll/runs", response_model=PayrollRunResponse, status_code=status.HTTP_201_CREATED)
 def create_payroll_run(req: PayrollRunCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -1374,9 +1373,9 @@ def sign_payroll_maker(id: int, current_user: models.User = Depends(security.get
     return run
 
 @router.get("/payroll/claims", response_model=List[ExpenseClaimResponse])
-def get_expense_claims(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_expense_claims(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.ExpenseClaim).all()
+    return db.query(models.ExpenseClaim).offset(skip).limit(limit).all()
 
 @router.post("/payroll/claims/{id}/approve", response_model=ExpenseClaimResponse)
 def approve_expense_claim_hr(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -1420,9 +1419,9 @@ def reject_expense_claim_hr(id: int, current_user: models.User = Depends(securit
     return claim
 
 @router.get("/payroll/tds-declarations", response_model=List[TDSDeclarationResponse])
-def get_tds_declarations(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_tds_declarations(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.TDSDeclaration).all()
+    return db.query(models.TDSDeclaration).offset(skip).limit(limit).all()
 
 @router.post("/payroll/tds-declarations/{id}/verify", response_model=TDSDeclarationResponse)
 def verify_tds_declaration(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -1439,9 +1438,9 @@ def verify_tds_declaration(id: int, current_user: models.User = Depends(security
     return tds
 
 @router.get("/payroll/loans", response_model=List[LoanResponse])
-def get_payroll_loans(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_payroll_loans(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.Loan).all()
+    return db.query(models.Loan).offset(skip).limit(limit).all()
 
 @router.post("/payroll/loans", response_model=LoanResponse, status_code=status.HTTP_201_CREATED)
 def create_loan(req: LoanCreateRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -1462,9 +1461,9 @@ def create_loan(req: LoanCreateRequest, current_user: models.User = Depends(secu
 
 # 7. Performance & Appraisals
 @router.get("/performance/disciplinary-tickets", response_model=List[DisciplinaryTicketResponse])
-def get_disciplinary_tickets(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_disciplinary_tickets(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.DisciplinaryTicket).all()
+    return db.query(models.DisciplinaryTicket).offset(skip).limit(limit).all()
 
 @router.post("/performance/disciplinary-tickets", response_model=DisciplinaryTicketResponse, status_code=status.HTTP_201_CREATED)
 def create_disciplinary_ticket(req: DisciplinaryTicketCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -1513,9 +1512,9 @@ def resolve_disciplinary_ticket(id: int, req: DisciplinaryTicketResolve, current
     return ticket
 
 @router.get("/performance/pips", response_model=List[PIPResponse])
-def get_pips(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_pips(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.PIP).all()
+    return db.query(models.PIP).offset(skip).limit(limit).all()
 
 @router.post("/performance/pips", response_model=PIPResponse, status_code=status.HTTP_201_CREATED)
 def create_pip(req: PIPCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -1553,9 +1552,9 @@ def update_pip(id: int, req: PIPGoalUpdate, current_user: models.User = Depends(
 
 # 8. Exits & Settlements
 @router.get("/exits/resignations", response_model=List[ResignationResponse])
-def get_resignations(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_resignations(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.Resignation).all()
+    return db.query(models.Resignation).offset(skip).limit(limit).all()
 
 @router.post("/exits/resignations/{id}/approve", response_model=ResignationResponse)
 def approve_resignation_hr(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -1583,9 +1582,9 @@ def reject_resignation_hr(id: int, current_user: models.User = Depends(security.
 
 # 9. L&D (Learning Track)
 @router.get("/lnd/tracks", response_model=List[TrainingTrackResponse])
-def get_lnd_tracks(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_lnd_tracks(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.TrainingTrack).all()
+    return db.query(models.TrainingTrack).offset(skip).limit(limit).all()
 
 @router.post("/lnd/tracks", response_model=TrainingTrackResponse, status_code=status.HTTP_201_CREATED)
 def create_lnd_track(req: TrainingTrackCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -1602,28 +1601,28 @@ def create_lnd_track(req: TrainingTrackCreate, current_user: models.User = Depen
     return track
 
 @router.get("/lnd/progress", response_model=List[TrainingProgressResponse])
-def get_lnd_progress(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_lnd_progress(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.TrainingProgress).all()
+    return db.query(models.TrainingProgress).offset(skip).limit(limit).all()
 
 # 10. Audit Logs
 @router.get("/audit-logs", response_model=List[AuditLogResponse])
-def get_audit_logs(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_audit_logs(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
     security.check_rbac_permission(db, current_user, "View Audit Logs")
-    return db.query(models.AuditLog).order_by(models.AuditLog.timestamp.desc()).all()
+    return db.query(models.AuditLog).order_by(models.AuditLog.timestamp.desc()).offset(skip).limit(limit).all()
 
 # 10.5 Leave Management (HR)
 
 @router.get("/leaves", response_model=List[LeaveRequestResponse])
-def get_all_leaves(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_all_leaves(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.LeaveRequest).order_by(models.LeaveRequest.from_date.desc()).all()
+    return db.query(models.LeaveRequest).order_by(models.LeaveRequest.from_date.desc()).offset(skip).limit(limit).all()
 
 @router.get("/leave-balances", response_model=List[LeaveBalanceResponse])
-def get_all_leave_balances(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_all_leave_balances(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.LeaveBalance).all()
+    return db.query(models.LeaveBalance).offset(skip).limit(limit).all()
 
 @router.post("/leaves/on-behalf", response_model=LeaveRequestResponse, status_code=status.HTTP_201_CREATED)
 def apply_leave_on_behalf(req: LeaveRequestOnBehalf, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -1815,9 +1814,9 @@ DEFAULT_PROMOTIONS = [
 
 
 @router.get("/appraisal-cycles", response_model=List[AppraisalCycleResponse])
-def get_appraisal_cycles(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_appraisal_cycles(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.AppraisalCycle).all()
+    return db.query(models.AppraisalCycle).offset(skip).limit(limit).all()
 
 
 @router.post("/appraisal-cycles", response_model=AppraisalCycleResponse, status_code=status.HTTP_201_CREATED)
@@ -1839,9 +1838,9 @@ def create_appraisal_cycle(req: AppraisalCycleCreate, current_user: models.User 
 
 
 @router.get("/increment-proposals", response_model=List[IncrementProposalResponse])
-def get_increment_proposals(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_increment_proposals(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.IncrementProposal).all()
+    return db.query(models.IncrementProposal).offset(skip).limit(limit).all()
 
 
 @router.post("/increment-proposals", response_model=IncrementProposalResponse, status_code=status.HTTP_201_CREATED)
@@ -1863,28 +1862,28 @@ def create_increment_proposal(req: IncrementProposalCreate, current_user: models
 
 
 @router.get("/appraisal-scorecards", response_model=List[AppraisalScorecardResponse])
-def get_appraisal_scorecards(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_appraisal_scorecards(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    scorecards = db.query(models.AppraisalScorecard).all()
+    scorecards = db.query(models.AppraisalScorecard).offset(skip).limit(limit).all()
     if not scorecards:
         for sc in DEFAULT_SCORECARDS:
             db_sc = models.AppraisalScorecard(**sc)
             db.add(db_sc)
         db.commit()
-        scorecards = db.query(models.AppraisalScorecard).all()
+        scorecards = db.query(models.AppraisalScorecard).offset(skip).limit(limit).all()
     return scorecards
 
 
 @router.get("/promotions", response_model=List[PromotionResponse])
-def get_promotions(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_promotions(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    promotions = db.query(models.Promotion).all()
+    promotions = db.query(models.Promotion).offset(skip).limit(limit).all()
     if not promotions:
         for pr in DEFAULT_PROMOTIONS:
             db_pr = models.Promotion(**pr)
             db.add(db_pr)
         db.commit()
-        promotions = db.query(models.Promotion).all()
+        promotions = db.query(models.Promotion).offset(skip).limit(limit).all()
     return promotions
 
 
@@ -1977,9 +1976,9 @@ class SupportTicketResponse(BaseModel):
         from_attributes = True
 
 @router.get("/tickets", response_model=List[SupportTicketResponse])
-def get_all_tickets(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_all_tickets(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    tickets = db.query(models.SupportTicket).order_by(models.SupportTicket.created_at.desc()).all()
+    tickets = db.query(models.SupportTicket).order_by(models.SupportTicket.created_at.desc()).offset(skip).limit(limit).all()
     res = []
     for t in tickets:
         u = db.query(models.User).filter(models.User.id == t.user_id).first()
@@ -2019,9 +2018,9 @@ class DepartmentSchemaRequest(BaseModel):
     schema_fields: List[SchemaField]
 
 @router.get("/schemas")
-def get_all_schemas(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_all_schemas(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    schemas = db.query(models.DepartmentSchema).all()
+    schemas = db.query(models.DepartmentSchema).offset(skip).limit(limit).all()
     res = {}
     for s in schemas:
         try:
@@ -2227,7 +2226,7 @@ def list_promotions(
     """Fetch all promotion proposals. Used by CEO portal Approvals page."""
     if current_user.role not in ["hr", "ceo", "admin"]:
         raise HTTPException(status_code=403, detail="Forbidden.")
-    return db.query(models.Promotion).order_by(models.Promotion.id.desc()).all()
+    return db.query(models.Promotion).order_by(models.Promotion.id.desc()).offset(skip).limit(limit).all()
 
 
 @router.post("/promotions", response_model=PromotionResponse, status_code=status.HTTP_201_CREATED)
@@ -2312,7 +2311,7 @@ def list_resignations(
     """Fetch all employee resignation records. Used by CEO Approvals page."""
     if current_user.role not in ["hr", "ceo", "admin"]:
         raise HTTPException(status_code=403, detail="Forbidden.")
-    return db.query(models.Resignation).order_by(models.Resignation.resignation_date.desc()).all()
+    return db.query(models.Resignation).order_by(models.Resignation.resignation_date.desc()).offset(skip).limit(limit).all()
 
 
 @router.post("/exits/resignations/{id}/approve")
@@ -2413,9 +2412,9 @@ class LoanResponse(BaseModel):
         from_attributes = True
 
 @router.get("/exits/assets/{employee_id}", response_model=List[AssetResponse])
-def get_employee_assets(employee_id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_employee_assets(employee_id: int, current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.Asset).filter(models.Asset.user_id == employee_id).all()
+    return db.query(models.Asset).filter(models.Asset.user_id == employee_id).offset(skip).limit(limit).all()
 
 @router.patch("/exits/assets/{asset_id}/return")
 def return_employee_asset(asset_id: str, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -2435,9 +2434,9 @@ def return_employee_asset(asset_id: str, current_user: models.User = Depends(sec
     return {"status": "success", "returnStatus": asset.returnStatus}
 
 @router.get("/exits/fnf-details/{employee_id}")
-def get_fnf_details(employee_id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_fnf_details(employee_id: int, current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    loans = db.query(models.Loan).filter(models.Loan.user_id == employee_id, models.Loan.status == "active").all()
+    loans = db.query(models.Loan).filter(models.Loan.user_id == employee_id, models.Loan.status == "active").offset(skip).limit(limit).all()
     leave_balance = db.query(models.LeaveBalance).filter(models.LeaveBalance.user_id == employee_id).first()
     return {
         "loans": [{"outstanding_balance": l.outstanding_balance} for l in loans],
@@ -2503,7 +2502,7 @@ def list_tds_declarations(
 ):
     """Return all employee TDS investment declarations. Shown to HR on Payroll Builder page."""
     verify_hr_role(current_user)
-    return db.query(models.TDSDeclaration).order_by(models.TDSDeclaration.id.desc()).all()
+    return db.query(models.TDSDeclaration).order_by(models.TDSDeclaration.id.desc()).offset(skip).limit(limit).all()
 
 
 @router.post("/payroll/tds-declarations/{id}/verify")
@@ -2537,7 +2536,7 @@ def list_expense_claims_for_payroll(
     that are pending HR verification.
     """
     verify_hr_role(current_user)
-    return db.query(models.ExpenseClaim).order_by(models.ExpenseClaim.claim_date.desc()).all()
+    return db.query(models.ExpenseClaim).order_by(models.ExpenseClaim.claim_date.desc()).offset(skip).limit(limit).all()
 
 
 @router.post("/payroll/claims/{id}/approve")
@@ -2730,7 +2729,7 @@ def list_lnd_tracks(
 ):
     """Return all L&D training tracks. HR creates and manages these."""
     verify_hr_role(current_user)
-    tracks = db.query(models.TrainingTrack).all()
+    tracks = db.query(models.TrainingTrack).offset(skip).limit(limit).all()
     if not tracks:
         # Auto-seed default tracks if none exist so the page doesn't show blank
         defaults = [
@@ -2744,7 +2743,7 @@ def list_lnd_tracks(
         for d in defaults:
             db.add(d)
         db.commit()
-        tracks = db.query(models.TrainingTrack).all()
+        tracks = db.query(models.TrainingTrack).offset(skip).limit(limit).all()
     return tracks
 
 
@@ -2775,7 +2774,7 @@ def list_lnd_progress(
 ):
     """Return training progress records for all employees."""
     verify_hr_role(current_user)
-    return db.query(models.TrainingProgress).all()
+    return db.query(models.TrainingProgress).offset(skip).limit(limit).all()
 
 
 # ─── GRIEVANCE TICKETS (HR MESSAGING) ────────────────────────────────────────
@@ -2803,14 +2802,14 @@ def list_support_tickets(
 ):
     """Return all employee-raised support/grievance tickets for the HR messaging view."""
     verify_hr_role(current_user)
-    return db.query(models.SupportTicket).order_by(models.SupportTicket.created_at.desc()).all()
+    return db.query(models.SupportTicket).order_by(models.SupportTicket.created_at.desc()).offset(skip).limit(limit).all()
 
 # ─── MOCKED ENDPOINTS FOR CEO APPROVALS ──────────────────────────────────────
 
 @router.get("/payroll/runs")
-def get_payroll_runs(db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
+def get_payroll_runs(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
     verify_hr_role(current_user)
-    runs = db.query(models.PayrollRun).all()
+    runs = db.query(models.PayrollRun).offset(skip).limit(limit).all()
     res = []
     for r in runs:
         res.append({
@@ -2843,9 +2842,9 @@ def create_payroll_run(req: PayrollRunCreate, db: Session = Depends(database.get
     return {"status": "success", "run_id": new_run.id}
 
 @router.get("/promotions")
-def get_promotions(db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
+def get_promotions(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
     verify_hr_role(current_user)
-    promotions = db.query(models.Promotion).all()
+    promotions = db.query(models.Promotion).offset(skip).limit(limit).all()
     res = []
     for p in promotions:
         res.append({
@@ -2879,9 +2878,9 @@ def decide_promotion(id: int, request: dict, db: Session = Depends(database.get_
     return {"status": "success", "decision": decision}
 
 @router.get("/exits/resignations")
-def get_resignations(db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
+def get_resignations(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
     verify_hr_role(current_user)
-    resigs = db.query(models.Resignation).all()
+    resigs = db.query(models.Resignation).offset(skip).limit(limit).all()
     return [
         {
             "id": r.id,
@@ -2914,7 +2913,7 @@ def list_holidays(
     db: Session = Depends(database.get_db)
 ):
     """Return all configured holidays. Seeds defaults on first call."""
-    holidays = db.query(models.Holiday).order_by(models.Holiday.date).all()
+    holidays = db.query(models.Holiday).order_by(models.Holiday.date).offset(skip).limit(limit).all()
     if not holidays:
         # Seed national holidays on first call
         seeds = [
@@ -2926,7 +2925,7 @@ def list_holidays(
         db.add_all(seeds)
         db.commit()
         db.refresh(seeds[0])
-        holidays = db.query(models.Holiday).order_by(models.Holiday.date).all()
+        holidays = db.query(models.Holiday).order_by(models.Holiday.date).offset(skip).limit(limit).all()
     return holidays
 
 @router.post("/holidays", response_model=HolidayResponse)
@@ -2981,7 +2980,7 @@ def list_leave_policies(
     db: Session = Depends(database.get_db)
 ):
     """Return all leave policies. Seeds defaults on first call."""
-    policies = db.query(models.LeavePolicy).all()
+    policies = db.query(models.LeavePolicy).offset(skip).limit(limit).all()
     if not policies:
         seeds = [
             models.LeavePolicy(type="CL",        accrual_rule="monthly",  max_balance=12,  carryover_days=2,  is_active=True),
@@ -2992,7 +2991,7 @@ def list_leave_policies(
         ]
         db.add_all(seeds)
         db.commit()
-        policies = db.query(models.LeavePolicy).all()
+        policies = db.query(models.LeavePolicy).offset(skip).limit(limit).all()
     return policies
 
 @router.patch("/leave/policies/{policy_id}", response_model=LeavePolicyResponse)
@@ -3025,7 +3024,7 @@ def get_all_schemas(
     db: Session = Depends(database.get_db)
 ):
     """Return all department schemas as a dict { dept: [fields] }."""
-    schemas = db.query(models.CustomSchema).all()
+    schemas = db.query(models.CustomSchema).offset(skip).limit(limit).all()
     return {s.department: json.loads(s.schema_fields) for s in schemas}
 
 @router.post("/schemas/{department}")
@@ -3046,9 +3045,9 @@ def save_schema(
     return {"detail": f"Schema for {department} saved successfully"}
 # 5. Leaves Management
 @router.get("/leaves/balances", response_model=List[LeaveBalanceResponse])
-def get_leave_balances(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_leave_balances(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.LeaveBalance).all()
+    return db.query(models.LeaveBalance).offset(skip).limit(limit).all()
 
 @router.put("/leaves/balances/{id}", response_model=LeaveBalanceResponse)
 def adjust_leave_balance(id: int, req: LeaveBalanceAdjustment, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -3066,9 +3065,9 @@ def adjust_leave_balance(id: int, req: LeaveBalanceAdjustment, current_user: mod
     return bal
 
 @router.get("/leaves/requests", response_model=List[LeaveRequestResponse])
-def get_leave_requests(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_leave_requests(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.LeaveRequest).order_by(models.LeaveRequest.from_date.desc()).all()
+    return db.query(models.LeaveRequest).order_by(models.LeaveRequest.from_date.desc()).offset(skip).limit(limit).all()
 
 @router.post("/leaves/requests/on-behalf", response_model=LeaveRequestResponse)
 def apply_leave_on_behalf(req: LeaveRequestOnBehalf, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -3215,11 +3214,11 @@ def delete_leave_request(id: int, current_user: models.User = Depends(security.g
 # ─── REPORTS & BI ENGINE MODULE ─────────────────────────────────────────────
 
 @router.get("/reports/overview")
-def get_reports_overview(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_reports_overview(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    employees = db.query(models.User).filter(models.User.role == "employee").all()
-    resignations = db.query(models.Resignation).filter(models.Resignation.status == "approved").all()
-    training = db.query(models.TrainingProgress).filter(models.TrainingProgress.passed == True).all()
+    employees = db.query(models.User).filter(models.User.role == "employee").offset(skip).limit(limit).all()
+    resignations = db.query(models.Resignation).filter(models.Resignation.status == "approved").offset(skip).limit(limit).all()
+    training = db.query(models.TrainingProgress).filter(models.TrainingProgress.passed == True).offset(skip).limit(limit).all()
     leave_reqs = db.query(models.LeaveRequest).filter(models.LeaveRequest.status == "pending").count()
     increments = db.query(models.IncrementProposal).filter(models.IncrementProposal.status == "pending_ceo").count()
     
@@ -3240,12 +3239,12 @@ def get_reports_overview(current_user: models.User = Depends(security.get_curren
     }
 
 @router.get("/reports/payroll")
-def get_reports_payroll(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_reports_payroll(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    payslips = db.query(models.Payslip).order_by(models.Payslip.id.desc()).all()
+    payslips = db.query(models.Payslip).order_by(models.Payslip.id.desc()).offset(skip).limit(limit).all()
     pending_props = db.query(models.IncrementProposal).filter(models.IncrementProposal.status == "pending_ceo").count()
     
-    runs = db.query(models.PayrollRun).filter(models.PayrollRun.status == "bank_transferred").order_by(models.PayrollRun.id.desc()).all()
+    runs = db.query(models.PayrollRun).filter(models.PayrollRun.status == "bank_transferred").order_by(models.PayrollRun.id.desc()).offset(skip).limit(limit).all()
     last_run_id = runs[0].id if runs else None
     
     total_payout = 0
@@ -3276,11 +3275,11 @@ def get_reports_payroll(current_user: models.User = Depends(security.get_current
     }
 
 @router.get("/reports/leave")
-def get_reports_leave(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_reports_leave(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
     pending_reqs = db.query(models.LeaveRequest).filter(models.LeaveRequest.status == "pending").count()
     approved_this_year = db.query(models.LeaveRequest).filter(models.LeaveRequest.status == "approved").count()
-    balances = db.query(models.LeaveBalance).all()
+    balances = db.query(models.LeaveBalance).offset(skip).limit(limit).all()
     
     total_utilization = 0
     employee_balances = []
@@ -3315,11 +3314,11 @@ def get_reports_leave(current_user: models.User = Depends(security.get_current_u
     }
 
 @router.get("/reports/compliance")
-def get_reports_compliance(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_reports_compliance(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    employees = db.query(models.User).filter(models.User.role == "employee").all()
+    employees = db.query(models.User).filter(models.User.role == "employee").offset(skip).limit(limit).all()
     total_headcount = len(employees)
-    progress_records = db.query(models.TrainingProgress).all()
+    progress_records = db.query(models.TrainingProgress).offset(skip).limit(limit).all()
     passed_quiz = sum(1 for p in progress_records if p.passed)
     
     emp_compliance = []
@@ -3341,10 +3340,10 @@ def get_reports_compliance(current_user: models.User = Depends(security.get_curr
     }
 
 @router.get("/reports/workforce")
-def get_reports_workforce(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_reports_workforce(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    employees = db.query(models.User).filter(models.User.role == "employee").all()
-    resignations = db.query(models.Resignation).filter(models.Resignation.status == "approved").all()
+    employees = db.query(models.User).filter(models.User.role == "employee").offset(skip).limit(limit).all()
+    resignations = db.query(models.Resignation).filter(models.Resignation.status == "approved").offset(skip).limit(limit).all()
     
     total_headcount = len(employees)
     approved_res = len(resignations)
@@ -3448,14 +3447,14 @@ class HRUserDetailResponse(BaseModel):
         from_attributes = True
 
 @router.get("/chat/users", response_model=List[HRUserDetailResponse])
-def get_all_users_for_chat(db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
+def get_all_users_for_chat(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
     verify_hr_role(current_user)
-    return db.query(models.User).filter(models.User.role != "admin").all()
+    return db.query(models.User).filter(models.User.role != "admin").offset(skip).limit(limit).all()
 
 @router.get("/chat/channels", response_model=List[HRChannelResponse])
-def hr_get_channels(db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
+def hr_get_channels(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
     verify_hr_role(current_user)
-    return db.query(models.ChatChannel).all()
+    return db.query(models.ChatChannel).offset(skip).limit(limit).all()
 
 @router.post("/chat/channels", response_model=HRChannelResponse, status_code=status.HTTP_201_CREATED)
 def hr_create_channel(req: HRChannelCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
@@ -3474,9 +3473,9 @@ def hr_create_channel(req: HRChannelCreate, db: Session = Depends(database.get_d
     return new_channel
 
 @router.get("/chat/channels/{channel_id}/messages", response_model=List[HRMessageResponse])
-def hr_get_channel_messages(channel_id: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
+def hr_get_channel_messages(channel_id: str, skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
     verify_hr_role(current_user)
-    return db.query(models.ChatMessage).filter(models.ChatMessage.channel_id == channel_id).order_by(models.ChatMessage.timestamp.asc()).all()
+    return db.query(models.ChatMessage).filter(models.ChatMessage.channel_id == channel_id).order_by(models.ChatMessage.timestamp.asc()).offset(skip).limit(limit).all()
 
 @router.post("/chat/channels/{channel_id}/send", response_model=HRMessageResponse, status_code=status.HTTP_201_CREATED)
 def hr_send_message(channel_id: str, req: HRMessageCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
@@ -3605,8 +3604,8 @@ class AnnouncementResponse(BaseModel):
         from_attributes = True
 
 @router.get("/announcements", response_model=List[AnnouncementResponse])
-def get_announcements(db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
-    anns = db.query(models.Announcement).order_by(models.Announcement.created_at.desc()).all()
+def get_announcements(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
+    anns = db.query(models.Announcement).order_by(models.Announcement.created_at.desc()).offset(skip).limit(limit).all()
     res = []
     for a in anns:
         res.append(AnnouncementResponse(

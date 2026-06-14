@@ -1,40 +1,32 @@
 import React, { useState, useEffect } from 'react';
+import useSWR from 'swr';
+
+const fetcher = url => fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('nsg_jwt_token')}` } }).then(res => res.json());
 import ExpenseForm from './ExpenseForm';
 import ReimbursementTracker from './ReimbursementTracker';
 import { Check, X, FileText, ClipboardList, PlusCircle } from 'lucide-react';
 
 export default function Expenses({ currentUser }) {
-  const [claims, setClaims] = useState([]);
   const [selectedClaim, setSelectedClaim] = useState(null);
   const [toast, setToast] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [mobileTab, setMobileTab] = useState('form');
   const [confirmCancelId, setConfirmCancelId] = useState(null);
 
-  const fetchClaims = async () => {
-    try {
-      const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch('/api/employee-portal/expenses/my-claims', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const formatted = data.map(c => ({
-          ...c,
-          id: `EXP-${c.id}`,
-          originalId: c.id,
-          date: c.claim_date,
-          receiptName: c.receipt_url || 'receipt.pdf',
-          tlStatus: c.tl_approval,
-          hrStatus: c.hr_approval,
-          payrollStatus: c.status
-        }));
-        setClaims(formatted);
-      }
-    } catch (e) { console.error('Failed to fetch claims', e); }
-  };
+  const { data: claimsData, mutate: mutateClaims } = useSWR('/api/employee-portal/expenses/my-claims', fetcher);
+  
+  const claims = (claimsData?.items || []).map(c => ({
+      ...c,
+      id: `EXP-${c.id}`,
+      originalId: c.id,
+      date: c.claim_date,
+      receiptName: c.receipt_url || 'receipt.pdf',
+      tlStatus: c.tl_approval,
+      hrStatus: c.hr_approval,
+      payrollStatus: c.status
+  }));
 
-  useEffect(() => { fetchClaims(); }, []);
+  const fetchClaims = () => mutateClaims();
 
   useEffect(() => {
     if (claims.length > 0 && !selectedClaim) setSelectedClaim(claims[0]);
@@ -95,7 +87,7 @@ export default function Expenses({ currentUser }) {
       });
       if (res.ok) {
         const updated = claims.filter(c => c.id !== confirmCancelId);
-        setClaims(updated);
+        mutateClaims();
         setSelectedClaim(updated.length > 0 ? updated[0] : null);
         showToast('Claim cancelled successfully.');
       } else {

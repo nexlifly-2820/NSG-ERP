@@ -155,13 +155,15 @@ class EscalationResponse(BaseModel):
 
 
 class ScorecardCreateRequest(BaseModel):
-    employee_name: str
+    employee_id: int
     rating: str
     comments: str
 
 
 class ScorecardResponse(BaseModel):
     id: int
+    employee_id: int
+    tl_id: int
     employee_name: str
     tl_name: str
     rating: str
@@ -233,13 +235,13 @@ def get_team_skills(current_user: models.User = Depends(security.get_current_use
 
 # 2. Task Management
 @router.get("/tasks", response_model=List[TaskResponse])
-def get_team_tasks(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_team_tasks(skip: int = 0, limit: int = 100, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     verify_manager_role(current_user)
     if current_user.role == "tl":
         emp_ids = [u.id for u in db.query(models.User.id).filter(models.User.manager_id == current_user.id).all()]
-        tasks = db.query(models.Task).filter(models.Task.user_id.in_(emp_ids)).all()
+        tasks = db.query(models.Task).filter(models.Task.user_id.in_(emp_ids)).offset(skip).limit(limit).all()
     else:
-        tasks = db.query(models.Task).all()
+        tasks = db.query(models.Task).offset(skip).limit(limit).all()
     return tasks
 
 @router.post("/tasks", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
@@ -715,15 +717,15 @@ def resolve_escalation(id: int, current_user: models.User = Depends(security.get
 @router.get("/scorecards", response_model=List[ScorecardResponse])
 def get_submitted_scorecards(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     verify_manager_role(current_user)
-    return db.query(models.AppraisalScorecard).filter(models.AppraisalScorecard.tl_name == current_user.name).all()
+    return db.query(models.AppraisalScorecard).filter(models.AppraisalScorecard.tl_id == current_user.id).all()
 
 
 @router.post("/scorecards", response_model=ScorecardResponse, status_code=status.HTTP_201_CREATED)
 def submit_scorecard(req: ScorecardCreateRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     verify_manager_role(current_user)
     scorecard = models.AppraisalScorecard(
-        employee_name=req.employee_name,
-        tl_name=current_user.name,
+        employee_id=req.employee_id,
+        tl_id=current_user.id,
         rating=req.rating,
         comments=req.comments
     )
@@ -767,9 +769,9 @@ class ProjectUpdateRequest(BaseModel):
 
 
 @router.get("/projects", response_model=List[ProjectResponse])
-def get_projects(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_projects(skip: int = 0, limit: int = 100, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     verify_manager_role(current_user)
-    return db.query(models.Project).order_by(models.Project.id.desc()).all()
+    return db.query(models.Project).order_by(models.Project.id.desc()).offset(skip).limit(limit).all()
 
 
 @router.post("/projects", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)

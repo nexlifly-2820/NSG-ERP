@@ -1,13 +1,7 @@
 import React, { useState } from 'react';
 import { Check, Lock, AlertCircle, Pencil, Trash2, Plus } from 'lucide-react';
 
-const DEFAULT_QUIZ_QUESTIONS = [
-  { id: 1, question: 'What is the HMNS Code of Conduct primarily concerned with?', options: ['Maximizing individual profits', 'Ethical behavior, integrity and company values', 'Marketing strategy', 'Competitor analysis'], correct: 1 },
-  { id: 2, question: 'What should you do if you witness workplace harassment?', options: ['Ignore it and move on', 'Discuss it only with friends outside the company', 'Report it to HR or your Team Lead immediately', 'Handle it yourself informally'], correct: 2 },
-  { id: 3, question: 'How many days of Casual Leave (CL) are employees entitled to per year?', options: ['6 days', '10 days', '12 days', '15 days'], correct: 2 },
-  { id: 4, question: 'Which of the following best describes confidentiality of company data?', options: ['Company data can be shared with anyone if it is useful', 'Company data must be protected and only shared on a need-to-know basis', 'Only financial data is confidential', "Data security is the IT department's problem alone"], correct: 1 },
-  { id: 5, question: 'What is the correct procedure for submitting a timesheet?', options: ['Submit at any time during the month', 'Submit verbally to your Team Lead', 'Submit via the ERP portal by the end of each week', 'No submission needed, HR tracks it automatically'], correct: 2 }
-];
+const DEFAULT_QUIZ_QUESTIONS = [];
 
 export function LearningLndView() {
   const [db, setDb] = useState({
@@ -65,7 +59,7 @@ export function LearningLndView() {
   const [qCorrect, setQCorrect] = useState(0);
 
   const getQuizQuestions = () =>
-    (db?.quizQuestions && db.quizQuestions.length > 0) ? db.quizQuestions : DEFAULT_QUIZ_QUESTIONS;
+    (db?.quizQuestions && db.quizQuestions.length > 0) ? db.quizQuestions : [];
 
   const openCreateQ = () => {
     setEditingQuestion(null);

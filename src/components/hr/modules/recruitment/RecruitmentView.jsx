@@ -103,9 +103,8 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
         }
         const result = await res.json();
         const createdEmp = result.employee;
-        const tempPassword = result.temporary_password;
 
-        notify(`${createdEmp.name} is now an employee. Login: ${createdEmp.email} / ${tempPassword}`, 'success');
+        notify(`${createdEmp.name} is now an employee. Login: ${createdEmp.email} / Check Email for Password`, 'success');
         notify('Onboarding checklist assigned. View in Employee Registry and Onboarding.', 'info');
         await fetchCandidates();
       } catch (err) {
@@ -210,7 +209,7 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
   };
 
   // Live analysis extraction
-  const getMockAnalysis = (candidate) => {
+  const getAnalysisResult = (candidate) => {
     if (candidate && candidate.parsedResult) {
       return candidate.parsedResult;
     }
@@ -493,7 +492,7 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
 
             {/* CASE 1: Analyzing an existing candidate */}
             {analyzerCandidate ? (() => {
-              const analysis = getMockAnalysis(analyzerCandidate);
+              const analysis = getAnalysisResult(analyzerCandidate);
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ backgroundColor: 'var(--bg-primary)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

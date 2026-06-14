@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import useSWR from 'swr';
+
+const fetcher = url => fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('nsg_jwt_token')}` } }).then(res => res.json());
 import './Leave.css';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -325,43 +328,25 @@ export default function Leave() {
   const [cancelTarget, setCancelTarget] = useState(null);
   const formRef = useRef(null);
   
-  const [myDbBalance, setMyDbBalance] = useState(null);
-  const [myHistory, setMyHistory] = useState([]);
+  const { data: balData, mutate: mutateBal } = useSWR('/api/employee-portal/leave/my-balances', fetcher);
+  const { data: reqData, mutate: mutateReq } = useSWR('/api/employee-portal/leave/my-requests', fetcher);
 
-  const fetchData = async () => {
-    try {
-      const token = localStorage.getItem('nsg_jwt_token');
-      const headers = { 'Authorization': `Bearer ${token}` };
-      
-      const balRes = await fetch('/api/employee-portal/leave/my-balances', { headers });
-      if (balRes.ok) {
-        const balData = await balRes.json();
-        setMyDbBalance(balData);
-      }
-      
-      const reqRes = await fetch('/api/employee-portal/leave/my-requests', { headers });
-      if (reqRes.ok) {
-        const reqData = await reqRes.json();
-        const history = reqData.map(r => ({
-          id: r.id,
-          applied: r.from_date,
-          type: r.leave_type,
-          from: r.from_date,
-          to: r.to_date,
-          days: r.days,
-          status: r.status === 'hr_approved' ? 'Approved' : r.status === 'tl_approved' ? 'TL Approved' : r.status === 'denied' ? 'Rejected' : r.status === 'cancelled' ? 'Cancelled' : r.status.charAt(0).toUpperCase() + r.status.slice(1),
-          approver: r.status === 'hr_approved' ? 'HR Manager' : r.status === 'tl_approved' ? 'Sarah Jenkins' : '—'
-        }));
-        setMyHistory(history);
-      }
-    } catch (error) {
-      console.error(error);
-    }
+  const myDbBalance = balData || null;
+  const myHistory = (reqData?.items || []).map(r => ({
+      id: r.id,
+      applied: r.from_date,
+      type: r.leave_type,
+      from: r.from_date,
+      to: r.to_date,
+      days: r.days,
+      status: r.status === 'hr_approved' ? 'Approved' : r.status === 'tl_approved' ? 'TL Approved' : r.status === 'denied' ? 'Rejected' : r.status === 'cancelled' ? 'Cancelled' : r.status.charAt(0).toUpperCase() + r.status.slice(1),
+      approver: r.status === 'hr_approved' ? 'HR Manager' : r.status === 'tl_approved' ? 'Sarah Jenkins' : '—'
+  }));
+
+  const fetchData = () => {
+      mutateBal();
+      mutateReq();
   };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
 
   const dbBal = myDbBalance || { CL: 12, SL: 8, EL: 15, Maternity: 26, Paternity: 0 };
   const balances = [

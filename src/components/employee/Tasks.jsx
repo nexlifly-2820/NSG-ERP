@@ -1,5 +1,8 @@
 // Crash fix applied
 import React, { useState, useEffect, useRef } from 'react';
+import useSWR from 'swr';
+
+const fetcher = url => fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('nsg_jwt_token')}` } }).then(res => res.json());
 import './Tasks.css';
 
 
@@ -345,47 +348,16 @@ export default function Tasks() {
   const [selectedId, setSelectedId]   = useState(null);
   const [sprint, setSprint]           = useState('All Sprints');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [tasks, setTasks] = useState([]);
-  const [schema, setSchema] = useState([]);
 
-  useEffect(() => {
-    fetchSchema();
-    fetchTasks();
-  }, []);
+  const { data: schemaData } = useSWR('/api/employee-portal/tasks/schema', fetcher);
+  const schema = schemaData?.schema || [];
 
-  const fetchSchema = async () => {
-    try {
-      const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch('/api/employee-portal/tasks/schema', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSchema(data.schema);
-      }
-    } catch (e) { console.error(e); }
-  };
-
-  const fetchTasks = async () => {
-    try {
-      const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch('/api/employee-portal/tasks/my-tasks', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        // The API returns the data, we might need to map it slightly to match the UI expectation
-        const formatted = data.map(t => ({
-          ...t,
-          subtasks: t.subtasks || []
-        }));
-        setTasks(formatted);
-      }
-    } catch (e) {
-      console.error(e);
-      setTasks([]);
-    }
-  };
+  const { data: tasksData, mutate } = useSWR('/api/employee-portal/tasks/my-tasks', fetcher);
+  
+  const tasks = (tasksData?.items || []).map(t => ({
+    ...t,
+    subtasks: t.subtasks || []
+  }));
 
   const selectedTask = tasks.find(t => t.id === selectedId) || null;
 
@@ -435,7 +407,7 @@ export default function Tasks() {
     
     // Optimistic UI update
     const updatedTasks = tasks.map(t => t.id === id ? { ...t, ...changes } : t);
-    setTasks(updatedTasks);
+    mutate({ ...tasksData, items: updatedTasks }, false);
   };
 
   const filtered = tasks.filter(t => {

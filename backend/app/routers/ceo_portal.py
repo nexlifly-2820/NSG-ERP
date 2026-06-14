@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Form
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel, EmailStr
@@ -272,7 +273,7 @@ class ConfigValueRequest(BaseModel):
 
 # 1. Telemetry Dashboard
 @router.get("/dashboard/summary")
-def get_dashboard_summary(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_dashboard_summary(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
 
     total_headcount = db.query(models.User).filter(models.User.role == "employee", models.User.status == "active").count()
@@ -293,7 +294,7 @@ def get_dashboard_summary(current_user: models.User = Depends(security.get_curre
     active_projects = db.query(models.Project).filter(models.Project.status == "Active").count()
     
     # Calculate real OKR progress
-    objectives = db.query(models.Objective).all()
+    objectives = db.query(models.Objective).offset(skip).limit(limit).all()
     avg_okr = 0.0
     if objectives:
         avg_okr = sum([obj.progress for obj in objectives]) / len(objectives)
@@ -309,7 +310,7 @@ def get_dashboard_summary(current_user: models.User = Depends(security.get_curre
     }
 
 @router.get("/dashboard/heatmap")
-def get_dashboard_heatmap(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_dashboard_heatmap(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
     
     heatmap_depts = ["Sales", "Engineering", "Marketing", "HR", "Finance"]
@@ -322,7 +323,7 @@ def get_dashboard_heatmap(current_user: models.User = Depends(security.get_curre
         calculated_dates.append(d)
         
     # Get all users and group by department
-    users = db.query(models.User).filter(models.User.role == "employee", models.User.status == "active").all()
+    users = db.query(models.User).filter(models.User.role == "employee", models.User.status == "active").offset(skip).limit(limit).all()
     dept_users = {dept: [] for dept in heatmap_depts}
     for u in users:
         if u.department in dept_users:
@@ -360,9 +361,9 @@ def get_dashboard_heatmap(current_user: models.User = Depends(security.get_curre
     }
 
 @router.get("/users", response_model=List[UserDetailResponse])
-def get_all_users_by_ceo(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_all_users_by_ceo(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
-    return db.query(models.User).filter(models.User.role != "admin").all()
+    return db.query(models.User).filter(models.User.role != "admin").offset(skip).limit(limit).all()
 
 @router.post("/users", response_model=UserCreateResponse, status_code=status.HTTP_201_CREATED)
 def create_user_by_ceo(req: UserCreateRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -471,9 +472,9 @@ def delete_user_by_ceo(user_id: int, current_user: models.User = Depends(securit
 
 # 2. Corporate Announcements
 @router.get("/announcements", response_model=List[AnnouncementResponse])
-def get_announcements(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_announcements(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     # Open to all authenticated users so employees can see announcements
-    return db.query(models.Announcement).order_by(models.Announcement.created_at.desc()).all()
+    return db.query(models.Announcement).order_by(models.Announcement.created_at.desc()).offset(skip).limit(limit).all()
 
 @router.post("/announcements", response_model=AnnouncementResponse, status_code=status.HTTP_201_CREATED)
 def create_announcement(req: AnnouncementCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -505,9 +506,9 @@ def create_announcement(req: AnnouncementCreate, current_user: models.User = Dep
 
 # 3. Enterprise Projects
 @router.get("/projects", response_model=List[ProjectResponse])
-def get_projects(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_projects(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
-    return db.query(models.Project).order_by(models.Project.created_at.desc()).all()
+    return db.query(models.Project).order_by(models.Project.created_at.desc()).offset(skip).limit(limit).all()
 
 @router.post("/projects", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
 def create_project(req: ProjectCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -593,13 +594,13 @@ class UnreadUserResponse(BaseModel):
     department: Optional[str]
 
 @router.get("/announcements/{id}/unread-users", response_model=List[UnreadUserResponse])
-def get_unread_users(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_unread_users(id: int, current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
     ann = db.query(models.Announcement).filter(models.Announcement.id == id).first()
     if not ann:
         raise HTTPException(status_code=404, detail="Announcement not found.")
 
-    read_user_ids = [r.user_id for r in db.query(models.AnnouncementRead).filter(models.AnnouncementRead.announcement_id == id).all()]
+    read_user_ids = [r.user_id for r in db.query(models.AnnouncementRead).filter(models.AnnouncementRead.announcement_id == id).offset(skip).limit(limit).all()]
     
     query = db.query(models.User).filter(models.User.is_active == True, models.User.id.notin_(read_user_ids))
     if ann.audience and ann.audience != "All Employees":
@@ -612,13 +613,13 @@ def get_unread_users(id: int, current_user: models.User = Depends(security.get_c
 
 # 3. CEO Checker Approvals
 @router.get("/approvals/pending")
-def get_pending_approvals(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_pending_approvals(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
     
-    payroll = db.query(models.PayrollRun).filter(models.PayrollRun.status == "maker_signed").all()
-    claims = db.query(models.ExpenseClaim).filter(models.ExpenseClaim.status == "pending").all()
-    leaves = db.query(models.LeaveRequest).filter(models.LeaveRequest.status == "tl_approved").all()
-    loans = db.query(models.Loan).filter(models.Loan.status == "active", models.Loan.outstanding_balance > 0).all()
+    payroll = db.query(models.PayrollRun).filter(models.PayrollRun.status == "maker_signed").offset(skip).limit(limit).all()
+    claims = db.query(models.ExpenseClaim).filter(models.ExpenseClaim.status == "pending").offset(skip).limit(limit).all()
+    leaves = db.query(models.LeaveRequest).filter(models.LeaveRequest.status == "tl_approved").offset(skip).limit(limit).all()
+    loans = db.query(models.Loan).filter(models.Loan.status == "active", models.Loan.outstanding_balance > 0).offset(skip).limit(limit).all()
     
     enriched_payroll = []
     for p in payroll:
@@ -860,11 +861,11 @@ def reject_leave_ceo(id: int, current_user: models.User = Depends(security.get_c
 
 # 4. Projects & Blocker Escalations
 @router.get("/projects/escalations", response_model=List[EscalationResponse])
-def get_escalations(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_escalations(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
     
     # Mark viewed by CEO
-    escalations = db.query(models.Escalation).all()
+    escalations = db.query(models.Escalation).offset(skip).limit(limit).all()
     for esc in escalations:
         if not esc.ceo_viewed:
             esc.ceo_viewed = True
@@ -897,15 +898,15 @@ def delete_escalation_ceo(id: int, current_user: models.User = Depends(security.
 
 # 5. Configs & Audit Trails
 @router.get("/audit-trail", response_model=List[AuditLogResponse])
-def get_audit_trail(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_audit_trail(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
     security.check_rbac_permission(db, current_user, "View Audit Logs")
-    return db.query(models.AuditLog).order_by(models.AuditLog.timestamp.desc()).all()
+    return db.query(models.AuditLog).order_by(models.AuditLog.timestamp.desc()).offset(skip).limit(limit).all()
 
 @router.get("/configs")
-def get_system_settings(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_system_settings(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
-    settings_list = db.query(models.SystemSetting).all()
+    settings_list = db.query(models.SystemSetting).offset(skip).limit(limit).all()
     result = {s.key: s.value for s in settings_list}
     
     if "designation_list" in result:
@@ -1067,9 +1068,9 @@ def _get_router():
 
 
 @router.get("/projects", response_model=List[ProjectResponseCEO])
-def ceo_get_projects(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def ceo_get_projects(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
-    return db.query(models.Project).order_by(models.Project.id.desc()).all()
+    return db.query(models.Project).order_by(models.Project.id.desc()).offset(skip).limit(limit).all()
 
 
 @router.patch("/projects/{id}", response_model=ProjectResponseCEO)
@@ -1110,7 +1111,7 @@ def ceo_signoff_project(id: int, current_user: models.User = Depends(security.ge
 # ─── Dashboard Summary & Pending Approvals ──────────────────────────────────
 
 @router.get("/dashboard/summary")
-def get_dashboard_summary(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_dashboard_summary(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
     headcount = db.query(models.User).filter(models.User.status == "active").count()
     active_blockers = db.query(models.Escalation).filter(models.Escalation.resolved == False).count()
@@ -1122,7 +1123,7 @@ def get_dashboard_summary(current_user: models.User = Depends(security.get_curre
     
     pending_approvals = pending_leaves + pending_expenses + pending_payroll + pending_loans
     
-    okrs = db.query(models.Objective).all()
+    okrs = db.query(models.Objective).offset(skip).limit(limit).all()
     avg_okr = sum([o.progress for o in okrs]) / len(okrs) if okrs else 75
     
     active_projects = db.query(models.Project).filter(models.Project.status == "Active").count()
@@ -1149,14 +1150,14 @@ from collections import defaultdict
 from datetime import date as date_obj
 
 @router.get("/reports/analytics")
-def get_reports_analytics(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_reports_analytics(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
 
     MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
     # ── 1. HEADCOUNT: group users by creation month ─────────────────────────
-    all_users = db.query(models.User).all()
+    all_users = db.query(models.User).offset(skip).limit(limit).all()
     headcount_by_month = defaultdict(lambda: {"count": 0, "new": 0, "left": 0})
     total = 0
     for u in sorted(all_users, key=lambda x: x.created_at or date_obj.min):
@@ -1183,7 +1184,7 @@ def get_reports_analytics(current_user: models.User = Depends(security.get_curre
         })
 
     # ── 2. PAYROLL COST: from PayrollRun or estimate from users ───────────
-    payroll_runs = db.query(models.PayrollRun).order_by(models.PayrollRun.year, models.PayrollRun.month).all()
+    payroll_runs = db.query(models.PayrollRun).order_by(models.PayrollRun.year, models.PayrollRun.month).offset(skip).limit(limit).all()
     payroll_data = []
     if payroll_runs:
         for run in payroll_runs[-7:]:
@@ -1198,7 +1199,7 @@ def get_reports_analytics(current_user: models.User = Depends(security.get_curre
 
     # ── 3. ATTENDANCE: group by department ───────────────────────────────
     dept_attendance = defaultdict(lambda: {"total": 0, "present": 0, "wfh": 0, "leave": 0})
-    all_att = db.query(models.Attendance).all()
+    all_att = db.query(models.Attendance).offset(skip).limit(limit).all()
     for rec in all_att:
         user = db.query(models.User).filter(models.User.id == rec.user_id).first()
         dept = (user.department or "Engineering") if user else "Engineering"
@@ -1222,7 +1223,7 @@ def get_reports_analytics(current_user: models.User = Depends(security.get_curre
 
     # ── 4. LEAVE TRENDS: monthly breakdown by type ────────────────────────
     leave_by_month = defaultdict(lambda: {"casual": 0, "sick": 0})
-    all_leaves = db.query(models.LeaveRequest).filter(models.LeaveRequest.status != "denied").all()
+    all_leaves = db.query(models.LeaveRequest).filter(models.LeaveRequest.status != "denied").offset(skip).limit(limit).all()
     for lr in all_leaves:
         m = MONTH_NAMES[lr.from_date.month - 1]
         if lr.leave_type in ("CL", "EL"):
@@ -1236,7 +1237,7 @@ def get_reports_analytics(current_user: models.User = Depends(security.get_curre
         leave_trends.append({"month": m, "casual": data["casual"], "sick": data["sick"]})
 
     # ── 5. PROJECT STATUS: from real Project table ────────────────────────
-    projects = db.query(models.Project).all()
+    projects = db.query(models.Project).offset(skip).limit(limit).all()
     status_counts = defaultdict(int)
     for p in projects:
         status_counts[p.status] += 1
@@ -1249,7 +1250,7 @@ def get_reports_analytics(current_user: models.User = Depends(security.get_curre
     ]
 
     # ── 6. ATTRITION: resignations per month / total headcount ───────────
-    all_resignations = db.query(models.Resignation).all()
+    all_resignations = db.query(models.Resignation).offset(skip).limit(limit).all()
     resign_by_month = defaultdict(int)
     for r in all_resignations:
         m = MONTH_NAMES[r.resignation_date.month - 1]
@@ -1280,8 +1281,8 @@ def get_reports_analytics(current_user: models.User = Depends(security.get_curre
 # ─── Corporate OKRs & Strategy ───────────────────────────────────────────────
 
 @router.get("/okrs", response_model=List[ObjectiveResponse])
-def get_okrs(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
-    return db.query(models.Objective).all()
+def get_okrs(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
+    return db.query(models.Objective).offset(skip).limit(limit).all()
 
 
 class KRProgressUpdate(BaseModel):
@@ -1354,11 +1355,11 @@ class ProcessPayrollRequest(BaseModel):
     transaction_ref: str
 
 @router.get("/payroll/pending")
-def get_pending_payrolls(month: int, year: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_pending_payrolls(month: int, year: int, current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
     
     # Get all active users
-    users = db.query(models.User).filter(models.User.status == "active").all()
+    users = db.query(models.User).filter(models.User.status == "active").offset(skip).limit(limit).all()
     pending = []
     
     for u in users:
@@ -1367,11 +1368,14 @@ def get_pending_payrolls(month: int, year: int, current_user: models.User = Depe
         if existing and existing.status == "paid":
             continue
             
-        # Mock default CTC based on role
-        base = 45000
-        if u.role == "ceo": base = 150000
-        elif u.role == "hr": base = 60000
-        elif u.role == "tl": base = 80000
+        # Extract base salary from documents JSON or default to 0
+        base = 0.0
+        if u.documents:
+            try:
+                docs = json.loads(u.documents) if isinstance(u.documents, str) else u.documents
+                base = float(docs.get("base_salary", 0.0))
+            except Exception:
+                pass
         
         hra = base * 0.4
         allowances = base * 0.2
@@ -1455,7 +1459,7 @@ def process_manual_payroll(user_id: int, req: ProcessPayrollRequest, current_use
     return {"status": "success", "message": "Payroll processed successfully"}
 
 @router.get("/payroll/history")
-def get_payroll_history(month: Optional[int] = None, year: Optional[int] = None, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_payroll_history(month: Optional[int] = None, year: Optional[int] = None, current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
     
     query = db.query(models.Payslip).filter(models.Payslip.status == "paid")
@@ -1488,9 +1492,9 @@ def get_payroll_history(month: Optional[int] = None, year: Optional[int] = None,
 # ==========================
 
 @router.get("/vendors", response_model=List[VendorResponse])
-def get_vendors(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_vendors(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
-    return db.query(models.Vendor).all()
+    return db.query(models.Vendor).offset(skip).limit(limit).all()
 
 @router.post("/vendors", response_model=VendorResponse)
 def create_vendor(vendor: VendorCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -1524,9 +1528,9 @@ UPLOAD_DIR = "uploads/vault"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.get("/vault", response_model=List[VaultDocumentResponse])
-def get_vault_documents(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_vault_documents(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
-    return db.query(models.VaultDocument).all()
+    return db.query(models.VaultDocument).offset(skip).limit(limit).all()
 
 @router.post("/vault/upload", response_model=VaultDocumentResponse)
 def upload_vault_document(
@@ -1635,7 +1639,7 @@ def process_manual_payroll(user_id: int, req: ProcessPayrollRequest, current_use
     return {"status": "success", "message": "Payroll processed successfully"}
 
 @router.get("/payroll/history")
-def get_payroll_history(month: Optional[int] = None, year: Optional[int] = None, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_payroll_history(month: Optional[int] = None, year: Optional[int] = None, current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
     
     query = db.query(models.Payslip).filter(models.Payslip.status == "paid")
@@ -1668,9 +1672,9 @@ def get_payroll_history(month: Optional[int] = None, year: Optional[int] = None,
 # ==========================
 
 @router.get("/vendors", response_model=List[VendorResponse])
-def get_vendors(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_vendors(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
-    return db.query(models.Vendor).all()
+    return db.query(models.Vendor).offset(skip).limit(limit).all()
 
 @router.post("/vendors", response_model=VendorResponse)
 def create_vendor(vendor: VendorCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -1704,9 +1708,9 @@ UPLOAD_DIR = "uploads/vault"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.get("/vault", response_model=List[VaultDocumentResponse])
-def get_vault_documents(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_vault_documents(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
-    return db.query(models.VaultDocument).all()
+    return db.query(models.VaultDocument).offset(skip).limit(limit).all()
 
 @router.post("/vault/upload", response_model=VaultDocumentResponse)
 def upload_vault_document(
@@ -1762,6 +1766,21 @@ def sign_vault_document(doc_id: int, current_user: models.User = Depends(securit
     db.commit()
     return {"status": "success", "message": "Document signed successfully"}
 
+@router.get("/vault/{id}/download")
+def download_vault_document(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_ceo_role(current_user)
+    db_doc = db.query(models.VaultDocument).filter(models.VaultDocument.id == id).first()
+    if not db_doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+        
+    # Construct full file path
+    # db_doc.file_url is usually "/uploads/vault/..."
+    file_path = db_doc.file_url.lstrip("/")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File missing on disk")
+        
+    return FileResponse(path=file_path, filename=db_doc.name)
+
 # ─── Company Setup (Departments, Designations, Shifts, Holidays) ──────
 
 class DepartmentBase(BaseModel):
@@ -1794,8 +1813,8 @@ class HolidayBase(BaseModel):
     type: str
 
 @router.get("/departments")
-def get_departments(db: Session = Depends(database.get_db)):
-    depts = db.query(models.Department).all()
+def get_departments(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
+    depts = db.query(models.Department).offset(skip).limit(limit).all()
     dept_dicts = [{"id": d.id, "name": d.name, "parent_id": d.parent_id, "headcount": 0} for d in depts]
     
     for d in dept_dicts:
@@ -1851,7 +1870,7 @@ class SalaryCompBase(BaseModel):
     tax: bool
 
 @router.get("/finance/kpis")
-def get_kpis(db: Session = Depends(database.get_db)):
+def get_kpis(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     kpi_setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == "finance_kpi_data").first()
     if kpi_setting:
         return json.loads(kpi_setting.value)
@@ -1865,12 +1884,12 @@ def get_kpis(db: Session = Depends(database.get_db)):
     }
 
 @router.get("/finance/trends")
-def get_finance_trends(db: Session = Depends(database.get_db)):
-    return db.query(models.FinanceTrend).all()
+def get_finance_trends(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
+    return db.query(models.FinanceTrend).offset(skip).limit(limit).all()
 
 @router.get("/finance/budgets-list")
-def get_budgets(db: Session = Depends(database.get_db)):
-    budgets = db.query(models.DepartmentBudget).all()
+def get_budgets(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
+    budgets = db.query(models.DepartmentBudget).offset(skip).limit(limit).all()
     res = []
     for b in budgets:
         dept = db.query(models.Department).filter(models.Department.id == b.department_id).first()
@@ -1887,13 +1906,13 @@ def get_budgets(db: Session = Depends(database.get_db)):
     return res
 
 @router.get("/finance/ar")
-def get_ar(db: Session = Depends(database.get_db)):
-    ars = db.query(models.ARInvoice).all()
+def get_ar(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
+    ars = db.query(models.ARInvoice).offset(skip).limit(limit).all()
     return [{"id": a.id, "client": a.client_name, "invoice": a.invoice_number, "amount": a.amount, "status": a.status, "daysOverdue": a.days_overdue} for a in ars]
 
 @router.get("/finance/ap")
-def get_ap(db: Session = Depends(database.get_db)):
-    aps = db.query(models.APInvoice).all()
+def get_ap(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
+    aps = db.query(models.APInvoice).offset(skip).limit(limit).all()
     res = []
     for a in aps:
         vendor = db.query(models.Vendor).filter(models.Vendor.id == a.vendor_id).first()
@@ -1901,22 +1920,22 @@ def get_ap(db: Session = Depends(database.get_db)):
     return res
 
 @router.get("/finance/statutory-list")
-def get_statutory(db: Session = Depends(database.get_db)):
-    stats = db.query(models.StatutoryCompliance).all()
+def get_statutory(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
+    stats = db.query(models.StatutoryCompliance).offset(skip).limit(limit).all()
     return [{"id": s.id, "type": s.type, "amount": s.amount, "dueDate": s.due_date} for s in stats]
 
 @router.get("/finance/salary-components")
-def get_salary_components(db: Session = Depends(database.get_db)):
-    comps = db.query(models.SalaryComponent).all()
+def get_salary_components(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
+    comps = db.query(models.SalaryComponent).offset(skip).limit(limit).all()
     return [{"id": c.id, "name": c.name, "type": c.type, "calc": c.calc, "value": c.value, "tax": c.tax} for c in comps]
 
 @router.get("/finance/payroll-register")
-def get_payroll_register(db: Session = Depends(database.get_db)):
+def get_payroll_register(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     # Fetch from real PayrollRuns and Payslips
-    runs = db.query(models.PayrollRun).all()
+    runs = db.query(models.PayrollRun).offset(skip).limit(limit).all()
     res = []
     for r in runs:
-        slips = db.query(models.Payslip).filter(models.Payslip.payroll_run_id == r.id).all()
+        slips = db.query(models.Payslip).filter(models.Payslip.payroll_run_id == r.id).offset(skip).limit(limit).all()
         for s in slips:
             user = db.query(models.User).filter(models.User.id == s.user_id).first()
             res.append({
@@ -1930,9 +1949,9 @@ def get_payroll_register(db: Session = Depends(database.get_db)):
     return res
 
 @router.get("/finance/approvals-list")
-def get_finance_approvals(db: Session = Depends(database.get_db)):
-    db_claims = db.query(models.ExpenseClaim).filter(models.ExpenseClaim.status == "pending").all()
-    db_loans = db.query(models.Loan).filter(models.Loan.status == "active", models.Loan.outstanding_balance > 0, models.Loan.disbursed_at.is_(None)).all()
+def get_finance_approvals(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
+    db_claims = db.query(models.ExpenseClaim).filter(models.ExpenseClaim.status == "pending").offset(skip).limit(limit).all()
+    db_loans = db.query(models.Loan).filter(models.Loan.status == "active", models.Loan.outstanding_balance > 0, models.Loan.disbursed_at.is_(None)).offset(skip).limit(limit).all()
 
     approvals_list = []
     for c in db_claims:
@@ -1988,8 +2007,8 @@ def delete_department(id: int, db: Session = Depends(database.get_db)):
     return {"status": "success"}
 
 @router.get("/designations")
-def get_designations(db: Session = Depends(database.get_db)):
-    desigs = db.query(models.Designation).all()
+def get_designations(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
+    desigs = db.query(models.Designation).offset(skip).limit(limit).all()
     res = []
     for d in desigs:
         dept = db.query(models.Department).filter(models.Department.id == d.department_id).first()
@@ -2032,8 +2051,8 @@ def delete_designation(id: int, db: Session = Depends(database.get_db)):
     return {"status": "success"}
 
 @router.get("/shifts")
-def get_shifts(db: Session = Depends(database.get_db)):
-    return db.query(models.Shift).all()
+def get_shifts(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
+    return db.query(models.Shift).offset(skip).limit(limit).all()
 
 @router.post("/shifts")
 def create_shift(req: ShiftBase, db: Session = Depends(database.get_db)):
@@ -2064,8 +2083,8 @@ def delete_shift(id: int, db: Session = Depends(database.get_db)):
     return {"status": "success"}
 
 @router.get("/holidays")
-def get_holidays(db: Session = Depends(database.get_db)):
-    return db.query(models.Holiday).all()
+def get_holidays(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
+    return db.query(models.Holiday).offset(skip).limit(limit).all()
 
 @router.post("/holidays")
 def create_holiday(req: HolidayBase, db: Session = Depends(database.get_db)):
@@ -2097,12 +2116,12 @@ def delete_holiday(id: int, db: Session = Depends(database.get_db)):
 # ─── Unified Approvals API ─────────────────────────────────────────────────────
 
 @router.get("/approvals/all")
-def get_all_approvals(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_all_approvals(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
     approvals = []
     
     # 1. Payroll Runs
-    payroll_runs = db.query(models.PayrollRun).filter(models.PayrollRun.status != 'draft').all()
+    payroll_runs = db.query(models.PayrollRun).filter(models.PayrollRun.status != 'draft').offset(skip).limit(limit).all()
     for run in payroll_runs:
         status_label = 'Pending'
         if run.status in ['bank_transferred', 'checker_signed']:
@@ -2124,7 +2143,7 @@ def get_all_approvals(current_user: models.User = Depends(security.get_current_u
         })
 
     # 2. Budgets
-    budgets = db.query(models.DepartmentBudget).all()
+    budgets = db.query(models.DepartmentBudget).offset(skip).limit(limit).all()
     for b in budgets:
         dept = db.query(models.Department).filter(models.Department.id == b.department_id).first()
         status_label = 'Pending'
@@ -2145,7 +2164,7 @@ def get_all_approvals(current_user: models.User = Depends(security.get_current_u
         })
 
     # 3. Resignations
-    resignations = db.query(models.Resignation).all()
+    resignations = db.query(models.Resignation).offset(skip).limit(limit).all()
     for r in resignations:
         emp = db.query(models.User).filter(models.User.id == r.user_id).first()
         status_label = 'Pending'
@@ -2166,7 +2185,7 @@ def get_all_approvals(current_user: models.User = Depends(security.get_current_u
         })
         
     # 4. Policies
-    policies = db.query(models.CompanyPolicy).all()
+    policies = db.query(models.CompanyPolicy).offset(skip).limit(limit).all()
     for p in policies:
         status_label = 'Pending'
         if p.status == 'approved': status_label = 'Approved'
@@ -2221,7 +2240,7 @@ def get_all_approvals(current_user: models.User = Depends(security.get_current_u
             }]
             
     # Fetch promotions too
-    promotions = db.query(models.Promotion).all()
+    promotions = db.query(models.Promotion).offset(skip).limit(limit).all()
     promo_list = []
     for pr in promotions:
         promo_list.append({
@@ -2351,9 +2370,9 @@ class VendorResponse(BaseModel):
         from_attributes = True
 
 @router.get("/vendors", response_model=List[VendorResponse])
-def get_vendors(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_vendors(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
-    return db.query(models.Vendor).all()
+    return db.query(models.Vendor).offset(skip).limit(limit).all()
 
 @router.post("/vendors", response_model=VendorResponse)
 def create_vendor(req: VendorCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -2400,9 +2419,9 @@ class VaultDocResponse(BaseModel):
         from_attributes = True
 
 @router.get("/vault", response_model=List[VaultDocResponse])
-def get_vault_docs(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_vault_docs(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
-    return db.query(models.VaultDocument).all()
+    return db.query(models.VaultDocument).offset(skip).limit(limit).all()
 
 @router.post("/vault/upload")
 def upload_vault_doc(

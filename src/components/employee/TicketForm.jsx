@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { Upload, CheckCircle2, Loader2, X } from 'lucide-react';
+import AvatarFallback from '../common/AvatarFallback';
 
 export default function TicketForm({ onSubmitTicket }) {
   const fileInputRef = useRef(null);
@@ -280,7 +281,7 @@ export default function TicketForm({ onSubmitTicket }) {
                   </span>
                 </div>
               ) : (
-                <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} 
+                <AvatarFallback
                   src={screenshotPreview} 
                   alt="Attached Screenshot Preview"
                   style={{

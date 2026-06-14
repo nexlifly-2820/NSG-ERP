@@ -12,9 +12,9 @@ import { ThemeProvider } from './components/common/ThemeContext.jsx';
 
 export default function App() {
 
-  const [token, setToken] = useState(() => localStorage.getItem('nsg_jwt_token') || '');
   const [user, setUser] = useState(null);
-  const [loadingUser, setLoadingUser] = useState(!!token);
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [sessionTick, setSessionTick] = useState(0);
 
   // Helper to forward toast messages to the global provider (if available)
   const showToast = (msg, type = 'success') => {
@@ -79,27 +79,20 @@ export default function App() {
 
   // ── Auth effect ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!token) {
-      setUser(null);
-      setLoadingUser(false);
-      return;
-    }
-
     const fetchProfile = async () => {
+      setLoadingUser(true);
       try {
-        const response = await fetch('/api/auth/me', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const response = await fetch('/api/auth/me'); // cookies are auto-included globally
         if (!response.ok) throw new Error('Session expired');
 
         const profile = await response.json();
         setUser(profile);
 
-        // Navigate to the correct portal for this user's role
-        navigateTo(roleToRoute(profile.role), 'dashboard');
+        // Auto navigate if just logged in
+        if (!user) {
+          navigateTo(roleToRoute(profile.role), 'dashboard');
+        }
       } catch (err) {
-        localStorage.removeItem('nsg_jwt_token');
-        setToken('');
         setUser(null);
       } finally {
         setLoadingUser(false);
@@ -108,16 +101,16 @@ export default function App() {
 
     fetchProfile();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [sessionTick]);
 
-  const handleLoginSuccess = (newToken) => {
-    localStorage.setItem('nsg_jwt_token', newToken);
-    setToken(newToken);
+  const handleLoginSuccess = () => {
+    setSessionTick((prev) => prev + 1);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('nsg_jwt_token');
-    setToken('');
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch(e) {}
     setUser(null);
     window.location.hash = '';
   };
@@ -194,7 +187,7 @@ export default function App() {
     );
   }
 
-  if (!token || !user) {
+  if (!user) {
     return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 

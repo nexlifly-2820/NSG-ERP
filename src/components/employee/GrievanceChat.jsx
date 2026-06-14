@@ -41,7 +41,7 @@ export default function GrievanceChat({ currentUser }) {
                 name: 'HR Grievance',
                 label: 'Private',
                 type: 'grievance',
-                members: [String(currentUser.id), "hr_officer_id"] // mock hr id
+                members: [String(currentUser.id)] // HR is assigned dynamically by backend
              })
           });
           if (createRes.ok) {
@@ -177,7 +177,7 @@ export default function GrievanceChat({ currentUser }) {
             </div>
             <div>
               <h4 style={{ margin: 0, fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                Sophia Reed
+                HR Representative
               </h4>
               <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600' }}>
                 Assigned HR Officer
@@ -280,7 +280,7 @@ export default function GrievanceChat({ currentUser }) {
             <div style={{ width: '4px', height: '4px', backgroundColor: 'var(--text-muted)', borderRadius: '50%', animation: 'bounce 0.6s infinite alternate 0.2s' }} />
             <div style={{ width: '4px', height: '4px', backgroundColor: 'var(--text-muted)', borderRadius: '50%', animation: 'bounce 0.6s infinite alternate 0.4s' }} />
             <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic', marginLeft: '4px' }}>
-              Sophia is typing...
+              HR is typing...
             </span>
           </div>
         )}

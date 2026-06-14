@@ -34,6 +34,47 @@ export default function DocumentVault() {
     } catch(e) {}
   };
 
+  const handleSecureDownload = async (db_id, name) => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/ceo-portal/vault/${db_id}/download`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        alert("Failed to download document securely.");
+      }
+    } catch(e) {
+      console.error(e);
+      alert("Error downloading document");
+    }
+  };
+
+  const handleSecureView = async (db_id) => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/ceo-portal/vault/${db_id}/download`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      } else {
+        alert("Failed to load document.");
+      }
+    } catch(e) {}
+  };
+
   const fetchVaultDocs = async () => {
     try {
       const token = localStorage.getItem('nsg_jwt_token');
@@ -211,12 +252,12 @@ export default function DocumentVault() {
                   <td>{doc.date}</td>
                   <td>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <a href={`http://localhost:8000${doc.file_url}`} target="_blank" rel="noreferrer" className="ceo-btn" style={{ padding: '6px', border: '1px solid var(--ceo-border)', textDecoration: 'none', color: 'inherit' }} title="View Document">
+                      <button onClick={() => handleSecureView(doc.db_id)} className="ceo-btn" style={{ padding: '6px', border: '1px solid var(--ceo-border)', background: 'transparent', cursor: 'pointer', color: 'inherit' }} title="View Document">
                         <Eye size={14} />
-                      </a>
-                      <a href={`http://localhost:8000${doc.file_url}`} download target="_blank" rel="noreferrer" className="ceo-btn" style={{ padding: '6px', border: '1px solid var(--ceo-border)', textDecoration: 'none', color: 'inherit' }} title="Download PDF">
+                      </button>
+                      <button onClick={() => handleSecureDownload(doc.db_id, doc.name)} className="ceo-btn" style={{ padding: '6px', border: '1px solid var(--ceo-border)', background: 'transparent', cursor: 'pointer', color: 'inherit' }} title="Secure Download">
                         <Download size={14} />
-                      </a>
+                      </button>
                     </div>
                   </td>
                 </tr>

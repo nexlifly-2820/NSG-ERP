@@ -17,17 +17,19 @@ export default function Tl({ activeTab, setActiveTab, currentUser }) {
 
   return (
     <div className="component-container">
-      {activeTab === 'dashboard' && <Dashboard setActiveTab={setActiveTab} setSelectedChatUser={setSelectedChatUser} />}
-      {activeTab === 'team' && <Team setActiveTab={setActiveTab} />}
-      {activeTab === 'projects' && <Projects />}
-      {activeTab === 'tasks' && <Tasks currentUser={currentUser} />}
-      {activeTab === 'attendance' && <Attendance />}
-      {activeTab === 'timesheets' && <Timesheets />}
-      {activeTab === 'approvals' && <Approvals />}
-      {activeTab === 'reports' && <Reports />}
-      {activeTab === 'escalations' && <Escalations />}
-      {activeTab === 'messaging' && <ErrorBoundary><MessagingAndMeet initialSelectedChannel={selectedChatUser} currentUser={currentUser} /></ErrorBoundary>}
-      {activeTab === 'performance' && <Performance currentUser={currentUser} />}
+      <ErrorBoundary>
+        {activeTab === 'dashboard' && <Dashboard setActiveTab={setActiveTab} setSelectedChatUser={setSelectedChatUser} />}
+        {activeTab === 'team' && <Team setActiveTab={setActiveTab} />}
+        {activeTab === 'projects' && <Projects />}
+        {activeTab === 'tasks' && <Tasks currentUser={currentUser} />}
+        {activeTab === 'attendance' && <Attendance />}
+        {activeTab === 'timesheets' && <Timesheets />}
+        {activeTab === 'approvals' && <Approvals />}
+        {activeTab === 'reports' && <Reports />}
+        {activeTab === 'escalations' && <Escalations />}
+        {activeTab === 'messaging' && <MessagingAndMeet initialSelectedChannel={selectedChatUser} currentUser={currentUser} />}
+        {activeTab === 'performance' && <Performance currentUser={currentUser} />}
+      </ErrorBoundary>
       
       {activeTab !== 'dashboard' && activeTab !== 'team' && activeTab !== 'projects' && activeTab !== 'tasks' && activeTab !== 'attendance' && activeTab !== 'timesheets' && activeTab !== 'approvals' && activeTab !== 'reports' && activeTab !== 'escalations' && activeTab !== 'messaging' && activeTab !== 'performance' && (
         <>

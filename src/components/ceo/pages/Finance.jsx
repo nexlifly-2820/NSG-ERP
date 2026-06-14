@@ -10,9 +10,9 @@ import {
 import '../CEO.css';
 
 // ==========================================
-// MOCK DATA 
+// DEFAULT FALLBACKS
 // ==========================================
-const kpiData = {
+const defaultKpiData = {
   revenue: { val: '₹0M', trend: '0%', up: true },
   grossProfit: { val: '₹0M', trend: '0%', up: true },
   netProfit: { val: '₹0M', trend: '0%', up: true },
@@ -21,20 +21,12 @@ const kpiData = {
   burnRate: { val: '₹0/mo', trend: 'Stable', up: null }
 };
 
-const revenueTrend = [];
-const cashFlowData = [];
-const mockBudgets = [];
-const executiveApprovals = [];
-const arData = [];
-const apData = [];
-const riskData = [
+const defaultRiskData = [
   { category: 'Cash Flow', level: 'Low', desc: 'No data' },
   { category: 'Collections', level: 'Low', desc: 'No data' },
   { category: 'Budget', level: 'Low', desc: 'No data' },
   { category: 'Compliance', level: 'Low', desc: 'No data' },
 ];
-const mockPayroll = [];
-const mockStatutory = [];
 
 const SUBTABS = [
   { id: 'overview', label: 'Executive Overview' },
@@ -59,9 +51,9 @@ const KpiCard = ({ title, value, trend, up }) => (
 );
 
 const OverviewTab = ({ data }) => {
-  const kpis = data?.kpiData || kpiData;
-  const revTrend = data?.revenueTrend || revenueTrend;
-  const cashFlow = data?.cashFlowData || cashFlowData;
+  const kpis = data?.kpiData || defaultKpiData;
+  const revTrend = data?.revenueTrend || [];
+  const cashFlow = data?.cashFlowData || [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -147,7 +139,7 @@ const GovernanceTab = ({ budgets, approvals, onActionApproval, onActionBudget })
     <div className="ceo-command-panel">
       <div className="ceo-command-header"><div className="ceo-typography-card-title"><ShieldAlert size={18} color="var(--ceo-danger)" /> Financial Risk Monitoring</div></div>
       <div className="ceo-command-content ceo-grid-4" style={{ padding: '24px' }}>
-        {riskData.map(r => (
+        {defaultRiskData.map(r => (
           <div key={r.category} style={{ padding: '16px', borderRadius: '8px', border: '1px solid var(--ceo-border)', background: r.level === 'High' ? '#FEF2F2' : '#FFF' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
               <span style={{ fontWeight: 600, fontSize: '14px' }}>{r.category}</span>
@@ -247,8 +239,8 @@ const GovernanceTab = ({ budgets, approvals, onActionApproval, onActionBudget })
 );
 
 const ArApTab = ({ ar, ap }) => {
-  const arList = ar || arData;
-  const apList = ap || apData;
+  const arList = ar || [];
+  const apList = ap || [];
 
   return (
     <div className="ceo-grid-2">
@@ -342,8 +334,8 @@ const OperationsTab = ({ payroll, statutory, components, onSaveSalaryStructure }
     onSaveSalaryStructure(localComponents);
   };
 
-  const payrollList = payroll || mockPayroll;
-  const statList = statutory || mockStatutory;
+  const payrollList = payroll || [];
+  const statList = statutory || [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>

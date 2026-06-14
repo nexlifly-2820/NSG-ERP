@@ -1,9 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, field_validator
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, TypeVar, Generic
+from pydantic import BaseModel, field_validator
+
+T = TypeVar('T')
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: List[T]
+    total: int
+    skip: int
+    limit: int
 from datetime import date, datetime
 import json
+import io
+import csv
+from fastapi.responses import StreamingResponse
 
 from app import models, database
 from app.core import security
@@ -40,8 +51,9 @@ class AnnouncementResponse(BaseModel):
     class Config:
         from_attributes = True
 
-@router.get("/announcements", response_model=List[AnnouncementResponse])
+@router.get("/announcements", response_model=PaginatedResponse[AnnouncementResponse])
 def get_announcements(skip: int = 0, limit: int = 50, db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
+    total = db.query(models.Announcement).count()
     anns = db.query(models.Announcement).order_by(models.Announcement.created_at.desc()).offset(skip).limit(limit).all()
     res = []
     for a in anns:
@@ -54,7 +66,7 @@ def get_announcements(skip: int = 0, limit: int = 50, db: Session = Depends(data
             author=a.author,
             date=a.created_at.strftime("%Y-%m-%d") if a.created_at else "N/A"
         ))
-    return res
+    return {"items": res, "total": total, "skip": skip, "limit": limit}
 
 @router.post("/announcements/{id}/read")
 def mark_announcement_read(id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
@@ -124,9 +136,11 @@ class TaskResponse(BaseModel):
 class PRSubmitRequest(BaseModel):
     prUrl: str
 
-@router.get("/tasks/my-tasks", response_model=List[TaskResponse])
+@router.get("/tasks/my-tasks", response_model=PaginatedResponse[TaskResponse])
 def get_my_tasks(skip: int = 0, limit: int = 100, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
-    tasks = db.query(models.Task).filter(models.Task.user_id == current_user.id).offset(skip).limit(limit).all()
+    query = db.query(models.Task).filter(models.Task.user_id == current_user.id)
+    total = query.count()
+    tasks = query.offset(skip).limit(limit).all()
     # Map fields to match camelCase expected by the React frontend
     resp_tasks = []
     for t in tasks:
@@ -147,7 +161,7 @@ def get_my_tasks(skip: int = 0, limit: int = 100, current_user: models.User = De
             acceptance=t.acceptance,
             subtasks=[SubtaskResponse(id=st.id, title=st.title, done=st.done) for st in t.subtasks]
         ))
-    return resp_tasks
+    return {"items": resp_tasks, "total": total, "skip": skip, "limit": limit}
 
 @router.post("/tasks/{id}/subtasks/{subtask_id}/toggle", response_model=SubtaskResponse)
 def toggle_subtask(id: int, subtask_id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -253,9 +267,12 @@ def get_my_leave_balances(current_user: models.User = Depends(security.get_curre
         return models.LeaveBalance(id=0, user_id=current_user.id, CL=0.0, SL=0.0, EL=0.0, Maternity=0.0, Paternity=0.0, year=date.today().year)
     return bal
 
-@router.get("/leave/my-requests", response_model=List[LeaveRequestResponse])
+@router.get("/leave/my-requests", response_model=PaginatedResponse[LeaveRequestResponse])
 def get_my_leave_requests(skip: int = 0, limit: int = 50, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
-    return db.query(models.LeaveRequest).filter(models.LeaveRequest.user_id == current_user.id).order_by(models.LeaveRequest.from_date.desc()).offset(skip).limit(limit).all()
+    query = db.query(models.LeaveRequest).filter(models.LeaveRequest.user_id == current_user.id)
+    total = query.count()
+    items = query.order_by(models.LeaveRequest.from_date.desc()).offset(skip).limit(limit).all()
+    return {"items": items, "total": total, "skip": skip, "limit": limit}
 
 @router.post("/leave/request", response_model=LeaveRequestResponse, status_code=status.HTTP_201_CREATED)
 def request_leave(req: LeaveRequestCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -343,9 +360,12 @@ class ExpenseClaimResponse(BaseModel):
     class Config:
         from_attributes = True
 
-@router.get("/expenses/my-claims", response_model=List[ExpenseClaimResponse])
+@router.get("/expenses/my-claims", response_model=PaginatedResponse[ExpenseClaimResponse])
 def get_my_expense_claims(skip: int = 0, limit: int = 50, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
-    return db.query(models.ExpenseClaim).filter(models.ExpenseClaim.user_id == current_user.id, models.ExpenseClaim.deleted_at == None).order_by(models.ExpenseClaim.claim_date.desc()).offset(skip).limit(limit).all()
+    query = db.query(models.ExpenseClaim).filter(models.ExpenseClaim.user_id == current_user.id, models.ExpenseClaim.deleted_at == None)
+    total = query.count()
+    items = query.order_by(models.ExpenseClaim.claim_date.desc()).offset(skip).limit(limit).all()
+    return {"items": items, "total": total, "skip": skip, "limit": limit}
 
 @router.post("/expenses/claim", response_model=ExpenseClaimResponse, status_code=status.HTTP_201_CREATED)
 def claim_expense(req: ExpenseClaimCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -424,13 +444,55 @@ class LoanResponse(BaseModel):
     class Config:
         from_attributes = True
 
-@router.get("/payroll/my-payslips", response_model=List[PayslipResponse])
+@router.get("/payroll/my-payslips", response_model=PaginatedResponse[PayslipResponse])
 def get_my_payslips(skip: int = 0, limit: int = 50, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
-    return db.query(models.Payslip).filter(models.Payslip.user_id == current_user.id).order_by(models.Payslip.year.desc(), models.Payslip.month.desc()).offset(skip).limit(limit).all()
+    query = db.query(models.Payslip).filter(models.Payslip.user_id == current_user.id)
+    total = query.count()
+    items = query.order_by(models.Payslip.year.desc(), models.Payslip.month.desc()).offset(skip).limit(limit).all()
+    return {"items": items, "total": total, "skip": skip, "limit": limit}
 
 @router.get("/payroll/my-loans", response_model=List[LoanResponse])
 def get_my_loans(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     return db.query(models.Loan).filter(models.Loan.user_id == current_user.id).all()
+
+@router.get("/payroll/export")
+def export_my_payslips(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    payslips = db.query(models.Payslip).filter(models.Payslip.user_id == current_user.id).order_by(models.Payslip.year.desc(), models.Payslip.month.desc()).all()
+    
+    stream = io.StringIO()
+    writer = csv.writer(stream)
+    writer.writerow(["ID", "Month", "Year", "Basic", "HRA", "DA", "Allowances", "EPF", "TDS", "Net", "LOP", "Status"])
+    
+    for p in payslips:
+        writer.writerow([p.id, p.month, p.year, p.basic, p.hra, p.da, p.allowances, p.epf, p.tds, p.net, p.lop, p.status])
+        
+    response = StreamingResponse(iter([stream.getvalue()]), media_type="text/csv")
+    response.headers["Content-Disposition"] = f"attachment; filename=payslips_{current_user.emp_id or current_user.id}.csv"
+    return response
+
+@router.get("/attendance/export")
+def export_my_attendance(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    records = db.query(models.Attendance).filter(models.Attendance.user_id == current_user.id).order_by(models.Attendance.date.desc()).all()
+    
+    stream = io.StringIO()
+    writer = csv.writer(stream)
+    writer.writerow(["Date", "Clock In", "Clock Out", "Status", "Total Hours", "Work Mode", "Is Late", "Exception Flag"])
+    
+    for r in records:
+        writer.writerow([
+            r.date, 
+            r.clock_in.strftime("%Y-%m-%d %H:%M:%S") if r.clock_in else "N/A", 
+            r.clock_out.strftime("%Y-%m-%d %H:%M:%S") if r.clock_out else "N/A", 
+            r.status, 
+            r.total_hours or 0.0, 
+            r.work_mode, 
+            "Yes" if r.is_late else "No", 
+            r.exception_flag
+        ])
+        
+    response = StreamingResponse(iter([stream.getvalue()]), media_type="text/csv")
+    response.headers["Content-Disposition"] = f"attachment; filename=attendance_{current_user.emp_id or current_user.id}.csv"
+    return response
 
 class CTCResponse(BaseModel):
     earnings: List[dict]
@@ -722,8 +784,8 @@ def request_early_relief(current_user: models.User = Depends(security.get_curren
     return {"status": "success"}
 
 @router.get("/resignation/my-assets", response_model=List[AssetResponse])
-def get_my_assets(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
-    return db.query(models.Asset).filter(models.Asset.user_id == current_user.id).all()
+def get_my_assets(skip: int = 0, limit: int = 50, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    return db.query(models.Asset).filter(models.Asset.user_id == current_user.id).offset(skip).limit(limit).all()
 
 # ─── Asset Requests (separate from issued assets) ───────────────────────────
 
@@ -744,13 +806,16 @@ class AssetRequestResponse(BaseModel):
         from_attributes = True
 
 @router.get("/assets/my-requests")
-def get_my_asset_requests(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_my_asset_requests(skip: int = 0, limit: int = 50, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     # Return from SupportTicket table using category='asset_request'
-    tickets = db.query(models.SupportTicket).filter(
+    query = db.query(models.SupportTicket).filter(
         models.SupportTicket.user_id == current_user.id,
         models.SupportTicket.category == "asset_request"
-    ).order_by(models.SupportTicket.created_at.desc()).all()
-    return [{"id": t.id, "asset_type": t.title, "reason": t.description, "urgency": t.priority, "status": t.status, "created_at": t.created_at} for t in tickets]
+    )
+    total = query.count()
+    tickets = query.order_by(models.SupportTicket.created_at.desc()).offset(skip).limit(limit).all()
+    items = [{"id": t.id, "asset_type": t.title, "reason": t.description, "urgency": t.priority, "status": t.status, "created_at": t.created_at} for t in tickets]
+    return {"items": items, "total": total, "skip": skip, "limit": limit}
 
 @router.post("/assets/request", status_code=201)
 def create_asset_request(req: AssetRequestCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -1349,3 +1414,57 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 print(f"Error parsing websocket payload: {e}")
     except WebSocketDisconnect:
         await manager.disconnect(client_id, websocket)
+class OrgChartResponse(BaseModel):
+    id: int
+    name: str
+    role: str
+    department: Optional[str]
+    designation: Optional[str]
+    manager_id: Optional[int]
+    photo: Optional[str]
+    email: str
+
+    class Config:
+        from_attributes = True
+
+class AppraisalScorecardResponse(BaseModel):
+    id: int
+    employee_name: str
+    tl_name: str
+    rating: str
+    comments: str
+
+    class Config:
+        from_attributes = True
+
+# 8. Org Chart
+@router.get("/org-chart", response_model=List[OrgChartResponse])
+def get_org_chart(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    # Return all active employees, TLs, managers, HR, CEO
+    users = db.query(models.User).filter(models.User.status.in_(["active", "probation"])).all()
+    return users
+
+# 9. Performance Appraisals
+@router.get("/performance/my-scorecards", response_model=PaginatedResponse[AppraisalScorecardResponse])
+def get_my_scorecards(skip: int = 0, limit: int = 50, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    query = db.query(models.AppraisalScorecard).filter(models.AppraisalScorecard.employee_name == current_user.name)
+    total = query.count()
+    items = query.order_by(models.AppraisalScorecard.id.desc()).offset(skip).limit(limit).all()
+    return {"items": items, "total": total, "skip": skip, "limit": limit}
+
+@router.post("/performance/scorecards/{id}/acknowledge")
+def acknowledge_scorecard(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    scorecard = db.query(models.AppraisalScorecard).filter(models.AppraisalScorecard.id == id, models.AppraisalScorecard.employee_name == current_user.name).first()
+    if not scorecard:
+        raise HTTPException(status_code=404, detail="Scorecard not found.")
+    
+    tl_user = db.query(models.User).filter(models.User.name == scorecard.tl_name).first()
+    if tl_user:
+        db_notify = models.Notification(
+            user_id=tl_user.id,
+            message=f"{current_user.name} has acknowledged their performance scorecard.",
+            type="info"
+        )
+        db.add(db_notify)
+        db.commit()
+    return {"status": "success", "message": "Scorecard acknowledged."}

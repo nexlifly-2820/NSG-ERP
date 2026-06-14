@@ -7,9 +7,9 @@ export default function EmployeeDashboard({ setActiveTab, currentUser }) {
   const employee = currentUser ? {
     id: currentUser.id,
     name: currentUser.name,
-    designation: currentUser.designation || 'Senior Developer',
-    department: currentUser.department || 'Engineering',
-    employeeCode: currentUser.emp_id || `NSG-EMP-${currentUser.id}`
+    designation: currentUser.designation || currentUser.role || 'Unassigned',
+    department: currentUser.department || 'Unassigned',
+    employeeCode: currentUser.emp_id || (currentUser.id ? `NSG-EMP-${currentUser.id}` : 'Unassigned')
   } : {
     name: 'Loading...',
     designation: '...',
@@ -196,17 +196,16 @@ export default function EmployeeDashboard({ setActiveTab, currentUser }) {
   const myChannels = dbData.channels;
 
   // ── Derived leave statistics ──────────────────────────────────────
-  const clLeft = myLeave?.CL ?? 12;
-  const slLeft = myLeave?.SL ?? 8;
-  const elLeft = myLeave?.EL ?? 15;
+  const clLeft = myLeave?.CL ?? 0;
+  const slLeft = myLeave?.SL ?? 0;
+  const elLeft = myLeave?.EL ?? 0;
   const totalLeft = clLeft + slLeft + elLeft;
-  const totalUsed = (12 - clLeft) + (8 - slLeft) + (15 - elLeft);
 
   // ── Pending actions ───────────────────────────────────────────────
   const [doneActions, setDoneActions] = useState({});
   const pendingActions = [
     { id: 'ts', label: 'Submit weekly timesheet', sub: 'Due: End of day today', tab: 'timesheet' },
-    { id: 'lv', label: 'Review leave balance', sub: `${totalUsed} days used`, tab: 'leave' },
+    { id: 'lv', label: 'Review leave balance', sub: `Balance: ${totalLeft} days`, tab: 'leave' },
     { id: 'exp', label: 'File pending expenses', sub: 'Upload receipts and submit claims', tab: 'expenses' },
     { id: 'asset', label: 'Review asset NOC status', sub: `${myAssets.length} assigned asset(s)`, tab: 'assets' },
   ];
@@ -302,8 +301,8 @@ export default function EmployeeDashboard({ setActiveTab, currentUser }) {
             },
             {
               label: 'Leave Balance',
-              value: myLeave ? `${totalLeft} days` : 'N/A',
-              sub: `${totalUsed} used this year`,
+              value: myLeave ? `${totalLeft} days` : '0 days',
+              sub: myLeave ? 'Available this year' : 'Pending allocation',
               color: '#10b981',
               icon: '🌴',
               onClick: () => setActiveTab('leave')

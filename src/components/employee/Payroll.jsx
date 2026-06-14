@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import useSWR from 'swr';
+
+const fetcher = url => fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('nsg_jwt_token')}` } }).then(res => res.json());
 import { Download, CheckCircle, AlertTriangle, Upload, X, FileText, Calculator, CreditCard, Loader } from 'lucide-react';
 import './Payroll.css';
 
@@ -55,28 +58,9 @@ function SubTabs({ active, setActive }) {
 
 function PayslipsTab({ employeeId }) {
   const [downloading, setDownloading] = useState(null);
-  const [payslipsList, setPayslipsList] = useState([]);
-
-  useEffect(() => {
-    const fetchPayslips = async () => {
-      try {
-        const token = localStorage.getItem('nsg_jwt_token');
-        const res = await fetch('/api/employee-portal/payroll/my-payslips', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setPayslipsList(data);
-        } else {
-          setPayslipsList([]);
-        }
-      } catch (e) {
-        console.error(e);
-        setPayslipsList([]);
-      }
-    };
-    fetchPayslips();
-  }, []);
+  
+  const { data: payslipsData } = useSWR('/api/employee-portal/payroll/my-payslips', fetcher);
+  const payslipsList = payslipsData?.items || [];
 
   function handleDownload(p) {
     setDownloading(p.id);
@@ -208,23 +192,8 @@ function PayslipsTab({ employeeId }) {
 // ─── CTC Breakdown Tab ────────────────────────────────────────────────────────
 
 function CtcBreakdownTab() {
-  const [ctcData, setCtcData] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchCtc = async () => {
-      try {
-        const token = localStorage.getItem('nsg_jwt_token');
-        const res = await fetch('/api/employee-portal/payroll/ctc', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          setCtcData(await res.json());
-        }
-      } catch(e) { console.error(e); } finally { setLoading(false); }
-    };
-    fetchCtc();
-  }, []);
+  const { data: ctcData, error } = useSWR('/api/employee-portal/payroll/ctc', fetcher);
+  const loading = !ctcData && !error;
 
   if (loading) return <div style={{ padding: 20 }}>Loading...</div>;
   if (!ctcData) return <div style={{ padding: 20 }}>Failed to load CTC data.</div>;
@@ -275,35 +244,16 @@ function CtcBreakdownTab() {
 // ─── TDS Declaration Tab ──────────────────────────────────────────────────────
 
 function TdsDeclarationTab({ employeeId }) {
-  const [currentDeclaration, setCurrentDeclaration] = useState(null);
-
-  useEffect(() => {
-    const fetchDeclarations = async () => {
-      try {
-        const token = localStorage.getItem('nsg_jwt_token');
-        const res = await fetch('/api/employee-portal/payroll/tds-declarations', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.length > 0) {
-            // Show latest declaration status
-            setCurrentDeclaration({
-              status: data[0].status,
-              submitted_at: new Date().toISOString(),
-              sec80c: data.find(d => d.declaration_type === '80C')?.declared_amount || 0,
-              hra_rent: data.find(d => d.declaration_type === 'HRA')?.declared_amount || 0,
-              sec80d: 0,
-              verified_by: data[0].verified_by
-            });
-          }
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    };
-    fetchDeclarations();
-  }, []);
+  const { data: declData, mutate: mutateDecl } = useSWR('/api/employee-portal/payroll/tds-declarations', fetcher);
+  
+  const currentDeclaration = (declData && declData.length > 0) ? {
+    status: declData[0].status,
+    submitted_at: new Date().toISOString(),
+    sec80c: declData.find(d => d.declaration_type === '80C')?.declared_amount || 0,
+    hra_rent: declData.find(d => d.declaration_type === 'HRA')?.declared_amount || 0,
+    sec80d: 0,
+    verified_by: declData[0].verified_by
+  } : null;
 
   const [form, setForm] = useState({ sec80c: '', hra_rent: '', hra_city: 'metro', sec80d: '' });
 
@@ -349,7 +299,7 @@ function TdsDeclarationTab({ employeeId }) {
         })
       });
       if (res.ok) {
-        setCurrentDeclaration({ status: 'pending', submitted_at: new Date().toISOString() });
+        mutateDecl();
       } else {
         alert('Failed to submit TDS declaration.');
       }
@@ -398,7 +348,8 @@ function TdsDeclarationTab({ employeeId }) {
             </div>
             <button 
               onClick={() => {
-                setCurrentDeclaration(null);
+                // Not ideal, but mutating data to empty locally forces form visibility
+                mutateDecl([], false);
               }} 
               style={{ marginLeft: 'auto', background: 'var(--pay-red)', border: 'none', color: '#fff', padding: '4px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer' }}
             >

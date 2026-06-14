@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import BankSection from './BankSection';
 import DocCard from './DocCard';
 import { User, Mail, Home, Camera, Check, ChevronDown } from 'lucide-react';
+import AvatarFallback from '../common/AvatarFallback';
 
 const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?name=Employee&background=6d28d9&color=fff&size=150';
 
@@ -251,11 +252,11 @@ export default function Profile({ currentUser }) {
   // --- Sub-renderers to keep code clean and modular ---
 
   const renderPhotoSection = () => {
-    const liveName = liveProfile?.name || 'Jane Smith';
-    const liveEmpId = liveProfile?.id ? `NSG-0${liveProfile.id}` : 'NSG-0102';
-    const liveEmail = liveProfile?.email || 'jane.smith@hnms.com';
-    const liveDept = liveProfile?.department || 'IT';
-    const liveDesignation = liveProfile?.role || 'Systems Executive';
+    const liveName = liveProfile?.name || currentUser?.name || 'Loading...';
+    const liveEmpId = liveProfile?.emp_id || currentUser?.emp_id || (currentUser?.id ? `NSG-0${currentUser.id}` : '...');
+    const liveEmail = liveProfile?.email || currentUser?.email || '...';
+    const liveDept = liveProfile?.department || currentUser?.department || 'Unassigned';
+    const liveDesignation = liveProfile?.designation || currentUser?.designation || liveProfile?.role || currentUser?.role || 'Unassigned';
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '16px', position: 'relative' }}>
@@ -270,7 +271,7 @@ export default function Profile({ currentUser }) {
             accept="image/*" 
             style={{ display: 'none' }} 
           />
-          <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={avatar} alt="Avatar" className="avatar-img"  />
+          <AvatarFallback src={avatar} alt="Avatar" className="avatar-img"  />
           <div className="avatar-overlay">
             <Camera size={20} />
           </div>
@@ -680,7 +681,7 @@ export default function Profile({ currentUser }) {
               justifyContent: 'center',
               alignItems: 'center'
             }}>
-              <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} 
+              <AvatarFallback
                 src={croppedImageSrc} 
                 alt="Cropped Preview" 
                 style={{

@@ -19,7 +19,8 @@
     "react-dom": "^19.2.6",
     "react-is": "^19.2.7",
     "react-quill-new": "^3.8.3",
-    "recharts": "^3.8.1"
+    "recharts": "^3.8.1",
+    "swr": "^2.4.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
