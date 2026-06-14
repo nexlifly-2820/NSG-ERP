@@ -18,7 +18,8 @@ from sqlalchemy.engine import Engine
 
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
-    if settings.DATABASE_URL.startswith("sqlite"):
+    # Ensure this only runs for actual sqlite connections, regardless of the global setting
+    if type(dbapi_connection).__name__ == "Connection" and dbapi_connection.__class__.__module__ == "sqlite3":
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()

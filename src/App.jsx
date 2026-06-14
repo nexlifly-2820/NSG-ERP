@@ -204,6 +204,7 @@ export default function App() {
             activeTab={route.tab} 
             setActiveTab={(tab) => navigateTo(route.role, tab)} 
             currentUser={user}
+            onLogout={handleLogout}
           />
 
           {/* Main Panel Viewport */}

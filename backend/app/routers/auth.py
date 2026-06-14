@@ -95,7 +95,7 @@ def login(response: Response, form_data: OAuth2PasswordRequestForm = Depends(), 
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/logout")
-def logout(response: Response):
+def logout(response: Response, current_user: models.User = Depends(security.get_current_user)):
     response.delete_cookie("nsg_jwt_token", httponly=True, samesite="lax")
     return {"message": "Successfully logged out"}
 
