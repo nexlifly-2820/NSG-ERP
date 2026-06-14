@@ -1,56 +1,70 @@
-import React, { useState, useEffect } from 'react';import { HrDashboardView } from './modules/dashboard/HrDashboardView';
-import { RecruitmentView } from './modules/recruitment/RecruitmentView';
-import { EmployeeRegistryView } from './modules/employees/EmployeeRegistryView';
-import { OnboardingView } from './modules/onboarding/OnboardingView';
-import { AttendanceRegisterView } from './modules/attendance/AttendanceRegisterView';
-import { TimesheetExceptionsView } from './modules/timesheets/TimesheetExceptionsView';
-import { LeaveManagementView } from './modules/leave/LeaveManagementView';
-import { PayrollBuilderView } from './modules/payroll/PayrollBuilderView';
-import { AppraisalsView } from './modules/appraisals/AppraisalsView';
-import { ExitFnFView } from './modules/exits/ExitFnFView';
-import { LearningLndView } from './modules/lnd/LearningLndView';
-import { ReportsEngineView } from './modules/reports/ReportsEngineView';
-import { HrSettingsView } from './modules/settings/HrSettingsView';
-import { HrMessagingView } from './modules/messaging/HrMessagingView';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
+import ErrorBoundary from '../tl/ErrorBoundary';
+
+const HrDashboardView = lazy(() => import('./modules/dashboard/HrDashboardView').then(m => ({ default: m.HrDashboardView })));
+const RecruitmentView = lazy(() => import('./modules/recruitment/RecruitmentView').then(m => ({ default: m.RecruitmentView })));
+const EmployeeRegistryView = lazy(() => import('./modules/employees/EmployeeRegistryView').then(m => ({ default: m.EmployeeRegistryView })));
+const OnboardingView = lazy(() => import('./modules/onboarding/OnboardingView').then(m => ({ default: m.OnboardingView })));
+const AttendanceRegisterView = lazy(() => import('./modules/attendance/AttendanceRegisterView').then(m => ({ default: m.AttendanceRegisterView })));
+const TimesheetExceptionsView = lazy(() => import('./modules/timesheets/TimesheetExceptionsView').then(m => ({ default: m.TimesheetExceptionsView })));
+const LeaveManagementView = lazy(() => import('./modules/leave/LeaveManagementView').then(m => ({ default: m.LeaveManagementView })));
+const PayrollBuilderView = lazy(() => import('./modules/payroll/PayrollBuilderView').then(m => ({ default: m.PayrollBuilderView })));
+const AppraisalsView = lazy(() => import('./modules/appraisals/AppraisalsView').then(m => ({ default: m.AppraisalsView })));
+const ExitFnFView = lazy(() => import('./modules/exits/ExitFnFView').then(m => ({ default: m.ExitFnFView })));
+const LearningLndView = lazy(() => import('./modules/lnd/LearningLndView').then(m => ({ default: m.LearningLndView })));
+const ReportsEngineView = lazy(() => import('./modules/reports/ReportsEngineView').then(m => ({ default: m.ReportsEngineView })));
+const HrSettingsView = lazy(() => import('./modules/settings/HrSettingsView').then(m => ({ default: m.HrSettingsView })));
+const HrMessagingView = lazy(() => import('./modules/messaging/HrMessagingView').then(m => ({ default: m.HrMessagingView })));
 
 export default function Hr({ activeTab, queryParams, setQueryParams, currentUser }) {
 
-  // Router for rendering the 17 custom-stylized HR modules
+  const fallbackLoader = (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+      <div className="animate-spin" style={{ border: '4px solid #f3f3f3', borderTop: '4px solid #3b82f6', borderRadius: '50%', width: '40px', height: '40px' }}></div>
+    </div>
+  );
+
   const renderTabContent = () => {
     const props = { queryParams, setQueryParams, currentUser };
     switch (activeTab) {
       case 'dashboard':
-        return <HrDashboardView {...props} />;
+        return <ErrorBoundary><HrDashboardView {...props} /></ErrorBoundary>;
       case 'recruitment':
-        return <RecruitmentView {...props} />;
+        return <ErrorBoundary><RecruitmentView {...props} /></ErrorBoundary>;
       case 'employees':
-        return <EmployeeRegistryView {...props} />;
+        return <ErrorBoundary><EmployeeRegistryView {...props} /></ErrorBoundary>;
       case 'onboarding':
-        return <OnboardingView {...props} />;
+        return <ErrorBoundary><OnboardingView {...props} /></ErrorBoundary>;
       case 'attendance':
-        return <AttendanceRegisterView {...props} />;
+        return <ErrorBoundary><AttendanceRegisterView {...props} /></ErrorBoundary>;
       case 'timesheets':
-        return <TimesheetExceptionsView {...props} />;
+        return <ErrorBoundary><TimesheetExceptionsView {...props} /></ErrorBoundary>;
       case 'leave':
-        return <LeaveManagementView {...props} />;
+        return <ErrorBoundary><LeaveManagementView {...props} /></ErrorBoundary>;
       case 'payroll':
-        return <PayrollBuilderView {...props} userRole="HR" />;
+        return <ErrorBoundary><PayrollBuilderView {...props} userRole="HR" /></ErrorBoundary>;
       case 'appraisals':
-        return <AppraisalsView {...props} />;
+        return <ErrorBoundary><AppraisalsView {...props} /></ErrorBoundary>;
       case 'exits':
-        return <ExitFnFView {...props} />;
+        return <ErrorBoundary><ExitFnFView {...props} /></ErrorBoundary>;
       case 'lnd':
-        return <LearningLndView {...props} />;
+        return <ErrorBoundary><LearningLndView {...props} /></ErrorBoundary>;
       case 'reports':
-        return <ReportsEngineView {...props} />;
+        return <ErrorBoundary><ReportsEngineView {...props} /></ErrorBoundary>;
       case 'settings':
-        return <HrSettingsView {...props} />;
+        return <ErrorBoundary><HrSettingsView {...props} /></ErrorBoundary>;
       case 'messaging':
-        return <HrMessagingView {...props} />;
+        return <ErrorBoundary><HrMessagingView {...props} /></ErrorBoundary>;
       default:
-        return <HrDashboardView {...props} />;
+        return <ErrorBoundary><HrDashboardView {...props} /></ErrorBoundary>;
     }
   };
 
-  return renderTabContent();
+  return (
+    <div className="component-container">
+      <Suspense fallback={fallbackLoader}>
+        {renderTabContent()}
+      </Suspense>
+    </div>
+  );
 }

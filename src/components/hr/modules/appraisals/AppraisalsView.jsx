@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
+import useSWR from 'swr';
 import { notify } from '../../utils/notify';
 
 export function AppraisalsView() {
   const [appraisalTab, setAppraisalTab] = useState('proposals'); // proposals | cycles | scorecards | promotions
   const [selectedEmpId, setSelectedEmpId] = useState(104);
 
-  const [employees, setEmployees] = useState([]);
-  const [appraisalCycles, setAppraisalCycles] = useState([]);
-  const [incrementProposals, setIncrementProposals] = useState([]);
-  const [scorecards, setScorecards] = useState([]);
-  const [promotionTracker, setPromotionTracker] = useState([]);
+  const token = localStorage.getItem('nsg_jwt_token');
+  const fetcher = (url) => fetch(url, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.json());
+
+  const { data: employees = [], mutate: mutateEmployees } = useSWR('/api/hr-portal/employees', fetcher);
+  const { data: appraisalCycles = [], mutate: mutateCycles } = useSWR('/api/hr-portal/appraisal-cycles', fetcher);
+  const { data: incrementProposals = [], mutate: mutateProposals } = useSWR('/api/hr-portal/increment-proposals', fetcher);
+  const { data: scorecards = [], mutate: mutateScorecards } = useSWR('/api/hr-portal/appraisal-scorecards', fetcher);
+  const { data: promotionTracker = [], mutate: mutatePromotions } = useSWR('/api/hr-portal/promotions', fetcher);
 
   const emp = employees.find(e => e.id === selectedEmpId) || { name: 'Staff', grade: 1, designation: 'Developer', ctc: 300000 };
   
@@ -26,67 +30,7 @@ export function AppraisalsView() {
     setProposedCTC(Math.round(annual * 1.10));
   }, [selectedEmpId, emp.ctc]);
 
-  // Fetch all appraisal data from backend on mount
-  useEffect(() => {
-    const fetchData = async () => {
-      const token = localStorage.getItem('nsg_jwt_token');
-      if (!token) return;
 
-      const headers = { 'Authorization': `Bearer ${token}` };
-
-      try {
-        const empRes = await fetch('/api/hr-portal/employees', { headers });
-        if (empRes.ok) {
-          const empData = await empRes.json();
-          setEmployees(empData);
-        }
-      } catch (err) {
-        console.error("Failed to fetch employees", err);
-      }
-
-      try {
-        const cyclesRes = await fetch('/api/hr-portal/appraisal-cycles', { headers });
-        if (cyclesRes.ok) {
-          const cyclesData = await cyclesRes.json();
-          setAppraisalCycles(cyclesData);
-        }
-      } catch (err) {
-        console.error("Failed to fetch cycles", err);
-      }
-
-      try {
-        const propRes = await fetch('/api/hr-portal/increment-proposals', { headers });
-        if (propRes.ok) {
-          const propData = await propRes.json();
-          setIncrementProposals(propData);
-        }
-      } catch (err) {
-        console.error("Failed to fetch proposals", err);
-      }
-
-      try {
-        const scRes = await fetch('/api/hr-portal/appraisal-scorecards', { headers });
-        if (scRes.ok) {
-          const scData = await scRes.json();
-          setScorecards(scData);
-        }
-      } catch (err) {
-        console.error("Failed to fetch scorecards", err);
-      }
-
-      try {
-        const promoRes = await fetch('/api/hr-portal/promotions', { headers });
-        if (promoRes.ok) {
-          const promoData = await promoRes.json();
-          setPromotionTracker(promoData);
-        }
-      } catch (err) {
-        console.error("Failed to fetch promotions", err);
-      }
-    };
-
-    fetchData();
-  }, []);
 
   // Review Cycle States
   const [cycleName, setCycleName] = useState('');
@@ -143,7 +87,7 @@ export function AppraisalsView() {
         });
         if (response.ok) {
           const saved = await response.json();
-          setIncrementProposals(prev => [...prev, saved]);
+          mutateProposals();
         }
       } catch (err) {
         console.error("Failed to post increment proposal", err);
@@ -190,7 +134,7 @@ export function AppraisalsView() {
         });
         if (response.ok) {
           const saved = await response.json();
-          setAppraisalCycles(prev => [...prev, saved]);
+          mutateCycles();
         }
       } catch (err) {
         console.error("Failed to post appraisal cycle", err);
@@ -219,7 +163,7 @@ export function AppraisalsView() {
       });
       if (res.ok) {
         const saved = await res.json();
-        setPromotionTracker(prev => [...prev, saved]);
+        mutatePromotions();
         setPromoEmpName('');
         setPromoCurrentTitle('');
         setPromoProposedTitle('');
