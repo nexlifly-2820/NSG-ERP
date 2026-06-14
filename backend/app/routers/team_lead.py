@@ -119,6 +119,18 @@ class ExpenseClaimResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class AttendanceCorrectionResponse(BaseModel):
+    id: int
+    user_id: int
+    correction_date: date
+    requested_clock_in: datetime
+    requested_clock_out: datetime
+    reason: str
+    status: str
+
+    class Config:
+        from_attributes = True
+
 class EscalationCreateRequest(BaseModel):
     title: str
     task_link: str
@@ -158,26 +170,76 @@ class ScorecardResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class EmployeeSkillResponse(BaseModel):
+    id: int
+    user_id: int
+    skill_name: str
+    proficiency_level: int
+
+    class Config:
+        from_attributes = True
+
+class MilestoneResponse(BaseModel):
+    id: int
+    project_id: int
+    name: str
+    due_date: str
+    status: str
+    progress: int
+    tasks_count: int
+
+    class Config:
+        from_attributes = True
+
+class TaskBatchUpdateRequest(BaseModel):
+    task_ids: List[int]
+    sprint: str
+    status: str
+
+class TaskStatusUpdateRequest(BaseModel):
+    status: str
+
 
 # ─── Endpoints ───────────────────────────────────────────────────────────────
 
 @router.get("/team-members", response_model=List[UserProfileResponse])
 def get_team_members(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     verify_manager_role(current_user)
-    query = db.query(models.User).filter(models.User.role == "employee")
-    if current_user.department:
-        query = query.filter(models.User.department == current_user.department)
+    query = db.query(models.User).filter(models.User.manager_id == current_user.id)
     return query.all()
+
+@router.get("/team-availability", response_model=List[LeaveRequestResponse])
+def get_team_availability(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_manager_role(current_user)
+    emp_ids = [u.id for u in db.query(models.User.id).filter(models.User.manager_id == current_user.id).all()]
+    if not emp_ids:
+        return []
+    leaves = db.query(models.LeaveRequest).filter(
+        models.LeaveRequest.user_id.in_(emp_ids),
+        models.LeaveRequest.status == "approved"
+    ).all()
+    return leaves
+
+@router.get("/team-skills", response_model=List[EmployeeSkillResponse])
+def get_team_skills(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_manager_role(current_user)
+    emp_ids = [u.id for u in db.query(models.User.id).filter(models.User.manager_id == current_user.id).all()]
+    if not emp_ids:
+        return []
+    skills = db.query(models.EmployeeSkill).filter(
+        models.EmployeeSkill.user_id.in_(emp_ids)
+    ).all()
+    return skills
 
 # 2. Task Management
 @router.get("/tasks", response_model=List[TaskResponse])
-def get_team_tasks(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_team_tasks(skip: int = 0, limit: int = 100, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     verify_manager_role(current_user)
-    if current_user.role == "tl" and current_user.department:
-        emp_ids = [u.id for u in db.query(models.User.id).filter(models.User.department == current_user.department).all()]
-        tasks = db.query(models.Task).filter(models.Task.user_id.in_(emp_ids)).all()
+    if current_user.role == "tl":
+        emp_ids = [u.id for u in db.query(models.User.id).filter(models.User.manager_id == current_user.id).all()]
+        tasks = db.query(models.Task).filter(models.Task.user_id.in_(emp_ids)).offset(skip).limit(limit).all()
     else:
-        tasks = db.query(models.Task).all()
+        tasks = db.query(models.Task).offset(skip).limit(limit).all()
     return tasks
 
 @router.post("/tasks", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
@@ -208,13 +270,52 @@ def create_team_task(req: TaskCreateRequest, current_user: models.User = Depends
             db_sub = models.TaskSubtask(
                 task_id=db_task.id,
                 title=st_title,
-                done=False
+                completed=False
             )
             db.add(db_sub)
-            
     db.commit()
     db.refresh(db_task)
     return db_task
+
+@router.patch("/tasks/batch-update", response_model=dict)
+def update_tasks_batch(req: TaskBatchUpdateRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_manager_role(current_user)
+    db.query(models.Task).filter(models.Task.id.in_(req.task_ids)).update({
+        "sprint": req.sprint,
+        "status": req.status
+    }, synchronize_session=False)
+    db.commit()
+    return {"status": "success", "updated_count": len(req.task_ids)}
+
+@router.patch("/tasks/{task_id}/status", response_model=TaskResponse)
+def update_task_status(task_id: int, req: TaskStatusUpdateRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_manager_role(current_user)
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found.")
+    task.status = req.status
+    db.commit()
+    db.refresh(task)
+    return task
+
+@router.get("/projects/{project_id}/backlog", response_model=List[TaskResponse])
+def get_project_backlog(project_id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_manager_role(current_user)
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not project:
+        return []
+    tasks = db.query(models.Task).filter(
+        models.Task.project == project.name,
+        (models.Task.sprint == None) | (models.Task.sprint == "") | (models.Task.sprint == "Backlog")
+    ).all()
+    return tasks
+
+@router.get("/projects/{project_id}/milestones", response_model=List[MilestoneResponse])
+def get_project_milestones(project_id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_manager_role(current_user)
+    milestones = db.query(models.Milestone).filter(models.Milestone.project_id == project_id).all()
+    return milestones
+
 
 @router.post("/tasks/{id}/approve-pr", response_model=TaskResponse)
 def approve_task_pr(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -277,7 +378,19 @@ def update_task(id: int, req: TaskCreateRequest, current_user: models.User = Dep
     task.sp = req.sp
     task.due = req.due
     task.custom_data = req.custom_data
+    task.acceptance = json.dumps(req.acceptance) if req.acceptance else None
     
+    # Update Subtasks
+    db.query(models.TaskSubtask).filter(models.TaskSubtask.task_id == id).delete()
+    for st_title in req.subtasks:
+        if st_title.strip():
+            db_sub = models.TaskSubtask(
+                task_id=task.id,
+                title=st_title,
+                completed=False
+            )
+            db.add(db_sub)
+            
     db.commit()
     db.refresh(task)
     return task
@@ -314,19 +427,24 @@ def reassign_task(id: int, req: ReassignRequest, current_user: models.User = Dep
 @router.get("/leaves/pending", response_model=List[LeaveRequestResponse])
 def get_pending_leaves(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     verify_manager_role(current_user)
-    if current_user.role == "tl" and current_user.department:
-        emp_ids = [u.id for u in db.query(models.User.id).filter(models.User.department == current_user.department).all()]
+    if current_user.role == "tl":
+        emp_ids = [u.id for u in db.query(models.User.id).filter(models.User.manager_id == current_user.id).all()]
         leaves = db.query(models.LeaveRequest).filter(
             models.LeaveRequest.status == "pending",
+            models.LeaveRequest.leave_type != "WFH",
             models.LeaveRequest.user_id.in_(emp_ids)
         ).all()
     else:
-        leaves = db.query(models.LeaveRequest).filter(models.LeaveRequest.status == "pending").all()
+        leaves = db.query(models.LeaveRequest).filter(
+            models.LeaveRequest.status == "pending",
+            models.LeaveRequest.leave_type != "WFH"
+        ).all()
     return leaves
 
 @router.post("/leaves/{id}/approve", response_model=LeaveRequestResponse)
 def approve_leave(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     verify_manager_role(current_user)
+    security.check_rbac_permission(db, current_user, "Approve Leaves")
     req = db.query(models.LeaveRequest).filter(models.LeaveRequest.id == id).first()
     if not req:
         raise HTTPException(status_code=404, detail="Leave request not found.")
@@ -373,12 +491,116 @@ def reject_leave(id: int, current_user: models.User = Depends(security.get_curre
     db.refresh(req)
     return req
 
+# 3.1 Approvals (WFH)
+@router.get("/wfh/pending", response_model=List[LeaveRequestResponse])
+def get_pending_wfh(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_manager_role(current_user)
+    if current_user.role == "tl":
+        emp_ids = [u.id for u in db.query(models.User.id).filter(models.User.manager_id == current_user.id).all()]
+        wfh = db.query(models.LeaveRequest).filter(
+            models.LeaveRequest.status == "pending",
+            models.LeaveRequest.leave_type == "WFH",
+            models.LeaveRequest.user_id.in_(emp_ids)
+        ).all()
+    else:
+        wfh = db.query(models.LeaveRequest).filter(
+            models.LeaveRequest.status == "pending",
+            models.LeaveRequest.leave_type == "WFH"
+        ).all()
+    return wfh
+
+@router.post("/wfh/{id}/approve", response_model=LeaveRequestResponse)
+def approve_wfh(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    return approve_leave(id, current_user, db)
+
+@router.post("/wfh/{id}/reject", response_model=LeaveRequestResponse)
+def reject_wfh(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    return reject_leave(id, current_user, db)
+
+# 3.2 Approvals (Attendance Corrections)
+@router.get("/attendance-corrections/pending", response_model=List[AttendanceCorrectionResponse])
+def get_pending_corrections(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_manager_role(current_user)
+    if current_user.role == "tl":
+        emp_ids = [u.id for u in db.query(models.User.id).filter(models.User.manager_id == current_user.id).all()]
+        corrections = db.query(models.AttendanceCorrection).filter(
+            models.AttendanceCorrection.status == "pending",
+            models.AttendanceCorrection.user_id.in_(emp_ids)
+        ).all()
+    else:
+        corrections = db.query(models.AttendanceCorrection).filter(models.AttendanceCorrection.status == "pending").all()
+    return corrections
+
+@router.post("/attendance-corrections/{id}/approve", response_model=AttendanceCorrectionResponse)
+def approve_correction(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_manager_role(current_user)
+    corr = db.query(models.AttendanceCorrection).filter(models.AttendanceCorrection.id == id).first()
+    if not corr:
+        raise HTTPException(status_code=404, detail="Correction not found.")
+    
+    if corr.status != "pending":
+         raise HTTPException(status_code=400, detail=f"Request is already {corr.status}")
+         
+    corr.status = "approved"
+    
+    notification = models.Notification(
+        user_id=corr.user_id,
+        message=f"Your attendance correction for {corr.correction_date} has been approved.",
+        type="success",
+        read=False
+    )
+    db.add(notification)
+    
+    attendance = db.query(models.Attendance).filter(
+        models.Attendance.user_id == corr.user_id, 
+        models.Attendance.date == corr.correction_date
+    ).first()
+    if attendance:
+        attendance.clock_in = corr.requested_clock_in
+        attendance.clock_out = corr.requested_clock_out
+    else:
+        attendance = models.Attendance(
+            user_id=corr.user_id,
+            date=corr.correction_date,
+            clock_in=corr.requested_clock_in,
+            clock_out=corr.requested_clock_out,
+            status="present"
+        )
+        db.add(attendance)
+        
+    db.commit()
+    db.refresh(corr)
+    return corr
+
+@router.post("/attendance-corrections/{id}/reject", response_model=AttendanceCorrectionResponse)
+def reject_correction(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_manager_role(current_user)
+    corr = db.query(models.AttendanceCorrection).filter(models.AttendanceCorrection.id == id).first()
+    if not corr:
+        raise HTTPException(status_code=404, detail="Correction not found.")
+    
+    if corr.status != "pending":
+         raise HTTPException(status_code=400, detail=f"Request is already {corr.status}")
+         
+    corr.status = "denied"
+    
+    notification = models.Notification(
+        user_id=corr.user_id,
+        message=f"Your attendance correction for {corr.correction_date} was rejected.",
+        type="danger",
+        read=False
+    )
+    db.add(notification)
+    
+    db.commit()
+    db.refresh(corr)
+    return corr
 # 4. Approvals (Expenses)
 @router.get("/expenses/pending", response_model=List[ExpenseClaimResponse])
 def get_pending_expenses(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     verify_manager_role(current_user)
-    if current_user.role == "tl" and current_user.department:
-        emp_ids = [u.id for u in db.query(models.User.id).filter(models.User.department == current_user.department).all()]
+    if current_user.role == "tl":
+        emp_ids = [u.id for u in db.query(models.User.id).filter(models.User.manager_id == current_user.id).all()]
         expenses = db.query(models.ExpenseClaim).filter(
             models.ExpenseClaim.tl_approval == "pending",
             models.ExpenseClaim.user_id.in_(emp_ids)
@@ -545,9 +767,9 @@ class ProjectUpdateRequest(BaseModel):
 
 
 @router.get("/projects", response_model=List[ProjectResponse])
-def get_projects(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def get_projects(skip: int = 0, limit: int = 100, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     verify_manager_role(current_user)
-    return db.query(models.Project).order_by(models.Project.id.desc()).all()
+    return db.query(models.Project).order_by(models.Project.id.desc()).offset(skip).limit(limit).all()
 
 
 @router.post("/projects", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
@@ -604,15 +826,7 @@ def signoff_project(id: int, current_user: models.User = Depends(security.get_cu
 
 @router.get('/reports', response_model=dict)
 def get_team_reports(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
-    tasks_count = db.query(models.Task).filter(models.Task.assigned_to != None).count()
-    base_velocity = 30 + (tasks_count % 20)
-    velocityData = [
-        {'sprint': 'S1', 'actual': base_velocity, 'planned': base_velocity + 5},
-        {'sprint': 'S2', 'actual': base_velocity + 7, 'planned': base_velocity + 5},
-        {'sprint': 'S3', 'actual': base_velocity + 13, 'planned': base_velocity + 10},
-        {'sprint': 'S4', 'actual': base_velocity + 20, 'planned': base_velocity + 15},
-        {'sprint': 'S5', 'actual': base_velocity + 25, 'planned': base_velocity + 25}
-    ]
+    velocityData = []
     team_members = db.query(models.User).filter(models.User.manager_id == current_user.id).all()
     productivityData = []
     total_completed = 0
@@ -633,9 +847,7 @@ def get_team_reports(current_user: models.User = Depends(security.get_current_us
             'avatar': ''.join(word[0] for word in member.name.split()[:2]).upper() if member.name else '?',
             'assigned': assigned,
             'completed': completed,
-            'compRate': comp_rate,
-            'avgHours': '3.5',
-            'onTimeRate': '90%'
+            'compRate': comp_rate
         })
     total_tasks = total_completed + total_in_progress + total_blocked + total_overdue
     if total_tasks == 0:
@@ -672,3 +884,160 @@ def get_team_reports(current_user: models.User = Depends(security.get_current_us
         'leaveCalendar': leaveCalendar,
         'leavesDetailData': leavesDetailData
     }
+
+@router.get("/attendance")
+def get_team_attendance(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    verify_manager_role(current_user)
+    
+    # Get all employees assigned to this TL via manager_id
+    team_members = db.query(models.User).filter(models.User.manager_id == current_user.id).all()
+    member_ids = [m.id for m in team_members]
+    
+    if not member_ids:
+        return []
+        
+    logs = db.query(models.Attendance).filter(models.Attendance.user_id.in_(member_ids)).all()
+    
+    result = []
+    for log in logs:
+        result.append({
+            "id": log.id,
+            "employee_id": log.user_id,
+            "date": log.date.strftime("%Y-%m-%d") if log.date else None,
+            "clock_in": log.clock_in.isoformat() if log.clock_in else None,
+            "clock_out": log.clock_out.isoformat() if log.clock_out else None,
+            "status": log.status,
+            "work_mode": log.work_mode if hasattr(log, 'work_mode') else "office",
+            "exception_flag": log.exception_flag if hasattr(log, 'exception_flag') else None,
+            "is_late": log.is_late if hasattr(log, 'is_late') else False
+        })
+    return result
+
+
+class AnnouncementResponse(BaseModel):
+    id: int
+    title: str
+    body: str
+    priority: str
+    audience: str
+    author: str
+    date: str 
+
+    class Config:
+        from_attributes = True
+
+@router.get("/announcements", response_model=List[AnnouncementResponse])
+def get_announcements(db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
+    anns = db.query(models.Announcement).order_by(models.Announcement.created_at.desc()).all()
+    res = []
+    for a in anns:
+        res.append(AnnouncementResponse(
+            id=a.id,
+            title=a.title,
+            body=a.body,
+            priority=a.priority,
+            audience=a.audience,
+            author=a.author,
+            date=a.created_at.strftime("%Y-%m-%d") if a.created_at else "N/A"
+        ))
+    return res
+
+@router.get("/dashboard/pending-approvals")
+def get_pending_approvals_count(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_manager_role(current_user)
+    
+    emp_ids = [u.id for u in db.query(models.User.id).filter(models.User.manager_id == current_user.id).all()]
+    if not emp_ids and current_user.role == "tl":
+        return {"leaveRequests": 0, "timesheetCorrections": 0, "wfhRequests": 0}
+        
+    leaves_query = db.query(models.LeaveRequest).filter(models.LeaveRequest.status == "pending", models.LeaveRequest.leave_type != "WFH")
+    wfh_query = db.query(models.LeaveRequest).filter(models.LeaveRequest.status == "pending", models.LeaveRequest.leave_type == "WFH")
+    corrections_query = db.query(models.AttendanceCorrection).filter(models.AttendanceCorrection.status == "pending")
+    
+    if current_user.role == "tl":
+        leaves_query = leaves_query.filter(models.LeaveRequest.user_id.in_(emp_ids))
+        wfh_query = wfh_query.filter(models.LeaveRequest.user_id.in_(emp_ids))
+        corrections_query = corrections_query.filter(models.AttendanceCorrection.user_id.in_(emp_ids))
+        
+    return {
+        "leaveRequests": leaves_query.count(),
+        "timesheetCorrections": corrections_query.count(),
+        "wfhRequests": wfh_query.count()
+    }
+
+@router.get("/dashboard/absent-alerts")
+def get_absent_alerts(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_manager_role(current_user)
+    today = date.today()
+    emp_ids = [u.id for u in db.query(models.User.id).filter(models.User.manager_id == current_user.id).all()]
+    if not emp_ids and current_user.role == "tl":
+        return []
+        
+    att_query = db.query(models.Attendance).filter(models.Attendance.date == today)
+    if current_user.role == "tl":
+        att_query = att_query.filter(models.Attendance.user_id.in_(emp_ids))
+        
+    absent_records = att_query.filter(models.Attendance.status == "absent").all()
+    
+    alerts = []
+    for record in absent_records:
+        user = db.query(models.User).filter(models.User.id == record.user_id).first()
+        initials = "".join([n[0] for n in user.name.split()[:2]]).upper() if user and user.name else "??"
+        alerts.append({
+            "id": record.id,
+            "user_id": record.user_id,
+            "name": user.name if user else "Unknown",
+            "initials": initials,
+            "desc": f"Date: Today - Unexplained Absence",
+            "employeeNote": "No leave request filed. Requires follow-up."
+        })
+    return alerts
+
+
+class NotificationCreateRequest(BaseModel):
+    employee_id: int
+    message: str
+    type: str = "warning"
+
+class NotificationResponse(BaseModel):
+    id: int
+    user_id: int
+    message: str
+    type: str
+    read: bool
+    created_at: str
+
+    class Config:
+        from_attributes = True
+
+@router.post("/notifications", response_model=NotificationResponse, status_code=status.HTTP_201_CREATED)
+def send_notification_to_employee(req: NotificationCreateRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_manager_role(current_user)
+    
+    # Ensure the employee belongs to this TL
+    if current_user.role == "tl":
+        emp = db.query(models.User).filter(models.User.id == req.employee_id, models.User.manager_id == current_user.id).first()
+        if not emp:
+            raise HTTPException(status_code=403, detail="Employee not assigned to you")
+
+    notification = models.Notification(
+        user_id=req.employee_id,
+        message=req.message,
+        type=req.type,
+        read=False
+    )
+    db.add(notification)
+    db.commit()
+    db.refresh(notification)
+    
+    return NotificationResponse(
+        id=notification.id,
+        user_id=notification.user_id,
+        message=notification.message,
+        type=notification.type,
+        read=notification.read,
+        created_at=notification.created_at.isoformat() if notification.created_at else ""
+    )

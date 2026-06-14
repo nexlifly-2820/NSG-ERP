@@ -118,8 +118,10 @@ export default function AssetNoc({ issuedAssets, onSignNoc, hasResigned }) {
   };
 
   const handleConfirm = () => {
-    if (!activeNoc) return;
-    onSignNoc(activeNoc.id, activeNoc.type);
+    if (!activeNoc || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const signatureData = canvas.toDataURL("image/png");
+    onSignNoc(activeNoc.id, activeNoc.type, signatureData);
     setActiveNoc(null);
   };
 

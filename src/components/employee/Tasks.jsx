@@ -1,75 +1,12 @@
+// Crash fix applied
 import React, { useState, useEffect, useRef } from 'react';
+import useSWR from 'swr';
+
+const fetcher = url => fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('nsg_jwt_token')}` } }).then(res => res.json());
 import './Tasks.css';
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const MOCK_TASKS = [
-  {
-    id: 1, sprint: 'Sprint 14', title: 'Finalize Q3 sprint report',
-    description: 'Compile all sprint metrics, velocity charts, and retrospective notes into the final Q3 report document for stakeholder review.',
-    priority: 'high', status: 'in-progress', sp: 5,
-    subtasks: [
-      { id: 11, title: 'Collect velocity data from Jira', done: true },
-      { id: 12, title: 'Write retrospective summary',    done: true },
-      { id: 13, title: 'Export charts to PDF',           done: false },
-    ],
-    acceptance: [
-      'Report covers all 3 sprints of Q3',
-      'Charts exported as high-res PNG',
-      'Approved by Product Owner before submission',
-    ],
-    prStatus: null, prUrl: '', rejectedReason: '',
-  },
-  {
-    id: 2, sprint: 'Sprint 14', title: 'Code review – auth module',
-    description: 'Review pull request #204 for the authentication module refactor. Ensure JWT refresh logic, error handling, and test coverage are complete.',
-    priority: 'medium', status: 'pending', sp: 3,
-    subtasks: [
-      { id: 21, title: 'Review JWT refresh logic', done: false },
-      { id: 22, title: 'Check error boundary coverage', done: false },
-    ],
-    acceptance: [
-      'All unit tests pass with >80% coverage',
-      'No critical security findings',
-    ],
-    prStatus: null, prUrl: '', rejectedReason: '',
-  },
-  {
-    id: 3, sprint: 'Sprint 14', title: 'Update Jira board tickets',
-    description: 'Update all open Jira tickets with latest status, estimates, and sprint assignment before the end-of-sprint sync.',
-    priority: 'low', status: 'pending', sp: 1,
-    subtasks: [
-      { id: 31, title: 'Update story points', done: false },
-      { id: 32, title: 'Reassign stale tickets', done: false },
-    ],
-    acceptance: ['All tickets have assignee and SP', 'No tickets in backlog without sprint'],
-    prStatus: null, prUrl: '', rejectedReason: '',
-  },
-  {
-    id: 4, sprint: 'Sprint 13', title: 'Team sync meeting notes',
-    description: 'Document and distribute the weekly team sync notes including decisions made, blockers identified, and action items assigned.',
-    priority: 'medium', status: 'done', sp: 2,
-    subtasks: [
-      { id: 41, title: 'Write meeting summary', done: true },
-      { id: 42, title: 'Share via Slack', done: true },
-    ],
-    acceptance: ['Notes shared within 2 hours of meeting', 'Action items have owners'],
-    prStatus: 'submitted', prUrl: 'https://github.com/org/repo/pull/198', rejectedReason: '',
-  },
-  {
-    id: 5, sprint: 'Sprint 13', title: 'Deploy staging build v2.4',
-    description: 'Deploy the latest build to the staging environment, run smoke tests, and notify QA team for sign-off.',
-    priority: 'high', status: 'blocked', sp: 8,
-    subtasks: [
-      { id: 51, title: 'Build Docker image', done: true },
-      { id: 52, title: 'Run smoke tests', done: false },
-      { id: 53, title: 'Notify QA team', done: false },
-    ],
-    acceptance: ['Smoke tests pass 100%', 'QA sign-off received', 'Deployment log archived'],
-    prStatus: 'rejected', prUrl: '', rejectedReason: 'Missing smoke test results in PR description.',
-  },
-];
 
-const SPRINTS = ['All Sprints', 'Sprint 14', 'Sprint 13'];
+
 const STATUS_FILTERS = ['All', 'Todo', 'In-Progress', 'Done'];
 
 const PRIORITY_COLOR = { high: '#f87171', medium: '#fbbf24', low: '#34d399' };
@@ -407,56 +344,24 @@ function TaskDetailPanel({ task, onClose, onUpdate }) {
 }
 
 // ─── EmpTasksPage (root) ──────────────────────────────────────────────────────
-export default function Tasks({ db, onUpdateDb }) {
+export default function Tasks() {
   const [selectedId, setSelectedId]   = useState(null);
   const [sprint, setSprint]           = useState('All Sprints');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [tasks, setTasks] = useState([]);
-  const [schema, setSchema] = useState([]);
 
-  useEffect(() => {
-    fetchSchema();
-    fetchTasks();
-  }, []);
+  const { data: schemaData } = useSWR('/api/employee-portal/tasks/schema', fetcher);
+  const schema = schemaData?.schema || [];
 
-  const fetchSchema = async () => {
-    try {
-      const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch('http://localhost:8000/employee-portal/tasks/schema', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSchema(data.schema);
-      }
-    } catch (e) { console.error(e); }
-  };
-
-  const fetchTasks = async () => {
-    try {
-      const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch('http://localhost:8000/employee-portal/tasks/my-tasks', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        // The API returns the data, we might need to map it slightly to match the UI expectation
-        const formatted = data.map(t => ({
-          ...t,
-          acceptance: [], // acceptance criteria not returned by backend
-          subtasks: t.subtasks || []
-        }));
-        setTasks(formatted);
-      }
-    } catch (e) {
-      console.error(e);
-      setTasks(MOCK_TASKS); // Fallback to mock for UI if API fails initially
-    }
-  };
+  const { data: tasksData, mutate } = useSWR('/api/employee-portal/tasks/my-tasks', fetcher);
+  
+  const tasks = (tasksData?.items || []).map(t => ({
+    ...t,
+    subtasks: t.subtasks || []
+  }));
 
   const selectedTask = tasks.find(t => t.id === selectedId) || null;
 
-  const sprintList = [...new Set(['All Sprints', 'Sprint 14', 'Sprint 13', ...tasks.map(t => t.sprint).filter(Boolean)])];
+  const sprintList = [...new Set(['All Sprints', ...tasks.map(t => t.sprint).filter(Boolean)])];
 
   const handleUpdate = async (id, changes) => {
     // If the change is a subtask toggle
@@ -470,7 +375,7 @@ export default function Tasks({ db, onUpdateDb }) {
       if (changedSubtask) {
         try {
           const token = localStorage.getItem('nsg_jwt_token');
-          await fetch(`http://localhost:8000/employee-portal/tasks/${id}/subtasks/${changedSubtask.id}/toggle`, {
+          await fetch(`/api/employee-portal/tasks/${id}/subtasks/${changedSubtask.id}/toggle`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
           });
@@ -489,7 +394,7 @@ export default function Tasks({ db, onUpdateDb }) {
     if (changes.prUrl && changes.prStatus === 'submitted') {
       try {
         const token = localStorage.getItem('nsg_jwt_token');
-        await fetch(`http://localhost:8000/employee-portal/tasks/${id}/submit-pr`, {
+        await fetch(`/api/employee-portal/tasks/${id}/submit-pr`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
@@ -502,7 +407,7 @@ export default function Tasks({ db, onUpdateDb }) {
     
     // Optimistic UI update
     const updatedTasks = tasks.map(t => t.id === id ? { ...t, ...changes } : t);
-    setTasks(updatedTasks);
+    mutate({ ...tasksData, items: updatedTasks }, false);
   };
 
   const filtered = tasks.filter(t => {

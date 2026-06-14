@@ -4,8 +4,8 @@ import { ShieldAlert, ListChecks, Clock, Send, CheckCircle2, Eye, BellRing, Aler
 
 const Escalations = () => {
   const [escalations, setEscalations] = useState([]);
-  const [prSLAs, setPrSLAs] = useState([]);
   const [formState, setFormState] = useState({
+    title: '',
     taskId: '',
     description: '',
     dependencies: '',
@@ -15,45 +15,14 @@ const Escalations = () => {
   const token = localStorage.getItem('nsg_jwt_token');
 
   const fetchData = async () => {
-    if (!token) return;
     try {
       // Fetch escalations
-      const escRes = await fetch('http://localhost:8000/team-lead/escalations', {
+      const escRes = await fetch('/api/team-lead/escalations', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (escRes.ok) {
         const escData = await escRes.json();
         setEscalations(escData);
-      }
-
-      // Fetch pending PRs from tasks
-      const tasksRes = await fetch('http://localhost:8000/team-lead/tasks', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (tasksRes.ok) {
-        const tasksData = await tasksRes.json();
-        // Filter tasks that have pending PRs and are assigned
-        const pendingPRTasks = tasksData.filter(t => t.pr_status === 'pending');
-        
-        // Let's create dynamic SLA data out of these tasks
-        // Assuming 24 hours SLA
-        const dynamicSLAs = pendingPRTasks.map(t => {
-          const openedAt = new Date(t.created_at || Date.now());
-          const now = new Date();
-          const hoursPending = Math.floor(Math.abs(now - openedAt) / 36e5);
-          return {
-            id: t.id,
-            title: `PR #${t.id}: ${t.title}`,
-            assignee: t.assigned_to_user || `Employee ${t.assigned_to || 'Unassigned'}`,
-            openedAt: openedAt.toLocaleString(),
-            hoursPending: hoursPending,
-            isOverdue: hoursPending > 24
-          };
-        });
-        
-        // Add some dummy ones if list is empty just so the panel isn't entirely blank,
-        // or just let it be empty since it's dynamic
-        setPrSLAs(dynamicSLAs);
       }
     } catch (e) {
       console.error(e);
@@ -66,21 +35,20 @@ const Escalations = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formState.taskId || !formState.description) {
-      alert('Please fill out the Task ID and Blocker Description.');
+    if (!formState.title || !formState.taskId || !formState.description) {
+      alert('Please fill out the Blocker Title, Task ID and Description.');
       return;
     }
 
-    if (!token) return;
     try {
-      const res = await fetch('http://localhost:8000/team-lead/escalations', {
+      const res = await fetch('/api/team-lead/escalations', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          title: formState.description,
+          title: formState.title,
           task_link: formState.taskId,
           severity: formState.severity,
           dependencies: formState.dependencies,
@@ -89,7 +57,7 @@ const Escalations = () => {
       });
       if (res.ok) {
         fetchData();
-        setFormState({ taskId: '', description: '', dependencies: '', severity: 'Medium' });
+        setFormState({ title: '', taskId: '', description: '', dependencies: '', severity: 'Medium' });
       } else {
         alert('Failed to raise escalation');
       }
@@ -99,9 +67,8 @@ const Escalations = () => {
   };
 
   const handleResolve = async (id) => {
-    if (!token) return;
     try {
-      const res = await fetch(`http://localhost:8000/team-lead/escalations/${id}/resolve`, {
+      const res = await fetch(`/api/team-lead/escalations/${id}/resolve`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -127,6 +94,17 @@ const Escalations = () => {
             Raise Blocker Form
           </h3>
           <form onSubmit={handleSubmit} className={styles.formGrid} style={{ maxWidth: '100%' }}>
+            <div className={styles.formGroup}>
+              <label>Blocker Title</label>
+              <input 
+                type="text" 
+                className={styles.formInput} 
+                placeholder="e.g., API Down"
+                value={formState.title}
+                onChange={(e) => setFormState(prev => ({ ...prev, title: e.target.value }))}
+              />
+            </div>
+
             <div className={styles.formGroup}>
               <label>Task ID (Link)</label>
               <input 
@@ -250,48 +228,7 @@ const Escalations = () => {
           </div>
         </div>
 
-        {/* 3. Peer Review SLA Monitor (GRID-AREA: SLA) */}
-        <div className={styles.slaCard}>
-          <h3 style={{ margin: '0 0 20px 0', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Clock size={18} style={{ color: 'var(--warning)' }} />
-            Peer Review SLA Monitor
-          </h3>
-          <div className={styles.alertsList}>
-            {prSLAs.length === 0 ? (
-              <div style={{ textAlign: 'center', color: '#94a3b8', padding: '20px' }}>
-                No pending PRs found in team tasks.
-              </div>
-            ) : (
-              prSLAs.map(sla => (
-                <div key={sla.id} className={`${styles.alertCard} ${sla.isOverdue ? styles.overdue : ''}`}>
-                  <div className={styles.alertInfo}>
-                    <h4 className={styles.alertTitle} style={{ fontSize: '14.5px', fontWeight: '700' }}>
-                      {sla.title}
-                    </h4>
-                    <div className={styles.alertMeta}>
-                      <div className={styles.alertMetaItem}>
-                        <span style={{ fontWeight: 600 }}>Assignee:</span> {sla.assignee}
-                      </div>
-                      <div className={styles.alertMetaItem}>
-                        <span style={{ fontWeight: 600 }}>Opened At:</span> {sla.openedAt}
-                      </div>
-                    </div>
-                  </div>
-                  <div className={styles.alertStatus}>
-                    <div className={styles.pendingHours} style={{ fontSize: '18px', fontWeight: '700' }}>
-                      {sla.hoursPending}h Pending
-                    </div>
-                    {sla.isOverdue && (
-                      <div className={styles.reminderSent}>
-                        <BellRing size={12} /> Auto-reminder sent
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+
 
       </div>
 

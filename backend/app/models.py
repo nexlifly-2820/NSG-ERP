@@ -25,9 +25,17 @@ class User(Base):
     account_number = Column(String, nullable=True)
     ifsc_code = Column(String, nullable=True)
     grade = Column(Integer, default=1)
-    manager = Column(String, nullable=True)
+    manager = Column(String, nullable=True) # Deprecated string name, keep for backward compatibility
+    manager_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     photo = Column(String, nullable=True)
     documents = Column(Text, nullable=True)  # JSON-serialized list of docs
+    
+    # Missing Personal Details mapping
+    dob = Column(Date, nullable=True)
+    gender = Column(String, nullable=True)
+    address = Column(Text, nullable=True)
+    emergency_contact_name = Column(String, nullable=True)
+    emergency_contact_phone = Column(String, nullable=True)
 
     # Relationships
     attendance_records = relationship("Attendance", back_populates="user", cascade="all, delete-orphan")
@@ -38,7 +46,7 @@ class User(Base):
     leave_balances = relationship("LeaveBalance", back_populates="user", cascade="all, delete-orphan")
     leave_requests = relationship("LeaveRequest", back_populates="user", cascade="all, delete-orphan")
     expense_claims = relationship("ExpenseClaim", back_populates="user", cascade="all, delete-orphan")
-    payslips = relationship("Payslip", back_populates="user", cascade="all, delete-orphan")
+    payslips = relationship("Payslip", foreign_keys="[Payslip.user_id]", back_populates="user", cascade="all, delete-orphan")
     loans = relationship("Loan", back_populates="user", cascade="all, delete-orphan")
     assets = relationship("Asset", back_populates="user", cascade="all, delete-orphan")
     resignations = relationship("Resignation", back_populates="user", cascade="all, delete-orphan")
@@ -208,10 +216,12 @@ class ExpenseClaim(Base):
     claim_date = Column(Date, nullable=False)
     amount = Column(Float, nullable=False)
     category = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
     receipt_url = Column(String, nullable=True)
     tl_approval = Column(String, default="pending")  # pending, approved, rejected
     hr_approval = Column(String, default="pending")
     status = Column(String, default="pending")  # pending, approved, rejected
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     user = relationship("User", back_populates="expense_claims")
@@ -230,11 +240,17 @@ class Payslip(Base):
     epf = Column(Float, nullable=False)
     tds = Column(Float, nullable=False)
     net = Column(Float, nullable=False)
+    lop = Column(Float, default=0.0)
     month = Column(Integer, nullable=False)
     year = Column(Integer, nullable=False)
+    status = Column(String, default="pending")  # pending, paid
+    payment_method = Column(String, nullable=True)
+    transaction_ref = Column(String, nullable=True)
+    payment_date = Column(DateTime(timezone=True), nullable=True)
+    processed_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     # Relationships
-    user = relationship("User", back_populates="payslips")
+    user = relationship("User", foreign_keys=[user_id], back_populates="payslips")
 
 
 class Loan(Base):
@@ -266,6 +282,7 @@ class Asset(Base):
     condition = Column(String, nullable=True)
     returnStatus = Column(String, default="Issued")  # Issued, Pending NOC, Returned
     signedDate = Column(Date, nullable=True)
+    signature_data = Column(Text, nullable=True)
 
     # Relationships
     user = relationship("User", back_populates="assets")
@@ -280,6 +297,9 @@ class Resignation(Base):
     LWD = Column(Date, nullable=False)
     status = Column(String, default="pending")  # pending, approved, rejected, withdrawn
     reason = Column(Text, nullable=False)
+    early_relief_status = Column(String, nullable=True) # requested, approved, rejected
+    exit_checklist = Column(Text, nullable=True) # JSON array of checklist items
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     user = relationship("User", back_populates="resignations")
@@ -296,6 +316,7 @@ class SupportTicket(Base):
     priority = Column(String, default="medium")  # high, medium, low
     status = Column(String, default="open")  # open, in-progress, resolved, closed
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     user = relationship("User", back_populates="support_tickets")
@@ -318,6 +339,16 @@ class ChatMessage(Base):
     sender = Column(String, nullable=False)
     text = Column(Text, nullable=False)
     timestamp = Column(DateTime, server_default=func.now())
+    parent_id = Column(Integer, ForeignKey("chat_messages.id", ondelete="CASCADE"), nullable=True)
+    is_pinned = Column(Boolean, default=False)
+    mentions = Column(Text, nullable=True) # JSON array of usernames
+    attachment_url = Column(String, nullable=True)
+    attachment_type = Column(String, nullable=True)
+    seen_by = Column(Text, nullable=True) # JSON array
+    delivered_to = Column(Text, nullable=True) # JSON array
+    reactions = Column(Text, nullable=True) # JSON object
+    deleted_at = Column(DateTime, nullable=True)
+    is_edited = Column(Boolean, default=False)
 
 
 
@@ -631,5 +662,174 @@ class KeyResult(Base):
     objective = relationship("Objective", back_populates="krs")
 
 
+class Holiday(Base):
+    __tablename__ = "holidays"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    date = Column(String, nullable=False)  # ISO date string e.g. "2026-01-26"
+    type = Column(String, default="national")  # national, optional
 
 
+class LeavePolicy(Base):
+    __tablename__ = "leave_policies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    type = Column(String, nullable=False)         # CL, SL, EL, Maternity, Paternity
+    accrual_rule = Column(String, default="monthly")
+    max_balance = Column(Integer, nullable=False)
+    carryover_days = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+
+
+class CustomSchema(Base):
+    __tablename__ = "custom_schemas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    department = Column(String, nullable=False, index=True)
+    schema_fields = Column(Text, nullable=False, default="[]")  # JSON-serialized list
+
+class EmployeeSkill(Base):
+    __tablename__ = "employee_skills"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    skill_name = Column(String, nullable=False)
+    proficiency_level = Column(Integer, default=3) # 1 to 5
+
+class Milestone(Base):
+    __tablename__ = "milestones"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String, nullable=False)
+    due_date = Column(String, nullable=False)
+    status = Column(String, default="pending")
+    progress = Column(Integer, default=0)
+    tasks_count = Column(Integer, default=0)
+
+
+
+
+class APInvoice(Base):
+    __tablename__ = "ap_invoices"
+    id = Column(Integer, primary_key=True, index=True)
+    vendor_id = Column(Integer, nullable=True)
+    vendor_name = Column(String, nullable=True)
+    ref_number = Column(String, nullable=True)
+    amount = Column(Float, default=0.0)
+    due_date = Column(Date, nullable=True)
+    status = Column(String, default="Pending")
+
+class ARInvoice(Base):
+    __tablename__ = "ar_invoices"
+    id = Column(Integer, primary_key=True, index=True)
+    client_name = Column(String, nullable=True)
+    invoice_number = Column(String, nullable=True)
+    amount = Column(Float, default=0.0)
+    status = Column(String, default="Pending")
+    days_overdue = Column(Integer, default=0)
+
+class CompanyPolicy(Base):
+    __tablename__ = "company_policies"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    content = Column(Text, nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+class DepartmentBudget(Base):
+    __tablename__ = "department_budgets"
+    id = Column(Integer, primary_key=True, index=True)
+    department_id = Column(Integer, nullable=True)
+    title = Column(String, nullable=False)
+    requested_by = Column(String, nullable=True)
+    amount = Column(Float, default=0.0)
+    variance = Column(String, nullable=True)
+    status = Column(String, default="pending")
+
+class AnnouncementRead(Base):
+    __tablename__ = "announcement_reads"
+    id = Column(Integer, primary_key=True, index=True)
+    announcement_id = Column(Integer, nullable=False)
+    user_id = Column(Integer, nullable=False)
+    read_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class StatutoryCompliance(Base):
+    __tablename__ = "statutory_compliance"
+    id = Column(Integer, primary_key=True, index=True)
+    type = Column(String, nullable=False)
+    amount = Column(Float, default=0.0)
+    due_date = Column(Date, nullable=True)
+    status = Column(String, default="Pending")
+
+class FinanceTrend(Base):
+    __tablename__ = "finance_trends"
+    id = Column(Integer, primary_key=True, index=True)
+    month = Column(String, nullable=False)
+    revenue = Column(Float, default=0.0)
+    profit = Column(Float, default=0.0)
+    cash_in = Column(Float, default=0.0)
+    cash_out = Column(Float, default=0.0)
+
+class Vendor(Base):
+    __tablename__ = "vendors"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    contact = Column(String, nullable=True)
+    email = Column(String, nullable=True)
+
+class Department(Base):
+    __tablename__ = "departments"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False, unique=True)
+    head_id = Column(Integer, nullable=True)
+
+class SalaryComponent(Base):
+    __tablename__ = "salary_components"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    type = Column(String, default="Fixed")
+    calc = Column(String, default="Flat")
+    value = Column(Float, default=0.0)
+    tax = Column(Boolean, default=True)
+
+class Designation(Base):
+    __tablename__ = "designations"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False, unique=True)
+    department_id = Column(Integer, nullable=True)
+
+class Shift(Base):
+    __tablename__ = "shifts"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    start_time = Column(String, nullable=False)
+    end_time = Column(String, nullable=False)
+
+class VaultDocument(Base):
+    __tablename__ = "vault_documents"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    file_path = Column(String, nullable=False)
+    uploaded_by = Column(Integer, nullable=True)
+    uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
+    status = Column(String, default="Active")
+    hash = Column(String, nullable=True)
+
+class Interview(Base):
+    __tablename__ = "interviews"
+    id = Column(Integer, primary_key=True, index=True)
+    candidate_name = Column(String, nullable=False)
+    position = Column(String, nullable=False)
+    interview_date = Column(DateTime(timezone=True), nullable=True)
+    interviewer_id = Column(Integer, nullable=True)
+    status = Column(String, default="Scheduled")
+
+class JobOffer(Base):
+    __tablename__ = "job_offers"
+    id = Column(Integer, primary_key=True, index=True)
+    candidate_name = Column(String, nullable=False)
+    position = Column(String, nullable=False)
+    offer_date = Column(Date, nullable=True)
+    salary_offered = Column(Float, default=0.0)
+    status = Column(String, default="Draft")

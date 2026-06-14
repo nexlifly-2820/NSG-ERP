@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import useSWR from 'swr';
 import { Calendar, FileText, ArrowRight } from 'lucide-react';
 import { notify } from '../../utils/notify';
 
-export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams }) {
+export function RecruitmentView({ queryParams, setQueryParams }) {
   const subTab = queryParams?.get('subTab') || '';
   const showScheduler = subTab === 'schedule';
   const setShowScheduler = (val) => setQueryParams({ subTab: val ? 'schedule' : '' });
@@ -14,8 +15,7 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
   const setShowAnalyzer = (val) => setQueryParams({ subTab: val ? 'analyzer' : '' });
 
   const candIdStr = queryParams?.get('candId');
-  const candidates = db?.candidates || [];
-
+  const [candidates, setCandidates] = useState([]);
   const selectedCandidate = candIdStr ? candidates.find(c => String(c.id) === candIdStr) : null;
   const setSelectedCandidate = (cand) => setQueryParams({ subTab: cand ? 'offer' : '', candId: cand ? String(cand.id) : '' });
 
@@ -31,7 +31,7 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
 
   // Interview Scheduler States
   const [schedCandidateId, setSchedCandidateId] = useState('');
-  const [schedInterviewer, setSchedInterviewer] = useState('John Doe (Engineering Lead)');
+  const [schedInterviewer, setSchedInterviewer] = useState('CEO');
   const [schedDateTime, setSchedDateTime] = useState('');
 
   // Resume Analyzer States
@@ -39,6 +39,8 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
   const [analysisStatus, setAnalysisStatus] = useState('');
   const [uploadedFileName, setUploadedFileName] = useState('');
   const [uploadedCandidateName, setUploadedCandidateName] = useState('');
+  const [uploadedCandidateEmail, setUploadedCandidateEmail] = useState('');
+  const [uploadedCandidatePhone, setUploadedCandidatePhone] = useState('');
   const [uploadedCandidateRole, setUploadedCandidateRole] = useState('Senior React Developer');
   const [parsedResult, setParsedResult] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -76,17 +78,7 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
       });
       if (res.ok) {
         const data = await res.json();
-        // Also fetch employees to keep complete sync
-        const empRes = await fetch('/api/hr-portal/employees', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const empData = empRes.ok ? await empRes.json() : db.employees;
-        
-        onUpdateDb({
-          ...db,
-          candidates: data,
-          employees: empData
-        });
+        setCandidates(data);
       }
     } catch (err) {
       console.error('Failed to fetch candidates/employees:', err);
@@ -112,9 +104,8 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
         }
         const result = await res.json();
         const createdEmp = result.employee;
-        const tempPassword = result.temporary_password;
 
-        notify(`${createdEmp.name} is now an employee. Login: ${createdEmp.email} / ${tempPassword}`, 'success');
+        notify(`${createdEmp.name} is now an employee. Login: ${createdEmp.email} / Check Email for Password`, 'success');
         notify('Onboarding checklist assigned. View in Employee Registry and Onboarding.', 'info');
         await fetchCandidates();
       } catch (err) {
@@ -218,84 +209,16 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
     }
   };
 
-  // Mock analysis generator helper
-  const getMockAnalysis = (candidate) => {
+  // Live analysis extraction
+  const getAnalysisResult = (candidate) => {
     if (candidate && candidate.parsedResult) {
       return candidate.parsedResult;
     }
-    const name = candidate.name;
-    const role = candidate.role || 'Developer';
-    
-    if (name.includes('Malhotra') || role.toLowerCase().includes('react')) {
-      return {
-        score: 94,
-        skills: [
-          { name: 'React.js', matched: true },
-          { name: 'Redux Toolkit', matched: true },
-          { name: 'JavaScript (ES6+)', matched: true },
-          { name: 'TypeScript', matched: true },
-          { name: 'Webpack / Vite', matched: true },
-          { name: 'CSS Grid & Flexbox', matched: true },
-          { name: 'Node.js / Express', matched: false },
-          { name: 'AWS Cloud / S3', matched: false }
-        ],
-        recommendation: 'Exceptional frontend skill set. Expert-level state management experience. Recommended for immediate tech round, highly aligned with senior frontend path.'
-      };
-    } else if (name.includes('Sharma') || role.toLowerCase().includes('product')) {
-      return {
-        score: 88,
-        skills: [
-          { name: 'Product Roadmap Design', matched: true },
-          { name: 'Jira & Confluence', matched: true },
-          { name: 'Agile & Scrum Sprints', matched: true },
-          { name: 'User Persona Mapping', matched: true },
-          { name: 'Product Strategy & KPI', matched: true },
-          { name: 'Figma Wireframing', matched: true },
-          { name: 'SQL Analytics & Python', matched: false }
-        ],
-        recommendation: 'Highly structured PM with strong execution focus. Exceptional technical empathy and UI design literacy. Minor gap in data analysis tools, but highly recommended for business sprints.'
-      };
-    } else if (name.includes('Deshmukh') || role.toLowerCase().includes('designer') || role.toLowerCase().includes('ui')) {
-      return {
-        score: 79,
-        skills: [
-          { name: 'Figma UI Layouts', matched: true },
-          { name: 'Adobe XD / Creative Cloud', matched: true },
-          { name: 'Interactive Prototyping', matched: true },
-          { name: 'User Flow Mapping', matched: true },
-          { name: 'React Component Architecture', matched: false },
-          { name: 'Framer Motion Animations', matched: false }
-        ],
-        recommendation: 'Creative designer with polished UI aesthetics. Outstanding visual design portfolio. Needs guidance on developer component handoffs and responsive web constraints.'
-      };
-    } else if (name.includes('Iyer') || role.toLowerCase().includes('qa') || role.toLowerCase().includes('testing')) {
-      return {
-        score: 91,
-        skills: [
-          { name: 'Selenium Webdriver', matched: true },
-          { name: 'Cypress Testing Suite', matched: true },
-          { name: 'JavaScript & Java', matched: true },
-          { name: 'Jest Unit Testing', matched: true },
-          { name: 'Automation Sprints Plan', matched: true },
-          { name: 'Docker Containers', matched: false },
-          { name: 'Jenkins CI/CD Pipelines', matched: false }
-        ],
-        recommendation: 'Extensive test suite automation coverage. Clear bug reporting and defect-tracking standards. Highly methodical and well-suited for high-frequency deployment environments.'
-      };
-    } else {
-      return {
-        score: 86,
-        skills: [
-          { name: 'Core Skill Competency', matched: true },
-          { name: 'Team Collaboration Sprints', matched: true },
-          { name: 'Git Version Control', matched: true },
-          { name: 'Problem Solving Focus', matched: true },
-          { name: 'Containerization / Deployment', matched: false },
-          { name: 'Cloud Server Scaling', matched: false }
-        ],
-        recommendation: 'Solid candidate profile displaying robust foundational competencies. Demonstrates strong communication and structured logic. Fits target designation constraints cleanly.'
-      };
-    }
+    return {
+      score: 0,
+      skills: [],
+      recommendation: 'No AI analysis available.'
+    };
   };
 
   const handleStartParsing = async (e) => {
@@ -304,8 +227,8 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
       notify('Please upload a resume file first.', 'warning');
       return;
     }
-    if (!uploadedCandidateName.trim()) {
-      notify('Please enter a candidate name.', 'warning');
+    if (!uploadedCandidateName.trim() || !uploadedCandidateEmail.trim()) {
+      notify('Please enter both candidate name and email.', 'warning');
       return;
     }
     
@@ -374,8 +297,8 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
         },
         body: JSON.stringify({
           name: uploadedCandidateName,
-          email: (uploadedCandidateName.toLowerCase().replace(/\s+/g, '.')) + '@nsgapplicant.com',
-          phone: '+91 ' + String(Math.floor(7000000000 + Math.random() * 2999999999)),
+          email: uploadedCandidateEmail,
+          phone: uploadedCandidatePhone,
           role: uploadedCandidateRole === 'Other' ? customRole : uploadedCandidateRole,
           source: 'AI Resume Parser',
           stage: 'applied',
@@ -392,7 +315,9 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
       // Reset states
       setShowAnalyzer(false);
       setUploadedCandidateName('');
-      setUploadedFileName('');
+      setUploadedCandidateEmail('');
+      setUploadedCandidatePhone('');
+      setUploadedCandidateRole('Senior React Developer');
       setParsedResult(null);
       setSelectedFile(null);
       setCustomRole('');
@@ -434,6 +359,16 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
                 <div key={cand.id} className="metric-card" style={{ padding: '14px', gap: '8px', borderLeft: '3px solid var(--accent-pink)' }}>
                   <div style={{ fontWeight: '600', fontSize: '13px' }}>{cand.name}</div>
                   <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{cand.role}</div>
+                  {cand.interview_scheduled_at && (
+                    <div style={{ fontSize: '10px', color: 'var(--accent-blue)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Calendar size={10} /> {new Date(cand.interview_scheduled_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                    </div>
+                  )}
+                  {cand.offer_amount && (
+                    <div style={{ fontSize: '10px', color: 'var(--accent-green)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'bold' }}>
+                      <span>💰</span> ₹{cand.offer_amount.toLocaleString()}/mo
+                    </div>
+                  )}
                   <div style={{ display: 'flex', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
                     {st.id !== 'joined' && (
                       <button style={{ background: 'none', border: '1px solid var(--border-color)', cursor: 'pointer', borderRadius: '4px', padding: '2px 6px', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-primary)' }} onClick={() => {
@@ -490,8 +425,7 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
               
               <label style={{ fontSize: '12px' }}>Interviewer (TL)</label>
               <select value={schedInterviewer} onChange={e => setSchedInterviewer(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}>
-                <option>John Doe (Engineering Lead)</option>
-                <option>Vikram Sen (Sales Director)</option>
+                <option>CEO</option>
               </select>
 
               <label style={{ fontSize: '12px' }}>Scheduled Date & Time</label>
@@ -559,7 +493,7 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
 
             {/* CASE 1: Analyzing an existing candidate */}
             {analyzerCandidate ? (() => {
-              const analysis = getMockAnalysis(analyzerCandidate);
+              const analysis = getAnalysisResult(analyzerCandidate);
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ backgroundColor: 'var(--bg-primary)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -734,7 +668,13 @@ export function RecruitmentView({ db, onUpdateDb, queryParams, setQueryParams })
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       <label style={{ fontSize: '12px' }}>Applicant Full Name</label>
-                      <input type="text" value={uploadedCandidateName} onChange={(e) => setUploadedCandidateName(e.target.value)} required placeholder="e.g. John Doe" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
+                      <input type="text" value={uploadedCandidateName} onChange={(e) => setUploadedCandidateName(e.target.value)} required placeholder="e.g. Applicant Name" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
+                      
+                      <label style={{ fontSize: '12px' }}>Applicant Email</label>
+                      <input type="email" value={uploadedCandidateEmail} onChange={(e) => setUploadedCandidateEmail(e.target.value)} required placeholder="applicant@email.com" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
+
+                      <label style={{ fontSize: '12px' }}>Applicant Phone (Optional)</label>
+                      <input type="text" value={uploadedCandidatePhone} onChange={(e) => setUploadedCandidatePhone(e.target.value)} placeholder="+91 XXXXXXXXXX" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
                       
                       <label style={{ fontSize: '12px' }}>Target Enterprise Role</label>
                       <select value={uploadedCandidateRole} onChange={(e) => setUploadedCandidateRole(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}>

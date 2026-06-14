@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, Lock, Edit } from 'lucide-react';
 
-export function ExitFnFView({ db, onUpdateDb }) {
+export function ExitFnFView() {
   const [exitTab, setExitTab] = useState('resignations'); // resignations | assets | fnf | noc
   const [selectedResignId, setSelectedResignId] = useState(1);
   const [relievingDate, setRelievingDate] = useState('2026-06-20');
@@ -11,6 +11,11 @@ export function ExitFnFView({ db, onUpdateDb }) {
   // Live data states
   const [resignations, setResignations] = useState([]);
   const [employees, setEmployees] = useState([]);
+  
+  // Specific employee states fetched from backend
+  const [employeeAssets, setEmployeeAssets] = useState([]);
+  const [loanDeduction, setLoanDeduction] = useState(0);
+  const [elEncashment, setElEncashment] = useState(0);
 
   // FnF computation states
   const [earnedSalary, setEarnedSalary] = useState(35000);
@@ -40,69 +45,55 @@ export function ExitFnFView({ db, onUpdateDb }) {
   const activeResignation = resignations.find(r => r.id === selectedResignId) || resignations[0] || { id: 1, employee_id: 103, status: 'pending', reason: 'Higher studies.' };
   const exitingEmp = employees.find(e => e.id === activeResignation.employee_id) || { name: 'Staff', bank_name: 'HDFC', account_number: '0000', email: 'staff@nsg.com' };
 
-  // Derive live asset return verification states from the central database (fallback to db prop for missing APIs)
-  const employeeAssets = db?.assets?.filter(a => a.employee_id === exitingEmp.id) || [];
+  // Fetch employee specific exit details dynamically
+  useEffect(() => {
+    const fetchEmployeeDetails = async () => {
+      if (!exitingEmp.id) return;
+      try {
+        const token = localStorage.getItem('nsg_jwt_token');
+        const headers = { 'Authorization': `Bearer ${token}` };
+        const [assetsRes, fnfRes] = await Promise.all([
+          fetch(`/api/hr-portal/exits/assets/${exitingEmp.id}`, { headers }),
+          fetch(`/api/hr-portal/exits/fnf-details/${exitingEmp.id}`, { headers })
+        ]);
+        if (assetsRes.ok) setEmployeeAssets(await assetsRes.json());
+        if (fnfRes.ok) {
+          const fnfData = await fnfRes.json();
+          const totalLoans = fnfData.loans.reduce((acc, curr) => acc + curr.outstanding_balance, 0);
+          setLoanDeduction(totalLoans);
+          setElEncashment(Math.round((fnfData.leaveBalances?.EL || 0) * 1200));
+        }
+      } catch (e) { console.error(e); }
+    };
+    fetchEmployeeDetails();
+  }, [exitingEmp.id]);
+
   const assetLaptop = employeeAssets.find(a => a.type === 'Laptop')?.returnStatus === 'Signed';
   const assetToken = employeeAssets.find(a => a.type === 'Access Card')?.returnStatus === 'Signed';
   const assetPhone = employeeAssets.find(a => a.type === 'Headset')?.returnStatus === 'Signed';
 
-  const toggleAssetStatus = (type) => {
+  const toggleAssetStatus = async (type) => {
     const asset = employeeAssets.find(a => a.type === type);
-    if (!asset) return;
-    
-    const newStatus = asset.returnStatus === 'Signed' ? 'Pending NOC' : 'Signed';
-    const today = newStatus === 'Signed' ? new Date().toLocaleDateString() : null;
-
-    const updatedAssets = (db.assets || []).map(a => {
-      if (a.employee_id === exitingEmp.id && a.type === type) {
-        return { ...a, returnStatus: newStatus, signedDate: today };
-      }
-      return a;
-    });
-
-    // Sync exit checklist in the resignation record
-    let updatedResignations = db.resignations || [];
-    const userResignation = updatedResignations.find(r => r.employee_id === exitingEmp.id);
-    if (userResignation) {
-      const checklist = userResignation.checklist || [
-        { id: 'handover', label: 'Handover tasks', completed: false },
-        { id: 'laptop', label: 'Laptop return', completed: false },
-        { id: 'access_card', label: 'Access card return', completed: false },
-        { id: 'kt_upload', label: 'KT document upload', completed: false, fileName: null }
-      ];
-
-      const updatedChecklist = checklist.map((task) => {
-        if (type === 'Laptop' && task.id === 'laptop') {
-          return { ...task, completed: newStatus === 'Signed' };
-        }
-        if (type === 'Access Card' && task.id === 'access_card') {
-          return { ...task, completed: newStatus === 'Signed' };
-        }
-        return task;
-      });
-
-      updatedResignations = updatedResignations.map(r => {
-        if (r.employee_id === exitingEmp.id) {
-          return { ...r, checklist: updatedChecklist };
-        }
-        return r;
-      });
+    if (!asset) {
+       alert("No asset of this type found assigned to employee!");
+       return;
     }
-
-    onUpdateDb({
-      ...db,
-      assets: updatedAssets,
-      resignations: updatedResignations
-    });
+    
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/hr-portal/exits/assets/${asset.id}/return`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        // refresh assets
+        const updatedRes = await fetch(`/api/hr-portal/exits/assets/${exitingEmp.id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (updatedRes.ok) setEmployeeAssets(await updatedRes.json());
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
-
-  // Sync loan deduction dynamically from active payroll loans
-  const activeLoan = db.loans?.find(l => l.employee_id === exitingEmp.id && l.status === 'active');
-  const loanDeduction = activeLoan ? activeLoan.outstanding_balance : 0;
-
-  // Sync EL Encashment dynamically from leave balance
-  const empLeave = db.leaveBalances?.find(b => b.employee_id === exitingEmp.id) || { EL: 0 };
-  const elEncashment = Math.round(empLeave.EL * 1200); // 1200 per day salary simulated
 
   const totalFnFPayout = earnedSalary + elEncashment + reimbursements + gratuity - loanDeduction;
 
@@ -130,78 +121,48 @@ export function ExitFnFView({ db, onUpdateDb }) {
     alert('Full & Final Settlement computed successfully based on live leave balances and active loan ledgers!');
   };
 
-  const handleFinalizeFnF = () => {
-    // strict gate: assets must be fully returned
+  const handleFinalizeFnF = async () => {
     if (!assetLaptop || !assetToken || !assetPhone) {
       alert('WARNING: Compliance Gate Engaged! Cannot finalize FnF settlement until all issued assets are returned and verified by HR.');
       return;
     }
 
-    // simulated finalized action for now (since no specific HR finalized API exists in hr_portal.py for this action except approve/reject)
-    // we just use the local state update to simulate it
-    const newLogs = [...db.auditLogs, {
-      id: Date.now(),
-      timestamp: new Date().toISOString(),
-      initiator_id: 'Sarah Jenkins',
-      module: 'Exits',
-      record_id: exitingEmp.id,
-      action_type: 'payroll_lock',
-      change_diff: { fnf_settlement: 'finalized', net_payout: totalFnFPayout },
-      ip_address: '192.168.1.104',
-      client_agent: 'Chrome / Windows'
-    }];
-
-    // update resignation status to cleared
-    const updatedResigns = db.resignations.map(r => {
-      if (r.id === selectedResignId) {
-        return { ...r, status: 'cleared' };
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/hr-portal/exits/resignations/${selectedResignId}/finalize`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchData();
+        alert(`Settlement finalized for ${exitingEmp.name}. Net Payout of ₹${totalFnFPayout.toLocaleString()} approved.`);
       }
-      return r;
-    });
-
-    onUpdateDb({
-      ...db,
-      resignations: updatedResigns,
-      auditLogs: newLogs
-    });
-
-    alert(`Settlement finalized for ${exitingEmp.name}. Net Payout of ₹${totalFnFPayout.toLocaleString()} approved.`);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleSignNOC = (e) => {
+  const handleSignNOC = async (e) => {
     e.preventDefault();
     if (!hrSign.trim()) {
       alert('Please fill in your digital signature to sign off.');
       return;
     }
 
-    const updated = db.employees.map(emp => {
-      if (emp.id === exitingEmp.id) {
-        return { ...emp, status: 'inactive' };
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/hr-portal/exits/resignations/${selectedResignId}/sign-noc`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchData();
+        alert(`NOC fully signed and dispatched to ${exitingEmp.name} secure email portal. ERP login session revoked.`);
+        setHrSign('');
       }
-      return emp;
-    });
-
-    const newLogs = [...db.auditLogs, {
-      id: Date.now(),
-      timestamp: new Date().toISOString(),
-      initiator_id: 'Sarah Jenkins',
-      module: 'Exits',
-      record_id: exitingEmp.id,
-      action_type: 'verify_doc',
-      change_diff: { noc_stamped: 'fully_signed', account_status: 'deactivated' },
-      ip_address: '192.168.1.104',
-      client_agent: 'Chrome / Windows'
-    }];
-
-    onUpdateDb({
-      ...db,
-      employees: updated,
-      auditLogs: newLogs
-    });
-
-    alert(`NOC fully signed and dispatched to ${exitingEmp.name} secure email portal. ERP login session revoked.`);
-    setHrSign('');
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const assetsFullyReturned = assetLaptop && assetToken && assetPhone;
@@ -284,8 +245,8 @@ export function ExitFnFView({ db, onUpdateDb }) {
                 </tr>
               </thead>
               <tbody>
-                {db.resignations?.map((r, idx) => {
-                  const employee = db.employees.find(e => e.id === r.employee_id) || { name: 'Unknown' };
+                {resignations?.map((r, idx) => {
+                  const employee = employees.find(e => e.id === r.employee_id) || { name: 'Unknown' };
                   return (
                     <tr key={idx} onClick={() => { setSelectedResignId(r.id); setRelievingDate(r.LWD); }} style={{ cursor: 'pointer', backgroundColor: selectedResignId === r.id ? 'rgba(236,72,153,0.05)' : 'transparent' }}>
                       <td style={{ padding: '16px 40px' }}>
@@ -398,7 +359,7 @@ export function ExitFnFView({ db, onUpdateDb }) {
                 <div style={{ marginBottom: '8px' }}>
                   <label style={{ fontSize: '12px', display: 'block' }}>EL Encashment (Synced Leave Balance)</label>
                 </div>
-                <input type="text" readOnly value={`₹${elEncashment.toLocaleString()} (${empLeave.EL} EL days)`} style={{ width: '100%', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', padding: '8px', borderRadius: '6px' }} />
+                <input type="text" readOnly value={`₹${elEncashment.toLocaleString()}`} style={{ width: '100%', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', padding: '8px', borderRadius: '6px' }} />
               </div>
 
               <div>
@@ -419,7 +380,7 @@ export function ExitFnFView({ db, onUpdateDb }) {
                 <div style={{ marginBottom: '8px' }}>
                   <label style={{ fontSize: '12px', display: 'block' }}>Outstanding Loan Deduction (Payroll Loans)</label>
                 </div>
-                <input type="text" readOnly value={`- ₹${loanDeduction.toLocaleString()} (${activeLoan ? 'Active Loan Outstanding' : 'No Loans outstanding'})`} style={{ width: '100%', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: 'red', padding: '8px', borderRadius: '6px', fontWeight: 'bold' }} />
+                <input type="text" readOnly value={`- ₹${loanDeduction.toLocaleString()}`} style={{ width: '100%', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: 'red', padding: '8px', borderRadius: '6px', fontWeight: 'bold' }} />
               </div>
             </div>
 

@@ -7,103 +7,115 @@ const TeamDirectory = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showAllTeam, setShowAllTeam] = useState(false);
 
-  // --- Mock Data ---
-  const teamMembers = [
-    { 
-      id: 1, name: 'Alice Chen', role: 'Frontend Developer', 
-      avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=150',
-      currentTask: 'Dashboard Redesign (TASK-102)', utilization: 85, skills: ['React', 'CSS', 'Figma']
-    },
-    { 
-      id: 2, name: 'Fiona Gallagher', role: 'UX Designer', 
-      avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150',
-      currentTask: 'User Research (TASK-105)', utilization: 70, skills: ['Figma', 'Sketch', 'UserTesting']
-    },
-    { 
-      id: 3, name: 'Hannah Lee', role: 'Product Manager', 
-      avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=150',
-      currentTask: 'Sprint Planning (TASK-110)', utilization: 90, skills: ['Jira', 'Agile', 'Scrum']
-    },
-    { 
-      id: 4, name: 'Bob Smith', role: 'Backend Engineer', 
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150',
-      currentTask: 'Payment API Integration (TASK-108)', utilization: 105, skills: ['Node.js', 'PostgreSQL', 'AWS']
-    },
-    { 
-      id: 5, name: 'George Hale', role: 'DevOps Engineer', 
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150',
-      currentTask: 'CI/CD Pipeline Fix (TASK-115)', utilization: 80, skills: ['Docker', 'Kubernetes', 'AWS']
-    },
-    { 
-      id: 6, name: 'Charlie Davis', role: 'Fullstack Developer', 
-      avatar: 'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?auto=format&fit=crop&q=80&w=150',
-      currentTask: 'User Profile Page (TASK-120)', utilization: 65, skills: ['React', 'Node.js', 'MongoDB']
-    },
-    { 
-      id: 7, name: 'Diana Prince', role: 'Security Analyst', 
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150',
-      currentTask: 'Penetration Testing (TASK-125)', utilization: 110, skills: ['Cybersecurity', 'Python', 'Linux']
-    },
-    { 
-      id: 8, name: 'Evan Wright', role: 'QA Engineer', 
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=150',
-      currentTask: 'E2E Testing Suite (TASK-112)', utilization: 60, skills: ['Cypress', 'Python', 'Testing']
-    },
-    { 
-      id: 9, name: 'Ivy Green', role: 'Data Scientist', 
-      avatar: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=150',
-      currentTask: 'Machine Learning Model (TASK-130)', utilization: 95, skills: ['Python', 'TensorFlow', 'SQL']
-    },
-    { 
-      id: 10, name: 'Jack White', role: 'Frontend Developer', 
-      avatar: 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&q=80&w=150',
-      currentTask: 'Landing Page Updates (TASK-135)', utilization: 75, skills: ['Vue.js', 'CSS', 'JavaScript']
-    },
-    { 
-      id: 11, name: 'Kevin Taylor', role: 'Mobile Developer', 
-      avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=150',
-      currentTask: 'iOS App Build (TASK-140)', utilization: 88, skills: ['Swift', 'React Native', 'Firebase']
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [leaves, setLeaves] = useState([]);
+  const [skills, setSkills] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('nsg_jwt_token');
+        const headers = { 'Authorization': `Bearer ${token}` };
+        const [empRes, tasksRes, leavesRes, skillsRes] = await Promise.all([
+          fetch('/api/team-lead/team-members', { headers }),
+          fetch('/api/team-lead/tasks', { headers }),
+          fetch('/api/team-lead/team-availability', { headers }),
+          fetch('/api/team-lead/team-skills', { headers })
+        ]);
+        
+        if (empRes.ok) {
+          const rawEmps = await empRes.json();
+          setTeamMembers(rawEmps.map(emp => ({
+            id: emp.id,
+            name: emp.name,
+            role: emp.designation || emp.role || 'Team Member',
+            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=random`
+          })));
+        }
+        if (tasksRes.ok) setTasks(await tasksRes.json());
+        if (leavesRes.ok) setLeaves(await leavesRes.json());
+        if (skillsRes.ok) setSkills(await skillsRes.json());
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const workloadData = React.useMemo(() => {
+    return teamMembers.map(emp => {
+      const empTasks = tasks.filter(t => t.assignee_id === emp.id || t.user_id === emp.id);
+      const estHours = empTasks.reduce((acc, t) => acc + ((t.sp || 1) * 4), 0);
+      const actHours = estHours > 0 ? Math.round(estHours * 0.8) : 0;
+      const util = estHours > 0 ? Math.round((actHours / estHours) * 100) : 0;
+      return {
+        name: emp.name,
+        tasks: empTasks.length,
+        estHours,
+        actHours,
+        util: util
+      };
+    });
+  }, [teamMembers, tasks]);
+
+  const displayMembers = teamMembers.map(emp => {
+    const activeTask = tasks.find(t => (t.assignee_id === emp.id || t.user_id === emp.id) && t.status !== 'Done');
+    const empWl = workloadData.find(w => w.name === emp.name);
+    const empSkills = skills.filter(s => s.user_id === emp.id).map(s => s.skill_name);
+    return {
+      ...emp,
+      currentTask: activeTask ? `${activeTask.title} (${activeTask.project})` : 'No active tasks',
+      utilization: empWl ? empWl.util : 0,
+      skills: empSkills.length > 0 ? empSkills : ['General']
+    };
+  });
+
+  const calendarEvents = [];
+  leaves.forEach(leave => {
+    const start = new Date(leave.from_date);
+    const end = new Date(leave.to_date);
+    let current = new Date(start);
+    while (current <= end) {
+      calendarEvents.push({
+        day: current.getDate(),
+        month: current.getMonth(),
+        year: current.getFullYear(),
+        type: leave.leave_type === 'WFH' ? 'wfh' : 'leave',
+        label: `${leave.leave_type} - Emp #${leave.user_id}`
+      });
+      current.setDate(current.getDate() + 1);
     }
-  ];
+  });
 
-  const calendarEvents = [
-    { day: 12, type: 'leave', label: 'Alice (Leave)' },
-    { day: 13, type: 'leave', label: 'Alice (Leave)' },
-    { day: 20, type: 'leave', label: 'Diana (Leave)' },
-    { day: 20, type: 'leave', label: 'Fiona (Leave)' },
-    { day: 20, type: 'leave', label: 'George (Leave)' },
-    { day: 20, type: 'leave', label: 'Hannah (Leave)' },
-    { day: 14, type: 'wfh', label: 'Bob (WFH)' },
-    { day: 25, type: 'holiday', label: 'Public Holiday' }
-  ];
+  const currentDate = new Date();
+  const currentMonthEvents = calendarEvents.filter(e => e.month === currentDate.getMonth() && e.year === currentDate.getFullYear());
 
-  const workloadData = [
-    { name: 'Alice Chen', tasks: 4, estHours: 32, actHours: 28, util: 85 },
-    { name: 'Fiona Gallagher', tasks: 3, estHours: 24, actHours: 20, util: 70 },
-    { name: 'Hannah Lee', tasks: 5, estHours: 40, actHours: 36, util: 90 },
-    { name: 'Bob Smith', tasks: 6, estHours: 40, actHours: 42, util: 105 },
-    { name: 'George Hale', tasks: 4, estHours: 32, actHours: 28, util: 80 },
-    { name: 'Charlie Davis', tasks: 3, estHours: 24, actHours: 16, util: 65 },
-    { name: 'Diana Prince', tasks: 6, estHours: 40, actHours: 46, util: 110 },
-    { name: 'Evan Wright', tasks: 3, estHours: 24, actHours: 14, util: 60 },
-    { name: 'Ivy Green', tasks: 5, estHours: 40, actHours: 38, util: 95 },
-    { name: 'Jack White', tasks: 4, estHours: 32, actHours: 26, util: 75 },
-    { name: 'Kevin Taylor', tasks: 5, estHours: 40, actHours: 35, util: 88 },
-  ];
+  // Calculate if there are overlapping leaves on any given day this month
+  const hasOverlap = React.useMemo(() => {
+    const daysMap = {};
+    for (const ev of currentMonthEvents) {
+      if (!daysMap[ev.day]) daysMap[ev.day] = 0;
+      daysMap[ev.day]++;
+      if (daysMap[ev.day] > 1) return true;
+    }
+    return false;
+  }, [currentMonthEvents]);
 
-  const skillMatrix = [
-    { name: 'Alice Chen', React: 5, Node: 2, AWS: 1, Python: 1, SQL: 3 },
-    { name: 'Fiona Gallagher', React: 1, Node: 1, AWS: 1, Python: 1, SQL: 1 },
-    { name: 'Hannah Lee', React: 2, Node: 2, AWS: 2, Python: 2, SQL: 3 },
-    { name: 'Bob Smith', React: 3, Node: 5, AWS: 4, Python: 3, SQL: 5 },
-    { name: 'George Hale', React: 2, Node: 3, AWS: 5, Python: 4, SQL: 3 },
-    { name: 'Charlie Davis', React: 4, Node: 4, AWS: 3, Python: 2, SQL: 4 },
-    { name: 'Diana Prince', React: 1, Node: 2, AWS: 4, Python: 5, SQL: 4 },
-    { name: 'Evan Wright', React: 2, Node: 2, AWS: 2, Python: 5, SQL: 4 },
-    { name: 'Ivy Green', React: 1, Node: 2, AWS: 3, Python: 5, SQL: 5 },
-    { name: 'Jack White', React: 4, Node: 2, AWS: 1, Python: 2, SQL: 2 },
-    { name: 'Kevin Taylor', React: 3, Node: 1, AWS: 2, Python: 1, SQL: 2 },
-  ];
+  const skillMatrix = teamMembers.map(emp => {
+    const empSkills = skills.filter(s => s.user_id === emp.id);
+    return {
+      name: emp.name,
+      React: empSkills.find(s => s.skill_name === 'React')?.proficiency_level || 0,
+      Node: empSkills.find(s => s.skill_name === 'Node.js')?.proficiency_level || 0,
+      AWS: empSkills.find(s => s.skill_name === 'AWS')?.proficiency_level || 0,
+      Python: empSkills.find(s => s.skill_name === 'Python')?.proficiency_level || 0,
+      SQL: empSkills.find(s => s.skill_name === 'SQL')?.proficiency_level || 0,
+    };
+  });
 
   // Helpers
   const getWorkloadColor = (util) => {
@@ -176,7 +188,7 @@ const TeamDirectory = () => {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div className={styles.sectionTitle} style={{ margin: 0 }}>Team Profile Overview</div>
-              {!searchQuery && (
+              {!searchQuery && displayMembers.length > 0 && (
                 <button 
                   onClick={() => setShowAllTeam(!showAllTeam)} 
                   style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
@@ -185,73 +197,85 @@ const TeamDirectory = () => {
                 </button>
               )}
             </div>
-            <div className={styles.cardGrid}>
-              {teamMembers
-                .filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                .slice(0, (showAllTeam || searchQuery) ? teamMembers.length : 3)
-                .map(member => (
-                <div key={member.id} className={styles.teamCard}>
-                  <img src={member.avatar} alt={member.name} className={styles.avatar} />
-                  <div className={styles.empName}>{member.name}</div>
-                  <div className={styles.empRole}>{member.role}</div>
-                  
-                  <div className={styles.currentTask}>
-                    <div style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '4px' }}>Current Task</div>
-                    {member.currentTask}
-                  </div>
-
-                  <div className={styles.utilizationWrap}>
-                    <div className={styles.utilizationLabel}>
-                      <span>Utilization</span>
-                      <span>{member.utilization}%</span>
+            {displayMembers.length === 0 ? (
+              <div style={{ padding: '60px 20px', textAlign: 'center', background: 'white', borderRadius: '12px', border: '1px solid var(--border-card)', boxShadow: 'var(--shadow-sm)' }}>
+                <Users size={48} style={{ color: '#cbd5e1', marginBottom: '16px' }} />
+                <h3 style={{ margin: '0 0 8px 0', color: 'var(--text-primary)', fontSize: '18px' }}>No Team Members Assigned</h3>
+                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '14px', maxWidth: '400px', marginLeft: 'auto', marginRight: 'auto' }}>
+                  It looks like HR hasn't assigned any employees to your team yet. Once they are assigned, their profiles, workload, and skills will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className={styles.cardGrid}>
+                {displayMembers
+                  .filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .slice(0, (showAllTeam || searchQuery) ? displayMembers.length : 3)
+                  .map(member => (
+                  <div key={member.id} className={styles.teamCard}>
+                    <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={member.avatar} alt={member.name} className={styles.avatar}  />
+                    <div className={styles.empName}>{member.name}</div>
+                    <div className={styles.empRole}>{member.role}</div>
+                    
+                    <div className={styles.currentTask}>
+                      <div style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '4px' }}>Current Task</div>
+                      {member.currentTask}
                     </div>
-                    <div className={styles.utilBarBg}>
-                      <div 
-                        className={styles.utilBarFill} 
-                        style={{ 
-                          width: `${Math.min(member.utilization, 100)}%`,
-                          background: getWorkloadColor(member.utilization)
-                        }} 
-                      />
+
+                    <div className={styles.utilizationWrap}>
+                      <div className={styles.utilizationLabel}>
+                        <span>Utilization</span>
+                        <span>{member.utilization}%</span>
+                      </div>
+                      <div className={styles.utilBarBg}>
+                        <div 
+                          className={styles.utilBarFill} 
+                          style={{ 
+                            width: `${Math.min(member.utilization, 100)}%`,
+                            background: getWorkloadColor(member.utilization)
+                          }} 
+                        />
+                      </div>
+                    </div>
+
+                    <div className={styles.skillsWrap}>
+                      {member.skills.map((skill, idx) => (
+                        <span key={idx} className={styles.skillTag}>{skill}</span>
+                      ))}
                     </div>
                   </div>
-
-                  <div className={styles.skillsWrap}>
-                    {member.skills.map((skill, idx) => (
-                      <span key={idx} className={styles.skillTag}>{skill}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {/* View 2: Team Availability Calendar */}
         {activeView === 'calendar' && (
           <div>
-            <div className={styles.sectionTitle}>May 2026 Availability Tracker</div>
+            <div className={styles.sectionTitle}>{currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })} Availability Tracker</div>
             
-            <div className={styles.overlapWarning}>
-              <AlertTriangle size={18} />
-              Warning: High overlap on May 20. 4 out of 10 team members (40%) are on leave.
-            </div>
+            {hasOverlap && (
+              <div className={styles.overlapWarning}>
+                <AlertTriangle size={18} />
+                Warning: Overlap detected. Multiple team members have approved leaves on the same day this month.
+              </div>
+            )}
 
             <div className={styles.calendarGrid}>
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
                 <div key={d} className={styles.calHeader}>{d}</div>
               ))}
-              {Array.from({ length: 31 }).map((_, i) => {
+              {Array.from({ length: new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate() }).map((_, i) => {
                 const day = i + 1;
-                const events = calendarEvents.filter(e => e.day === day);
-                // May 2026 starts on Friday (idx 5)
-                const isOffset = i === 0 ? { gridColumnStart: 6 } : {};
+                const events = currentMonthEvents.filter(e => e.day === day);
+                const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
+                const isOffset = i === 0 ? { gridColumnStart: firstDayOfMonth + 1 } : {};
                 
                 return (
                   <div key={day} className={styles.calCell} style={isOffset}>
                     <div className={styles.calDayNum}>{day}</div>
                     {events.map((ev, idx) => (
-                      <div key={idx} className={`${styles.calBadge} ${styles[ev.type]}`}>
+                      <div key={idx} className={`${styles.calBadge} ${styles[ev.type]}`} title={ev.label}>
                         {ev.label}
                       </div>
                     ))}

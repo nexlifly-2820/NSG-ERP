@@ -2,11 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { Trash2, Edit } from 'lucide-react';
 import { notify } from '../../utils/notify';
 
-export function OnboardingView({ db, onUpdateDb, queryParams, setQueryParams }) {
+export function OnboardingView({ queryParams, setQueryParams }) {
+  const [db, setDb] = useState({
+    employees: [],
+    auditLogs: [],
+    onboardingTasks: null,
+    esignRequests: null,
+    trainingProgress: null,
+    onboardingTemplates: null
+  });
+  const onUpdateDb = setDb;
   useEffect(() => {
     const syncOnboardingData = async () => {
       const token = localStorage.getItem('nsg_jwt_token');
-      if (!token || !db) return;
 
       try {
         const headers = { Authorization: `Bearer ${token}` };
@@ -69,100 +77,11 @@ export function OnboardingView({ db, onUpdateDb, queryParams, setQueryParams }) 
   const [editSentAt, setEditSentAt] = useState('');
   const [editStatus, setEditStatus] = useState('');
 
-  // Auto-seed missing onboarding tasks/progress/esign for any employee in probation (Self-Healing)
-  React.useEffect(() => {
-    if (!db) return;
-    
-    const probationers = db.employees.filter(e => e.status === 'probation');
-    const existingTasks = db.onboardingTasks || [];
-    let needsUpdate = false;
-    let updatedTasks = [...existingTasks];
-    let updatedProgress = [...(db.trainingProgress || [])];
-    let updatedEsigns = [...(db.esignRequests || [])];
 
-    probationers.forEach(emp => {
-      const hasTasks = existingTasks.some(t => t.instance_id === emp.id);
-      if (!hasTasks) {
-        needsUpdate = true;
-        let newTasks = [];
-        if (emp.id === 104) {
-          // David Miller: 60% progress, 1 overdue, 3 completed
-          newTasks = [
-            { id: Date.now() + emp.id + 1, instance_id: emp.id, task_name: 'Workstation Setup & Laptop Provisioning', assigned_to: 'IT', due_date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], is_mandatory: true, requires_esign: false, completed_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: 'completed' },
-            { id: Date.now() + emp.id + 2, instance_id: emp.id, task_name: 'Provision System Logins & Email', assigned_to: 'IT', due_date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], is_mandatory: true, requires_esign: false, completed_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: 'completed' },
-            { id: Date.now() + emp.id + 3, instance_id: emp.id, task_name: 'Mandatory NDA Policy E-Sign', assigned_to: 'Employee', due_date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], is_mandatory: true, requires_esign: true, completed_at: null, status: 'pending' },
-            { id: Date.now() + emp.id + 4, instance_id: emp.id, task_name: 'Complete Compliance Induction Quiz', assigned_to: 'Employee', due_date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], is_mandatory: true, requires_esign: false, completed_at: null, status: 'pending' },
-            { id: Date.now() + emp.id + 5, instance_id: emp.id, task_name: 'Welcome Kit & Access Badge Handover', assigned_to: 'HR', due_date: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], is_mandatory: false, requires_esign: false, completed_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: 'completed' }
-          ];
-        } else {
-          // Hemanth (or others): 40% progress, 2 completed, 3 pending
-          newTasks = [
-            { id: Date.now() + emp.id + 1, instance_id: emp.id, task_name: 'Workstation Setup & Laptop Provisioning', assigned_to: 'IT', due_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], is_mandatory: true, requires_esign: false, completed_at: null, status: 'pending' },
-            { id: Date.now() + emp.id + 2, instance_id: emp.id, task_name: 'Provision System Logins & Email', assigned_to: 'IT', due_date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], is_mandatory: true, requires_esign: false, completed_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: 'completed' },
-            { id: Date.now() + emp.id + 3, instance_id: emp.id, task_name: 'Mandatory NDA Policy E-Sign', assigned_to: 'Employee', due_date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], is_mandatory: true, requires_esign: true, completed_at: null, status: 'pending' },
-            { id: Date.now() + emp.id + 4, instance_id: emp.id, task_name: 'Complete Compliance Induction Quiz', assigned_to: 'Employee', due_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], is_mandatory: true, requires_esign: false, completed_at: null, status: 'pending' },
-            { id: Date.now() + emp.id + 5, instance_id: emp.id, task_name: 'Welcome Kit & Access Badge Handover', assigned_to: 'HR', due_date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], is_mandatory: false, requires_esign: false, completed_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: 'completed' }
-          ];
-        }
-        updatedTasks = [...updatedTasks, ...newTasks];
-
-        const hasProgress = updatedProgress.some(p => p.employee_id === emp.id);
-        if (!hasProgress) {
-          updatedProgress.push({
-            id: Date.now() + emp.id + 6,
-            employee_id: emp.id,
-            track_id: 1,
-            completed_modules: emp.id === 104 ? 1 : 0,
-            quiz_score: 0,
-            passed: false
-          });
-        }
-
-        const hasEsign = updatedEsigns.some(r => r.employee_id === emp.id);
-        if (!hasEsign) {
-          updatedEsigns.push({
-            id: Date.now() + emp.id + 7,
-            employee_id: emp.id,
-            document_name: 'Mandatory NDA Policy Handbook',
-            status: 'pending',
-            sent_at: emp.id === 104 ? new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() : new Date().toISOString(),
-            signed_at: null
-          });
-        }
-      }
-    });
-
-    const hasSigned = updatedEsigns.some(r => r.status === 'signed');
-    if (!hasSigned) {
-      needsUpdate = true;
-      updatedEsigns.push(
-        { id: Date.now() + 1001, employee_id: 102, document_name: 'Mandatory NDA Policy Handbook', status: 'signed', sent_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), signed_at: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString() },
-        { id: Date.now() + 1002, employee_id: 101, document_name: 'IP Assignment & Proprietary Info Agreement', status: 'signed', sent_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), signed_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() }
-      );
-    }
-
-    if (needsUpdate) {
-      onUpdateDb({
-        ...db,
-        onboardingTasks: updatedTasks,
-        trainingProgress: updatedProgress,
-        esignRequests: updatedEsigns
-      });
-    }
-  }, [db, onUpdateDb]);
 
   const activeProbationers = (db?.employees || []).filter(e => e.status === 'probation');
-  const onboardingTasks = db.onboardingTasks || [
-    { id: 1, instance_id: 104, task_name: 'Workstation Setup & Laptop Provisioning', assigned_to: 'IT', due_date: '2026-04-17', is_mandatory: true, requires_esign: false, completed_at: '2026-04-16', status: 'completed' },
-    { id: 2, instance_id: 104, task_name: 'Provision System Logins & Email', assigned_to: 'IT', due_date: '2026-04-16', is_mandatory: true, requires_esign: false, completed_at: '2026-04-16', status: 'completed' },
-    { id: 3, instance_id: 104, task_name: 'Mandatory NDA Policy E-Sign', assigned_to: 'Employee', due_date: '2026-04-18', is_mandatory: true, requires_esign: true, completed_at: null, status: 'pending' },
-    { id: 4, instance_id: 104, task_name: 'Complete Compliance Induction Quiz', assigned_to: 'Employee', due_date: '2026-04-20', is_mandatory: true, requires_esign: false, completed_at: null, status: 'pending' },
-    { id: 5, instance_id: 104, task_name: 'Welcome Kit & Access Badge Handover', assigned_to: 'HR', due_date: '2026-04-17', is_mandatory: false, requires_esign: false, completed_at: '2026-04-17', status: 'completed' }
-  ];
-
-  const esignRequests = db.esignRequests || [
-    { id: 1, employee_id: 104, document_name: 'Mandatory NDA Policy Handbook', status: 'pending', sent_at: '2026-04-15T10:00:00Z', signed_at: null }
-  ];
+  const onboardingTasks = db.onboardingTasks || [];
+  const esignRequests = db.esignRequests || [];
 
   const templates = db.onboardingTemplates || [
     { id: 1, name: 'NSG Corporate Onboarding Template', tasks: [
@@ -306,76 +225,7 @@ export function OnboardingView({ db, onUpdateDb, queryParams, setQueryParams }) 
     }
   };
 
-  const handleResetToDemoData = () => {
-    const millerId = 104;
-    const demoTasks = [
-      { id: 1001, instance_id: millerId, task_name: 'Workstation Setup & Laptop Provisioning', assigned_to: 'IT', due_date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], is_mandatory: true, requires_esign: false, completed_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: 'completed' },
-      { id: 1002, instance_id: millerId, task_name: 'Provision System Logins & Email', assigned_to: 'IT', due_date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], is_mandatory: true, requires_esign: false, completed_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: 'completed' },
-      { id: 1003, instance_id: millerId, task_name: 'Mandatory NDA Policy E-Sign', assigned_to: 'Employee', due_date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], is_mandatory: true, requires_esign: true, completed_at: null, status: 'pending' },
-      { id: 1004, instance_id: millerId, task_name: 'Complete Compliance Induction Quiz', assigned_to: 'Employee', due_date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], is_mandatory: true, requires_esign: false, completed_at: null, status: 'pending' },
-      { id: 1005, instance_id: millerId, task_name: 'Welcome Kit & Access Badge Handover', assigned_to: 'HR', due_date: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], is_mandatory: false, requires_esign: false, completed_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: 'completed' }
-    ];
 
-    const demoEsigns = [
-      { id: 201, employee_id: 102, document_name: 'Mandatory NDA Policy Handbook', status: 'signed', sent_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), signed_at: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString() },
-      { id: 202, employee_id: 101, document_name: 'IP Assignment & Proprietary Info Agreement', status: 'signed', sent_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), signed_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() },
-      {
-        id: 2003,
-        employee_id: millerId,
-        document_name: 'Mandatory NDA Policy Handbook',
-        status: 'pending',
-        sent_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-        signed_at: null
-      }
-    ];
-
-    const demoProgress = [
-      {
-        id: 3001,
-        employee_id: millerId,
-        track_id: 1,
-        completed_modules: 1,
-        quiz_score: 0,
-        passed: false
-      }
-    ];
-
-    const otherProbationers = db.employees.filter(e => e.status === 'probation' && e.id !== millerId);
-    otherProbationers.forEach((emp, index) => {
-      const baseId = 2000 + index * 10;
-      demoTasks.push(
-        { id: baseId + 1, instance_id: emp.id, task_name: 'Workstation Setup & Laptop Provisioning', assigned_to: 'IT', due_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], is_mandatory: true, requires_esign: false, completed_at: null, status: 'pending' },
-        { id: baseId + 2, instance_id: emp.id, task_name: 'Provision System Logins & Email', assigned_to: 'IT', due_date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], is_mandatory: true, requires_esign: false, completed_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: 'completed' },
-        { id: baseId + 3, instance_id: emp.id, task_name: 'Mandatory NDA Policy E-Sign', assigned_to: 'Employee', due_date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], is_mandatory: true, requires_esign: true, completed_at: null, status: 'pending' },
-        { id: baseId + 4, instance_id: emp.id, task_name: 'Complete Compliance Induction Quiz', assigned_to: 'Employee', due_date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], is_mandatory: true, requires_esign: false, completed_at: null, status: 'pending' },
-        { id: baseId + 5, instance_id: emp.id, task_name: 'Welcome Kit & Access Badge Handover', assigned_to: 'HR', due_date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], is_mandatory: false, requires_esign: false, completed_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: 'completed' }
-      );
-      demoEsigns.push({
-        id: baseId + 7,
-        employee_id: emp.id,
-        document_name: 'Mandatory NDA Policy Handbook',
-        status: 'pending',
-        sent_at: new Date().toISOString(),
-        signed_at: null
-      });
-      demoProgress.push({
-        id: baseId + 8,
-        employee_id: emp.id,
-        track_id: 1,
-        completed_modules: 0,
-        quiz_score: 0,
-        passed: false
-      });
-    });
-
-    onUpdateDb({
-      ...db,
-      onboardingTasks: demoTasks,
-      esignRequests: demoEsigns,
-      trainingProgress: [...(db.trainingProgress || []).filter(p => !demoProgress.some(dp => dp.employee_id === p.employee_id)), ...demoProgress]
-    });
-    notify('Onboarding demo data re-seeded with active, overdue, and completed statuses.', 'info');
-  };
 
   // Pre-calculate overdue tasks
   const overdueTasks = onboardingTasks.filter(t => {
@@ -422,26 +272,7 @@ export function OnboardingView({ db, onUpdateDb, queryParams, setQueryParams }) 
         </div>
 
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <button
-            onClick={handleResetToDemoData}
-            className="print-btn"
-            style={{
-              backgroundColor: 'rgba(236,72,153,0.1)',
-              color: 'var(--accent-pink)',
-              border: '1px dashed var(--accent-pink)',
-              padding: '8px 16px',
-              borderRadius: '10px',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-            title="Populate tabs with realistic demo checklists, overdue reminders, and document logs."
-          >
-            🚀 Load Demo Data
-          </button>
+
 
           {onboardingTab === 'templates' && (
             <button
@@ -481,7 +312,7 @@ export function OnboardingView({ db, onUpdateDb, queryParams, setQueryParams }) 
             return (
               <div key={emp.id} className="card" style={{ borderLeft: '4px solid var(--accent-pink)' }}>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px' }}>
-                  <img src={emp.photo} alt={emp.name} style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} />
+                  <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo} alt={emp.name} style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}  />
                   <div>
                     <h4 style={{ margin: 0 }}>{emp.name}</h4>
                     <span className="code-span" style={{ fontSize: '10px' }}>{emp.emp_id}</span>
@@ -597,7 +428,7 @@ export function OnboardingView({ db, onUpdateDb, queryParams, setQueryParams }) 
                   <tr key={t.id}>
                     <td style={{ padding: '16px 24px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <img src={emp.photo} alt={emp.name} style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }} />
+                        <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo} alt={emp.name} style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }}  />
                         <strong>{emp.name}</strong>
                       </div>
                     </td>
@@ -734,7 +565,7 @@ export function OnboardingView({ db, onUpdateDb, queryParams, setQueryParams }) 
             <div className="card" style={{ width: '550px', maxHeight: 'calc(100vh - 80px)', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', flexShrink: 0 }}>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  <img src={selectedInstance.photo} alt={selectedInstance.name} style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
+                  <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={selectedInstance.photo} alt={selectedInstance.name} style={{ width: '32px', height: '32px', borderRadius: '50%' }}  />
                   <div>
                     <h3 style={{ margin: 0, border: 'none', padding: 0 }}>Onboarding Checklist — {selectedInstance.name}</h3>
                     <span className="code-span" style={{ fontSize: '10px' }}>{selectedInstance.emp_id}</span>

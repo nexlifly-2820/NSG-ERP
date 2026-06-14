@@ -3,7 +3,7 @@ import styles from './reports.module.css';
 import { TrendingUp, Users, PieChart, CalendarDays, Download } from 'lucide-react';
 
 const Reports = () => {
-  const [activeView, setActiveView] = useState('velocity'); // 'velocity', 'productivity', 'completion', 'calendar'
+  const [activeView, setActiveView] = useState('productivity'); // 'productivity', 'completion', 'calendar'
   
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -12,7 +12,7 @@ const Reports = () => {
     const fetchReports = async () => {
       try {
         const token = localStorage.getItem('nsg_jwt_token');
-        const res = await fetch('http://localhost:8000/team-lead/reports', {
+        const res = await fetch('/api/team-lead/reports', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -57,18 +57,6 @@ const Reports = () => {
   };
 
   // --- Helpers for SVG Charts ---
-  // Velocity Line Chart Math (assuming viewBox="0 0 500 200")
-  const xOffset = 50;
-  const yOffset = 180;
-  const xStep = velocityData.length > 1 ? 400 / (velocityData.length - 1) : 400;
-  const maxVelocity = velocityData.length > 0 ? Math.max(...velocityData.map(d => Math.max(d.actual, d.planned))) + 10 : 100;
-  const yRatio = 150 / maxVelocity;
-
-  const actualPath = velocityData.map((d, i) => `${i === 0 ? 'M' : 'L'} ${xOffset + i * xStep} ${yOffset - d.actual * yRatio}`).join(' ');
-  const plannedPath = velocityData.map((d, i) => `${i === 0 ? 'M' : 'L'} ${xOffset + i * xStep} ${yOffset - d.planned * yRatio}`).join(' ');
-  
-  const avgActual = velocityData.length > 0 ? velocityData.reduce((acc, curr) => acc + curr.actual, 0) / velocityData.length : 0;
-  const avgLineY = yOffset - avgActual * yRatio;
 
   // Donut Chart Math (viewBox="0 0 200 200", radius = 70, circumference = 2 * PI * 70 = 439.82)
   const radius = 70;
@@ -104,12 +92,6 @@ const Reports = () => {
       {/* 1. Navigation Toolbar */}
       <div className={styles.topToolbar}>
         <button 
-          className={`${styles.navTab} ${activeView === 'velocity' ? styles.activeTab : ''}`}
-          onClick={() => setActiveView('velocity')}
-        >
-          <TrendingUp size={16} /> Sprint Velocity Chart
-        </button>
-        <button 
           className={`${styles.navTab} ${activeView === 'productivity' ? styles.activeTab : ''}`}
           onClick={() => setActiveView('productivity')}
         >
@@ -134,37 +116,7 @@ const Reports = () => {
         {/* 2. CHART AREA (GRID-AREA: CHART) */}
         <div className={styles.chartCard}>
           
-          {activeView === 'velocity' && (
-            <div>
-              <div className={styles.sectionTitle}>
-                Sprint Velocity Trend
-                <div style={{ display: 'flex', gap: '16px', fontSize: '13px', fontWeight: '500' }}>
-                  <span style={{ color: 'var(--primary)' }}>— Actual</span>
-                  <span style={{ color: '#94a3b8' }}>- - Planned</span>
-                  <span style={{ color: 'var(--success)' }}>- - Average</span>
-                </div>
-              </div>
-              <svg viewBox="0 0 500 200" className={styles.svgChart}>
-                <line x1="40" y1="180" x2="480" y2="180" className={styles.chartAxis} />
-                <line x1="40" y1="20" x2="40" y2="180" className={styles.chartAxis} />
-                {velocityData.length > 0 && <line x1="40" y1={avgLineY} x2="480" y2={avgLineY} className={styles.lineAverage} />}
-                {velocityData.length > 0 && <path d={plannedPath} className={styles.linePlanned} />}
-                {velocityData.length > 0 && <path d={actualPath} className={styles.lineActual} />}
-                {velocityData.map((d, i) => {
-                  const x = xOffset + i * xStep;
-                  const yActual = yOffset - d.actual * yRatio;
-                  const yPlanned = yOffset - d.planned * yRatio;
-                  return (
-                    <g key={i}>
-                      <circle cx={x} cy={yActual} r="5" className={styles.chartPoint} />
-                      <circle cx={x} cy={yPlanned} r="4" fill="#94a3b8" />
-                      <text x={x} y="195" className={styles.chartLabel}>{d.sprint}</text>
-                    </g>
-                  );
-                })}
-              </svg>
-            </div>
-          )}
+
 
           {activeView === 'productivity' && (
             <div>
@@ -282,52 +234,7 @@ const Reports = () => {
         {/* 3. DATA TABLE (GRID-AREA: TABLE) */}
         <div className={styles.tableCard}>
           
-          {activeView === 'velocity' && (
-            <div>
-              <div className={styles.sectionTitle}>Sprint Velocity Details</div>
-              <table className={styles.prodTable}>
-                <thead>
-                  <tr>
-                    <th>Sprint</th>
-                    <th>Planned Story Points</th>
-                    <th>Completed Story Points</th>
-                    <th>Variance</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {velocityData.length === 0 ? (
-                    <tr><td colSpan="5" style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>No data available</td></tr>
-                  ) : velocityData.map((d, i) => {
-                    const variance = d.actual - d.planned;
-                    const isPositive = variance >= 0;
-                    return (
-                      <tr key={i}>
-                        <td style={{ fontWeight: '600' }}>{d.sprint}</td>
-                        <td>{d.planned} pts</td>
-                        <td>{d.actual} pts</td>
-                        <td style={{ color: isPositive ? 'var(--success)' : 'var(--danger)', fontWeight: '600' }}>
-                          {isPositive ? `+${variance}` : variance} pts
-                        </td>
-                        <td>
-                          <span style={{ 
-                            fontSize: '11px', 
-                            fontWeight: '700', 
-                            padding: '4px 8px', 
-                            borderRadius: '12px', 
-                            backgroundColor: isPositive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
-                            color: isPositive ? 'var(--success)' : 'var(--danger)'
-                          }}>
-                            {variance > 0 ? 'EXCEEDED' : variance === 0 ? 'ACHIEVED' : 'SHORTFALL'}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+
 
           {activeView === 'productivity' && (
             <div>
@@ -339,13 +246,11 @@ const Reports = () => {
                     <th>Assigned Tasks</th>
                     <th>Completed Tasks</th>
                     <th>Completion Rate</th>
-                    <th>Avg Hours/Task</th>
-                    <th>On-Time Rate</th>
                   </tr>
                 </thead>
                 <tbody>
                   {productivityData.length === 0 ? (
-                    <tr><td colSpan="6" style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>No data available</td></tr>
+                    <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>No data available</td></tr>
                   ) : productivityData.map((user, i) => (
                     <tr key={i}>
                       <td>
@@ -357,8 +262,6 @@ const Reports = () => {
                       <td>{user.assigned}</td>
                       <td>{user.completed}</td>
                       <td><span style={{ color: 'var(--success)', fontWeight: 600 }}>{user.compRate}</span></td>
-                      <td>{user.avgHours}h</td>
-                      <td>{user.onTimeRate}</td>
                     </tr>
                   ))}
                 </tbody>

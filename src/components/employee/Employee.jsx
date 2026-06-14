@@ -1,76 +1,79 @@
-import Expenses from './Expenses';
-import Profile from './Profile';
-import Resignation from './Resignation';
-import Help from './Help';
-import Assets from './Assets';
-import Messaging from './Messaging';
-import Attendance from './Attendance';
-import Timesheet from './Timesheet';
-import Tasks from './Tasks';
-import Leave from './Leave';
-import Payroll from './Payroll';
-import Learning from './Learning';
-import EmployeeDashboard from './EmployeeDashboard';
+import React, { Suspense, lazy } from 'react';
+import ErrorBoundary from '../common/ErrorBoundary';
 
-export default function Employee({ activeTab, db, onUpdateDb, navigateTo, currentUser }) {
+const Expenses = lazy(() => import('./Expenses'));
+const Profile = lazy(() => import('./Profile'));
+const Resignation = lazy(() => import('./Resignation'));
+const Help = lazy(() => import('./Help'));
+const Assets = lazy(() => import('./Assets'));
+const Messaging = lazy(() => import('./Messaging'));
+const Attendance = lazy(() => import('./Attendance'));
+const Timesheet = lazy(() => import('./Timesheet'));
+const Tasks = lazy(() => import('./Tasks'));
+const Leave = lazy(() => import('./Leave'));
+const Payroll = lazy(() => import('./Payroll'));
+const Learning = lazy(() => import('./Learning'));
+const EmployeeDashboard = lazy(() => import('./EmployeeDashboard'));
+const OrgChart = lazy(() => import('./OrgChart'));
+const Performance = lazy(() => import('./Performance'));
+
+// A simple fallback loader
+const Loader = () => (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', padding: '20px' }}>
+    <span>Loading...</span>
+  </div>
+);
+
+export default function Employee({ activeTab, navigateTo, currentUser }) {
   // Helper: switch to an employee tab
   const setActiveTab = (tab) => {
     if (navigateTo) navigateTo('Employee', tab);
     else window.location.hash = `#/Employee/${tab}`;
   };
 
-  if (activeTab === 'dashboard') {
-    return <EmployeeDashboard db={db} onUpdateDb={onUpdateDb} setActiveTab={setActiveTab} currentUser={currentUser} />;
-  }
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return <EmployeeDashboard setActiveTab={setActiveTab} currentUser={currentUser} />;
+      case 'attendance':
+        return <Attendance currentUser={currentUser} />;
+      case 'timesheet':
+        return <Timesheet currentUser={currentUser} />;
+      case 'tasks':
+        return <Tasks currentUser={currentUser} />;
+      case 'leave':
+        return <Leave currentUser={currentUser} />;
+      case 'payroll':
+        return <Payroll currentUser={currentUser} />;
+      case 'expenses':
+        return <Expenses currentUser={currentUser} />;
+      case 'profile':
+        return <Profile currentUser={currentUser} />;
+      case 'resignation':
+        return <Resignation currentUser={currentUser} />;
+      case 'help':
+        return <Help currentUser={currentUser} />;
+      case 'assets':
+        return <Assets currentUser={currentUser} />;
+      case 'messaging':
+        return <Messaging currentUser={currentUser} />;
+      case 'learning':
+        return <Learning currentUser={currentUser} />;
+      case 'orgChart':
+        return <OrgChart currentUser={currentUser} />;
+      case 'performance':
+        return <Performance currentUser={currentUser} />;
+      default:
+        // Fallback: show dashboard
+        return <EmployeeDashboard setActiveTab={setActiveTab} currentUser={currentUser} />;
+    }
+  };
 
-  if (activeTab === 'attendance') {
-    return <Attendance db={db} onUpdateDb={onUpdateDb} currentUser={currentUser} />;
-  }
-
-  if (activeTab === 'timesheet') {
-    return <Timesheet db={db} onUpdateDb={onUpdateDb} currentUser={currentUser} />;
-  }
-
-  if (activeTab === 'tasks') {
-    return <Tasks db={db} onUpdateDb={onUpdateDb} currentUser={currentUser} />;
-  }
-
-  if (activeTab === 'leave') {
-    return <Leave db={db} onUpdateDb={onUpdateDb} currentUser={currentUser} />;
-  }
-
-  if (activeTab === 'payroll') {
-    return <Payroll db={db} onUpdateDb={onUpdateDb} currentUser={currentUser} />;
-  }
-
-  if (activeTab === 'expenses') {
-    return <Expenses db={db} onUpdateDb={onUpdateDb} currentUser={currentUser} />;
-  }
-
-  if (activeTab === 'profile') {
-    return <Profile db={db} onUpdateDb={onUpdateDb} currentUser={currentUser} />;
-  }
-
-  if (activeTab === 'resignation') {
-    return <Resignation db={db} onUpdateDb={onUpdateDb} currentUser={currentUser} />;
-  }
-
-  if (activeTab === 'help') {
-    return <Help db={db} onUpdateDb={onUpdateDb} currentUser={currentUser} />;
-  }
-
-  if (activeTab === 'assets') {
-    return <Assets db={db} onUpdateDb={onUpdateDb} currentUser={currentUser} />;
-  }
-
-  if (activeTab === 'messaging') {
-    return <Messaging db={db} onUpdateDb={onUpdateDb} currentUser={currentUser} />;
-  }
-
-  if (activeTab === 'learning') {
-    return <Learning db={db} onUpdateDb={onUpdateDb} currentUser={currentUser} />;
-  }
-
-  // Fallback: show dashboard
-  return <EmployeeDashboard db={db} onUpdateDb={onUpdateDb} setActiveTab={setActiveTab} currentUser={currentUser} />;
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<Loader />}>
+        {renderContent()}
+      </Suspense>
+    </ErrorBoundary>
+  );
 }

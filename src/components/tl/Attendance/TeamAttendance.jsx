@@ -19,7 +19,7 @@ const monthsList = [
 const currentYearVal = new Date().getFullYear();
 const yearsList = Array.from({ length: currentYearVal - 2024 + 1 }, (_, i) => 2024 + i);
 
-const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
+const TeamAttendance = ({ onBack }) => {
 
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth()); // current month
   const [selectedYear, setSelectedYear] = useState(2026);
@@ -38,6 +38,32 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
     type: '',
     message: ''
   });
+
+  const [employees, setEmployees] = useState([]);
+  const [attendanceLogs, setAttendanceLogs] = useState([]);
+  const [attendanceCorrections, setAttendanceCorrections] = useState([]);
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('nsg_jwt_token');
+        const headers = { 'Authorization': `Bearer ${token}` };
+        
+        const [empRes, attRes, corrRes] = await Promise.all([
+          fetch('/api/team-lead/team-members', { headers }),
+          fetch('/api/team-lead/attendance', { headers }),
+          fetch('/api/team-lead/attendance-corrections/pending', { headers })
+        ]);
+        
+        if (empRes.ok) setEmployees(await empRes.json());
+        if (attRes.ok) setAttendanceLogs(await attRes.json());
+        if (corrRes.ok) setAttendanceCorrections(await corrRes.json());
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchData();
+  }, []);
 
   const availableMonths = useMemo(() => {
     const today = new Date();
@@ -64,7 +90,7 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
   }, [selectedMonth, selectedYear]);
 
   const teamGridData = useMemo(() => {
-    const emps = db?.employees || [];
+    const emps = employees || [];
     return emps.map(emp => {
       const rec = { id: emp.emp_id || `NSG-${emp.id}`, dbId: emp.id, name: emp.name };
       let presentCount = 0, absentCount = 0, leaveCount = 0, offCount = 0, lateCount = 0, wfhCount = 0;
@@ -78,7 +104,7 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
         const lookupDate = `${year}-${monthStr}-${dateStr}`;
         
         // Find log
-        const log = (db?.attendanceLogs || []).find(l => l.employee_id === emp.id && l.date === lookupDate);
+        const log = (attendanceLogs || []).find(l => l.employee_id === emp.id && l.date === lookupDate);
         
         let status = isWeekend ? 'Off' : 'Present';
         let timeIn = '09:00';
@@ -105,12 +131,11 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
             timeIn = '-';
             timeOut = '-';
           } else {
-            // Seeding default present times for dates past the current date to keep the mock grid fully populated
             const todayKey = new Date().toISOString().slice(0, 10);
             if (lookupDate > todayKey) {
-              status = 'Present';
-              timeIn = '09:00';
-              timeOut = '18:00';
+              status = '-';
+              timeIn = '-';
+              timeOut = '-';
             } else {
               status = 'Absent';
               timeIn = '-';
@@ -131,11 +156,11 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
       rec.totals = { present: presentCount, absent: absentCount, leave: leaveCount, off: offCount, late: lateCount, wfh: wfhCount };
       return rec;
     });
-  }, [db, daysInMonth, selectedMonth, selectedYear]);
+  }, [employees, attendanceLogs, daysInMonth, selectedMonth, selectedYear]);
 
   const lateArrivalsData = useMemo(() => {
     const lates = [];
-    const logs = db?.attendanceLogs || [];
+    const logs = attendanceLogs || [];
     
     // Calculate monthly cumulative lates
     const monthLatesMap = {};
@@ -150,7 +175,7 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
 
     logs.forEach(l => {
       if (l.is_late) {
-        const emp = (db?.employees || []).find(e => e.id === l.employee_id);
+        const emp = (employees || []).find(e => e.id === l.employee_id);
         if (emp) {
           const logDate = new Date(l.date);
           const monthName = logDate.toLocaleDateString('en-US', { month: 'short' });
@@ -196,16 +221,16 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
     // Sort by date descending
     lates.sort((a, b) => new Date(b.date) - new Date(a.date));
     return lates;
-  }, [db]);
+  }, [employees, attendanceLogs]);
 
   const missedPunchesData = useMemo(() => {
     const alerts = [];
     
     // 1. Scan attendance logs for missed punches
-    const logs = db?.attendanceLogs || [];
+    const logs = attendanceLogs || [];
     logs.forEach(l => {
       if (l.clock_in && !l.clock_out) {
-        const emp = (db?.employees || []).find(e => e.id === l.employee_id);
+        const emp = (employees || []).find(e => e.id === l.employee_id);
         if (emp) {
           const logDate = new Date(l.date);
           const monthName = logDate.toLocaleDateString('en-US', { month: 'short' });
@@ -223,9 +248,9 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
     });
     
     // 2. Scan pending corrections
-    const corrections = db?.attendanceCorrections || [];
+    const corrections = attendanceCorrections || [];
     corrections.forEach(c => {
-      const emp = (db?.employees || []).find(e => e.id === c.employee_id);
+      const emp = (employees || []).find(e => e.id === c.user_id || e.id === c.employee_id);
       if (emp) {
         const logDate = new Date(c.correction_date);
         const monthName = logDate.toLocaleDateString('en-US', { month: 'short' });
@@ -242,7 +267,7 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
     });
     
     return alerts;
-  }, [db]);
+  }, [employees, attendanceLogs, attendanceCorrections]);
 
   const openNotifyModal = (alert) => {
     setNotifyModal({
@@ -255,43 +280,44 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
       message: `Hi ${alert.name}, we noticed a missing or late punch (${alert.type}) on ${alert.date}. Please update/regularize your attendance in the portal.`
     });
   };
+  const [sendingNotification, setSendingNotification] = useState(false);
 
-  const handleSendNotification = () => {
-    // Append notification targeted at the employee to the database!
-    const newNotification = {
-      id: +new Date(),
-      employee_id: notifyModal.employeeId || 102,
-      message: notifyModal.message,
-      timestamp: new Date().toISOString(),
-      type: 'warning',
-      read: false
-    };
-
-    if (db && onUpdateDb) {
-      onUpdateDb({
-        ...db,
-        notifications: [...(db.notifications || []), newNotification]
+  const handleSendNotification = async () => {
+    setSendingNotification(true);
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const response = await fetch('/api/team-lead/notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          employee_id: notifyModal.employeeId,
+          message: notifyModal.message,
+          type: 'warning'
+        })
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to send notification');
+      }
+
+      const newSet = new Set(notifiedIds);
+      newSet.add(notifyModal.alertId);
+      setNotifiedIds(newSet);
+      
+      setNotifiedMessages(prev => ({
+        ...prev,
+        [notifyModal.alertId]: notifyModal.message
+      }));
+      setNotifyModal({ ...notifyModal, isOpen: false });
+    } catch (err) {
+      console.error(err);
+      alert('Error sending notification.');
+    } finally {
+      setSendingNotification(false);
     }
-
-    const newSet = new Set(notifiedIds);
-    newSet.add(notifyModal.alertId);
-    setNotifiedIds(newSet);
-
-    setNotifiedMessages(prev => ({
-      ...prev,
-      [notifyModal.alertId]: notifyModal.message
-    }));
-
-    setNotifyModal({
-      isOpen: false,
-      alertId: null,
-      employeeId: null,
-      employeeName: '',
-      date: '',
-      type: '',
-      message: ''
-    });
   };
 
   const handleCancelNotification = () => {
@@ -507,7 +533,9 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
                           {row[day.dateNum].status}
                         </div>
                         <div style={{ fontSize: '12px', color: '#64748b' }}>
-                          In: {row[day.dateNum].in} <br/> Out: {row[day.dateNum].out}
+                          {row[day.dateNum].status !== '-' && row[day.dateNum].status !== 'Off' && row[day.dateNum].status !== 'Absent' ? (
+                            <>In: {row[day.dateNum].in} <br/> Out: {row[day.dateNum].out}</>
+                          ) : ''}
                         </div>
                       </td>
                     )) : (
@@ -703,7 +731,9 @@ const TeamAttendance = ({ onBack, db, onUpdateDb }) => {
                 Cancel
               </button>
               <button 
+                className={styles.sendAlertBtn} 
                 onClick={handleSendNotification}
+                disabled={sendingNotification}
                 style={{
                   padding: '8px 16px',
                   borderRadius: '6px',

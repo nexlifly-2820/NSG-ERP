@@ -1,3 +1,4 @@
+// Crash fix applied
 import React, { useState, useEffect } from 'react';
 import { 
   CheckCircle, XCircle, Search, Filter, MessageSquare, Clock, ArrowRight, User, AlertCircle, X, Check, TrendingUp
@@ -20,22 +21,6 @@ const THEME = {
   danger: '#EF4444',       
   warning: '#F59E0B'       
 };
-
-// ==========================================
-// MOCK DATA
-// ==========================================
-const mockApprovals = [
-  { id: "APP-1001", type: "Payroll", requestedBy: "HR Department", dept: "HR", urgency: "Critical", submittedAt: "10 mins ago", amount: "₹24.5M", status: 'Pending' },
-  { id: "APP-1002", type: "Budget", requestedBy: "David L.", dept: "Marketing", urgency: "High", submittedAt: "2 hours ago", amount: "₹1.5M", status: 'Pending' },
-  { id: "APP-1003", type: "Resignation", requestedBy: "Amit P.", dept: "Sales", urgency: "High", submittedAt: "1 day ago", amount: null, status: 'Pending' },
-  { id: "APP-1004", type: "Policy", requestedBy: "Legal Team", dept: "Legal", urgency: "Normal", submittedAt: "2 days ago", amount: null, status: 'Pending' }
-];
-
-const mockAuditTrail = [
-  { time: "Oct 24, 10:15 AM", user: "Rajiv S.", action: "Request Created" },
-  { time: "Oct 24, 10:20 AM", user: "Priya M. (TL)", action: "Approved at Level 1" },
-  { time: "Oct 24, 11:00 AM", user: "HR System", action: "Flagged for CEO Approval" },
-];
 
 const TABS = ['All', 'Payroll', 'Budget', 'Resignation', 'Policy', 'Promotions'];
 
@@ -128,9 +113,9 @@ const ApprovalDetailDrawer = ({ approval, onClose, onAction }) => {
           <div style={{ fontSize: '14px', fontWeight: 600, color: THEME.textMuted, marginBottom: '20px' }}>Audit Trail</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative' }}>
             <div style={{ position: 'absolute', left: '7px', top: '8px', bottom: '8px', width: '2px', background: THEME.border, zIndex: 0 }}></div>
-            {mockAuditTrail.map((audit, i) => (
+            {(approval.auditTrail || [{ action: "Request Submitted", time: approval.submittedAt, user: approval.requestedBy }]).map((audit, i, arr) => (
               <div key={i} style={{ display: 'flex', gap: '16px', zIndex: 1 }}>
-                <div style={{ width: '16px', height: '16px', borderRadius: '8px', background: i === mockAuditTrail.length-1 ? THEME.primary : THEME.bgSurface, border: `2px solid ${i === mockAuditTrail.length-1 ? THEME.primary : THEME.borderLight}`, marginTop: '2px' }}></div>
+                <div style={{ width: '16px', height: '16px', borderRadius: '8px', background: i === arr.length-1 ? THEME.primary : THEME.bgSurface, border: `2px solid ${i === arr.length-1 ? THEME.primary : THEME.borderLight}`, marginTop: '2px' }}></div>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: '14px', color: THEME.textMain }}>{audit.action}</div>
                   <div style={{ color: THEME.textMuted, fontSize: '12px', marginTop: '4px' }}>{audit.user} • {audit.time}</div>
@@ -271,7 +256,7 @@ const ApprovalTable = ({ data, activeTab, selectedIds, onToggleCheck, onToggleAl
 // ==========================================
 // MAIN EXPORT (ApprovalsPage)
 // ==========================================
-export default function ApprovalsPage({ db, onUpdateDb }) {
+export default function ApprovalsPage() {
   const [activeTab, setActiveTab] = useState('All');
   const [approvals, setApprovals] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -285,117 +270,21 @@ export default function ApprovalsPage({ db, onUpdateDb }) {
   // ---- Promotions state ----
   const [promotions, setPromotions] = useState([]);
   const [promoLoading, setPromoLoading] = useState(false);
-
   const fetchApprovals = async () => {
     const token = localStorage.getItem('nsg_jwt_token');
-    if (!token) return;
     setLoading(true);
     setError('');
     try {
-      // 1. Fetch employees to map names for exits
-      const resEmployees = await fetch('/api/hr-portal/employees', {
+      const res = await fetch('/api/ceo-portal/approvals/all', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const employees = resEmployees.ok ? await resEmployees.json() : [];
-
-      // 2. Fetch resignations
-      const resResignations = await fetch('/api/hr-portal/exits/resignations', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const resignationsData = resResignations.ok ? await resResignations.json() : [];
-
-      // 3. Fetch budgets
-      const resFinance = await fetch('/api/ceo-portal/finance/data', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const financeData = resFinance.ok ? await resFinance.json() : { budgets: [] };
-
-      // 4. Fetch payroll runs
-      const resPayroll = await fetch('/api/hr-portal/payroll/runs', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const payrollRuns = resPayroll.ok ? await resPayroll.json() : [];
-
-      const list = [];
-
-      // Add Payroll runs
-      payrollRuns.filter(run => run.status !== 'draft').forEach(run => {
-        let statusLabel = 'Pending';
-        if (run.status === 'bank_transferred' || run.status === 'checker_signed') {
-          statusLabel = 'Approved';
-        } else if (run.status === 'rejected') {
-          statusLabel = 'Denied';
-        }
-
-        list.push({
-          id: `PAY-${run.id}`,
-          type: "Payroll",
-          requestedBy: "HR Department",
-          dept: "HR",
-          urgency: "Critical",
-          submittedAt: run.maker_signed_at ? new Date(run.maker_signed_at).toLocaleDateString() : "Recent",
-          amount: "₹24.5M",
-          status: statusLabel,
-          payrollRunId: run.id,
-          rawItem: run
-        });
-      });
-
-      // Add Budgets
-      const budgets = financeData.budgets || [];
-      budgets.forEach(b => {
-        let statusLabel = 'Pending';
-        if (b.status === 'approved') statusLabel = 'Approved';
-        else if (b.status === 'rejected') statusLabel = 'Denied';
-
-        list.push({
-          id: `BUD-${b.id}`,
-          type: "Budget",
-          requestedBy: b.reqBy || "Department Lead",
-          dept: b.dept,
-          urgency: "High",
-          submittedAt: "Recent",
-          amount: b.amount,
-          status: statusLabel,
-          budgetId: b.id,
-          rawItem: b
-        });
-      });
-
-      // Add Resignations
-      resignationsData.forEach(r => {
-        const emp = employees.find(e => e.id === r.user_id) || { name: `User #${r.user_id}`, department: 'Engineering' };
-        let statusLabel = 'Pending';
-        if (r.status === 'approved') statusLabel = 'Approved';
-        else if (r.status === 'rejected') statusLabel = 'Denied';
-
-        list.push({
-          id: `RES-${r.id}`,
-          type: "Resignation",
-          requestedBy: emp.name,
-          dept: emp.department || "Engineering",
-          urgency: "High",
-          submittedAt: r.resignation_date ? new Date(r.resignation_date).toLocaleDateString() : "Recent",
-          amount: null,
-          status: statusLabel,
-          resignationId: r.id,
-          rawItem: r
-        });
-      });
-
-      // Add static policy item
-      list.push({
-        id: "APP-1004",
-        type: "Policy",
-        requestedBy: "Legal Team",
-        dept: "Legal",
-        urgency: "Normal",
-        submittedAt: "2 days ago",
-        amount: null,
-        status: 'Pending'
-      });
-
-      setApprovals(list);
+      if (res.ok) {
+        const data = await res.json();
+        setApprovals(data.approvals || []);
+        setPromotions(data.promotions || []);
+      } else {
+        throw new Error("Failed to fetch approvals");
+      }
     } catch (err) {
       console.error(err);
       setError('Connection error loading approvals.');
@@ -406,14 +295,6 @@ export default function ApprovalsPage({ db, onUpdateDb }) {
 
   useEffect(() => {
     fetchApprovals();
-    
-    // Promotions list
-    const token = localStorage.getItem('nsg_jwt_token');
-    if (!token) return;
-    fetch('/api/hr-portal/promotions', { headers: { 'Authorization': `Bearer ${token}` } })
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setPromotions(data))
-      .catch(() => {});
   }, []);
 
   const handlePromoDecision = async (id, decision) => {
@@ -461,7 +342,7 @@ export default function ApprovalsPage({ db, onUpdateDb }) {
     const action = isApprove ? 'approve' : 'reject';
     const token = localStorage.getItem('nsg_jwt_token');
 
-    if (!token || !item) return;
+    if (!item) return;
 
     try {
       if (item.id.startsWith('PAY-')) {
@@ -474,7 +355,12 @@ export default function ApprovalsPage({ db, onUpdateDb }) {
           if (!res.ok) throw new Error('Failed to approve payroll run.');
           alert('Payroll transfer signed! Payout dispatched and monthly payslips released to all employee dashboards.');
         } else {
-          // Deny/Reject Payroll run: since no reject endpoint exists, we can show notice
+          // Deny/Reject Payroll run
+          const res = await fetch(`/api/ceo-portal/payroll/runs/${runId}/reject`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (!res.ok) throw new Error('Failed to reject payroll run.');
           alert('Payroll ledger rejected and sent back to HR.');
         }
       } else if (item.id.startsWith('RES-')) {
@@ -498,6 +384,15 @@ export default function ApprovalsPage({ db, onUpdateDb }) {
         });
         if (!res.ok) throw new Error(`Failed to ${action} budget.`);
         alert(`Budget request ${isApprove ? 'approved' : 'rejected'} successfully.`);
+      } else if (item.id.startsWith('POL-')) {
+        const policyId = item.policyId;
+        const endpoint = `/api/ceo-portal/policies/${policyId}/${action}`;
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error(`Failed to ${action} policy.`);
+        alert(`Company policy ${isApprove ? 'approved' : 'rejected'} successfully.`);
       }
 
       await fetchApprovals();
@@ -677,3 +572,4 @@ export default function ApprovalsPage({ db, onUpdateDb }) {
     </div>
   );
 }
+

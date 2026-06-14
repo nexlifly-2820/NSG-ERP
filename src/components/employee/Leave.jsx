@@ -1,24 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import useSWR from 'swr';
+
+const fetcher = url => fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('nsg_jwt_token')}` } }).then(res => res.json());
 import './Leave.css';
-
-// ─── Mock Data ───────────────────────────────────────────────────────────────
-const LEAVE_BALANCES = [
-  { type: 'CL',      label: 'Casual Leave',       used: 3,  total: 12, color: 'var(--cl-color)'      },
-  { type: 'SL',      label: 'Sick Leave',          used: 1,  total: 8,  color: 'var(--sl-color)'      },
-  { type: 'EL',      label: 'Earned Leave',        used: 5,  total: 15, color: 'var(--el-color)'      },
-  { type: 'CompOff', label: 'Comp Off',            used: 2,  total: 4,  color: 'var(--compoff-color)' },
-];
-
-const LEAVE_HISTORY = [
-  { id: 1, applied: '2026-05-10', type: 'CL',      from: '2026-05-12', to: '2026-05-13', days: 2, status: 'Approved',  approver: 'Rajan K.' },
-  { id: 2, applied: '2026-04-20', type: 'SL',      from: '2026-04-22', to: '2026-04-22', days: 1, status: 'Approved',  approver: 'Rajan K.' },
-  { id: 3, applied: '2026-04-05', type: 'EL',      from: '2026-04-08', to: '2026-04-10', days: 3, status: 'Rejected',  approver: 'Rajan K.' },
-  { id: 4, applied: '2026-03-18', type: 'CompOff', from: '2026-03-20', to: '2026-03-20', days: 1, status: 'Pending',   approver: 'Rajan K.' },
-  { id: 5, applied: '2026-03-01', type: 'CL',      from: '2026-03-05', to: '2026-03-06', days: 2, status: 'Cancelled', approver: 'Rajan K.' },
-];
-
-const TEAM_ON_LEAVE = ['Priya S.', 'Arjun M.'];
-const HOLIDAYS = ['2026-05-01', '2026-05-14', '2026-06-15']; // for day count calc
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function fmtDate(iso) {
@@ -33,7 +17,7 @@ function countWorkDays(from, to) {
   const end = new Date(to);
   while (cur <= end) {
     const d = cur.getDay();
-    if (d !== 0 && d !== 6 && !HOLIDAYS.includes(cur.toISOString().slice(0, 10))) count++;
+    if (d !== 0 && d !== 6) count++;
     cur.setDate(cur.getDate() + 1);
   }
   return count;
@@ -107,28 +91,15 @@ function LeaveBalanceCard({ type, label, used, total, color, onApply }) {
   );
 }
 
-// ─── OverlapWarning ───────────────────────────────────────────────────────────
-function OverlapWarning({ visible, members, dates }) {
-  return (
-    <div className={`lv-overlap-warning ${visible ? 'lv-overlap-visible' : ''}`}>
-      <span className="lv-overlap-icon">⚠️</span>
-      <span>
-        <strong>{members.join(', ')}</strong> {members.length === 1 ? 'is' : 'are'} also on leave:{' '}
-        {dates.join(', ')}
-      </span>
-    </div>
-  );
-}
 
 // ─── ApplyLeaveForm ───────────────────────────────────────────────────────────
-function ApplyLeaveForm({ prefillType, onSuccess, onRefreshData }) {
+function ApplyLeaveForm({ prefillType, balances, onSuccess, onRefreshData }) {
   const [leaveType, setLeaveType] = useState(prefillType || '');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [reason, setReason] = useState('');
   const [dayCount, setDayCount] = useState(0);
   const [calculating, setCalculating] = useState(false);
-  const [showOverlap, setShowOverlap] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errors, setErrors] = useState({});
@@ -149,11 +120,9 @@ function ApplyLeaveForm({ prefillType, onSuccess, onRefreshData }) {
         const count = countWorkDays(fromDate, toDate);
         setDayCount(count);
         setCalculating(false);
-        setShowOverlap(count > 0 && TEAM_ON_LEAVE.length > 0);
       }, 600);
     } else {
       setDayCount(0);
-      setShowOverlap(false);
     }
     return () => clearTimeout(calcTimer.current);
   }, [fromDate, toDate]);
@@ -204,7 +173,7 @@ function ApplyLeaveForm({ prefillType, onSuccess, onRefreshData }) {
       setTimeout(() => {
         setSuccess(false);
         setLeaveType(''); setFromDate(''); setToDate('');
-        setReason(''); setDayCount(0); setShowOverlap(false);
+        setReason(''); setDayCount(0);
         if (onSuccess) onSuccess();
       }, 1800);
     }
@@ -217,7 +186,7 @@ function ApplyLeaveForm({ prefillType, onSuccess, onRefreshData }) {
       <div className="lv-form-header">
         <span className="lv-form-title">Apply Leave</span>
         {dayCount > 0 && (
-          <span className={`lv-day-count ${calculating ? 'lv-calculating' : ''}`} style={{ color: leaveType ? LEAVE_BALANCES.find(b => b.label === leaveType || b.type === leaveType)?.color || 'var(--lv-emerald)' : 'var(--lv-emerald)' }}>
+          <span className={`lv-day-count ${calculating ? 'lv-calculating' : ''}`} style={{ color: leaveType ? (balances || []).find(b => b.label === leaveType || b.type === leaveType)?.color || 'var(--lv-emerald)' : 'var(--lv-emerald)' }}>
             {calculating ? <span className="lv-spin-sm"/> : dayCount} {!calculating && 'days'}
           </span>
         )}
@@ -259,8 +228,6 @@ function ApplyLeaveForm({ prefillType, onSuccess, onRefreshData }) {
         </div>
       </div>
 
-      {/* Overlap Warning */}
-      <OverlapWarning visible={showOverlap} members={TEAM_ON_LEAVE} dates={[fromDate, toDate].filter(Boolean).map(fmtDate)} />
 
       {/* Reason */}
       <div className="lv-field-group">
@@ -361,49 +328,32 @@ export default function Leave() {
   const [cancelTarget, setCancelTarget] = useState(null);
   const formRef = useRef(null);
   
-  const [myDbBalance, setMyDbBalance] = useState({ CL: 12, SL: 8, EL: 15, Maternity: 0, Paternity: 0 });
-  const [myHistory, setMyHistory] = useState([]);
+  const { data: balData, mutate: mutateBal } = useSWR('/api/employee-portal/leave/my-balances', fetcher);
+  const { data: reqData, mutate: mutateReq } = useSWR('/api/employee-portal/leave/my-requests', fetcher);
 
-  const fetchData = async () => {
-    try {
-      const token = localStorage.getItem('nsg_jwt_token');
-      const headers = { 'Authorization': `Bearer ${token}` };
-      
-      const balRes = await fetch('/api/employee-portal/leave/my-balances', { headers });
-      if (balRes.ok) {
-        const balData = await balRes.json();
-        setMyDbBalance(balData);
-      }
-      
-      const reqRes = await fetch('/api/employee-portal/leave/my-requests', { headers });
-      if (reqRes.ok) {
-        const reqData = await reqRes.json();
-        const history = reqData.map(r => ({
-          id: r.id,
-          applied: r.from_date,
-          type: r.leave_type,
-          from: r.from_date,
-          to: r.to_date,
-          days: r.days,
-          status: r.status === 'hr_approved' ? 'Approved' : r.status === 'tl_approved' ? 'TL Approved' : r.status === 'denied' ? 'Rejected' : r.status === 'cancelled' ? 'Cancelled' : r.status.charAt(0).toUpperCase() + r.status.slice(1),
-          approver: r.status === 'hr_approved' ? 'HR Manager' : r.status === 'tl_approved' ? 'Sarah Jenkins' : '—'
-        }));
-        setMyHistory(history);
-      }
-    } catch (error) {
-      console.error(error);
-    }
+  const myDbBalance = balData || null;
+  const myHistory = (reqData?.items || []).map(r => ({
+      id: r.id,
+      applied: r.from_date,
+      type: r.leave_type,
+      from: r.from_date,
+      to: r.to_date,
+      days: r.days,
+      status: r.status === 'hr_approved' ? 'Approved' : r.status === 'tl_approved' ? 'TL Approved' : r.status === 'denied' ? 'Rejected' : r.status === 'cancelled' ? 'Cancelled' : r.status.charAt(0).toUpperCase() + r.status.slice(1),
+      approver: r.status === 'hr_approved' ? 'HR Manager' : r.status === 'tl_approved' ? 'Sarah Jenkins' : '—'
+  }));
+
+  const fetchData = () => {
+      mutateBal();
+      mutateReq();
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
+  const dbBal = myDbBalance || { CL: 12, SL: 8, EL: 15, Maternity: 26, Paternity: 0 };
   const balances = [
-    { type: 'CL',      label: 'Casual Leave',       used: 12 - (myDbBalance.CL || 0),  total: 12, color: 'var(--cl-color)'      },
-    { type: 'SL',      label: 'Sick Leave',          used: 8 - (myDbBalance.SL || 0),   total: 8,  color: 'var(--sl-color)'      },
-    { type: 'EL',      label: 'Earned Leave',        used: 15 - (myDbBalance.EL || 0),  total: 15, color: 'var(--el-color)'      },
-    { type: 'Maternity', label: 'Maternity Leave', used: 26 - (myDbBalance.Maternity || 0), total: 26, color: 'var(--compoff-color)' },
+    { type: 'CL',      label: 'Casual Leave',       used: myDbBalance ? 12 - (dbBal.CL || 0) : 0,  total: myDbBalance ? 12 : 0, color: 'var(--cl-color)'      },
+    { type: 'SL',      label: 'Sick Leave',          used: myDbBalance ? 8 - (dbBal.SL || 0) : 0,   total: myDbBalance ? 8 : 0,  color: 'var(--sl-color)'      },
+    { type: 'EL',      label: 'Earned Leave',        used: myDbBalance ? 15 - (dbBal.EL || 0) : 0,  total: myDbBalance ? 15 : 0, color: 'var(--el-color)'      },
+    { type: 'Maternity', label: 'Maternity Leave', used: myDbBalance ? 26 - (dbBal.Maternity || 0) : 0, total: myDbBalance ? 26 : 0, color: 'var(--compoff-color)' },
   ];
 
   function handleApply(type) {
@@ -456,7 +406,7 @@ export default function Leave() {
       <div className="lv-bottom-grid">
         {/* Apply Form */}
         <div ref={formRef}>
-          <ApplyLeaveForm prefillType={prefillType} onSuccess={handleSuccess} onRefreshData={fetchData} />
+          <ApplyLeaveForm prefillType={prefillType} balances={balances} onSuccess={handleSuccess} onRefreshData={fetchData} />
         </div>
 
         {/* History Table */}

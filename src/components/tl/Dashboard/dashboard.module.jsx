@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from './dashboard.module.css';
 import { 
   Users, 
@@ -19,21 +19,148 @@ const Dashboard = ({ setActiveTab, setSelectedChatUser }) => {
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, listKey: '', id: null, action: '' });
   const [showAllTeam, setShowAllTeam] = useState(false);
   const [showAllWorkload, setShowAllWorkload] = useState(false);
-  // 1. Team Presence Data
-  const teamMembers = [
-    { id: 1, name: 'Alice Chen', initials: 'AC', status: 'online' },
-    { id: 2, name: 'Bob Smith', initials: 'BS', status: 'wfh' },
-    { id: 3, name: 'Charlie Davis', initials: 'CD', status: 'offline' },
-    { id: 4, name: 'Diana Prince', initials: 'DP', status: 'on_leave' },
-    { id: 5, name: 'Evan Wright', initials: 'EW', status: 'absent' },
-    { id: 6, name: 'Fiona Gallagher', initials: 'FG', status: 'online' },
-    { id: 7, name: 'George Hale', initials: 'GH', status: 'wfh' },
-    { id: 8, name: 'Hannah Lee', initials: 'HL', status: 'online' },
-    { id: 9, name: 'Ivy Green', initials: 'IG', status: 'absent' },
-    { id: 10, name: 'Jack White', initials: 'JW', status: 'absent' },
-    { id: 11, name: 'Kevin Taylor', initials: 'KT', status: 'online' },
-    { id: 12, name: 'Michael Chang', initials: 'MC', status: 'online' }
-  ];
+
+  // ── Real API Data ──────────────────────────────────────────────────────────
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [myTasks, setMyTasks] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const [pendingDetails, setPendingDetails] = useState({
+    leaveRequests: [],
+    timesheetCorrections: [],
+    wfhRequests: [],
+    absentAlerts: []
+  });
+  const [pendingApprovals, setPendingApprovals] = useState({
+    leaveRequests: 0,
+    timesheetCorrections: 0,
+    wfhRequests: 0
+  });
+
+  const fetchDashboardData = async () => {
+    const token = localStorage.getItem('nsg_jwt_token');
+    const headers = { 'Authorization': `Bearer ${token}` };
+
+    try {
+      setLoading(true);
+      const [membersRes, tasksRes, annRes, countsRes, alertsRes, leavesRes, correctionsRes, wfhRes] = await Promise.all([
+        fetch('/api/team-lead/team-members', { headers }),
+        fetch('/api/team-lead/tasks', { headers }),
+        fetch('/api/tl-portal/announcements', { headers }),
+        fetch('/api/team-lead/dashboard/pending-approvals', { headers }),
+        fetch('/api/team-lead/dashboard/absent-alerts', { headers }),
+        fetch('/api/team-lead/leaves/pending', { headers }),
+        fetch('/api/team-lead/attendance-corrections/pending', { headers }),
+        fetch('/api/team-lead/wfh/pending', { headers })
+      ]);
+
+      if (annRes.ok) setAnnouncements(await annRes.json());
+      
+      let fetchedMembers = [];
+      if (membersRes.ok) {
+        const members = await membersRes.json();
+        fetchedMembers = members;
+        setTeamMembers(members.map(m => ({
+          id: m.id,
+          name: m.name,
+          initials: m.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase(),
+          status: m.status === 'active' ? 'online' : m.status === 'on_leave' ? 'on_leave' : 'offline',
+          role: m.designation || 'Team Member'
+        })));
+      }
+
+      if (tasksRes.ok) setMyTasks(await tasksRes.json());
+      
+      if (countsRes.ok) setPendingApprovals(await countsRes.json());
+      
+      let absentAlerts = [];
+      if (alertsRes.ok) absentAlerts = await alertsRes.json();
+      
+      let leavesData = [];
+      if (leavesRes.ok) {
+        const leaves = await leavesRes.json();
+        leavesData = leaves.map(l => {
+          const emp = fetchedMembers.find(m => m.id === l.user_id);
+          return {
+            id: l.id,
+            name: emp ? emp.name : `User ${l.user_id}`,
+            desc: `${l.leave_type} Leave: ${l.from_date} to ${l.to_date}`,
+            employeeNote: l.reason
+          };
+        });
+      }
+
+      let correctionsData = [];
+      if (correctionsRes.ok) {
+        const corrections = await correctionsRes.json();
+        correctionsData = corrections.map(c => {
+          const emp = fetchedMembers.find(m => m.id === c.user_id);
+          return {
+            id: c.id,
+            name: emp ? emp.name : `User ${c.user_id}`,
+            desc: `Date: ${c.correction_date}`,
+            employeeNote: c.reason
+          };
+        });
+      }
+
+      let wfhData = [];
+      if (wfhRes.ok) {
+        const wfhs = await wfhRes.json();
+        wfhData = wfhs.map(w => {
+          const emp = fetchedMembers.find(m => m.id === w.user_id);
+          return {
+            id: w.id,
+            name: emp ? emp.name : `User ${w.user_id}`,
+            desc: `WFH: ${w.from_date} to ${w.to_date}`,
+            employeeNote: w.reason
+          };
+        });
+      }
+
+      setPendingDetails({
+        leaveRequests: leavesData,
+        timesheetCorrections: correctionsData,
+        wfhRequests: wfhData,
+        absentAlerts: absentAlerts
+      });
+
+    } catch (e) {
+      console.error('TL Dashboard fetch error:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  // ── Derive sprint stats from real tasks ──────────────────────────────────
+  const sprintData = {
+    name: 'Current Sprint',
+    pointsCompleted: myTasks.filter(t => t.status === 'done').reduce((s, t) => s + (t.sp || 1), 0),
+    pointsTotal: myTasks.reduce((s, t) => s + (t.sp || 1), 0) || 1,
+    tasks: {
+      todo: myTasks.filter(t => t.status === 'pending').length,
+      inProgress: myTasks.filter(t => t.status === 'in-progress').length,
+      blocked: myTasks.filter(t => t.status === 'blocked').length,
+      done: myTasks.filter(t => t.status === 'done').length,
+    },
+    velocityTrend: `${myTasks.filter(t => t.status === 'done').length} tasks done`
+  };
+
+  const progressPercentage = Math.min(100, (sprintData.pointsCompleted / sprintData.pointsTotal) * 100);
+  const radius = 60;
+
+  // ── Derive workload from team members + tasks ─────────────────────────────
+  const teamWorkload = teamMembers.map(m => {
+    const memberTasks = myTasks.filter(t => t.assignee === m.name || t.user_id === m.id);
+    const activeTasks = memberTasks.filter(t => t.status !== 'done').length;
+    const load = Math.min(100, activeTasks * 20); // 5 tasks = 100% load
+    return { id: m.id, name: m.name, role: m.role, load };
+  });
 
   const statusPriority = {
     'online': 1,
@@ -43,80 +170,46 @@ const Dashboard = ({ setActiveTab, setSelectedChatUser }) => {
     'absent': 5
   };
 
-  const sortedTeamMembers = [...teamMembers].sort((a, b) => statusPriority[a.status] - statusPriority[b.status]);
-
-  // 2. Sprint Status Data
-  const sprintData = {
-    name: 'Sprint 42: Alpha Release',
-    pointsCompleted: 68,
-    pointsTotal: 120,
-    tasks: {
-      todo: 12,
-      inProgress: 8,
-      blocked: 3,
-      done: 24
-    },
-    velocityTrend: '+15% from last sprint'
-  };
-
-  const progressPercentage = (sprintData.pointsCompleted / sprintData.pointsTotal) * 100;
-  const radius = 60;
-  const teamWorkload = [
-    { id: 1, name: 'Alice Chen', role: 'Frontend Dev', load: 85 },
-    { id: 12, name: 'Michael Chang', role: 'Backend Dev', load: 45 },
-    { id: 8, name: 'Hannah Lee', role: 'UI/UX Designer', load: 95 },
-    { id: 11, name: 'Kevin Taylor', role: 'QA Engineer', load: 60 },
-    { id: 2, name: 'Bob Smith', role: 'Frontend Dev', load: 35 },
-    { id: 6, name: 'Fiona Gallagher', role: 'Backend Dev', load: 75 },
-    { id: 4, name: 'Diana Prince', role: 'Product Manager', load: 88 },
-    { id: 3, name: 'Charlie Davis', role: 'Full Stack Dev', load: 65 },
-    { id: 7, name: 'George Hale', role: 'Security Analyst', load: 40 },
-    { id: 5, name: 'Evan Wright', role: 'DevOps Engineer', load: 0 },
-    { id: 9, name: 'Ivy Green', role: 'Data Analyst', load: 0 },
-    { id: 10, name: 'Jack White', role: 'System Admin', load: 0 }
-  ];
+  const sortedTeamMembers = [...teamMembers].sort((a, b) => (statusPriority[a.status] || 3) - (statusPriority[b.status] || 3));
 
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (progressPercentage / 100) * circumference;
 
-  const [pendingDetails, setPendingDetails] = useState({
-    leaveRequests: [
-      { id: 1, name: 'Alice Chen', desc: 'Annual Leave: May 12 - 13', employeeNote: "Need to attend to family matters." },
-      { id: 2, name: 'Diana Prince', desc: 'Personal Leave: May 20', employeeNote: 'Attending a workshop.' },
-      { id: 3, name: 'Fiona Gallagher', desc: 'Annual Leave: May 20 - 21', employeeNote: 'Pre-planned vacation trip.' },
-      { id: 4, name: 'George Hale', desc: 'Annual Leave: May 20', employeeNote: 'Family event.' }
-    ],
-    timesheetCorrections: [
-      { id: 1, name: 'Fiona Gallagher', desc: 'Date: Tue, May 9 - Missing 2 hours', employeeNote: 'I forgot to clock in after lunch.' },
-      { id: 2, name: 'Hannah Lee', desc: 'Date: Wed, May 10 - Overtime (4h)', employeeNote: 'Stayed late to finalize the Q2 marketing presentation.' },
-      { id: 3, name: 'Charlie Davis', desc: 'Date: Mon, May 8 - Forgot clock out', employeeNote: 'Rushed out due to an emergency.' },
-      { id: 4, name: 'George Hale', desc: 'Date: Thu, May 11 - Project code fix', employeeNote: 'Logged hours against the wrong client project by mistake.' },
-      { id: 5, name: 'Evan Wright', desc: 'Date: Mon, May 8 - Missing hours', employeeNote: "System was down so I couldn't log my morning hours." },
-      { id: 6, name: 'Diana Prince', desc: 'Date: Fri, May 5 - Overtime (2h)', employeeNote: 'Approved overtime for the weekend deployment prep.' },
-      { id: 7, name: 'Alice Chen', desc: 'Date: Tue, May 9 - Wrong project code', employeeNote: 'Accidentally booked to internal overhead.' }
-    ],
-    wfhRequests: [
-      { id: 1, name: 'Bob Smith', desc: 'Date: Thursday, May 14', employeeNote: 'Having a plumber come over to fix a leak.' },
-      { id: 2, name: 'George Hale', desc: 'Date: Friday, May 15', employeeNote: 'Need to stay home for emergency childcare.' }
-    ],
-    absentAlerts: [
-      { id: 5, name: 'Evan Wright', initials: 'EW', desc: 'Date: Today - Unexplained Absence', employeeNote: 'No leave request filed. Requires follow-up.' },
-      { id: 9, name: 'Ivy Green', initials: 'IG', desc: 'Date: Today - Unexplained Absence', employeeNote: 'No leave request filed. Requires follow-up.' },
-      { id: 10, name: 'Jack White', initials: 'JW', desc: 'Date: Today - Unexplained Absence', employeeNote: 'No leave request filed. Requires follow-up.' }
-    ]
-  });
 
   const promptAction = (e, listKey, id, action) => {
     e.stopPropagation();
     setConfirmDialog({ isOpen: true, listKey, id, action });
   };
 
-  const executeAction = () => {
-    const { listKey, id } = confirmDialog;
-    setPendingDetails(prev => ({
-      ...prev,
-      [listKey]: prev[listKey].filter(item => item.id !== id)
-    }));
+  const executeAction = async () => {
+    const { listKey, id, action } = confirmDialog;
+    
+    // Determine the API endpoint based on listKey
+    let endpoint = '';
+    if (listKey === 'leaveRequests') endpoint = `/api/team-lead/leaves/${id}/${action}`;
+    else if (listKey === 'timesheetCorrections') endpoint = `/api/team-lead/attendance-corrections/${id}/${action}`;
+    else if (listKey === 'wfhRequests') endpoint = `/api/team-lead/wfh/${id}/${action}`;
+    
+    if (endpoint) {
+      try {
+        const token = localStorage.getItem('nsg_jwt_token');
+        await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        // Re-fetch data to reflect DB changes
+        fetchDashboardData();
+      } catch (e) {
+        console.error('Error executing action:', e);
+      }
+    } else if (listKey === 'absentAlerts') {
+      // Just local dismiss for now, or connect to HR notification endpoint
+      setPendingDetails(prev => ({
+        ...prev,
+        [listKey]: prev[listKey].filter(item => item.id !== id)
+      }));
+    }
+
     if (expandedItem === id) {
       setExpandedItem(null);
     }
@@ -126,14 +219,6 @@ const Dashboard = ({ setActiveTab, setSelectedChatUser }) => {
   const cancelAction = () => {
     setConfirmDialog({ isOpen: false, listKey: '', id: null, action: '' });
   };
-
-  // 3. Pending Approvals Data
-  const pendingApprovals = {
-    leaveRequests: pendingDetails.leaveRequests.length,
-    timesheetCorrections: pendingDetails.timesheetCorrections.length,
-    wfhRequests: pendingDetails.wfhRequests.length
-  };
-
 
   if (currentView !== 'main') {
     const title = currentView === 'leave' ? 'Leave Requests' : 
@@ -240,6 +325,30 @@ const Dashboard = ({ setActiveTab, setSelectedChatUser }) => {
   return (
     <div className={styles.dashboardContainer}>
       
+      {/* CEO Announcements Section */}
+      {announcements.length > 0 && (
+        <div style={{ marginBottom: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <span style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--text-primary)' }}>CEO Announcements</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+            {announcements.slice(0, 3).map(ann => (
+              <div key={ann.id} style={{
+                background: '#FFF', border: '1px solid #E2E8F0', borderLeft: ann.priority === 'Urgent' ? '4px solid #ef4444' : '4px solid #3b82f6',
+                borderRadius: '8px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748B' }}>{ann.author} • {ann.date}</span>
+                  {ann.priority === 'Urgent' && <span style={{ background: '#FEF2F2', color: '#ef4444', padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 800 }}>URGENT</span>}
+                </div>
+                <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: '#0F172A' }}>{ann.title}</div>
+                <div dangerouslySetInnerHTML={{ __html: ann.body }} style={{ fontSize: '13px', color: '#475569', lineHeight: 1.5, maxHeight: '3.6em', overflow: 'hidden' }}></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className={styles.topGrid}>
         {/* 1. Team Presence Grid */}
         <div className={styles.widgetCard} style={{ alignSelf: 'start' }}>

@@ -175,9 +175,16 @@ def submit_timesheet(req: TimesheetSubmitRequest, current_user: models.User = De
 @router.get("/pending", response_model=List[TimesheetResponse])
 def get_pending_timesheets(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     verify_manager_role(current_user)
-    timesheets = db.query(models.Timesheet).filter(
-        models.Timesheet.status == "submitted"
-    ).order_by(models.Timesheet.week_start_date.desc()).all()
+    if current_user.role == "tl":
+        emp_ids = [u.id for u in db.query(models.User.id).filter(models.User.manager_id == current_user.id).all()]
+        timesheets = db.query(models.Timesheet).filter(
+            models.Timesheet.status == "submitted",
+            models.Timesheet.user_id.in_(emp_ids)
+        ).order_by(models.Timesheet.week_start_date.desc()).all()
+    else:
+        timesheets = db.query(models.Timesheet).filter(
+            models.Timesheet.status == "submitted"
+        ).order_by(models.Timesheet.week_start_date.desc()).all()
     return [map_to_response(t) for t in timesheets]
 
 @router.post("/{id}/approve", response_model=TimesheetResponse)

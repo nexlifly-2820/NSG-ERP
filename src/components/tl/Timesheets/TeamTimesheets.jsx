@@ -2,25 +2,38 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Users, CalendarCheck, GitCommit, X, Check, AlertTriangle } from 'lucide-react';
 import styles from './teamTimesheets.module.css';
 
-const TeamTimesheets = ({ db, onUpdateDb }) => {
+const TeamTimesheets = () => {
   const [activeTab, setActiveTab] = useState('table');
   const [timesheets, setTimesheets] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
+
+  const fetchData = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const headers = { 'Authorization': `Bearer ${token}` };
+      const [tsRes, memRes] = await Promise.all([
+        fetch('/api/timesheets/pending', { headers }),
+        fetch('/api/team-lead/team-members', { headers })
+      ]);
+      if (tsRes.ok) setTimesheets(await tsRes.json());
+      if (memRes.ok) setTeamMembers(await memRes.json());
+    } catch (e) { console.error(e); }
+  };
 
   const fetchPending = async () => {
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch('http://localhost:8000/timesheets/pending', {
+      const res = await fetch('/api/timesheets/pending', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        const data = await res.json();
-        setTimesheets(data);
+        setTimesheets(await res.json());
       }
     } catch (e) { console.error(e); }
   };
 
   useEffect(() => {
-    fetchPending();
+    fetchData();
   }, []);
 
   const employees = useMemo(() => {
@@ -29,10 +42,11 @@ const TeamTimesheets = ({ db, onUpdateDb }) => {
       (ts.rows || []).forEach(r => {
         totalH += Object.values(r.hours || {}).reduce((sum, h) => sum + (parseFloat(h) || 0), 0);
       });
+      const member = teamMembers.find(m => m.id === ts.employee_id);
       return {
         id: ts.id,
         employee_id: ts.employee_id,
-        name: `Employee #${ts.employee_id}`,
+        name: member ? member.name : `Employee #${ts.employee_id}`,
         weekOf: `Week of ${ts.week_start_date}`,
         totalHours: `${totalH.toFixed(1)}h`,
         status: ts.status.toUpperCase(),
@@ -40,11 +54,8 @@ const TeamTimesheets = ({ db, onUpdateDb }) => {
       };
     });
     
-    // Fallbacks if list is empty to keep it beautiful
-    // Removed John Doe demo data to show actual empty state
-    
     return list;
-  }, [timesheets]);
+  }, [timesheets, teamMembers]);
 
   const [selectedEmployee, setSelectedEmployee] = useState(null);
 
@@ -73,7 +84,7 @@ const TeamTimesheets = ({ db, onUpdateDb }) => {
     
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch(`http://localhost:8000/timesheets/${activeSelected.id}/approve`, {
+      const res = await fetch(`/api/timesheets/${activeSelected.id}/approve`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -97,7 +108,7 @@ const TeamTimesheets = ({ db, onUpdateDb }) => {
 
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch(`http://localhost:8000/timesheets/${activeSelected.id}/reject`, {
+      const res = await fetch(`/api/timesheets/${activeSelected.id}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ comment })
@@ -148,12 +159,6 @@ const TeamTimesheets = ({ db, onUpdateDb }) => {
             onClick={() => setActiveTab('reviewer')}
           >
             <CalendarCheck className={styles.tabIcon} /> Timesheet Detail Reviewer
-          </div>
-          <div 
-            className={`${styles.tab} ${activeTab === 'audit' ? styles.active : ''}`}
-            onClick={() => setActiveTab('audit')}
-          >
-            <GitCommit className={styles.tabIcon} /> Git-Commit Audit Panel
           </div>
         </div>
 
@@ -286,86 +291,7 @@ const TeamTimesheets = ({ db, onUpdateDb }) => {
           </div>
         )}
 
-        {/* TAB CONTENT: AUDIT */}
-        {activeTab === 'audit' && (
-          <div className={styles.card}>
-            <div className={styles.cardHeader}>
-              <h2 className={styles.cardTitle}>Git-Commit Audit Analysis</h2>
-              <div className={styles.auditSubtext}>Comparing claimed hours vs repository activity</div>
-            </div>
 
-            {activeSelected ? (() => {
-              const weekStr = activeSelected.raw?.week_start_date || activeSelected.weekOf.replace('Week of ', '');
-              const days = getDaysInfo(weekStr);
-              
-              let rows = activeSelected.raw?.rows;
-              if (!rows) {
-                rows = [
-                  { taskId: 102, name: "Setup Authentication Flow", sprint: "Sprint 14", hours: { Mon: 5, Tue: 6, Wed: 0, Thu: 0, Fri: 0 } },
-                  { taskId: 105, name: "Team Sync & Code Review", sprint: "Sprint 14", hours: { Mon: 3, Tue: 0, Wed: 0, Thu: 2, Fri: 0 } },
-                  { taskId: 110, name: "Database Schema Updates", sprint: "Sprint 14", hours: { Mon: 0, Tue: 2, Wed: 8, Thu: 6, Fri: 8 } }
-                ];
-              }
-
-              let discrepancyFound = false;
-
-              return (
-                <>
-                  <div className={styles.auditGrid}>
-                    <div className={styles.auditCol}>
-                      <div className={styles.auditColHeader}>Claimed Timesheet Hours</div>
-                      <div className={styles.auditColBody}>
-                        {days.map(day => {
-                          const dayTotal = rows.reduce((sum, r) => sum + (r.hours[day.key] || 0), 0);
-                          if (dayTotal === 0) return null;
-                          return (
-                            <div className={styles.auditRow} key={day.key}>
-                              <span>{day.shortLabel}</span>
-                              <span className={styles.auditHours}>{dayTotal}h Claimed</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className={styles.auditCol}>
-                      <div className={styles.auditColHeader}>Git Activity (Est. Hours)</div>
-                      <div className={styles.auditColBody}>
-                        {days.map(day => {
-                          const dayTotal = rows.reduce((sum, r) => sum + (r.hours[day.key] || 0), 0);
-                          if (dayTotal === 0) return null;
-                          
-                          // Deterministic pseudo-random generation based on index
-                          const isMatched = day.index % 2 !== 0; 
-                          const estimated = isMatched ? dayTotal : Math.max(0, dayTotal - 2);
-                          const commits = isMatched ? Math.max(1, Math.floor(dayTotal / 1.5)) : Math.max(0, Math.floor(estimated / 2));
-                          
-                          if (!isMatched) discrepancyFound = true;
-
-                          return (
-                            <div className={`${styles.auditRow} ${isMatched ? styles.matched : ''}`} key={day.key}>
-                              <span>{commits} Commits</span>
-                              <span className={styles.auditHours}>~{estimated}h Estimated</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-
-                  {discrepancyFound && (
-                    <div className={styles.alertBanner}>
-                      <AlertTriangle size={20} />
-                      <div>
-                        <strong>Investigation Required:</strong> There are discrepancies between the hours claimed on the timesheet and the tracked Git commit activity for certain days.
-                      </div>
-                    </div>
-                  )}
-                </>
-              );
-            })() : null}
-          </div>
-        )}
       </div>
     </div>
   );

@@ -1,0 +1,156 @@
+.perf-container {
+  padding: 24px;
+  background-color: var(--bg-primary, #ffffff);
+  min-height: 100vh;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.perf-header {
+  margin-bottom: 32px;
+}
+
+.perf-header h2 {
+  font-size: 24px;
+  color: var(--text-primary, #111827);
+  margin-bottom: 8px;
+}
+
+.perf-header p {
+  color: var(--text-secondary, #6b7280);
+  font-size: 14px;
+}
+
+.scorecard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 24px;
+}
+
+.scorecard-card {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.scorecard-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.scorecard-header {
+  padding: 16px 20px;
+  background-color: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.scorecard-title {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scorecard-rating {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.rating-excellent { background-color: #dcfce7; color: #166534; }
+.rating-good { background-color: #dbeafe; color: #1e40af; }
+.rating-average { background-color: #fef9c3; color: #854d0e; }
+.rating-poor { background-color: #fee2e2; color: #991b1b; }
+
+.scorecard-body {
+  padding: 20px;
+  flex-grow: 1;
+}
+
+.scorecard-tl {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.scorecard-comments {
+  font-size: 14px;
+  color: #334155;
+  line-height: 1.6;
+  background-color: #f1f5f9;
+  padding: 12px;
+  border-radius: 8px;
+  font-style: italic;
+  min-height: 80px;
+}
+
+.scorecard-footer {
+  padding: 16px 20px;
+  border-top: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-acknowledge {
+  background-color: #10b981;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-acknowledge:hover {
+  background-color: #059669;
+}
+
+.btn-acknowledge:disabled {
+  background-color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.perf-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+  color: #64748b;
+}
+
+.perf-error {
+  padding: 16px;
+  background-color: #fee2e2;
+  color: #991b1b;
+  border-radius: 8px;
+  border: 1px solid #f87171;
+}
+
+.perf-empty {
+  padding: 40px;
+  text-align: center;
+  background-color: #f8fafc;
+  border-radius: 12px;
+  border: 1px dashed #cbd5e1;
+  color: #64748b;
+}

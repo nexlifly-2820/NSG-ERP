@@ -1,11 +1,11 @@
 import React from 'react';
 import { 
   LayoutDashboard, CreditCard, User, UserMinus, 
-  HelpCircle, Briefcase, MessageSquare, 
-  Calendar, Clock, CheckSquare, Coins, GraduationCap
+  HelpCircle, Briefcase, MessageSquare,
+  Calendar, Clock, CheckSquare, Coins, Network, Target
 } from 'lucide-react';
 
-export default function EmployeeSidebar({ activeTab, setActiveTab }) {
+export default function EmployeeSidebar({ activeTab, setActiveTab, currentUser }) {
   const isDashboardActive = activeTab === 'dashboard';
   const isAttendanceActive = activeTab === 'attendance';
   const isTimesheetActive = activeTab === 'timesheet';
@@ -18,13 +18,17 @@ export default function EmployeeSidebar({ activeTab, setActiveTab }) {
   const isHelpActive = activeTab === 'help';
   const isAssetsActive = activeTab === 'assets';
   const isMessagingActive = activeTab === 'messaging';
-  const isLearningActive = activeTab === 'learning';
+  const isOrgChartActive = activeTab === 'orgChart';
+  const isPerformanceActive = activeTab === 'performance';
 
   const activeStyle = {
     color: '#10b981',
     borderLeftColor: '#10b981',
     backgroundColor: 'rgba(16, 185, 129, 0.05)'
   };
+
+  const userRole = (currentUser?.role || '').toLowerCase();
+  const hideTasks = userRole === 'hr' || userRole === 'ceo';
 
   return (
     <div className="nav-group">
@@ -61,14 +65,16 @@ export default function EmployeeSidebar({ activeTab, setActiveTab }) {
       </button>
 
       {/* Tasks Tab */}
-      <button
-        className={`nav-link ${isTasksActive ? 'active' : ''}`}
-        onClick={() => setActiveTab('tasks')}
-        style={isTasksActive ? activeStyle : {}}
-      >
-        <CheckSquare size={18} />
-        <span>Tasks</span>
-      </button>
+      {!hideTasks && (
+        <button
+          className={`nav-link ${isTasksActive ? 'active' : ''}`}
+          onClick={() => setActiveTab('tasks')}
+          style={isTasksActive ? activeStyle : {}}
+        >
+          <CheckSquare size={18} />
+          <span>Tasks</span>
+        </button>
+      )}
 
       {/* Leave Tab */}
       <button
@@ -98,6 +104,26 @@ export default function EmployeeSidebar({ activeTab, setActiveTab }) {
       >
         <CreditCard size={18} />
         <span>Expenses</span>
+      </button>
+
+      {/* Org Chart Tab */}
+      <button
+        className={`nav-link ${isOrgChartActive ? 'active' : ''}`}
+        onClick={() => setActiveTab('orgChart')}
+        style={isOrgChartActive ? activeStyle : {}}
+      >
+        <Network size={18} />
+        <span>Org Chart</span>
+      </button>
+
+      {/* Performance Tab */}
+      <button
+        className={`nav-link ${isPerformanceActive ? 'active' : ''}`}
+        onClick={() => setActiveTab('performance')}
+        style={isPerformanceActive ? activeStyle : {}}
+      >
+        <Target size={18} />
+        <span>Performance</span>
       </button>
 
       {/* Profile Tab */}
@@ -140,25 +166,15 @@ export default function EmployeeSidebar({ activeTab, setActiveTab }) {
         <span>Asset Requests</span>
       </button>
 
-      {/* Learning & Training Tab */}
-      <button
-        className={`nav-link ${isLearningActive ? 'active' : ''}`}
-        onClick={() => setActiveTab('learning')}
-        style={isLearningActive ? activeStyle : {}}
-      >
-        <GraduationCap size={18} />
-        <span>Learning & Training</span>
-      </button>
-
-      {/* Messaging & Meet Tab */}
+      {/* Messaging Tab */}
       <button
         className={`nav-link ${isMessagingActive ? 'active' : ''}`}
         onClick={() => setActiveTab('messaging')}
         style={isMessagingActive ? activeStyle : {}}
       >
         <MessageSquare size={18} />
-        <span>Messaging & Meet</span>
+        <span>Messaging</span>
       </button>
     </div>
   );
-}
+}

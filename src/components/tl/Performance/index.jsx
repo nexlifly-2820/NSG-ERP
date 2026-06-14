@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styles from './performance.module.css';
 import { Award, ClipboardSignature, Send, ListTodo, Loader2, AlertCircle } from 'lucide-react';
 
-export default function Performance({ db, onUpdateDb, currentUser }) {
+export default function Performance({ currentUser }) {
   const [teamMembers, setTeamMembers] = useState([]);
   const [scorecards, setScorecards] = useState([]);
   const [loading, setLoading] = useState(true);

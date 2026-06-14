@@ -1,27 +1,114 @@
 import React, { useState, useEffect } from 'react';
+import useSWR from 'swr';
 import { 
   Building, CreditCard, Clock, CheckCircle, AlertTriangle, Search, Filter, 
-  Plus, MoreVertical, ShieldCheck, Box, RefreshCw
+  Plus, MoreVertical, ShieldCheck, Box, RefreshCw, X
 } from 'lucide-react';
 import '../CEO.css';
 
-const DEFAULT_VENDORS = [
-  { id: 'V-100', name: 'AWS Cloud India', category: 'Software/Cloud', status: 'Active', spend: '₹14,50,000', renewal: '2026-10-15', risk: 'Low' },
-  { id: 'V-101', name: 'Salesforce Enterprise', category: 'Software/SaaS', status: 'Active', spend: '₹8,20,000', renewal: '2026-12-01', risk: 'Low' },
-  { id: 'V-102', name: 'WeWork Solutions', category: 'Real Estate', status: 'Pending Review', spend: '₹22,00,000', renewal: '2026-07-01', risk: 'Medium' },
-  { id: 'V-103', name: 'Dell Hardware Partners', category: 'Hardware/IT', status: 'Active', spend: '₹5,40,000', renewal: 'N/A', risk: 'Low' },
-  { id: 'V-104', name: 'KPMG Auditing Services', category: 'Legal/Finance', status: 'Expired', spend: '₹3,00,000', renewal: '2026-04-15', risk: 'High' }
-];
-
 export default function Vendors() {
-  const [vendors, setVendors] = useState(DEFAULT_VENDORS);
+  const token = localStorage.getItem('nsg_jwt_token');
+  const fetcher = (url) => fetch(url, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.json());
+
+    const { data: rawVendors = [], mutate: mutateVendors } = useSWR('/api/ceo-portal/vendors', fetcher);
+  const vendors = Array.isArray(rawVendors) ? rawVendors.map(v => ({
+    id: v.vendor_id || v.id,
+    db_id: v.id,
+    name: v.name,
+    category: v.category,
+    status: v.status,
+    spend: v.annual_spend,
+    renewal: v.renewal_date || 'N/A',
+    risk: v.risk_level
+  })) : [];
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
+  
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newVendor, setNewVendor] = useState({
+    vendor_id: '', name: '', category: 'Software/Cloud', status: 'Active', spend: '', renewal: '', risk: 'Low'
+  });
+
+  const fetchVendors = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/ceo-portal/vendors', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Map backend response
+        const mapped = data.map(v => ({
+          id: v.vendor_id,
+          db_id: v.id,
+          name: v.name,
+          category: v.category,
+          status: v.status,
+          spend: v.annual_spend,
+          renewal: v.renewal_date || 'N/A',
+          risk: v.risk_level
+        }));
+        setVendors(mapped);
+      }
+    } catch(e) { console.error(e); }
+  };
+
+  useEffect(() => {
+    fetchVendors();
+  }, []);
+
+  const handleAddVendor = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/ceo-portal/vendors', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vendor_id: newVendor.vendor_id,
+          name: newVendor.name,
+          category: newVendor.category,
+          status: newVendor.status,
+          annual_spend: newVendor.spend,
+          renewal_date: newVendor.renewal,
+          risk_level: newVendor.risk
+        })
+      });
+      if (res.ok) {
+        setIsAddModalOpen(false);
+        fetchVendors();
+      } else {
+        alert("Failed to add vendor or Vendor ID already exists");
+      }
+    } catch(e) {}
+  };
+
+  const handleDeleteVendor = async (db_id) => {
+    if(!window.confirm("Are you sure you want to delete this vendor?")) return;
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/ceo-portal/vendors/${db_id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if(res.ok) fetchVendors();
+    } catch(e){}
+  };
 
   // Summary Metrics
-  const totalSpend = vendors.reduce((acc, v) => acc + parseInt(v.spend.replace(/[^0-9]/g, ''), 10), 0);
+  const totalSpend = vendors.reduce((acc, v) => acc + parseInt((v.spend || '0').replace(/[^0-9]/g, ''), 10), 0);
   const activeCount = vendors.filter(v => v.status === 'Active').length;
   const highRiskCount = vendors.filter(v => v.risk === 'High' || v.status === 'Expired').length;
+
+  const today = new Date();
+  const nextMonth = new Date();
+  nextMonth.setDate(today.getDate() + 30);
+  
+  const upcomingRenewalsCount = vendors.filter(v => {
+    if (!v.renewal || v.renewal === 'N/A') return false;
+    const rd = new Date(v.renewal);
+    return rd >= today && rd <= nextMonth;
+  }).length;
 
   const filteredVendors = vendors.filter(v => {
     const matchesSearch = v.name.toLowerCase().includes(searchTerm.toLowerCase()) || v.id.toLowerCase().includes(searchTerm.toLowerCase());
@@ -39,10 +126,10 @@ export default function Vendors() {
           <p className="ceo-typography-body" style={{ marginTop: '4px' }}>Manage external partners, contracts, and software licenses</p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="ceo-btn">
+          <button className="ceo-btn" onClick={fetchVendors}>
             <RefreshCw size={16} /> Sync ERP
           </button>
-          <button className="ceo-btn ceo-btn-primary">
+          <button className="ceo-btn ceo-btn-primary" onClick={() => setIsAddModalOpen(true)}>
             <Plus size={16} /> Add Vendor
           </button>
         </div>
@@ -75,7 +162,7 @@ export default function Vendors() {
             <span className="ceo-typography-card-title"><Clock size={16} /> Upcoming Renewals</span>
             <div style={{ background: 'var(--ceo-hover)', padding: '6px', borderRadius: '8px', color: 'var(--ceo-warning)' }}><Clock size={18} /></div>
           </div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--ceo-text-primary)' }}>2</div>
+          <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--ceo-text-primary)' }}>{upcomingRenewalsCount}</div>
           <div className="ceo-typography-meta" style={{ marginTop: '8px' }}>In the next 30 days</div>
         </div>
 
@@ -165,8 +252,8 @@ export default function Vendors() {
                     </span>
                   </td>
                   <td>
-                    <button className="ceo-btn" style={{ padding: '6px', border: 'none', background: 'transparent' }}>
-                      <MoreVertical size={16} />
+                    <button onClick={() => handleDeleteVendor(vendor.db_id)} className="ceo-btn" style={{ padding: '6px', border: 'none', background: 'transparent', color: 'var(--ceo-danger)', cursor: 'pointer' }}>
+                      Delete
                     </button>
                   </td>
                 </tr>
@@ -182,6 +269,68 @@ export default function Vendors() {
           </table>
         </div>
       </div>
+
+      {/* Add Vendor Modal */}
+      {isAddModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#FFF', padding: '32px', borderRadius: '16px', width: '500px', maxWidth: '90%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 800, margin: 0 }}>Add New Vendor</h2>
+              <button onClick={() => setIsAddModalOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={20}/></button>
+            </div>
+            <form onSubmit={handleAddVendor}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <label className="ceo-typography-body" style={{ fontWeight: 600, display: 'block', marginBottom: '8px' }}>Vendor ID</label>
+                  <input required type="text" className="ceo-form-input" style={{ width: '100%' }} value={newVendor.vendor_id} onChange={e => setNewVendor({...newVendor, vendor_id: e.target.value})} placeholder="e.g. V-105" />
+                </div>
+                <div>
+                  <label className="ceo-typography-body" style={{ fontWeight: 600, display: 'block', marginBottom: '8px' }}>Provider Name</label>
+                  <input required type="text" className="ceo-form-input" style={{ width: '100%' }} value={newVendor.name} onChange={e => setNewVendor({...newVendor, name: e.target.value})} placeholder="Company Name" />
+                </div>
+                <div style={{ display: 'flex', gap: '16px' }}>
+                  <div style={{ flex: 1 }}>
+                    <label className="ceo-typography-body" style={{ fontWeight: 600, display: 'block', marginBottom: '8px' }}>Category</label>
+                    <select className="ceo-form-input" style={{ width: '100%' }} value={newVendor.category} onChange={e => setNewVendor({...newVendor, category: e.target.value})}>
+                      <option>Software/Cloud</option>
+                      <option>Software/SaaS</option>
+                      <option>Hardware/IT</option>
+                      <option>Real Estate</option>
+                      <option>Legal/Finance</option>
+                    </select>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label className="ceo-typography-body" style={{ fontWeight: 600, display: 'block', marginBottom: '8px' }}>Status</label>
+                    <select className="ceo-form-input" style={{ width: '100%' }} value={newVendor.status} onChange={e => setNewVendor({...newVendor, status: e.target.value})}>
+                      <option>Active</option>
+                      <option>Pending Review</option>
+                      <option>Expired</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '16px' }}>
+                  <div style={{ flex: 1 }}>
+                    <label className="ceo-typography-body" style={{ fontWeight: 600, display: 'block', marginBottom: '8px' }}>Annual Spend</label>
+                    <input required type="text" className="ceo-form-input" style={{ width: '100%' }} value={newVendor.spend} onChange={e => setNewVendor({...newVendor, spend: e.target.value})} placeholder="e.g. ₹5,00,000" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label className="ceo-typography-body" style={{ fontWeight: 600, display: 'block', marginBottom: '8px' }}>Risk Level</label>
+                    <select className="ceo-form-input" style={{ width: '100%' }} value={newVendor.risk} onChange={e => setNewVendor({...newVendor, risk: e.target.value})}>
+                      <option>Low</option>
+                      <option>Medium</option>
+                      <option>High</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button type="button" onClick={() => setIsAddModalOpen(false)} className="ceo-btn">Cancel</button>
+                <button type="submit" className="ceo-btn ceo-btn-primary">Save Vendor</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

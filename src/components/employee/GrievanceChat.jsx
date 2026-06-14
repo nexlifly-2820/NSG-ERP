@@ -1,19 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { Send, ShieldAlert, User } from 'lucide-react';
 
-export default function GrievanceChat() {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      sender: 'Sophia Reed (HR Officer)',
-      text: "Hello Sarah, I'm Sophia from the HR team. This is a secure private grievance chat room. How can I assist you today?",
-      time: '1:10 PM',
-      isMe: false
-    }
-  ]);
+export default function GrievanceChat({ currentUser }) {
+  const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [channelId, setChannelId] = useState(null);
   const messagesEndRef = useRef(null);
+
+  const token = localStorage.getItem('nsg_jwt_token');
 
   // Auto-scroll messages to bottom
   const scrollToBottom = () => {
@@ -23,6 +18,61 @@ export default function GrievanceChat() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isTyping]);
+
+  const loadChannelAndMessages = async () => {
+    if (!token || !currentUser) return;
+    try {
+      // Fetch user channels
+      const res = await fetch('/api/employee-portal/chat/my-channels', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const channels = await res.json();
+        let grievanceCh = channels.find(c => c.type === 'grievance');
+        
+        if (!grievanceCh) {
+          // Auto create channel if it doesn't exist
+          const newChId = `grievance_${currentUser.id}`;
+          const createRes = await fetch('/api/employee-portal/chat/channels', {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+             body: JSON.stringify({
+                id: newChId,
+                name: 'HR Grievance',
+                label: 'Private',
+                type: 'grievance',
+                members: [String(currentUser.id)] // HR is assigned dynamically by backend
+             })
+          });
+          if (createRes.ok) {
+            grievanceCh = await createRes.json();
+          }
+        }
+
+        if (grievanceCh) {
+          setChannelId(grievanceCh.id);
+          // Fetch messages
+          const msgRes = await fetch(`/api/employee-portal/chat/channels/${grievanceCh.id}/messages`, {
+             headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (msgRes.ok) {
+            const data = await msgRes.json();
+            setMessages(data.map(m => ({
+               id: m.id,
+               sender: m.sender,
+               text: m.text,
+               time: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+               isMe: m.sender === currentUser?.name
+            })));
+          }
+        }
+      }
+    } catch(e) {}
+  };
+
+  useEffect(() => {
+    loadChannelAndMessages();
+  }, [currentUser, token]);
 
   // SLA date: 48 hours from now
   const getSlaDateString = () => {
@@ -37,48 +87,37 @@ export default function GrievanceChat() {
     return `${month} ${date}, ${hours}:${minutes}`;
   };
 
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!inputText.trim()) return;
+    if (!inputText.trim() || !channelId || !token) return;
 
+    const originalText = inputText.trim();
+    setInputText('');
+    
+    // Optimistic UI update
     const userTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const userMsg = {
       id: Date.now(),
-      sender: 'Sarah Jenkins',
-      text: inputText.trim(),
+      sender: currentUser?.name || 'Me',
+      text: originalText,
       time: userTime,
       isMe: true
     };
-
     setMessages((prev) => [...prev, userMsg]);
-    const originalText = inputText.trim();
-    setInputText('');
 
-    // Trigger typing state
-    setIsTyping(true);
-
-    // Delayed HR auto reply (1.5 seconds delay)
-    setTimeout(() => {
-      setIsTyping(false);
-      const hrTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      
-      let hrText = "Thank you for bringing this up. I have registered this under private review. We will investigate immediately.";
-      if (originalText.toLowerCase().includes('salary') || originalText.toLowerCase().includes('payroll')) {
-        hrText = "Regarding payroll disputes, we will double-check your payouts with the accounts department. I've flagged this in our system.";
-      } else if (originalText.toLowerCase().includes('leave') || originalText.toLowerCase().includes('pto')) {
-        hrText = "For leave adjustments, please verify if the manager has approved it. I will cross-verify on our portal.";
-      }
-
-      const hrMsg = {
-        id: Date.now() + 1,
-        sender: 'Sophia Reed (HR Officer)',
-        text: hrText,
-        time: hrTime,
-        isMe: false
-      };
-
-      setMessages((prev) => [...prev, hrMsg]);
-    }, 1500);
+    try {
+      await fetch(`/api/employee-portal/chat/channels/${channelId}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+           text: originalText
+        })
+      });
+      // Optionally reload messages:
+      // loadChannelAndMessages();
+    } catch(err) {
+      console.error(err);
+    }
   };
 
   return (
@@ -138,7 +177,7 @@ export default function GrievanceChat() {
             </div>
             <div>
               <h4 style={{ margin: 0, fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                Sophia Reed
+                HR Representative
               </h4>
               <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '600' }}>
                 Assigned HR Officer
@@ -241,7 +280,7 @@ export default function GrievanceChat() {
             <div style={{ width: '4px', height: '4px', backgroundColor: 'var(--text-muted)', borderRadius: '50%', animation: 'bounce 0.6s infinite alternate 0.2s' }} />
             <div style={{ width: '4px', height: '4px', backgroundColor: 'var(--text-muted)', borderRadius: '50%', animation: 'bounce 0.6s infinite alternate 0.4s' }} />
             <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic', marginLeft: '4px' }}>
-              Sophia is typing...
+              HR is typing...
             </span>
           </div>
         )}

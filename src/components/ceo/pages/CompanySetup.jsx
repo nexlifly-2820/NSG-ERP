@@ -17,41 +17,13 @@ const TABS = [
   { id: 'holidays', label: 'Holidays', icon: CalendarDays }
 ];
 
-const initialDeptTree = [
-  { id: 1, name: 'Executive', headcount: 4, children: [] },
-  { id: 2, name: 'Technology', headcount: 145, children: [
-      { id: 21, name: 'Engineering', headcount: 100, children: [
-        { id: 211, name: 'Frontend', headcount: 40, children: [] },
-        { id: 212, name: 'Backend', headcount: 60, children: [] }
-      ]},
-      { id: 22, name: 'Product', headcount: 45, children: [] }
-    ]
-  },
-  { id: 3, name: 'Sales & Marketing', headcount: 80, children: [
-      { id: 31, name: 'Inbound Sales', headcount: 50, children: [] },
-      { id: 32, name: 'Field Marketing', headcount: 30, children: [] }
-    ]
-  }
-];
+const initialDeptTree = [];
 
-const initialDesignations = [
-  { id: 1, name: 'Software Engineer', dept: 'Engineering', level: 'L3', count: 45 },
-  { id: 2, name: 'Senior Product Manager', dept: 'Product', level: 'L5', count: 12 },
-  { id: 3, name: 'Account Executive', dept: 'Inbound Sales', level: 'L2', count: 30 },
-  { id: 4, name: 'VP of Technology', dept: 'Executive', level: 'L8', count: 1 },
-];
+const initialDesignations = [];
 
-const initialShifts = [
-  { id: 1, name: 'General Shift', start: '09:00 AM', end: '06:00 PM', days: 'Mon-Fri' },
-  { id: 2, name: 'US Support Shift', start: '06:00 PM', end: '03:00 AM', days: 'Mon-Fri' },
-];
+const initialShifts = [];
 
-const initialHolidays = [
-  { id: 1, name: 'New Year', date: 'Jan 1, 2026', type: 'Mandatory' },
-  { id: 2, name: 'Republic Day', date: 'Jan 26, 2026', type: 'Mandatory' },
-  { id: 3, name: 'Holi', date: 'Mar 14, 2026', type: 'Optional' },
-  { id: 4, name: 'Independence Day', date: 'Aug 15, 2026', type: 'Mandatory' },
-];
+const initialHolidays = [];
 
 // ==========================================
 // CUSTOM COMPONENTS
@@ -206,16 +178,11 @@ export default function CompanySetup() {
 
   // ─── API Integration ──────────────────────────────────────────────────────────
 
-  const fetchSettings = async () => {
-    if (!token) return;
-    setLoading(true);
+  const fetchProfile = async () => {
     try {
-      const res = await fetch('/api/ceo-portal/configs', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await fetch('/api/ceo-portal/configs', { headers: { 'Authorization': `Bearer ${token}` } });
       if (res.ok) {
         const configs = await res.json();
-        
         setProfileData({
           name: configs.company_name || 'NSG Technologies Pvt Ltd',
           gst: configs.company_gst || '27AADCN4521E1Z8',
@@ -224,57 +191,54 @@ export default function CompanySetup() {
           fy: configs.company_fy || 'apr',
           currency: configs.company_currency || 'inr'
         });
-
-        if (configs.company_logo) {
-          setLogoFile(configs.company_logo);
-        }
-
-        if (configs.department_tree) {
-          try {
-            setDeptTree(JSON.parse(configs.department_tree));
-          } catch (e) {
-            console.error("Error parsing department tree", e);
-          }
-        }
-
-        if (configs.designation_list) {
-          try {
-            setDesignations(JSON.parse(configs.designation_list));
-          } catch (e) {
-            console.error("Error parsing designations", e);
-          }
-        }
-
-        if (configs.working_hours_shifts) {
-          try {
-            setShifts(JSON.parse(configs.working_hours_shifts));
-          } catch (e) {
-            console.error("Error parsing shifts", e);
-          }
-        }
-
-        if (configs.company_holidays) {
-          try {
-            setHolidays(JSON.parse(configs.company_holidays));
-          } catch (e) {
-            console.error("Error parsing holidays", e);
-          }
-        }
+        if (configs.company_logo) setLogoFile(configs.company_logo);
       }
-    } catch (err) {
-      console.error("Failed to fetch settings", err);
-      showToast("Error loading company configurations.");
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) {}
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      const res = await fetch('/api/ceo-portal/departments', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) {
+        const flatDepts = await res.json();
+        const buildTree = (parentId) => flatDepts.filter(d => d.parent_id === parentId).map(d => ({ ...d, children: buildTree(d.id) }));
+        setDeptTree(buildTree(null));
+      }
+    } catch (err) {}
+  };
+
+  const fetchDesignations = async () => {
+    try {
+      const res = await fetch('/api/ceo-portal/designations', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) setDesignations(await res.json());
+    } catch (err) {}
+  };
+
+  const fetchShifts = async () => {
+    try {
+      const res = await fetch('/api/ceo-portal/shifts', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) setShifts(await res.json());
+    } catch (err) {}
+  };
+
+  const fetchHolidays = async () => {
+    try {
+      const res = await fetch('/api/ceo-portal/holidays', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) setHolidays(await res.json());
+    } catch (err) {}
+  };
+
+  const fetchAllData = async () => {
+    setLoading(true);
+    await Promise.all([fetchProfile(), fetchDepartments(), fetchDesignations(), fetchShifts(), fetchHolidays()]);
+    setLoading(false);
   };
 
   useEffect(() => {
-    fetchSettings();
+    fetchAllData();
   }, []);
 
   const saveSetting = async (key, value) => {
-    if (!token) return false;
     try {
       const res = await fetch('/api/ceo-portal/configs', {
         method: 'POST',
@@ -328,41 +292,21 @@ export default function CompanySetup() {
     }
   };
 
-  // --- Department Tree Helpers ---
-  const addNodeToTree = (tree, parentId, newNode) => {
-    if (!parentId) return [...tree, newNode];
-    return tree.map(node => {
-      if (node.id == parentId) return { ...node, children: [...(node.children || []), newNode] };
-      if (node.children && node.children.length > 0) return { ...node, children: addNodeToTree(node.children, parentId, newNode) };
-      return node;
-    });
-  };
-  const editNodeInTree = (tree, id, newName) => {
-    return tree.map(node => {
-      if (node.id == id) return { ...node, name: newName };
-      if (node.children && node.children.length > 0) return { ...node, children: editNodeInTree(node.children, id, newName) };
-      return node;
-    });
-  };
-  const deleteNodeFromTree = (tree, id) => {
-    return tree.filter(node => node.id != id).map(node => {
-      if (node.children && node.children.length > 0) return { ...node, children: deleteNodeFromTree(node.children, id) };
-      return node;
-    });
-  };
-
   const handleDeptAdd = (parentId = null) => {
     setModalConfig({
       title: parentId ? 'Add Sub-Department' : 'Add Root Department',
       fields: [{ name: 'name', label: 'Department Name' }],
       onSave: async (data) => {
-        const newNode = { id: Date.now(), name: data.name, headcount: 0, children: [] };
-        const updatedTree = addNodeToTree(deptTree, parentId, newNode);
-        setDeptTree(updatedTree);
         setModalConfig(null);
-        const success = await saveSetting('department_tree', JSON.stringify(updatedTree));
-        if (success) showToast('Department added and saved');
-        else showToast('Department added locally but failed to save');
+        const res = await fetch('/api/ceo-portal/departments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ name: data.name, parent_id: parentId, headcount: 0 })
+        });
+        if (res.ok) {
+          showToast('Department added');
+          fetchDepartments();
+        } else showToast('Failed to add department');
       }
     });
   };
@@ -372,57 +316,77 @@ export default function CompanySetup() {
       title: 'Edit Department',
       fields: [{ name: 'name', label: 'Department Name', defaultValue: dept.name }],
       onSave: async (data) => {
-        const updatedTree = editNodeInTree(deptTree, dept.id, data.name);
-        setDeptTree(updatedTree);
         setModalConfig(null);
-        const success = await saveSetting('department_tree', JSON.stringify(updatedTree));
-        if (success) showToast('Department updated and saved');
-        else showToast('Department updated locally but failed to save');
+        const res = await fetch(`/api/ceo-portal/departments/${dept.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ name: data.name })
+        });
+        if (res.ok) {
+          showToast('Department updated');
+          fetchDepartments();
+        } else showToast('Failed to update department');
       }
     });
   };
 
   const handleDeptDelete = async (id, name) => {
     if(window.confirm(`Are you sure you want to delete ${name}? This will also delete all sub-departments.`)) {
-      const updatedTree = deleteNodeFromTree(deptTree, id);
-      setDeptTree(updatedTree);
-      const success = await saveSetting('department_tree', JSON.stringify(updatedTree));
-      if (success) showToast('Department deleted and saved');
-      else showToast('Department deleted locally but failed to save');
+      const res = await fetch(`/api/ceo-portal/departments/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        showToast('Department deleted');
+        fetchDepartments();
+      } else showToast('Failed to delete department');
     }
   };
 
   const handleDesigAddEdit = (item = null) => {
+    // We need department options
+    const flatDepts = [];
+    const flatten = (tree) => {
+      tree.forEach(t => { flatDepts.push({ id: t.id, name: t.name }); flatten(t.children || []); });
+    };
+    flatten(deptTree);
+
     setModalConfig({
       title: item ? 'Edit Designation' : 'Create Designation',
       fields: [
         { name: 'name', label: 'Designation Name', defaultValue: item?.name },
-        { name: 'dept', label: 'Department', defaultValue: item?.dept },
+        { name: 'department_id', label: 'Department', type: 'select', options: flatDepts.map(d => `${d.id}:${d.name}`), defaultValue: item ? `${item.department_id}:${item.dept}` : undefined },
         { name: 'level', label: 'Band Level', defaultValue: item?.level }
       ],
       onSave: async (data) => {
-        let updatedDesignations;
-        if(item) {
-          updatedDesignations = designations.map(d => d.id === item.id ? { ...d, count: item.count, ...data } : d);
-        } else {
-          updatedDesignations = [...designations, { id: Date.now(), count: 0, ...data }];
-        }
-        setDesignations(updatedDesignations);
         setModalConfig(null);
-        const success = await saveSetting('designation_list', JSON.stringify(updatedDesignations));
-        if (success) showToast(item ? 'Designation updated' : 'Designation created');
-        else showToast('Designation changes failed to save');
+        const deptId = parseInt(data.department_id.split(':')[0]);
+        const payload = { name: data.name, department_id: deptId, level: data.level };
+        const url = item ? `/api/ceo-portal/designations/${item.id}` : '/api/ceo-portal/designations';
+        const method = item ? 'PUT' : 'POST';
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          showToast(item ? 'Designation updated' : 'Designation created');
+          fetchDesignations();
+        } else showToast('Failed to save designation');
       }
     });
   };
 
   const handleDesigDelete = async (id) => {
     if(window.confirm('Delete designation?')) {
-      const updatedDesignations = designations.filter(d => d.id !== id);
-      setDesignations(updatedDesignations);
-      const success = await saveSetting('designation_list', JSON.stringify(updatedDesignations));
-      if (success) showToast('Designation deleted');
-      else showToast('Designation failed to delete');
+      const res = await fetch(`/api/ceo-portal/designations/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        showToast('Designation deleted');
+        fetchDesignations();
+      } else showToast('Failed to delete designation');
     }
   };
 
@@ -431,33 +395,37 @@ export default function CompanySetup() {
       title: item ? 'Edit Shift' : 'Add Shift',
       fields: [
         { name: 'name', label: 'Shift Name', defaultValue: item?.name },
-        { name: 'start', label: 'Start Time (e.g. 09:00 AM)', defaultValue: item?.start },
-        { name: 'end', label: 'End Time (e.g. 06:00 PM)', defaultValue: item?.end },
+        { name: 'start_time', label: 'Start Time (e.g. 09:00 AM)', defaultValue: item?.start_time },
+        { name: 'end_time', label: 'End Time (e.g. 06:00 PM)', defaultValue: item?.end_time },
         { name: 'days', label: 'Working Days', defaultValue: item?.days || 'Mon-Fri' }
       ],
       onSave: async (data) => {
-        let updatedShifts;
-        if(item) {
-          updatedShifts = shifts.map(s => s.id === item.id ? { ...s, ...data } : s);
-        } else {
-          updatedShifts = [...shifts, { id: Date.now(), ...data }];
-        }
-        setShifts(updatedShifts);
         setModalConfig(null);
-        const success = await saveSetting('working_hours_shifts', JSON.stringify(updatedShifts));
-        if (success) showToast(item ? 'Shift updated' : 'Shift added');
-        else showToast('Shift changes failed to save');
+        const url = item ? `/api/ceo-portal/shifts/${item.id}` : '/api/ceo-portal/shifts';
+        const method = item ? 'PUT' : 'POST';
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(data)
+        });
+        if (res.ok) {
+          showToast(item ? 'Shift updated' : 'Shift added');
+          fetchShifts();
+        } else showToast('Failed to save shift');
       }
     });
   };
 
   const handleShiftDelete = async (id) => {
     if(window.confirm('Delete shift?')) {
-      const updatedShifts = shifts.filter(s => s.id !== id);
-      setShifts(updatedShifts);
-      const success = await saveSetting('working_hours_shifts', JSON.stringify(updatedShifts));
-      if (success) showToast('Shift deleted');
-      else showToast('Shift failed to delete');
+      const res = await fetch(`/api/ceo-portal/shifts/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        showToast('Shift deleted');
+        fetchShifts();
+      } else showToast('Failed to delete shift');
     }
   };
 
@@ -470,28 +438,32 @@ export default function CompanySetup() {
         { name: 'type', label: 'Type', type: 'select', options: ['Mandatory', 'Optional'], defaultValue: item?.type }
       ],
       onSave: async (data) => {
-        let updatedHolidays;
-        if(item) {
-          updatedHolidays = holidays.map(h => h.id === item.id ? { ...h, ...data } : h);
-        } else {
-          updatedHolidays = [...holidays, { id: Date.now(), ...data }];
-        }
-        setHolidays(updatedHolidays);
         setModalConfig(null);
-        const success = await saveSetting('company_holidays', JSON.stringify(updatedHolidays));
-        if (success) showToast(item ? 'Holiday updated' : 'Holiday added');
-        else showToast('Holiday changes failed to save');
+        const url = item ? `/api/ceo-portal/holidays/${item.id}` : '/api/ceo-portal/holidays';
+        const method = item ? 'PUT' : 'POST';
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(data)
+        });
+        if (res.ok) {
+          showToast(item ? 'Holiday updated' : 'Holiday added');
+          fetchHolidays();
+        } else showToast('Failed to save holiday');
       }
     });
   };
 
   const handleHolidayDelete = async (id) => {
     if(window.confirm('Delete holiday?')) {
-      const updatedHolidays = holidays.filter(h => h.id !== id);
-      setHolidays(updatedHolidays);
-      const success = await saveSetting('company_holidays', JSON.stringify(updatedHolidays));
-      if (success) showToast('Holiday deleted');
-      else showToast('Holiday failed to delete');
+      const res = await fetch(`/api/ceo-portal/holidays/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        showToast('Holiday deleted');
+        fetchHolidays();
+      } else showToast('Failed to delete holiday');
     }
   };
 
@@ -738,8 +710,8 @@ export default function CompanySetup() {
                     {shifts.map(shift => (
                       <tr key={shift.id}>
                         <td style={{ fontWeight: 600 }}>{shift.name}</td>
-                        <td>{shift.start}</td>
-                        <td>{shift.end}</td>
+                        <td>{shift.start_time}</td>
+                        <td>{shift.end_time}</td>
                         <td>{shift.days}</td>
                         <td style={{ textAlign: 'right' }}>
                           <button className="ceo-btn" style={{ padding: '6px', marginRight: '8px' }} onClick={() => handleShiftAddEdit(shift)}><Edit2 size={14}/></button>

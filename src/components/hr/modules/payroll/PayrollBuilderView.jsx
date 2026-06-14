@@ -15,21 +15,24 @@ export function PayrollBuilderView({ userRole, queryParams, setQueryParams }) {
 
   const [tdsDeclarations, setTdsDeclarations] = useState([]);
   const [expenseClaims, setExpenseClaims] = useState([]);
+  const [employees, setEmployees] = useState([]);
 
   const fetchData = async () => {
     try {
       const token = localStorage.getItem('nsg_jwt_token');
       const headers = { 'Authorization': `Bearer ${token}` };
       
-      const [tdsRes, claimsRes, runsRes] = await Promise.all([
+      const [tdsRes, claimsRes, runsRes, empRes] = await Promise.all([
         fetch('/api/hr-portal/payroll/tds-declarations', { headers }),
         fetch('/api/hr-portal/payroll/claims', { headers }),
-        fetch('/api/hr-portal/payroll/runs', { headers })
+        fetch('/api/hr-portal/payroll/runs', { headers }),
+        fetch('/api/hr-portal/employees', { headers })
       ]);
 
       if (tdsRes.ok) setTdsDeclarations(await tdsRes.json());
       if (claimsRes.ok) setExpenseClaims(await claimsRes.json());
       if (runsRes.ok) setPayrollRuns(await runsRes.json());
+      if (empRes.ok) setEmployees(await empRes.json());
     } catch (e) {
       console.error(e);
     }
@@ -54,38 +57,63 @@ export function PayrollBuilderView({ userRole, queryParams, setQueryParams }) {
   };
 
   const handleRejectTds = async (declId) => {
-    alert('TDS Rejection endpoint not currently implemented on backend, mocking reject for UI.');
-    setTdsDeclarations(prev => prev.filter(d => d.id !== declId));
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      await fetch(`/api/hr-portal/payroll/tds-declarations/${declId}/reject`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      fetchData();
+    } catch(e) { console.error(e); }
   };
 
-  const handleLockAttendance = () => {
-    setLockedAtt(true);
-    setPayrollStep(2);
-    alert('Attendance data locked for the active month! Punch regularizations are frozen.');
+  const handleLockAttendance = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/hr-portal/payroll/lock-attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ month: new Date().getMonth() + 1, year: new Date().getFullYear() })
+      });
+      if (res.ok) {
+        setLockedAtt(true);
+        setPayrollStep(2);
+        alert('Attendance data locked for the active month! Punch regularizations are frozen.');
+      }
+    } catch(e) { console.error(e); }
   };
 
-  const handleApplyDeductions = () => {
-    setAppliedDeductions(true);
-    setPayrollStep(3);
-    alert('LOP and statutory TDS tax structures successfully calculated and applied.');
+  const handleApplyDeductions = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/hr-portal/payroll/calculate-deductions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ month: new Date().getMonth() + 1, year: new Date().getFullYear() })
+      });
+      if (res.ok) {
+        setAppliedDeductions(true);
+        setPayrollStep(3);
+        alert('LOP and statutory TDS tax structures successfully calculated and applied.');
+      }
+    } catch(e) { console.error(e); }
   };
 
   const handleRunLedger = async () => {
     try {
       const token = localStorage.getItem('nsg_jwt_token');
+      const draftRes = await fetch(`/api/hr-portal/payroll/draft-ledger?month=${new Date().getMonth() + 1}&year=${new Date().getFullYear()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const draftData = await draftRes.json();
+
       const res = await fetch('/api/hr-portal/payroll/runs', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          month: 5,
-          year: 2026,
-          total_gross: 0,
-          total_deductions: 0,
-          total_net: 0
-        })
+        body: JSON.stringify(draftData)
       });
 
       if (res.ok) {
@@ -141,7 +169,10 @@ export function PayrollBuilderView({ userRole, queryParams, setQueryParams }) {
                       <User size={14} />
                     </div>
                     <div>
-                      <p style={{ margin: 0, fontWeight: 700, fontSize: '13px', color: 'var(--text-primary)' }}>{`Employee #${d.user_id || d.employee_id}`}</p>
+                      {(() => {
+                        const emp = employees.find(e => e.id === d.user_id) || { name: `Emp #${d.user_id || d.employee_id}` };
+                        return <p style={{ margin: 0, fontWeight: 700, fontSize: '13px', color: 'var(--text-primary)' }}>{emp.name}</p>;
+                      })()}
                       <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>Financial Year: {d.financial_year}</p>
                     </div>
                   </div>
@@ -237,7 +268,10 @@ export function PayrollBuilderView({ userRole, queryParams, setQueryParams }) {
                           <div style={{ width: '28px', height: '28px', borderRadius: '14px', background: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                             <User size={12} />
                           </div>
-                          {`Emp #${c.user_id || c.employee_id}`}
+                          {(() => {
+                            const emp = employees.find(e => e.id === c.user_id) || { name: `Emp #${c.user_id || c.employee_id}` };
+                            return emp.name;
+                          })()}
                         </div>
                       </td>
                       <td style={{ padding: '12px', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{c.category || '—'}</td>

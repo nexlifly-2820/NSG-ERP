@@ -1,106 +1,107 @@
-import { useState } from 'react';
+// Crash fix applied
+import { useState, useEffect } from 'react';
 import { Clock, Calendar, List } from 'lucide-react';
+import { notify } from '../../utils/notify';
 
-export function AttendanceRegisterView({ db, onUpdateDb }) {
+export function AttendanceRegisterView() {
+  const [employees, setEmployees] = useState([]);
+  const [attendanceLogs, setAttendanceLogs] = useState([]);
+  const [activeCorrections, setActiveCorrections] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  
   const [viewMode, setViewMode] = useState('list');
   const [showRoster, setShowRoster] = useState(false);
   const [isRequestOpen, setIsRequestOpen] = useState(false);
   const [denyingId, setDenyingId] = useState(null);
   const [denyComment, setDenyComment] = useState('');
 
-  const handleApproveCorrection = (id) => {
-    const correction = db.attendanceCorrections?.find(c => c.id === id);
-    if (!correction) return;
-
-    const emp = db.employees.find(e => e.id === correction.employee_id) || { name: 'Employee' };
-
-    // Remove correction and update log
-    const updatedCorrections = db.attendanceCorrections.filter(c => c.id !== id);
+  const fetchData = async () => {
+    setIsLoading(true);
+    const token = localStorage.getItem('nsg_jwt_token');
+    const headers = { 'Authorization': `Bearer ${token}` };
     
-    // Add check in log
-    const newLog = {
-      id: +new Date(),
-      employee_id: correction.employee_id,
-      date: correction.correction_date,
-      clock_in: correction.requested_clock_in,
-      clock_out: correction.requested_clock_out,
-      work_mode: 'office',
-      is_late: false,
-      exception_flag: 'none'
-    };
-
-    // Notify employee of approval
-    const newNotification = {
-      id: +new Date() + 1,
-      employee_id: correction.employee_id,
-      message: `Your regularization request for ${correction.correction_date} has been approved.`,
-      timestamp: new Date().toISOString(),
-      type: 'success',
-      read: false
-    };
-
-    const updatedNotifications = db.notifications ? [...db.notifications, newNotification] : [newNotification];
-
-    onUpdateDb({
-      ...db,
-      attendanceCorrections: updatedCorrections,
-      attendanceLogs: [...db.attendanceLogs, newLog],
-      notifications: updatedNotifications
-    });
-
-    alert(`Missed punch correction approved!\n\nMessage sent to ${emp.name}: "Your regularization request for ${correction.correction_date} has been approved."`);
+    try {
+      const [empRes, logsRes, corrRes] = await Promise.all([
+        fetch('/api/hr-portal/employees', { headers }),
+        fetch('/api/attendance/all-logs', { headers }),
+        fetch('/api/attendance/corrections', { headers })
+      ]);
+      
+      if (empRes.ok) {
+        const empData = await empRes.json();
+        setEmployees(empData);
+      }
+      
+      if (logsRes.ok) {
+        const logsData = await logsRes.json();
+        setAttendanceLogs(logsData);
+      }
+      
+      if (corrRes.ok) {
+        const corrData = await corrRes.json();
+        setActiveCorrections(corrData);
+      }
+    } catch (err) {
+      console.error('Failed to fetch attendance data:', err);
+      notify('Failed to fetch attendance records.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleDenyCorrection = (id) => {
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleApproveCorrection = async (id) => {
+    const token = localStorage.getItem('nsg_jwt_token');
+    try {
+      const res = await fetch(`/api/attendance/corrections/${id}/approve`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Failed to approve correction.');
+      }
+      notify('Missed punch correction approved successfully!');
+      // Refresh data
+      fetchData();
+    } catch (err) {
+      notify(`Error: ${err.message}`, 'error');
+    }
+  };
+
+  const handleDenyCorrection = async (id) => {
     if (!denyComment.trim()) {
       alert('Please specify a reason for denying the request.');
       return;
     }
-    const correction = db.attendanceCorrections?.find(c => c.id === id);
-    if (!correction) return;
-
-    const emp = db.employees.find(e => e.id === correction.employee_id) || { name: 'Employee' };
-
-    // Remove from active corrections
-    const updatedCorrections = db.attendanceCorrections.filter(c => c.id !== id);
-
-    // Create a deny notification for the sender
-    const newNotification = {
-      id: +new Date(),
-      employee_id: correction.employee_id,
-      message: `Your regularization request for ${correction.correction_date} has been denied. Reason: ${denyComment}`,
-      timestamp: new Date().toISOString(),
-      type: 'danger',
-      read: false
-    };
-
-    const updatedNotifications = db.notifications ? [...db.notifications, newNotification] : [newNotification];
-
-    onUpdateDb({
-      ...db,
-      attendanceCorrections: updatedCorrections,
-      notifications: updatedNotifications
-    });
-
-    alert(`Regularization request denied.\n\nDenial comment dispatched to ${emp.name}: "Your regularization request for ${correction.correction_date} was denied. Reason: ${denyComment}"`);
-    
-    setDenyingId(null);
-    setDenyComment('');
+    const token = localStorage.getItem('nsg_jwt_token');
+    try {
+      const res = await fetch(`/api/attendance/corrections/${id}/deny`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ comment: denyComment })
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Failed to deny correction.');
+      }
+      notify('Regularization request denied successfully.');
+      setDenyingId(null);
+      setDenyComment('');
+      // Refresh data
+      fetchData();
+    } catch (err) {
+      notify(`Error: ${err.message}`, 'error');
+    }
   };
 
-  const activeCorrections = db.attendanceCorrections || [];
-
-  let mappedLogs = db.attendanceLogs || [];
-  if (db.employees && db.employees.length > 0 && mappedLogs.length > 0) {
-    const sampleLog = mappedLogs[0];
-    const match = db.employees.find(e => String(e.id) === String(sampleLog.employee_id));
-    if (!match) {
-      const mockIds = [...new Set(mappedLogs.map(l => l.employee_id))];
-      const idMap = {};
-      mockIds.forEach((mId, i) => { idMap[mId] = db.employees[i % db.employees.length].id; });
-      mappedLogs = mappedLogs.map(l => ({ ...l, employee_id: idMap[l.employee_id] }));
-    }
-  }
+  let mappedLogs = attendanceLogs || [];
 
   const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
   const today = new Date();
@@ -204,7 +205,7 @@ export function AttendanceRegisterView({ db, onUpdateDb }) {
         <div className="pipeline" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
           <div className="pipeline-title">Shift Roster Planner (General Shifts: 09:00 - 18:00)</div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {db.employees.map(emp => (
+            {employees.map(emp => (
               <span key={emp.id} className="badge-pill bg-blue" style={{ padding: '6px 12px' }}>
                 {emp.name}: Mon-Fri (Standard Shift)
               </span>
@@ -231,7 +232,7 @@ export function AttendanceRegisterView({ db, onUpdateDb }) {
               </thead>
               <tbody>
                 {mappedLogs.map(log => {
-                  const emp = db.employees.find(e => String(e.id) === String(log.employee_id)) || { name: 'Unknown' };
+                  const emp = employees.find(e => String(e.id) === String(log.employee_id)) || { name: 'Unknown' };
                   return (
                     <tr key={log.id}>
                       <td style={{ padding: '16px 40px' }}><strong>{emp.name}</strong></td>
@@ -272,11 +273,11 @@ export function AttendanceRegisterView({ db, onUpdateDb }) {
                 </tr>
               </thead>
               <tbody>
-                {db.employees.map(emp => (
+                {employees.map(emp => (
                   <tr key={emp.id}>
                     <td style={{ padding: '12px 16px', position: 'sticky', left: 0, backgroundColor: 'var(--bg-primary)', zIndex: 10, borderRight: '1px solid var(--border-color)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <img src={emp.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=random`} alt={emp.name} style={{ width: '28px', height: '28px', borderRadius: '50%' }} />
+                        <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=random`} alt={emp.name} style={{ width: '28px', height: '28px', borderRadius: '50%' }}  />
                         <span style={{ fontWeight: '600', fontSize: '13px' }}>{emp.name}</span>
                       </div>
                     </td>
@@ -306,7 +307,7 @@ export function AttendanceRegisterView({ db, onUpdateDb }) {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {activeCorrections.map(c => {
-                const emp = db.employees.find(e => e.id === c.employee_id) || { name: 'Unknown', designation: 'Employee' };
+                const emp = employees.find(e => e.id === c.employee_id) || { name: 'Unknown', designation: 'Employee' };
                 return (
                   <div key={c.id} style={{ display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px', gap: '12px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

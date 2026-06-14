@@ -11,7 +11,6 @@ export default function Help({ currentUser }) {
   const token = localStorage.getItem('nsg_jwt_token');
 
   const fetchTickets = async () => {
-    if (!token) return;
     try {
       const res = await fetch('/api/employee-portal/helpdesk/my-tickets', {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -30,7 +29,6 @@ export default function Help({ currentUser }) {
   }, [token]);
 
   const handleSubmitTicket = async (newTicket) => {
-    if (!token) return;
     try {
       const res = await fetch('/api/employee-portal/helpdesk/ticket', {
         method: 'POST',
@@ -47,14 +45,18 @@ export default function Help({ currentUser }) {
       });
       
       if (res.ok) {
+        const data = await res.json();
         showToast('Support ticket logged successfully.');
         fetchTickets();
+        return `TKT-${data.id}`;
       } else {
         alert('Failed to log ticket');
+        return null;
       }
     } catch (e) {
       console.error(e);
       alert('Network error');
+      return null;
     }
   };
 
@@ -194,7 +196,7 @@ export default function Help({ currentUser }) {
 
         {/* HR Grievance Chat area */}
         <div className="area-chat">
-          <GrievanceChat />
+          <GrievanceChat currentUser={currentUser} />
         </div>
 
         {/* FAQ base area */}

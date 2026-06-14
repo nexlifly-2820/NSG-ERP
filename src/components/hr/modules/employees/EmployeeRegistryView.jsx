@@ -1,12 +1,15 @@
+// Crash fix applied
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, Plus, Search, Download, Lock, RefreshCw, Trash2, Edit3 } from 'lucide-react';
 import { notify } from '../../utils/notify';
 
-export function EmployeeRegistryView({ db, onUpdateDb, queryParams, setQueryParams }) {
+export function EmployeeRegistryView({ queryParams, setQueryParams }) {
+  const [db, onUpdateDb] = useState({ employees: [], auditLogs: [], trainingProgress: [], onboardingTasks: [], leaveBalances: [], attendanceLogs: [], payslips: [] });
 
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('All');
   const [apiEmployees, setApiEmployees] = useState(null);
+  const [teamLeads, setTeamLeads] = useState([]);
   const employeeList = apiEmployees || db.employees;
   
   const empIdStr = queryParams?.get('empId');
@@ -33,6 +36,8 @@ export function EmployeeRegistryView({ db, onUpdateDb, queryParams, setQueryPara
   const [newPhoto, setNewPhoto] = useState('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&fit=crop&q=80');
   const [newJoinDate, setNewJoinDate] = useState(new Date().toISOString().split('T')[0]);
   const [newStatus, setNewStatus] = useState('probation');
+  const [newManagerId, setNewManagerId] = useState('');
+  const [newSystemRole, setNewSystemRole] = useState('employee');
 
   // Edit Employee Modal States
   const [isLoading, setIsLoading] = useState(false);
@@ -45,6 +50,7 @@ export function EmployeeRegistryView({ db, onUpdateDb, queryParams, setQueryPara
   const [editPhone, setEditPhone] = useState('');
   const [editGrade, setEditGrade] = useState(3);
   const [editManager, setEditManager] = useState('');
+  const [editSystemRole, setEditSystemRole] = useState('employee');
   const [editPhoto, setEditPhoto] = useState('');
 
   // Reset Password States
@@ -80,6 +86,10 @@ export function EmployeeRegistryView({ db, onUpdateDb, queryParams, setQueryPara
           ...db,
           employees: enriched
         });
+        const tlRes = await fetch('/api/hr-portal/team-leads', { headers: { 'Authorization': `Bearer ${token}` } });
+        if (tlRes.ok) {
+          setTeamLeads(await tlRes.json());
+        }
       }
     } catch (err) {
       console.error('Failed to fetch employees:', err);
@@ -93,7 +103,10 @@ export function EmployeeRegistryView({ db, onUpdateDb, queryParams, setQueryPara
   }, []);
 
   const filtered = employeeList.filter(e => {
-    const matchesSearch = e.name.toLowerCase().includes(search.toLowerCase()) || (e.emp_id && e.emp_id.toLowerCase().includes(search.toLowerCase()));
+    const searchLower = search.toLowerCase();
+    const matchesSearch = e.name.toLowerCase().includes(searchLower) || 
+                          (e.emp_id && e.emp_id.toLowerCase().includes(searchLower)) ||
+                          (e.designation && e.designation.toLowerCase().includes(searchLower));
     const matchesDept = deptFilter === 'All' || e.department === deptFilter;
     return matchesSearch && matchesDept;
   });
@@ -142,7 +155,9 @@ export function EmployeeRegistryView({ db, onUpdateDb, queryParams, setQueryPara
           designation: newRole,
           status: newStatus,
           join_date: newJoinDate,
-          photo: newPhoto
+          photo: newPhoto,
+          manager_id: newManagerId ? parseInt(newManagerId) : null,
+          role: newSystemRole
         })
       });
 
@@ -295,7 +310,9 @@ export function EmployeeRegistryView({ db, onUpdateDb, queryParams, setQueryPara
           designation: editRole,
           phone: editPhone,
           grade: editGrade,
-          manager: editManager,
+          manager: editManager ? teamLeads.find(tl => String(tl.id) === String(editManager))?.name : null,
+          manager_id: editManager ? parseInt(editManager) : null,
+          role: editSystemRole,
           photo: editPhoto
         })
       });
@@ -376,7 +393,8 @@ export function EmployeeRegistryView({ db, onUpdateDb, queryParams, setQueryPara
     setEditRole(emp.designation || 'Developer');
     setEditPhone(emp.phone || '');
     setEditGrade(emp.grade || 3);
-    setEditManager(emp.manager || '');
+    setEditManager(emp.manager_id || '');
+    setEditSystemRole(emp.role || 'employee');
     setEditPhoto(emp.photo || '');
     setShowEditModal(true);
   };
@@ -400,94 +418,65 @@ export function EmployeeRegistryView({ db, onUpdateDb, queryParams, setQueryPara
     });
   };
 
-  const handleUploadDocument = (docType) => {
+  const handleUploadDocument = async (docType) => {
     setScanningDoc(docType);
-    setTimeout(() => {
-      // simulated malware scan complete in 1.5s
-      const currentDocs = selectedEmp.documents || [
-        { type: 'Aadhaar Card', name: 'aadhaar_verify.pdf', status: 'verified', date: '2026-05-20' },
-        { type: 'Degree Certificate', name: 'bachelors_degree.pdf', status: 'pending', date: '2026-05-22' }
-      ];
-      const updatedDocs = [
-        ...currentDocs.filter(d => d.type !== docType),
-        { type: docType, name: `${docType.toLowerCase().replace(/ /g, '_')}_upload.pdf`, status: 'pending', date: new Date().toISOString().split('T')[0] }
-      ];
-      
-      const updatedEmployees = db.employees.map(emp => {
-        if (emp.id === selectedEmp.id) {
-          return { ...emp, documents: updatedDocs };
-        }
-        return emp;
+    const token = localStorage.getItem('nsg_jwt_token');
+    try {
+      const res = await fetch(`/api/hr-portal/employees/${selectedEmp.id}/documents/upload`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ doc_type: docType })
       });
-
-      const newLogs = [...db.auditLogs, {
-        id: Date.now(),
-        timestamp: new Date().toISOString(),
-        initiator_id: 'Sarah Jenkins',
-        module: 'Employees',
-        record_id: selectedEmp.id,
-        action_type: 'verify_doc',
-        change_diff: { uploaded_document: docType },
-        ip_address: '192.168.1.104',
-        client_agent: 'Chrome / Windows'
-      }];
-
-      onUpdateDb({
-        ...db,
-        employees: updatedEmployees,
-        auditLogs: newLogs
-      });
-
-      setSelectedEmp({
-        ...selectedEmp,
-        documents: updatedDocs
-      });
-
+      if (res.ok) {
+        const updatedEmp = await res.json();
+        updatedEmp.documents = typeof updatedEmp.documents === 'string' ? JSON.parse(updatedEmp.documents) : updatedEmp.documents;
+        
+        const updatedEmployees = db.employees.map(emp => emp.id === updatedEmp.id ? { ...emp, documents: updatedEmp.documents } : emp);
+        onUpdateDb({ ...db, employees: updatedEmployees });
+        setApiEmployees(updatedEmployees);
+        setSelectedEmp(updatedEmp);
+        
+        notify(`Malware Scan Clean! Document ${docType} successfully uploaded & enqueued for verification.`);
+      } else {
+        alert('Failed to upload document.');
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
       setScanningDoc(null);
-      notify(`Malware Scan Clean! Document ${docType} successfully uploaded & enqueued for verification.`);
-    }, 1500);
+    }
   };
 
-  const handleVerifyDocument = (docType) => {
-    const currentDocs = selectedEmp.documents || [];
-    const updatedDocs = currentDocs.map(d => {
-      if (d.type === docType) {
-        return { ...d, status: 'verified' };
+  const handleVerifyDocument = async (docType) => {
+    const token = localStorage.getItem('nsg_jwt_token');
+    try {
+      const res = await fetch(`/api/hr-portal/employees/${selectedEmp.id}/documents/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ doc_type: docType })
+      });
+      if (res.ok) {
+        const updatedEmp = await res.json();
+        updatedEmp.documents = typeof updatedEmp.documents === 'string' ? JSON.parse(updatedEmp.documents) : updatedEmp.documents;
+        
+        const updatedEmployees = db.employees.map(emp => emp.id === updatedEmp.id ? { ...emp, documents: updatedEmp.documents } : emp);
+        onUpdateDb({ ...db, employees: updatedEmployees });
+        setApiEmployees(updatedEmployees);
+        setSelectedEmp(updatedEmp);
+        
+        notify(`Document ${docType} successfully verified and stamped ✓`);
+      } else {
+        alert('Failed to verify document.');
       }
-      return d;
-    });
-
-    const updatedEmployees = db.employees.map(emp => {
-      if (emp.id === selectedEmp.id) {
-        return { ...emp, documents: updatedDocs };
-      }
-      return emp;
-    });
-
-    const newLogs = [...db.auditLogs, {
-      id: Date.now(),
-      timestamp: new Date().toISOString(),
-      initiator_id: 'Sarah Jenkins',
-      module: 'Employees',
-      record_id: selectedEmp.id,
-      action_type: 'verify_doc',
-      change_diff: { verified_document: docType },
-      ip_address: '192.168.1.104',
-      client_agent: 'Chrome / Windows'
-    }];
-
-    onUpdateDb({
-      ...db,
-      employees: updatedEmployees,
-      auditLogs: newLogs
-    });
-
-    setSelectedEmp({
-      ...selectedEmp,
-      documents: updatedDocs
-    });
-
-    notify(`Document ${docType} successfully verified and stamped ✓`);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   return (
@@ -511,9 +500,9 @@ export function EmployeeRegistryView({ db, onUpdateDb, queryParams, setQueryPara
       <div style={{ display: 'flex', gap: '16px', backgroundColor: 'var(--bg-secondary)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '16px' }}>
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', padding: '6px 12px', borderRadius: '8px', gap: '8px' }}>
           <Search size={18} style={{ color: 'var(--text-muted)' }} />
-          <input type="text" placeholder="Search by name, ID or role..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ background: 'none', border: 'none', color: '#fff', width: '100%', outline: 'none', fontSize: '13px' }} />
+          <input type="text" placeholder="Search by name, ID or role..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', width: '100%', outline: 'none', fontSize: '13px' }} />
         </div>
-        <select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px 16px', borderRadius: '8px', outline: 'none' }}>
+        <select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 16px', borderRadius: '8px', outline: 'none' }}>
           <option value="All">All Departments</option>
           <option value="Executive">Executive</option>
           <option value="Engineering">Engineering</option>
@@ -546,7 +535,7 @@ export function EmployeeRegistryView({ db, onUpdateDb, queryParams, setQueryPara
               {filtered.map(emp => (
                 <tr key={emp.id} onClick={() => { setSelectedEmp(emp); setProfileTab('info'); setRevealBank(false); }} style={{ cursor: 'pointer' }}>
                   <td>
-                    <img src={emp.photo} alt={emp.name} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+                    <img src={emp.photo || `https://ui-avatars.com/api/?name=${emp.name.replace(/ /g, '+')}&background=0F172A&color=fff`} alt={emp.name} onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${emp.name.replace(/ /g, '+')}&background=0F172A&color=fff`; }} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
                   </td>
                   <td><span className="code-span">{emp.emp_id}</span></td>
                   <td><strong>{emp.name}</strong></td>
@@ -593,7 +582,7 @@ export function EmployeeRegistryView({ db, onUpdateDb, queryParams, setQueryPara
             <div className="card" style={{ width: '420px', display: 'flex', flexDirection: 'column', gap: '16px', borderLeft: '4px solid var(--accent-pink)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ display: 'flex', gap: '12px' }}>
-                  <img src={selectedEmp.photo} alt={selectedEmp.name} style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }} />
+                  <img src={selectedEmp.photo || `https://ui-avatars.com/api/?name=${selectedEmp.name.replace(/ /g, '+')}&background=0F172A&color=fff`} alt={selectedEmp.name} onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${selectedEmp.name.replace(/ /g, '+')}&background=0F172A&color=fff`; }} style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }} />
                   <div>
                     <h3 style={{ margin: 0, border: 'none', padding: 0 }}>{selectedEmp.name}</h3>
                     <span className="code-span">{selectedEmp.emp_id}</span>
@@ -933,6 +922,21 @@ export function EmployeeRegistryView({ db, onUpdateDb, queryParams, setQueryPara
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
               </select>
+
+              <label style={{ fontSize: '12px' }}>System Role</label>
+              <select value={newSystemRole} onChange={(e) => setNewSystemRole(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}>
+                <option value="employee">Employee</option>
+                <option value="tl">Team Lead (TL)</option>
+                <option value="hr">HR Admin</option>
+              </select>
+
+              <label style={{ fontSize: '12px' }}>Reports To (Team Lead)</label>
+              <select value={newManagerId} onChange={(e) => setNewManagerId(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}>
+                <option value="">None / Executive</option>
+                {teamLeads.map(tl => (
+                  <option key={tl.id} value={tl.id}>{tl.name}</option>
+                ))}
+              </select>
             </div>
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
               <button type="button" style={{ background: 'none', border: '1px solid var(--border-color)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }} onClick={() => setShowAddWizard(false)}>Cancel</button>
@@ -974,8 +978,20 @@ export function EmployeeRegistryView({ db, onUpdateDb, queryParams, setQueryPara
               <label style={{ fontSize: '12px' }}>Structural Grade</label>
               <input type="number" value={editGrade} onChange={(e) => setEditGrade(Number(e.target.value))} min={1} max={10} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
 
-              <label style={{ fontSize: '12px' }}>Reporting Manager</label>
-              <input type="text" value={editManager} onChange={(e) => setEditManager(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
+              <label style={{ fontSize: '12px' }}>System Role</label>
+              <select value={editSystemRole} onChange={(e) => setEditSystemRole(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}>
+                <option value="employee">Employee</option>
+                <option value="tl">Team Lead (TL)</option>
+                <option value="hr">HR Admin</option>
+              </select>
+
+              <label style={{ fontSize: '12px' }}>Reports To (Team Lead)</label>
+              <select value={editManager} onChange={(e) => setEditManager(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}>
+                <option value="">None / Executive</option>
+                {teamLeads.map(tl => (
+                  <option key={tl.id} value={tl.id}>{tl.name}</option>
+                ))}
+              </select>
 
               <label style={{ fontSize: '12px' }}>Profile Photo URL</label>
               <input type="text" value={editPhoto} onChange={(e) => setEditPhoto(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
@@ -1017,3 +1033,4 @@ export function EmployeeRegistryView({ db, onUpdateDb, queryParams, setQueryPara
     </div>
   );
 }
+

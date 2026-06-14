@@ -12,9 +12,9 @@ export function LeaveManagementView() {
       const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
       const empRes = await fetch('/api/hr-portal/employees', { headers });
       if(empRes.ok) setEmployees(await empRes.json());
-      const reqRes = await fetch('/api/hr-portal/leaves', { headers });
+      const reqRes = await fetch('/api/hr-portal/leaves/requests', { headers });
       if(reqRes.ok) setLeaveRequests(await reqRes.json());
-      const balRes = await fetch('/api/hr-portal/leave-balances', { headers });
+      const balRes = await fetch('/api/hr-portal/leaves/balances', { headers });
       if(balRes.ok) setLeaveBalances(await balRes.json());
     } catch(e) { console.error(e); }
   };
@@ -72,7 +72,7 @@ export function LeaveManagementView() {
     if (!editingBalance) return;
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch(`/api/hr-portal/leave-balances/${editingBalance.id}`, {
+      const res = await fetch(`/api/hr-portal/leaves/balances/${editingBalance.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
@@ -95,7 +95,7 @@ export function LeaveManagementView() {
     if (!editingRequest) return;
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch(`/api/hr-portal/leaves/${editingRequest.id}`, {
+      const res = await fetch(`/api/hr-portal/leaves/requests/${editingRequest.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
@@ -117,7 +117,7 @@ export function LeaveManagementView() {
     if (!window.confirm('Are you sure you want to delete this request?')) return;
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch(`/api/hr-portal/leaves/${id}`, {
+      const res = await fetch(`/api/hr-portal/leaves/requests/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -130,7 +130,7 @@ export function LeaveManagementView() {
   const handleApproveLeave = async (id) => {
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch(`/api/hr-portal/leaves/${id}/approve`, {
+      const res = await fetch(`/api/hr-portal/leaves/requests/${id}/approve`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -144,7 +144,7 @@ export function LeaveManagementView() {
     if (!denyComment.trim()) return alert('Please specify a reason for denying this leave request.');
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch(`/api/hr-portal/leaves/${id}/deny`, {
+      const res = await fetch(`/api/hr-portal/leaves/requests/${id}/deny`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ reason: denyComment })
@@ -249,7 +249,7 @@ export function LeaveManagementView() {
             </thead>
             <tbody>
               {leaveBalances.map(b => {
-                const emp = employees.find(e => e.id === b.employee_id) || { name: 'Unknown' };
+                const emp = employees.find(e => e.id === b.user_id) || { name: 'Unknown' };
                 return (
                   <tr key={b.id}>
                     <td style={{ padding: '16px 40px' }}><strong>{emp.name}</strong></td>
@@ -395,7 +395,7 @@ export function LeaveManagementView() {
 
       {/* ✏️ EDIT LEAVE BALANCES MODAL */}
       {editingBalance && (() => {
-        const emp = employees.find(e => e.id === editingBalance.employee_id) || { name: 'Employee' };
+        const emp = employees.find(e => e.id === editingBalance.user_id) || { name: 'Employee' };
         return (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
             <form 
@@ -624,7 +624,7 @@ export function LeaveManagementView() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {displayedRequests.map(r => {
-                const emp = employees.find(e => e.id === r.employee_id) || { name: 'Unknown', designation: 'Employee' };
+                const emp = employees.find(e => e.id === r.user_id) || { name: 'Unknown', designation: 'Employee' };
                 return (
                   <div key={r.id} style={{ display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px', gap: '12px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

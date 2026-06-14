@@ -1,186 +1,78 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, Video, MessageSquare, Lock, Eye, MoreVertical, Edit2, Trash2, Reply, Forward, Bookmark, X, Check } from 'lucide-react';
+// Crash fix applied
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { 
+  Hash, Send, Plus, Search, Sparkles, X, PhoneCall, ChevronDown, ChevronUp, 
+  Video, Mic, VideoOff, MicOff, Monitor, Volume2, Trash2, PhoneOff, Users, 
+  Smile, Hand, MoreVertical, MessageSquare, Paperclip, Clock, PictureInPicture,
+  Maximize, Activity, Settings, AlertOctagon, Heart, ThumbsUp, Check, CheckCheck, Camera
+} from 'lucide-react';
 import HuddleModal from '../../../employee/HuddleModal';
+import '../../../ceo/CEO.css';
+import EmojiPicker from 'emoji-picker-react';
+import { Download } from 'lucide-react';
 
-const DEFAULT_CHAT_CHANNELS = [
-  {
-    id: 'general-channel',
-    name: '#general-channel',
-    label: 'Company General Room',
-    type: 'staff',
-    members: ['101', '102', '103', '104', '105', 'hr', 'ceo'],
-    messages: [
-      { id: 1, sender: 'CEO (John Doe)', text: 'Welcome to the unified NSG-ERP communications channel!', time: 'Yesterday' }
-    ]
-  },
-  {
-    id: 'team-room',
-    name: '#team-room',
-    label: 'Engineering Team Room',
-    type: 'staff',
-    members: ['101', '102', '103', '105', 'hr'],
-    messages: [
-      { id: 1, sender: 'Marcus Vance', text: 'Hey team, morning! Please drop your standup items here. Also, let\'s aim to deploy the new build by 4 PM.', time: '9:15 AM' },
-      { id: 2, sender: 'Alex Wong', text: 'Morning! Working on the payment gate validation fixes. PR is ready for review: #412.', time: '9:30 AM' },
-      { id: 3, sender: 'Sarah Jenkins', text: 'Morning! I\'m wrapping up the Asset Requests validation and mobile tab changes. I\'ll review your PR, Alex, right after.', time: '9:35 AM' }
-    ]
-  },
-  {
-    id: 'grievance-room',
-    name: '#grievance-room',
-    label: 'HR Grievance (Private)',
-    type: 'grievance',
-    members: ['102', 'hr'],
-    messages: [
-      { id: 1, sender: 'Sophia Reed (HR Officer)', text: 'Hello Sarah, welcome to your secure grievance portal. Anything shared here remains private. How can I assist you today?', time: 'Yesterday' }
-    ]
-  },
-  {
-    id: 'ceo-channel',
-    name: '#ceo-channel',
-    label: 'CEO Suite Room',
-    type: 'management',
-    members: ['hr', 'ceo'],
-    messages: [
-      { id: 1, sender: 'CEO (John Doe)', text: "Sarah, let's audit the monthly payroll maker file before release.", time: '11:15 AM' }
-    ]
-  },
-  {
-    id: 'tl-channel',
-    name: '#tl-channel',
-    label: 'Team Lead Forum',
-    type: 'management',
-    members: ['hr', '101'],
-    messages: [
-      { id: 1, sender: 'TL (Michael Vance)', text: 'Are the Shift A attendance exceptions fully resolved?', time: '09:30 AM' }
-    ]
-  }
-];
 
-export function HrMessagingView({ db, onUpdateDb, currentUser }) {
-  const hrName = currentUser?.name || 'Sarah Jenkins';
-  const [selectedChannel, setSelectedChannel]     = useState('general-channel');
-  const [newMsg, setNewMsg]                       = useState('');
-  const [isPrivate, setIsPrivate]                 = useState(false);
-  const [mentionQuery, setMentionQuery]           = useState('');
-  const [showMentionDropdown, setShowMentionDropdown] = useState(false);
-  const [mentionedMember, setMentionedMember]     = useState(null);
-  const [hoveredMsgId, setHoveredMsgId]           = useState(null);
-  const [openMenuId, setOpenMenuId]               = useState(null);   // which message's context menu is open
-  const [editingMsgId, setEditingMsgId]           = useState(null);
-  const [editingText, setEditingText]             = useState('');
-  const [replyTo, setReplyTo]                     = useState(null);   // { id, sender, text }
-  const [forwardMsg, setForwardMsg]               = useState(null);   // message being forwarded
-  const [forwardTarget, setForwardTarget]         = useState('');
-  
-  // Roster & Channel Creator States
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showManageMembersModal, setShowManageMembersModal] = useState(false);
-  const [newChannelName, setNewChannelName] = useState('');
-  const [newChannelLabel, setNewChannelLabel] = useState('');
-  const [newChannelType, setNewChannelType] = useState('staff');
-  const [selectedRosterMembers, setSelectedRosterMembers] = useState(['hr']);
+
+export function HrMessagingView({ initialSelectedChannel, currentUser }) {
+  const userName = currentUser?.name || 'CEO';
   const [huddlePeer, setHuddlePeer] = useState(null);
-
   const [dbChannels, setDbChannels] = useState([]);
-  const [localDmMessages, setLocalDmMessages] = useState({});
-  const [tickets, setTickets] = useState([]);
+
   const socketRef = useRef(null);
-
-  const inputRef   = useRef(null);
-  const menuRef    = useRef(null);
-  const messagesEndRef = useRef(null);
-
-  const fetchTickets = async () => {
-    const token = localStorage.getItem('nsg_jwt_token');
-    if (!token) return;
-    try {
-      const res = await fetch('/api/hr-portal/tickets', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setTickets(data);
-      }
-    } catch (e) {
-      console.error("Failed to load tickets", e);
-    }
-  };
-
-  const resolveTicket = async (id) => {
-    const token = localStorage.getItem('nsg_jwt_token');
-    if (!token) return;
-    try {
-      const res = await fetch(`/api/hr-portal/tickets/${id}/resolve`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        fetchTickets();
-      }
-    } catch (e) {
-      console.error("Failed to resolve ticket", e);
-    }
-  };
 
   const fetchChannelsAndMessages = async () => {
     const token = localStorage.getItem('nsg_jwt_token');
-    if (!token) return;
     try {
-      const res = await fetch('/api/employee-portal/chat/channels', {
+      const res = await fetch('/api/hr-portal/chat/channels', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
         const chans = await res.json();
         const loadedChannels = await Promise.all(chans.map(async (c) => {
           try {
-            const msgRes = await fetch(`/api/employee-portal/chat/channels/${c.id}/messages`, {
+            const msgRes = await fetch(`/api/hr-portal/chat/channels/${c.id}/messages`, {
               headers: { 'Authorization': `Bearer ${token}` }
             });
             if (msgRes.ok) {
               const msgs = await msgRes.json();
-              const existingLocalChannel = (db?.chatChannels || []).find(ec => ec.id === c.id);
-              const localMembers = existingLocalChannel?.members;
               return {
                 id: c.id,
                 name: c.name,
                 label: c.label,
                 type: c.type,
-                members: localMembers || (c.members && c.members.length > 0 ? c.members : (c.type === 'grievance' ? ['102', 'hr'] : ['101', '102', '103', '104', '105', 'hr', 'ceo'])),
-                messages: msgs.map(m => ({
-                  id: m.id,
-                  sender: (m.sender === hrName || m.sender === hrName + ' (HR)' || m.sender === 'Sarah Jenkins' || m.sender === 'Sarah Jenkins (HR)' || m.sender === 'Sophia Reed' || m.sender === 'Sophia Reed (HR)') ? 'You' : m.sender,
-                  text: m.text,
-                  time: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                  isPrivate: false,
-                  mention: null,
-                  replyTo: null,
-                  saved: false,
-                  edited: false
-                }))
+                members: c.members && c.members.length > 0 ? c.members : (c.type === 'grievance' ? ['102', 'hr'] : ['101', '102', '103', '104', '105', 'hr', 'ceo']),
+                messages: msgs.map(m => {
+                  const tzFixed = m.timestamp.endsWith('Z') ? m.timestamp : m.timestamp + 'Z';
+                  return {
+                    id: m.id,
+                    sender: m.sender,
+                    text: m.text,
+                    timestamp: new Date(tzFixed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    isMe: m.sender === userName || m.sender === userName + ' (CEO)' || m.sender === 'John Doe (CEO)' || m.sender === 'John Doe',
+                    is_edited: m.is_edited,
+                    deleted_at: m.deleted_at,
+                    reactions: m.reactions,
+                    seen_by: m.seen_by,
+                    delivered_to: m.delivered_to,
+                    attachment_url: m.attachment_url,
+                    attachment_type: m.attachment_type
+                  };
+                })
               };
             }
           } catch (e) {
             console.error("Error loading messages for channel", c.id, e);
           }
-          const existingLocalChannel2 = (db?.chatChannels || []).find(ec => ec.id === c.id);
-          const localMembers2 = existingLocalChannel2?.members;
           return {
             id: c.id,
             name: c.name,
             label: c.label,
             type: c.type,
-            members: localMembers2 || (c.type === 'grievance' ? ['102', 'hr'] : ['101', '102', '103', '104', '105', 'hr', 'ceo']),
+            members: c.type === 'grievance' ? ['102', 'hr'] : ['101', '102', '103', '104', '105', 'hr', 'ceo'],
             messages: []
           };
         }));
         setDbChannels(loadedChannels);
-        if (onUpdateDb) {
-          setDbChannels(loadedChannels); onUpdateDb({
-            ...db,
-            chatChannels: loadedChannels
-          });
-        }
       }
     } catch (e) {
       console.error("Failed to load channels", e);
@@ -189,26 +81,179 @@ export function HrMessagingView({ db, onUpdateDb, currentUser }) {
 
   useEffect(() => {
     fetchChannelsAndMessages();
-    fetchTickets();
+  }, []);
+  
+  // === NO MOCK DATA ===
+  const chatChannels = dbChannels;
+  const myChannels = chatChannels.filter(c => c.id === "general-channel" || (c.members && c.members.includes(String(currentUser?.id || 'ceo'))));
+
+  const [selectedChannel, setSelectedChannel] = useState(() => {
+    if (initialSelectedChannel) return initialSelectedChannel;
+    return myChannels.length > 0 ? myChannels[0].id : 'general-channel';
+  });
+
+  const [employees, setEmployees] = useState([]);
+
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+  const handleDPUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const token = localStorage.getItem('nsg_jwt_token');
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch('/api/employee-portal/profile/upload-dp', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      if (res.ok) {
+        window.location.reload();
+      }
+    } catch(e) {}
+  };
+
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      const token = localStorage.getItem('nsg_jwt_token');
+      try {
+        const res = await fetch('/api/hr-portal/chat/users', { headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.ok) setEmployees(await res.json());
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchEmployees();
   }, []);
 
-  // ── Channel Configuration (Derived dynamically from DB) ──────────────────────
-  const chatChannels = dbChannels.length > 0 ? dbChannels : (db?.chatChannels && db.chatChannels.length > 0 ? db.chatChannels : DEFAULT_CHAT_CHANNELS);
+  const [localDmMessages, setLocalDmMessages] = useState({});
+
+  const currentChannel = chatChannels.find(c => c.id === selectedChannel);
+
+  const messages = useMemo(() => {
+    if (currentChannel) {
+      return { [selectedChannel]: (currentChannel.messages || []) };
+    }
+    return localDmMessages;
+  }, [currentChannel, selectedChannel, localDmMessages]);
+
+  const [inputVal, setInputVal] = useState('');
+  const chatEndRef = useRef(null);
+
+  // === CHANNEL MANAGEMENT ===
+  const [isCreateChannelOpen, setIsCreateChannelOpen] = useState(false);
+  const [newChannelName, setNewChannelName] = useState('');
+  const [selectedMembers, setSelectedMembers] = useState([]);
+  const [channelMembers, setChannelMembers] = useState({});
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [newGuestName, setNewGuestName] = useState('');
+  const [newGuestPhone, setNewGuestPhone] = useState('');
+  const [showGroupMembersModal, setShowGroupMembersModal] = useState(false);
+
+  const [isChannelMenuOpen, setIsChannelMenuOpen] = useState(false);
+  const [isEditChannelOpen, setIsEditChannelOpen] = useState(false);
+  const [editChannelName, setEditChannelName] = useState('');
+
+  // === CALL STATE ===
+  const [isInCall, setIsInCall] = useState(false);
+  const [isCallExpanded, setIsCallExpanded] = useState(false);
+  const [activeCallParticipants, setActiveCallParticipants] = useState([]);
+  const [offlineCallParticipants, setOfflineCallParticipants] = useState([]);
+
+  const [callDuration, setCallDuration] = useState(0);
+  const callTimerRef = useRef(null);
+  
+  const [callScreenMic, setCallScreenMic] = useState(true);
+  const [callScreenCamera, setCallScreenCamera] = useState(true);
+  const [callScreenShare, setCallScreenShare] = useState(false);
+  
+  // Dragging the PIP modal
+  const [callPosition, setCallPosition] = useState({ x: 0, y: 0 });
+  const [isDraggingCall, setIsDraggingCall] = useState(false);
+  const callDragStart = useRef({ x: 0, y: 0 });
+
+  const cameraStreamRef = useRef(null);
+  const screenStreamRef = useRef(null);
+  const callCameraVideoRef = useRef(null);
+  const screenVideoRef = useRef(null);
+
+  const [userPresence, setUserPresence] = useState({});
 
   // Initialize WebSocket connection for real-time messaging
   useEffect(() => {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.hostname}:8000/employee-portal/ws/${encodeURIComponent(hrName)}`;
+    const wsUrl = `${wsProtocol}//${window.location.hostname}:8000/employee-portal/ws/${encodeURIComponent(userName)}`;
     const socket = new WebSocket(wsUrl);
     socketRef.current = socket;
 
     socket.onmessage = (event) => {
       try {
-        const newMsg = JSON.parse(event.data);
+        const payload = JSON.parse(event.data);
+        const eventType = payload.event_type;
+
+        if (eventType === 'presence_update') {
+          setUserPresence(prev => ({
+            ...prev,
+            [payload.user]: { online: payload.online, last_active: payload.last_active }
+          }));
+          return;
+        }
+
+        if (eventType === 'message_delivered' || eventType === 'message_read' || eventType === 'update_message') {
+          fetchChannelsAndMessages();
+          return;
+        }
+
+        const newMsg = payload;
+        
+        // Auto-send delivered receipt
+        if (newMsg.id && socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+          socketRef.current.send(JSON.stringify({ type: 'delivered', msg_id: newMsg.id }));
+        }
+
         const isCorporateChannel = chatChannels.some(c => c.id === newMsg.channel_id);
 
         if (isCorporateChannel) {
           fetchChannelsAndMessages();
+        } else {
+          // Update DM/custom rooms
+          setLocalDmMessages(prevRooms => {
+            const roomMsgs = prevRooms[newMsg.channel_id] || [];
+            const alreadyExists = roomMsgs.some(m => m.id === newMsg.id);
+            if (alreadyExists) return prevRooms;
+            
+            return {
+              ...prevRooms,
+              [newMsg.channel_id]: [
+                ...roomMsgs,
+                {
+                  id: newMsg.id,
+                  sender: newMsg.sender,
+                  avatar: employees.find(e => e.name === newMsg.sender || `dm-${e.id}` === newMsg.channel_id)?.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(newMsg.sender),
+                  text: newMsg.text,
+                  timestamp: newMsg.timestamp ? new Date(newMsg.timestamp.endsWith('Z') ? newMsg.timestamp : newMsg.timestamp + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+                  isMe: newMsg.sender === userName || newMsg.sender === userName + ' (CEO)' || newMsg.sender === 'CEO (CEO)' || newMsg.sender === 'CEO',
+                  is_edited: newMsg.is_edited,
+                  deleted_at: newMsg.deleted_at,
+                  reactions: newMsg.reactions,
+                  seen_by: newMsg.seen_by,
+                  delivered_to: newMsg.delivered_to,
+                  attachment_url: newMsg.attachment_url,
+                  attachment_type: newMsg.attachment_type
+                }
+              ]
+            };
+          });
         }
       } catch (e) {
         console.error("Failed to parse incoming WebSocket message:", e);
@@ -222,251 +267,290 @@ export function HrMessagingView({ db, onUpdateDb, currentUser }) {
     return () => {
       socket.close();
     };
-  }, [db, onUpdateDb, chatChannels]);
+  }, [chatChannels, employees]);
 
-  // ── Channel Configuration (Derived dynamically from DB) ──────────────────────
-
-  const derivedChannels = {
-    management: chatChannels.filter(c => c.type === 'management'),
-    staff: chatChannels.filter(c => c.type === 'staff'),
-    grievance: chatChannels.filter(c => c.type === 'grievance'),
-    support: [
-      { id: 'support-tickets', name: '🎫 Support Tickets', label: 'Employee IT/HR Tickets' }
-    ]
-  };
-
-  const allChannels = [
-    ...derivedChannels.management,
-    ...derivedChannels.staff,
-    ...derivedChannels.grievance,
-    ...derivedChannels.support
-  ];
-
-  const currentChannel = allChannels.find(c => c.id === selectedChannel);
-
-  // ── Channel members (Derived dynamically from DB) ─────────────────────────────
-  const getChannelMembers = (channelId) => {
-    const ch = chatChannels.find(c => c.id === channelId);
-    if (!ch || !ch.members) return [];
-    return ch.members.map(memberId => {
-      if (memberId === 'hr') {
-        return { id: 'hr', name: 'Sarah Jenkins', role: 'HR Manager' };
-      }
-      if (memberId === 'ceo') {
-        return { id: 'ceo', name: 'John Doe', role: 'CEO' };
-      }
-      const emp = db.employees?.find(e => String(e.id) === String(memberId));
-      if (emp) {
-        return { id: emp.id, name: emp.name, role: emp.designation };
-      }
-      return { id: memberId, name: memberId, role: 'Member' };
-    });
-  };
-
-  // Close context menu on outside click
+  // Auto-scroll chat
   useEffect(() => {
-    const handler = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setOpenMenuId(null);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, selectedChannel]);
 
-  // Reset on channel switch
+  // Call duration timer
   useEffect(() => {
-    setShowMentionDropdown(false); setMentionedMember(null); setIsPrivate(false);
-    setNewMsg(''); setReplyTo(null); setEditingMsgId(null); setOpenMenuId(null);
-  }, [selectedChannel]);
-
-  // ── @ Mention input handler ──────────────────────────────────────────────────
-  const handleInputChange = (e) => {
-    const val = e.target.value;
-    setNewMsg(val);
-    const lastAt = val.lastIndexOf('@');
-    if (lastAt !== -1) {
-      const query = val.slice(lastAt + 1).toLowerCase();
-      if (!query.includes(' ')) { setMentionQuery(query); setShowMentionDropdown(true); return; }
+    if (isInCall) {
+      setCallDuration(0);
+      callTimerRef.current = setInterval(() => setCallDuration(prev => prev + 1), 1000);
+    } else {
+      clearInterval(callTimerRef.current);
     }
-    setShowMentionDropdown(false); setMentionQuery('');
-    if (!val.includes('@')) { setMentionedMember(null); setIsPrivate(false); }
+    return () => clearInterval(callTimerRef.current);
+  }, [isInCall]);
+
+  const formatDuration = (secs) => {
+    const m = String(Math.floor(secs / 60)).padStart(2, '0');
+    const s = String(secs % 60).padStart(2, '0');
+    return `${m}:${s}`;
   };
 
-  const filteredMembers = getChannelMembers(selectedChannel).filter(m =>
-    m.name.toLowerCase().includes(mentionQuery)
-  );
+  const [lightboxMedia, setLightboxMedia] = useState(null);
 
-  const handleSelectMention = (member) => {
-    const lastAt = newMsg.lastIndexOf('@');
-    setNewMsg(`${newMsg.slice(0, lastAt)}@${member.name} `);
-    setMentionedMember(member);
-    setShowMentionDropdown(false); setMentionQuery('');
-    inputRef.current?.focus();
+  const [attachmentFile, setAttachmentFile] = useState(null);
+  const [attachmentPreview, setAttachmentPreview] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setAttachmentFile(file);
+    if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+      setAttachmentPreview(URL.createObjectURL(file));
+    } else {
+      setAttachmentPreview('document');
+    }
   };
 
-  // ── Send message ─────────────────────────────────────────────────────────────
-  const handleSend = (e) => {
+  const clearAttachment = () => {
+    setAttachmentFile(null);
+    setAttachmentPreview(null);
+  };
+
+  // Chat Send
+  const handleSend = async (e) => {
     e.preventDefault();
-    if (!newMsg.trim() || !currentChannel) return;
+    if (!isOnline) {
+      alert("You are offline. Cannot send messages without an internet connection.");
+      return;
+    }
+    if (!inputVal.trim() && !attachmentFile) return;
+
+    let attachUrl = null;
+    let attachType = null;
+
+    if (attachmentFile) {
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append("file", attachmentFile);
+      try {
+        const token = localStorage.getItem('nsg_jwt_token');
+        const res = await fetch('/api/hr-portal/chat/upload', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        });
+        if (res.ok) {
+          const data = await res.json();
+          attachUrl = data.url;
+          attachType = data.type;
+        }
+      } catch (err) { console.error("Upload failed", err); }
+      setIsUploading(false);
+      clearAttachment();
+    }
 
     // Send via WebSocket if connection is active
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify({
         channel_id: selectedChannel,
-        text: newMsg.trim(),
-        sender: hrName
+        text: inputVal.trim(),
+        sender: userName,
+        attachment_url: attachUrl,
+        attachment_type: attachType
       }));
-      setNewMsg('');
-      setMentionedMember(null);
-      setIsPrivate(false);
-      setShowMentionDropdown(false);
-      setReplyTo(null);
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 60);
+      setInputVal('');
       return;
     }
 
-    const msg = {
-      id: Date.now(),
-      sender: 'You',
-      text: newMsg.trim(),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isPrivate: !!mentionedMember && isPrivate,
-      mention: mentionedMember?.name || null,
-      replyTo: replyTo ? { sender: replyTo.sender, text: replyTo.text } : null,
-      saved: false,
-      edited: false
-    };
-
     const isCorporateChannel = chatChannels.some(c => c.id === selectedChannel);
+
+    const newMsg = {
+      id: Date.now(),
+      sender: userName,
+      avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=1e293b&color=fff',
+      text: inputVal,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isMe: true
+    };
 
     if (isCorporateChannel) {
       const updatedChannels = chatChannels.map(c => {
         if (c.id === selectedChannel) {
           return {
             ...c,
-            messages: [...(c.messages || []), msg]
+            messages: [...(c.messages || []), newMsg]
           };
         }
         return c;
       });
-
-      setDbChannels(updatedChannels); onUpdateDb({ ...db, chatChannels: updatedChannels });
+      setDbChannels(updatedChannels);
     } else {
       setLocalDmMessages(prev => ({
         ...prev,
-        [selectedChannel]: [...(prev[selectedChannel] || []), msg]
+        [selectedChannel]: [...(prev[selectedChannel] || []), newMsg]
       }));
     }
-    setNewMsg(''); setMentionedMember(null); setIsPrivate(false);
-    setShowMentionDropdown(false); setReplyTo(null);
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 60);
+    setInputVal('');
+
   };
 
-  // ── Context menu actions ─────────────────────────────────────────────────────
-  const updateMsg = (id, patch) => {
-    const updatedChannels = chatChannels.map(c => {
-      if (c.id === selectedChannel) {
-        return {
-          ...c,
-          messages: (c.messages || []).map(m => m.id === id ? { ...m, ...patch } : m)
-        };
-      }
-      return c;
+
+
+  // Start Call WebRTC
+  const handleStartCall = () => {
+    if (!isOnline) {
+      alert("You are offline. Cannot start video call without an internet connection.");
+      return;
+    }
+    setIsInCall(true);
+    setHuddlePeer({
+      channelId: selectedChannel,
+      roomName: isDM ? `DM-${employees.find(e => `dm-${e.id}` === selectedChannel)?.name}` : selectedChannel,
+      name: selectedChannel,
+      displayName: 'CEO (CEO)'
     });
-    setDbChannels(updatedChannels); onUpdateDb({ ...db, chatChannels: updatedChannels });
-  };
 
-  const handleDelete = (id) => {
-    const updatedChannels = chatChannels.map(c => {
-      if (c.id === selectedChannel) {
-        return {
-          ...c,
-          messages: (c.messages || []).filter(m => m.id !== id)
-        };
-      }
-      return c;
-    });
-    setDbChannels(updatedChannels); onUpdateDb({ ...db, chatChannels: updatedChannels });
-    setOpenMenuId(null);
-  };
-
-  const handleEdit = (msg) => {
-    setEditingMsgId(msg.id); setEditingText(msg.text); setOpenMenuId(null);
-  };
-
-  const handleEditSave = (id) => {
-    if (editingText.trim()) updateMsg(id, { text: editingText.trim(), edited: true });
-    setEditingMsgId(null); setEditingText('');
-  };
-
-  const handleReply = (msg) => {
-    setReplyTo(msg); setOpenMenuId(null); inputRef.current?.focus();
-  };
-
-  const handleForward = (msg) => {
-    setForwardMsg(msg); setForwardTarget(allChannels.find(c => c.id !== selectedChannel)?.id || '');
-    setOpenMenuId(null);
-  };
-
-  const handleForwardConfirm = () => {
-    if (!forwardTarget || !forwardMsg) return;
-    const fwdMsg = {
-      id: Date.now(), sender: 'You',
-      text: forwardMsg.text, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isPrivate: false, mention: null, replyTo: null, saved: false, edited: false,
-      forwarded: true, forwardedFrom: currentChannel?.name || selectedChannel
+    const isCorporateChannel = chatChannels.some(c => c.id === selectedChannel);
+    const callMsg = {
+      displayName: 'CEO (CEO)',
+      sender: 'CEO (CEO)',
+      avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=1e293b&color=fff',
+      text: `Started a video call`,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isCallStatus: true,
+      isMe: true
     };
-    const updatedChannels = chatChannels.map(c => {
-      if (c.id === forwardTarget) {
-        return {
-          ...c,
-          messages: [...(c.messages || []), fwdMsg]
-        };
-      }
-      return c;
-    });
-    setDbChannels(updatedChannels); onUpdateDb({ ...db, chatChannels: updatedChannels });
-    setForwardMsg(null);
+
+    if (isCorporateChannel) {
+      const updatedChannels = chatChannels.map(c => {
+        if (c.id === selectedChannel) {
+          return {
+            ...c,
+            messages: [...(c.messages || []), callMsg]
+          };
+        }
+        return c;
+      });
+      setDbChannels(updatedChannels);
+    } else {
+      setLocalDmMessages(prev => ({
+        ...prev,
+        [selectedChannel]: [...(prev[selectedChannel] || []), callMsg]
+      }));
+    }
   };
 
-  const handleSave = (id, saved) => { updateMsg(id, { saved: !saved }); setOpenMenuId(null); };
+  // Re-attach video stream if component re-renders
+  useEffect(() => {
+    if (isInCall && callCameraVideoRef.current && cameraStreamRef.current) {
+      if (callCameraVideoRef.current.srcObject !== cameraStreamRef.current) {
+        callCameraVideoRef.current.srcObject = cameraStreamRef.current;
+        callCameraVideoRef.current.play().catch(() => {});
+      }
+    }
+    if (isInCall && screenVideoRef.current && screenStreamRef.current) {
+      if (screenVideoRef.current.srcObject !== screenStreamRef.current) {
+        screenVideoRef.current.srcObject = screenStreamRef.current;
+        screenVideoRef.current.play().catch(() => {});
+      }
+    }
+  }, [isInCall, callScreenCamera, callScreenShare]);
 
-  // ── Roster & Channel Creation Handlers ───────────────────────────────────────
+  const handleEndCall = () => {
+    if (cameraStreamRef.current) {
+      cameraStreamRef.current.getTracks().forEach(t => t.stop());
+      cameraStreamRef.current = null;
+    }
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach(t => t.stop());
+      screenStreamRef.current = null;
+    }
+    setIsInCall(false);
+    setIsCallExpanded(false);
+    setCallScreenShare(false);
+  };
+
+  const toggleScreenShare = async () => {
+    if (callScreenShare) {
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach(t => t.stop());
+      }
+      screenStreamRef.current = null;
+      setCallScreenShare(false);
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        screenStreamRef.current = stream;
+        setCallScreenShare(true);
+        stream.getVideoTracks()[0].addEventListener('ended', () => {
+          setCallScreenShare(false);
+          screenStreamRef.current = null;
+        });
+      } catch (err) {
+        console.warn('Screen share denied', err);
+      }
+    }
+  };
+
+  // Call dragging logic
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDraggingCall) return;
+      setCallPosition({
+        x: e.clientX - callDragStart.current.x,
+        y: e.clientY - callDragStart.current.y
+      });
+    };
+    const handleMouseUp = () => setIsDraggingCall(false);
+
+    if (isDraggingCall) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDraggingCall]);
+
+  const handleCallMouseDown = (e) => {
+    if (e.target.closest('button')) return; // don't drag if clicking buttons
+    setIsDraggingCall(true);
+    callDragStart.current = {
+      x: e.clientX - callPosition.x,
+      y: e.clientY - callPosition.y
+    };
+  };
+
+  // Create Channel logic
   const handleCreateChannel = async (e) => {
     e.preventDefault();
     if (!newChannelName.trim()) return;
-    if (!onUpdateDb) {
-      alert('Database not ready. Please refresh the page.');
-      return;
-    }
     
     const rawName = newChannelName.trim().replace(/^#+/, '');
     const formattedName = `#${rawName}`;
-    // Use timestamp suffix to guarantee uniqueness every time
     const baseId = rawName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'channel';
     const newId = `${baseId}-${Date.now()}`;
     
-    const channelMembers = selectedRosterMembers.length > 0 ? selectedRosterMembers : ['hr'];
-    if (!channelMembers.includes('hr')) channelMembers.push('hr');
+    const channelMembers = selectedMembers.length > 0 ? selectedMembers : ['ceo'];
+    if (!channelMembers.includes('ceo')) channelMembers.push('ceo');
 
     const newChan = {
       id: newId,
       name: formattedName,
-      label: newChannelLabel.trim() || `${rawName} Channel`,
-      type: newChannelType,
+      label: `${rawName} Channel`,
+      type: 'staff',
       members: channelMembers,
       messages: [
         {
           id: Date.now(),
           sender: 'System',
-          text: `Channel ${formattedName} created by HR Manager.`,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          text: `Channel ${formattedName} created by CEO.`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]
     };
     
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      await fetch('/api/employee-portal/chat/channels', {
+      await fetch('/api/hr-portal/chat/channels', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -484,769 +568,1009 @@ export function HrMessagingView({ db, onUpdateDb, currentUser }) {
       console.error("Failed to save channel to backend:", err);
     }
 
-    const currentChannels = db?.chatChannels && db.chatChannels.length > 0 ? db.chatChannels : DEFAULT_CHAT_CHANNELS;
+    const currentChannels = dbChannels;
     const updated = [...currentChannels, newChan];
-    setDbChannels(updated); onUpdateDb({ ...db, chatChannels: updated });
+    setDbChannels(updated);
     
     setNewChannelName('');
-    setNewChannelLabel('');
-    setNewChannelType('staff');
-    setSelectedRosterMembers(['hr']);
-    setShowCreateModal(false);
+    setIsCreateChannelOpen(false);
     setSelectedChannel(newId);
   };
 
-  const handleToggleMember = async (memberId) => {
-    if (!currentChannel) return;
-    const membersList = currentChannel.members || [];
-    let updatedMembers;
-    if (membersList.includes(memberId)) {
-      updatedMembers = membersList.filter(id => id !== memberId);
-    } else {
-      updatedMembers = [...membersList, memberId];
-    }
-    
-    // Update local state immediately for instant UI feedback
-    const updatedChannels = chatChannels.map(c => {
-      if (c.id === selectedChannel) {
-        return { ...c, members: updatedMembers };
+  // Add Member logic
+  const toggleMemberInChannel = (empId) => {
+    setChannelMembers(prev => {
+      const currentMembers = prev[selectedChannel] || [];
+      if (currentMembers.includes(empId)) {
+        return { ...prev, [selectedChannel]: currentMembers.filter(id => id !== empId) };
+      } else {
+        return { ...prev, [selectedChannel]: [...currentMembers, empId] };
       }
-      return c;
     });
-    setDbChannels(updatedChannels); onUpdateDb({ ...db, chatChannels: updatedChannels });
+  };
 
-    // CRITICAL: Also save to backend SQLite database so Employee portal can read it.
-    // The Employee portal uses current_user.id (backend integer ID) to filter channels.
-    // We need to convert frontend memberId to backend User IDs.
+  const handleEditChannel = async (e) => {
+    e.preventDefault();
+    const formattedName = editChannelName.replace(/\s+/g, '-').toLowerCase();
+    
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      // Fetch all backend users to resolve names/roles to backend IDs
-      // Use the employees endpoint, and also rely on known special roles
-      const usersRes = await fetch('/api/hr-portal/employees', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetch(`/api/hr-portal/chat/channels/${selectedChannel}`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: '#' + formattedName.replace(/^#+/, ''), label: formattedName })
       });
-      let backendUsers = [];
-      if (usersRes.ok) {
-        backendUsers = await usersRes.json();
+      if (res.ok) {
+        fetchChannelsAndMessages();
+        setSelectedChannel(selectedChannel); // keeps same id, just name changed
+        setIsEditChannelOpen(false);
+      } else {
+        alert("Failed to edit channel.");
       }
-
-      // Map updated members (frontend IDs like "102", "hr", "ceo") to backend User IDs
-      const backendUserIds = updatedMembers.map(mId => {
-        if (mId === 'hr') {
-          // HR manager: find by role in backend users, or use known email
-          const hrUser = backendUsers.find(u => u.role === 'hr') || { id: 2 }; // ID=2 is HR
-          return String(hrUser.id);
-        }
-        if (mId === 'ceo') {
-          const ceoUser = backendUsers.find(u => u.role === 'ceo') || { id: 1 }; // ID=1 is CEO
-          return String(ceoUser.id);
-        }
-        // For numeric IDs: match frontend emp.id to backend user by name/email
-        // The frontend db.employees has IDs 101-106, backend has IDs 1-9
-        const frontendEmp = (db?.employees || []).find(e => String(e.id) === mId);
-        if (frontendEmp) {
-          const backendUser = backendUsers.find(u => u.name === frontendEmp.name || u.email === frontendEmp.email);
-          return backendUser ? String(backendUser.id) : null;
-        }
-        return null;
-      }).filter(Boolean);
-
-      // Save the backend user ID list to SQLite via PUT API
-      await fetch(`/api/employee-portal/chat/channels/${selectedChannel}/members`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ members: backendUserIds })
-      });
-    } catch (e) {
-      console.error('Failed to save channel members to backend:', e);
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  // ── Visible messages (private filter) ────────────────────────────────────────
-  const visibleMessages = currentChannel ? (currentChannel.messages || []).filter(m =>
-    m.isPrivate ? m.sender === 'You' || m.mention === 'Sarah Jenkins' : true
-  ) : (localDmMessages[selectedChannel] || []);
+  const handleDeleteChannel = async () => {
+    if (dbChannels.length <= 1) {
+      alert("You cannot delete the last channel.");
+      return;
+    }
+    if (window.confirm(`Are you sure you want to delete #${selectedChannel}?`)) {
+      try {
+        const token = localStorage.getItem('nsg_jwt_token');
+        const res = await fetch(`/api/hr-portal/chat/channels/${selectedChannel}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          await fetchChannelsAndMessages();
+          setSelectedChannel('general-channel');
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    setIsChannelMenuOpen(false);
+  };
 
-  const isStaffChannel = currentChannel ? (currentChannel.type === 'staff') : false;
+  const [contextMenu, setContextMenu] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(null);
+  const [showChatEmojiPicker, setShowChatEmojiPicker] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editingText, setEditingText] = useState('');
 
+  const handleMessageDoubleClick = (e, msg) => {
+    e.preventDefault();
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      msg: msg
+    });
+    setShowEmojiPicker(null);
+  };
+
+  const closeContextMenu = () => {
+    setContextMenu(null);
+    setShowEmojiPicker(null);
+  };
+
+  const submitEditMessage = async (msgId, newText) => {
+    if(!newText.trim()) return;
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      await fetch(`/api/hr-portal/chat/messages/${msgId}`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: newText.trim() })
+      });
+      setEditingMessageId(null);
+      setEditingText('');
+      // WebSocket will trigger state update
+    } catch (err) { console.error(err); }
+  };
+
+  const handleDeleteMessage = async (msgId) => {
+    if(!window.confirm("Delete this message?")) return;
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      await fetch(`/api/hr-portal/chat/messages/${msgId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+    } catch (err) { console.error(err); }
+  };
+
+  const handleReactMessage = async (msgId, currentReactions, emoji) => {
+    let reactionsObj = {};
+    try {
+      reactionsObj = currentReactions ? JSON.parse(currentReactions) : {};
+    } catch(e){}
+    
+    if(!reactionsObj[emoji]) reactionsObj[emoji] = [];
+    if(reactionsObj[emoji].includes(userName)) {
+      reactionsObj[emoji] = reactionsObj[emoji].filter(n => n !== userName);
+      if(reactionsObj[emoji].length === 0) delete reactionsObj[emoji];
+    } else {
+      reactionsObj[emoji].push(userName);
+    }
+    
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      await fetch(`/api/hr-portal/chat/messages/${msgId}`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reactions: JSON.stringify(reactionsObj) })
+      });
+    } catch (err) { console.error(err); }
+  };
+
+  // Add Guest logic
+  const handleAddGuest = (e) => {
+    e.preventDefault();
+    if(!newGuestName.trim() || !newGuestPhone.trim()) return;
+    
+    const newGuestId = Date.now();
+    const guestObj = {
+      id: newGuestId,
+      name: newGuestName.trim() + ' (Guest)',
+      phone: newGuestPhone.trim(),
+      avatar: `https://ui-avatars.com/api/?name=${newGuestName.replace(/\s+/g, '+')}&background=F59E0B&color=fff`,
+      status: 'Active'
+    };
+    
+    setEmployees(prev => [...prev, guestObj]);
+    setChannelMembers(prev => ({
+      ...prev,
+      [selectedChannel]: [...(prev[selectedChannel] || []), newGuestId]
+    }));
+    
+    setNewGuestName('');
+    setNewGuestPhone('');
+  };
+
+  // Get current members for header
   const isDM = selectedChannel.startsWith('dm-');
-  const dmEmployee = isDM ? (db?.employees || []).find(e => `dm-${e.id}` === selectedChannel) : null;
-  const currentMembersCount = isDM ? 2 : (getChannelMembers(selectedChannel).length || 1);
-  const currentChannelName = isDM ? dmEmployee?.name : currentChannel?.name;
-
-  // ── Context Menu Item ─────────────────────────────────────────────────────────
-  const MenuItem = ({ icon, label, onClick, danger }) => (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{ display: 'flex', alignItems: 'center', gap: '9px', width: '100%', padding: '9px 14px', background: 'none', border: 'none', color: danger ? '#f87171' : 'var(--text-primary)', fontSize: '12.5px', cursor: 'pointer', textAlign: 'left', transition: 'background 0.1s' }}
-      onMouseEnter={e => e.currentTarget.style.backgroundColor = danger ? 'rgba(248,113,113,0.08)' : 'rgba(236,72,153,0.06)'}
-      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-    >
-      {icon} {label}
-    </button>
-  );
+  const currentMembersCount = isDM ? 2 : (channelMembers[selectedChannel]?.length || 1);
 
   return (
-    <div className="component-container">
-      <div className="component-header">
-        <div>
-          <h1>Messaging channels</h1>
-          <p>Collaborate in private department rooms or launch instant screening RTC calls.</p>
+    <div style={{ display: 'flex', height: '100%', overflow: 'hidden', background: '#F8FAFC', borderRadius: '12px', border: '1px solid var(--ceo-border)' }}>
+      
+      {/* === LEFT SIDEBAR === */}
+      <div style={{ width: '280px', background: '#FFFFFF', borderRight: '1px solid var(--ceo-border)', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '24px 20px', borderBottom: '1px solid var(--ceo-border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: 'var(--ceo-text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <MessageSquare size={20} color="var(--ceo-primary)" /> Team Chat
+            </h2>
+            <label style={{ cursor: 'pointer', position: 'relative' }} title="Change Profile Picture">
+              <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={currentUser?.photo ? `http://localhost:8000${currentUser.photo}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}`} alt="You" style={{ width: '36px', height: '36px', borderRadius: '18px', objectFit: 'cover', border: '2px solid var(--ceo-border)' }}  />
+              <div style={{ position: 'absolute', bottom: -2, right: -2, background: 'var(--ceo-primary)', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #FFF' }}>
+                <Camera size={10} color="#FFF" />
+              </div>
+              <input type="file" style={{ display: 'none' }} accept="image/*" onChange={handleDPUpload} />
+            </label>
+          </div>
+          <div style={{ position: 'relative' }}>
+            <Search size={14} color="var(--ceo-text-muted)" style={{ position: 'absolute', left: '12px', top: '10px' }} />
+            <input type="text" placeholder="Search messages..." className="ceo-form-input" style={{ width: '100%', paddingLeft: '32px', height: '34px', fontSize: '13px' }} />
+          </div>
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', paddingLeft: '8px', paddingRight: '8px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ceo-text-muted)', letterSpacing: '0.5px' }}>CHANNELS</div>
+            <button onClick={() => setIsCreateChannelOpen(true)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--ceo-text-secondary)' }}><Plus size={14} /></button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '24px' }}>
+            {myChannels.map(chan => (
+              <div 
+                key={chan.id} 
+                onClick={() => setSelectedChannel(chan.id)}
+                style={{ 
+                  display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer',
+                  background: selectedChannel === chan.id ? '#EFF6FF' : 'transparent',
+                  color: selectedChannel === chan.id ? 'var(--ceo-primary)' : 'var(--ceo-text-secondary)',
+                  fontWeight: selectedChannel === chan.id ? 700 : 600,
+                  fontSize: '14px', transition: 'all 0.2s'
+                }}
+              >
+                <Hash size={16} /> {chan.name}
+              </div>
+            ))}
+          </div>
+
+          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ceo-text-muted)', marginBottom: '8px', paddingLeft: '8px', letterSpacing: '0.5px' }}>DIRECT MESSAGES</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {employees.filter(e => !e.isMe).map(emp => {
+              const dmId = `dm-${emp.id}`;
+              const isSelected = selectedChannel === dmId;
+              return (
+                <div 
+                  key={dmId} 
+                  onClick={() => setSelectedChannel(dmId)}
+                  style={{ 
+                    display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer',
+                    background: isSelected ? '#EFF6FF' : 'transparent',
+                    color: isSelected ? 'var(--ceo-primary)' : 'var(--ceo-text-secondary)',
+                    fontWeight: isSelected ? 700 : 600,
+                    fontSize: '14px', transition: 'all 0.2s'
+                  }}
+                >
+                  <div style={{ position: 'relative' }}>
+                    <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}`)} alt={emp.name} style={{ width: '24px', height: '24px', borderRadius: '12px', objectFit: 'cover' }}  />
+                    <div style={{ position: 'absolute', bottom: -2, right: -2, width: '8px', height: '8px', borderRadius: '4px', background: emp.status === 'Active' ? 'var(--ceo-success)' : 'var(--ceo-warning)', border: '2px solid #FFF' }}></div>
+                  </div>
+                  {emp.name}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '24px', alignItems: 'stretch', height: '540px' }}>
-
-        {/* ── Left: Channel list ──────────────────────────────────────────────── */}
-        <div className="card flex-1" style={{ margin: 0, display: 'flex', flexDirection: 'column', gap: '14px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderLeft: '4px solid var(--accent-pink)', borderRadius: '12px', overflowY: 'auto' }}>
+      {/* === MAIN CHAT AREA === */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#FFF' }}>
+        
+        {/* Chat Header */}
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FFF' }}>
           <div>
-            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: '8px', letterSpacing: '0.5px' }}>🏛️ Management Forums</span>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {derivedChannels.management.map(ch => (
-                <div key={ch.id} onClick={() => setSelectedChannel(ch.id)}
-                  style={{ padding: '9px 12px', backgroundColor: selectedChannel === ch.id ? 'rgba(236,72,153,0.08)' : 'transparent', color: selectedChannel === ch.id ? 'var(--accent-pink)' : 'var(--text-primary)', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: selectedChannel === ch.id ? '600' : 'normal', border: selectedChannel === ch.id ? '1px solid rgba(236,72,153,0.2)' : '1px solid transparent', transition: 'all 0.15s' }}>
-                  <MessageSquare size={13} style={{ color: selectedChannel === ch.id ? 'var(--accent-pink)' : 'var(--text-muted)', flexShrink: 0 }} />
-                  {ch.name}
-                </div>
-              ))}
+            <div 
+              style={{ fontSize: '18px', fontWeight: 800, color: 'var(--ceo-text-primary)', display: 'flex', alignItems: 'center', gap: '8px', cursor: isDM ? 'default' : 'pointer' }}
+              onClick={() => !isDM && setShowGroupMembersModal(true)}
+            >
+              {isDM ? <span style={{ color: 'var(--ceo-primary)' }}>@</span> : <Hash size={20} color="var(--ceo-text-muted)" />}
+              {isDM ? employees.find(e => `dm-${e.id}` === selectedChannel)?.name : selectedChannel}
+            </div>
+            <div 
+              style={{ fontSize: '12px', color: 'var(--ceo-text-secondary)', fontWeight: 500, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px', cursor: isDM ? 'default' : 'pointer' }}
+              onClick={() => !isDM && setShowGroupMembersModal(true)}
+            >
+              {isDM ? (
+                (() => {
+                  const dmUser = employees.find(e => `dm-${e.id}` === selectedChannel);
+                  const presence = dmUser ? userPresence[dmUser.name] : null;
+                  if (presence?.online) return <span style={{ color: 'var(--ceo-success)' }}>Online</span>;
+                  if (presence?.last_active) return <span>Last seen at {new Date(presence.last_active + (presence.last_active.endsWith('Z') ? '' : 'Z')).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>;
+                  return <span>Offline</span>;
+                })()
+              ) : (
+                <><Users size={12} /> {currentMembersCount} members (Click to view)</>
+              )}
             </div>
           </div>
-          <div>
-            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: '8px', letterSpacing: '0.5px' }}>👥 Staff Member Channels</span>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {derivedChannels.staff.map(ch => (
-                <div key={ch.id} onClick={() => setSelectedChannel(ch.id)}
-                  style={{ padding: '9px 12px', backgroundColor: selectedChannel === ch.id ? 'rgba(236,72,153,0.08)' : 'transparent', color: selectedChannel === ch.id ? 'var(--accent-pink)' : 'var(--text-primary)', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: selectedChannel === ch.id ? '600' : 'normal', border: selectedChannel === ch.id ? '1px solid rgba(236,72,153,0.2)' : '1px solid transparent', transition: 'all 0.15s' }}>
-                  <MessageSquare size={13} style={{ color: selectedChannel === ch.id ? 'var(--accent-pink)' : 'var(--text-muted)', flexShrink: 0 }} />
-                  {ch.name}
-                </div>
-              ))}
-            </div>
-          </div>
-          {derivedChannels.grievance.length > 0 && (
-            <div>
-              <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: '8px', letterSpacing: '0.5px' }}>🛡️ Support & Grievances</span>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {derivedChannels.grievance.map(ch => (
-                  <div key={ch.id} onClick={() => setSelectedChannel(ch.id)}
-                    style={{ padding: '9px 12px', backgroundColor: selectedChannel === ch.id ? 'rgba(236,72,153,0.08)' : 'transparent', color: selectedChannel === ch.id ? 'var(--accent-pink)' : 'var(--text-primary)', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: selectedChannel === ch.id ? '600' : 'normal', border: selectedChannel === ch.id ? '1px solid rgba(236,72,153,0.2)' : '1px solid transparent', transition: 'all 0.15s' }}>
-                    <MessageSquare size={13} style={{ color: selectedChannel === ch.id ? 'var(--accent-pink)' : 'var(--text-muted)', flexShrink: 0 }} />
-                    {ch.name}
+          
+          <div style={{ display: 'flex', gap: '12px', position: 'relative' }}>
+            {!isDM && (
+              <button onClick={() => setShowGroupMembersModal(true)} className="ceo-btn" style={{ padding: '8px 16px', background: '#F8FAFC', border: '1px solid var(--ceo-border)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Users size={16} color="var(--ceo-primary)" /> Members
+              </button>
+            )}
+            <button onClick={handleStartCall} className="ceo-btn" style={{ padding: '8px 16px', background: '#F8FAFC', border: '1px solid var(--ceo-border)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Video size={16} color="var(--ceo-primary)" /> Video Call
+            </button>
+            {!isDM && (
+              <div style={{ position: 'relative' }}>
+                <button onClick={() => setIsChannelMenuOpen(!isChannelMenuOpen)} className="ceo-btn" style={{ padding: '8px', background: '#F8FAFC', border: '1px solid var(--ceo-border)' }}><MoreVertical size={16} /></button>
+                {isChannelMenuOpen && (
+                  <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', background: '#FFF', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: '1px solid var(--ceo-border)', zIndex: 100, width: '150px', overflow: 'hidden' }}>
+                    <button 
+                      onClick={() => { setEditChannelName(selectedChannel); setIsEditChannelOpen(true); setIsChannelMenuOpen(false); }} 
+                      style={{ width: '100%', padding: '12px 16px', textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}
+                    >Edit Channel Name</button>
+                    <button 
+                      onClick={handleDeleteChannel}
+                      style={{ width: '100%', padding: '12px 16px', textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: 'var(--ceo-danger)', borderTop: '1px solid var(--ceo-divider)' }}
+                    >Delete Channel</button>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {/* Support Tickets Channel */}
-          <div>
-            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: '8px', letterSpacing: '0.5px' }}>🎫 Support Queue</span>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div onClick={() => setSelectedChannel('support-tickets')}
-                style={{ padding: '9px 12px', backgroundColor: selectedChannel === 'support-tickets' ? 'rgba(236,72,153,0.08)' : 'transparent', color: selectedChannel === 'support-tickets' ? 'var(--accent-pink)' : 'var(--text-primary)', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: selectedChannel === 'support-tickets' ? '600' : 'normal', border: selectedChannel === 'support-tickets' ? '1px solid rgba(236,72,153,0.2)' : '1px solid transparent', transition: 'all 0.15s', justifyContent: 'space-between' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <MessageSquare size={13} style={{ color: selectedChannel === 'support-tickets' ? 'var(--accent-pink)' : 'var(--text-muted)', flexShrink: 0 }} />
-                  🎫 Support Tickets
-                </span>
-                {tickets.filter(t => t.status === 'open').length > 0 && (
-                  <span style={{ fontSize: '9px', fontWeight: '700', backgroundColor: '#ef4444', color: '#fff', borderRadius: '10px', padding: '1px 6px' }}>
-                    {tickets.filter(t => t.status === 'open').length}
-                  </span>
                 )}
               </div>
-            </div>
+            )}
           </div>
-          {/* Direct Messages */}
-          <div>
-            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: '8px', letterSpacing: '0.5px', marginTop: '12px' }}>💬 Direct Messages</span>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {(db?.employees || []).filter(e => e.id !== 'hr').map(emp => {
-                const dmId = `dm-${emp.id}`;
-                return (
-                  <div key={dmId} onClick={() => setSelectedChannel(dmId)}
-                    style={{ padding: '6px 12px', backgroundColor: selectedChannel === dmId ? 'rgba(236,72,153,0.08)' : 'transparent', color: selectedChannel === dmId ? 'var(--accent-pink)' : 'var(--text-primary)', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: selectedChannel === dmId ? '600' : 'normal', border: selectedChannel === dmId ? '1px solid rgba(236,72,153,0.2)' : '1px solid transparent', transition: 'all 0.15s' }}>
-                    <div style={{ position: 'relative' }}>
-                      <img src={emp.avatar || `https://ui-avatars.com/api/?name=${emp.name}`} alt={emp.name} style={{ width: '20px', height: '20px', borderRadius: '10px' }} />
+        </div>
+
+        {/* Offline Banner */}
+        {!isOnline && (
+          <div style={{ background: '#FEE2E2', color: '#B91C1C', padding: '8px 24px', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertOctagon size={16} />
+            You are currently offline. Messaging and calls are disabled until network is restored.
+          </div>
+        )}
+
+        {/* Messages Feed */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', background: '#F8FAFC' }}>
+          {(messages[selectedChannel] || []).length === 0 ? (
+            <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--ceo-text-muted)' }}>
+              <MessageSquare size={48} style={{ opacity: 0.2, margin: '0 auto 16px auto' }} />
+              <div style={{ fontSize: '16px', fontWeight: 600 }}>No messages yet</div>
+              <div style={{ fontSize: '13px' }}>Start the conversation!</div>
+            </div>
+          ) : (
+            (messages[selectedChannel] || []).map((msg, idx) => {
+              const isMsgMe = msg.isMe || (msg.sender && (msg.sender.includes('CEO')));
+              const isDeleted = !!msg.deleted_at;
+              
+              let parsedReactions = {};
+              try { parsedReactions = msg.reactions ? JSON.parse(msg.reactions) : {}; } catch(e){}
+              const hasReactions = Object.keys(parsedReactions).length > 0;
+
+              return (
+                <div key={msg.id || idx} style={{ display: 'flex', gap: '16px', flexDirection: isMsgMe ? 'row-reverse' : 'row', position: 'relative' }} className="message-row"
+                     onDoubleClick={(e) => !isDeleted && handleMessageDoubleClick(e, msg)}
+                     onContextMenu={(e) => { e.preventDefault(); if(!isDeleted) handleMessageDoubleClick(e, msg); }}
+                >
+                  {(() => {
+                    const senderEmp = employees.find(e => e.name === msg.sender);
+                    const senderAvatar = senderEmp?.photo ? `http://localhost:8000${senderEmp.photo}` : (msg.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender)}`);
+                    return <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={senderAvatar} alt={msg.sender} style={{ width: '36px', height: '36px', borderRadius: '18px', border: '1px solid var(--ceo-border)', flexShrink: 0, objectFit: 'cover' }}  />;
+                  })()}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMsgMe ? 'flex-end' : 'flex-start', maxWidth: '70%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexDirection: isMsgMe ? 'row-reverse' : 'row' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ceo-text-primary)' }}>{isMsgMe ? 'You' : msg.sender}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--ceo-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        {msg.timestamp || msg.time} {msg.is_edited && !isDeleted && '(Edited)'}
+                        {isMsgMe && !isDeleted && (() => {
+                          let isRead = false;
+                          let isDelivered = false;
+                          const isCorporateChannel = chatChannels.some(c => c.id === selectedChannel);
+                          try {
+                            const seenArr = msg.seen_by ? JSON.parse(msg.seen_by) : [];
+                            const deliveredArr = msg.delivered_to ? JSON.parse(msg.delivered_to) : [];
+                            isRead = isCorporateChannel ? seenArr.length >= currentMembersCount - 1 : seenArr.length > 0;
+                            isDelivered = isCorporateChannel ? deliveredArr.length >= currentMembersCount - 1 : deliveredArr.length > 0;
+                          } catch(e) {}
+                          if (isRead) return <CheckCheck size={14} color="#3B82F6" />;
+                          if (isDelivered) return <CheckCheck size={14} color="#94A3B8" />;
+                          return <Check size={14} color="#94A3B8" />;
+                        })()}
+                      </span>
                     </div>
-                    {emp.name}
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexDirection: isMsgMe ? 'row-reverse' : 'row' }}>
+                      <div style={{ 
+                        background: isDeleted ? '#F1F5F9' : (isMsgMe ? 'var(--ceo-primary)' : '#FFF'), 
+                        color: isDeleted ? 'var(--ceo-text-muted)' : (isMsgMe ? '#FFF' : 'var(--ceo-text-primary)'),
+                        padding: '12px 16px', borderRadius: '12px', border: (isMsgMe && !isDeleted) ? 'none' : '1px solid var(--ceo-border)',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)', fontSize: '14px', lineHeight: '1.5', fontStyle: isDeleted ? 'italic' : 'normal'
+                      }}>
+                        {isDeleted ? (
+                          <span>This message was deleted.</span>
+                        ) : editingMessageId === msg.id ? (
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <input 
+                              type="text" autoFocus 
+                              value={editingText} onChange={e=>setEditingText(e.target.value)}
+                              onKeyDown={e => { if(e.key === 'Enter') submitEditMessage(msg.id, editingText); if(e.key === 'Escape') setEditingMessageId(null); }}
+                              style={{ border: 'none', background: 'rgba(255,255,255,0.2)', color: isMsgMe ? '#FFF' : '#000', outline: 'none', minWidth: '200px' }} 
+                            />
+                            <button onClick={()=>submitEditMessage(msg.id, editingText)} style={{ background: 'transparent', border: 'none', color: isMsgMe ? '#FFF' : 'var(--ceo-primary)', cursor: 'pointer', fontWeight: 'bold' }}>Save</button>
+                            <button onClick={()=>setEditingMessageId(null)} style={{ background: 'transparent', border: 'none', color: isMsgMe ? 'rgba(255,255,255,0.7)' : 'var(--ceo-text-muted)', cursor: 'pointer' }}>Cancel</button>
+                          </div>
+                        ) : msg.isCallStatus ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: isMsgMe ? '#FFF' : 'var(--ceo-primary)', fontWeight: '600' }}>
+                            <Video size={16} />
+                            <span>{msg.text}</span>
+                            <button 
+                              type="button" 
+                              style={{ marginLeft: '12px', padding: '6px 16px', borderRadius: '6px', backgroundColor: isMsgMe ? '#FFF' : 'var(--ceo-primary)', color: isMsgMe ? 'var(--ceo-primary)' : 'white', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}
+                              onClick={() => {
+                                setHuddlePeer({ channelId: selectedChannel, roomName: selectedChannel, name: selectedChannel, displayName: 'CEO (CEO)' });
+                              }}
+                            >
+                              Join
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {msg.attachment_url && (
+                              <div style={{ marginBottom: '4px' }}>
+                                {msg.attachment_type === 'image' ? (
+                                  <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={`http://localhost:8000${msg.attachment_url}`} alt="attachment" style={{ maxWidth: '250px', maxHeight: '250px', borderRadius: '8px', objectFit: 'cover', cursor: 'pointer' }} onClick={() => setLightboxMedia({ url: `http://localhost:8000${msg.attachment_url}`, type: msg.attachment_type })} />
+                                ) : msg.attachment_type === 'video' ? (
+                                  <video src={`http://localhost:8000${msg.attachment_url}`} style={{ maxWidth: '250px', maxHeight: '250px', borderRadius: '8px', cursor: 'pointer' }} controls={false} onClick={() => setLightboxMedia({ url: `http://localhost:8000${msg.attachment_url}`, type: msg.attachment_type })} />
+                                ) : (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: isMsgMe ? 'rgba(255,255,255,0.2)' : '#F1F5F9', borderRadius: '8px', textDecoration: 'none', color: 'inherit' }}>
+                                    <Paperclip size={16} />
+                                    <a href={`http://localhost:8000${msg.attachment_url}`} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }} onClick={(e) => e.stopPropagation()}>Download File</a>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {msg.text && <span>{msg.text}</span>}
+                          </div>
+                        )}
+                      </div>
+
+                      </div>
+                    
+                    {/* Reactions Strip */}
+                    {hasReactions && !isDeleted && (
+                      <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexDirection: isMsgMe ? 'row-reverse' : 'row' }}>
+                        {Object.entries(parsedReactions).map(([emoji, users]) => (
+                          <div key={emoji} onClick={()=>handleReactMessage(msg.id, msg.reactions, emoji)} style={{ background: '#F1F5F9', border: '1px solid var(--ceo-border)', borderRadius: '12px', padding: '2px 6px', fontSize: '12px', cursor: 'pointer', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                            <span>{emoji}</span>
+                            <span style={{ fontWeight: 600, color: 'var(--ceo-text-secondary)' }}>{users.length}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+          <div ref={chatEndRef} />
+        </div>
+
+        {/* Message Input */}
+        <div style={{ padding: '20px 24px', background: '#FFF', borderTop: '1px solid var(--ceo-border)', position: 'relative' }}>
+          
+          {/* Attachment Preview */}
+          {attachmentFile && (
+            <div style={{ position: 'absolute', bottom: '100%', left: '24px', background: '#FFF', border: '1px solid var(--ceo-border)', padding: '8px', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 -4px 6px -1px rgba(0,0,0,0.05)' }}>
+              {attachmentPreview === 'document' ? <div style={{width:'40px', height:'40px', background:'#F1F5F9', borderRadius:'4px', display:'flex', alignItems:'center', justifyContent:'center'}}><Paperclip size={20}/></div> : <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={attachmentPreview} alt="preview" style={{width:'40px', height:'40px', objectFit:'cover', borderRadius:'4px'}}  />}
+              <div style={{fontSize:'12px', maxWidth:'200px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{attachmentFile.name}</div>
+              <button onClick={clearAttachment} style={{background:'transparent', border:'none', cursor:'pointer'}}><X size={14} color="var(--ceo-danger)"/></button>
+            </div>
+          )}
+
+          <form onSubmit={handleSend} style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#F8FAFC', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--ceo-border)' }}>
+            <label style={{ cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center' }}>
+              <input type="file" style={{ display: 'none' }} onChange={handleFileUpload} />
+              <Paperclip size={18} color="var(--ceo-text-muted)" />
+            </label>
+            <input 
+              type="text" 
+              value={inputVal} 
+              onChange={e => setInputVal(e.target.value)} 
+              placeholder={`Message ${selectedChannel.startsWith('dm-') ? '@' + employees.find(e => `dm-${e.id}` === selectedChannel)?.name : '#' + selectedChannel}`}
+              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: '14px', padding: '8px 0', color: 'var(--ceo-text-primary)' }} 
+              disabled={isUploading}
+            />
+            <button type="button" onClick={() => setShowChatEmojiPicker(!showChatEmojiPicker)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '8px' }}><Smile size={18} color="var(--ceo-text-muted)" /></button>
+            
+            {showChatEmojiPicker && (
+              <div style={{ position: 'absolute', bottom: '100%', right: '80px', marginBottom: '10px', zIndex: 3001 }}>
+                <EmojiPicker 
+                  onEmojiClick={(emojiData) => {
+                    setInputVal(prev => prev + emojiData.emoji);
+                    setShowChatEmojiPicker(false);
+                  }} 
+                />
+              </div>
+            )}
+
+            <button type="submit" disabled={(!inputVal.trim() && !attachmentFile) || isUploading} style={{ background: (inputVal.trim() || attachmentFile) && !isUploading ? 'var(--ceo-primary)' : '#E2E8F0', border: 'none', borderRadius: '8px', padding: '8px 16px', cursor: (inputVal.trim() || attachmentFile) && !isUploading ? 'pointer' : 'not-allowed', color: '#FFF', fontWeight: 600, transition: 'all 0.2s' }}>
+              {isUploading ? 'Sending...' : 'Send'}
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {/* === FLOATING CALL OVERLAY / PIP === */}
+      {isInCall && !isCallExpanded && (
+        <div 
+          onMouseDown={handleCallMouseDown}
+          style={{ 
+            position: 'absolute', top: 20 + callPosition.y, right: 20 - callPosition.x, zIndex: 1000,
+            width: '380px', background: '#0F172A', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', 
+            border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden', display: 'flex', flexDirection: 'column',
+            cursor: isDraggingCall ? 'grabbing' : 'grab', transition: isDraggingCall ? 'none' : 'box-shadow 0.2s'
+          }}
+        >
+          {/* Call Header */}
+          <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '4px', background: 'var(--ceo-danger)', animation: 'pulse 2s infinite' }}></div>
+              <span style={{ color: '#FFF', fontSize: '12px', fontWeight: 700 }}>{formatDuration(callDuration)}</span>
+            </div>
+            <div style={{ color: '#FFF', fontSize: '13px', fontWeight: 700 }}>Meeting: {selectedChannel}</div>
+            <button onClick={() => setIsCallExpanded(true)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
+              <Maximize size={16} color="#94A3B8" />
+            </button>
+          </div>
+
+          {/* Video Area */}
+          <div style={{ position: 'relative', width: '100%', height: '220px', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {/* Screen Share takes priority if active */}
+            {callScreenShare ? (
+              <video ref={screenVideoRef} style={{ width: '100%', height: '100%', objectFit: 'contain' }} muted />
+            ) : (
+              callScreenCamera ? (
+                <video ref={callCameraVideoRef} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} muted />
+              ) : (
+                <div style={{ width: '80px', height: '80px', borderRadius: '40px', background: 'var(--ceo-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', color: '#FFF', fontWeight: 700 }}>SJ</div>
+              )
+            )}
+
+            {/* Small floating PIP of yourself if screen sharing */}
+            {callScreenShare && callScreenCamera && (
+               <div style={{ position: 'absolute', bottom: '12px', right: '12px', width: '80px', height: '60px', borderRadius: '8px', overflow: 'hidden', border: '2px solid #FFF', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
+                 <video ref={callCameraVideoRef} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} muted />
+               </div>
+            )}
+
+            {/* Mic muted indicator on video */}
+            {!callScreenMic && (
+              <div style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(0,0,0,0.6)', padding: '6px', borderRadius: '20px' }}>
+                <MicOff size={14} color="#EF4444" />
+              </div>
+            )}
+          </div>
+
+          {/* Call Controls */}
+          <div style={{ padding: '16px', display: 'flex', justifyContent: 'center', gap: '16px', background: '#1E293B' }}>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setCallScreenMic(!callScreenMic); }} 
+              style={{ width: '44px', height: '44px', borderRadius: '22px', border: 'none', cursor: 'pointer', background: callScreenMic ? '#334155' : 'var(--ceo-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+            >
+              {callScreenMic ? <Mic size={20} color="#FFF" /> : <MicOff size={20} color="#FFF" />}
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setCallScreenCamera(!callScreenCamera); }} 
+              style={{ width: '44px', height: '44px', borderRadius: '22px', border: 'none', cursor: 'pointer', background: callScreenCamera ? '#334155' : 'var(--ceo-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+            >
+              {callScreenCamera ? <Video size={20} color="#FFF" /> : <VideoOff size={20} color="#FFF" />}
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); toggleScreenShare(); }} 
+              style={{ width: '44px', height: '44px', borderRadius: '22px', border: 'none', cursor: 'pointer', background: callScreenShare ? 'var(--ceo-success)' : '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+            >
+              <Monitor size={20} color="#FFF" />
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleEndCall(); }} 
+              style={{ width: '56px', height: '44px', borderRadius: '22px', border: 'none', cursor: 'pointer', background: 'var(--ceo-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+            >
+              <PhoneOff size={20} color="#FFF" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* === FULL SCREEN CALL MODE === */}
+      {isInCall && isCallExpanded && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#0F172A', zIndex: 3000, display: 'flex', flexDirection: 'column' }}>
+          
+          {/* Header */}
+          <div style={{ padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '10px', height: '10px', borderRadius: '5px', background: 'var(--ceo-danger)', animation: 'pulse 2s infinite' }}></div>
+              <span style={{ color: '#FFF', fontSize: '14px', fontWeight: 700 }}>{formatDuration(callDuration)}</span>
+              <div style={{ width: '1px', height: '16px', background: 'rgba(255,255,255,0.2)' }}></div>
+              <span style={{ color: '#E2E8F0', fontSize: '16px', fontWeight: 600 }}>Meeting: {selectedChannel}</span>
+            </div>
+            <button onClick={() => setIsCallExpanded(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', color: '#94A3B8' }}>
+              <ChevronDown size={20} /> <span style={{ fontWeight: 600 }}>Minimize</span>
+            </button>
+          </div>
+
+          {/* Main Content Area (Video Grid + Sidebar) */}
+          <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+            
+            {/* Video Grid */}
+            <div style={{ flex: 1, padding: '24px', display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'center', alignItems: 'center', alignContent: 'center', overflowY: 'auto' }}>
+              {activeCallParticipants.map(id => {
+                const emp = employees.find(e => e.id === id);
+                if (!emp) return null;
+                
+                const isMe = emp.isMe;
+                return (
+                  <div key={id} style={{ 
+                    position: 'relative', width: activeCallParticipants.length > 2 ? '45%' : '80%', height: activeCallParticipants.length > 2 ? '45%' : '60%', 
+                    background: '#1E293B', borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)'
+                  }}>
+                    {isMe ? (
+                      <>
+                        {callScreenShare ? (
+                           <video ref={screenVideoRef} style={{ width: '100%', height: '100%', objectFit: 'contain' }} muted />
+                        ) : (
+                          callScreenCamera ? (
+                            <video ref={callCameraVideoRef} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} muted />
+                          ) : (
+                            <div style={{ width: '120px', height: '120px', borderRadius: '60px', background: 'var(--ceo-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '40px', color: '#FFF', fontWeight: 700 }}>SJ</div>
+                          )
+                        )}
+                        {!callScreenMic && (
+                          <div style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(0,0,0,0.6)', padding: '8px', borderRadius: '20px' }}>
+                            <MicOff size={16} color="#EF4444" />
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }}  />
+                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 40%)' }}></div>
+                      </>
+                    )}
+                    
+                    {/* Participant Name Tag */}
+                    <div style={{ position: 'absolute', bottom: '16px', left: '16px', background: 'rgba(0,0,0,0.6)', padding: '6px 12px', borderRadius: '8px', color: '#FFF', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {emp.name} {isMe && '(You)'}
+                      {!isMe && <Mic size={14} color="#10B981" />} {/* Fake active mic for others */}
+                    </div>
                   </div>
                 );
               })}
             </div>
+
+            {/* Participants Sidebar */}
+            <div style={{ width: '320px', background: '#1E293B', borderLeft: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                <h3 style={{ color: '#FFF', fontSize: '16px', fontWeight: 700, margin: 0 }}>Participants ({currentMembersCount})</h3>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+                
+                {/* Active in Call */}
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#94A3B8', marginBottom: '12px', letterSpacing: '0.5px' }}>IN CALL ({activeCallParticipants.length})</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+                  {activeCallParticipants.map(id => {
+                    const emp = employees.find(e => e.id === id);
+                    if(!emp) return null;
+                    return (
+                      <div key={id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '36px', height: '36px', borderRadius: '18px' }}  />
+                          <div style={{ color: '#F8FAFC', fontSize: '14px', fontWeight: 600 }}>{emp.name} {emp.isMe && '(You)'}</div>
+                        </div>
+                        {emp.isMe ? (callScreenMic ? <Mic size={16} color="#10B981" /> : <MicOff size={16} color="#EF4444" />) : <Mic size={16} color="#10B981" />}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Offline / Not Joined */}
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#94A3B8', marginBottom: '12px', letterSpacing: '0.5px' }}>OFFLINE / NOT JOINED ({offlineCallParticipants.length})</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {offlineCallParticipants.map(id => {
+                    const emp = employees.find(e => e.id === id);
+                    if(!emp) return null;
+                    return (
+                      <div key={id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', opacity: 0.5 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '36px', height: '36px', borderRadius: '18px', filter: 'grayscale(100%)' }}  />
+                          <div style={{ color: '#F8FAFC', fontSize: '14px', fontWeight: 600 }}>{emp.name}</div>
+                        </div>
+                        <div style={{ color: '#94A3B8', fontSize: '12px', fontWeight: 600 }}>Offline</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+              </div>
+            </div>
+
           </div>
 
-          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', letterSpacing: '0.5px' }}>🎥 Actions</span>
-            <div
-              role="button"
-              onClick={() => setShowCreateModal(true)}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                background: 'var(--accent-pink)',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                fontSize: '12.5px',
-                color: '#fff',
-                border: 'none',
-                fontWeight: 'bold',
-                transition: 'opacity 0.2s'
-              }}
-              onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
-              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+          {/* Bottom Controls */}
+          <div style={{ padding: '24px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', background: '#0F172A', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setCallScreenMic(!callScreenMic); }} 
+              style={{ width: '56px', height: '56px', borderRadius: '28px', border: 'none', cursor: 'pointer', background: callScreenMic ? '#334155' : 'var(--ceo-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
             >
-              ➕ Create Channel
-            </div>
-            <div style={{ padding: '10px 12px', background: 'rgba(236,72,153,0.05)', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', color: 'var(--accent-pink)', border: '1px dashed rgba(236,72,153,0.3)' }} onClick={() => setHuddlePeer({ name: 'HR Interview', roomName: 'Screening Huddle', channelId: 'hr-interview-rtc' })}>
-              <Video size={13} /> Launch Interview RTC
-            </div>
-          </div>
-        </div>
-
-        {/* ── Right: Chat window OR Support Tickets panel ─────────────────────── */}
-        <div className="card flex-2" style={{ margin: 0, display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px', gap: 0 }}>
-
-          {/* Support Tickets Panel */}
-          {selectedChannel === 'support-tickets' ? (
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-              <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px' }}>
-                <strong style={{ fontSize: '15px' }}>🎫 Employee Support Tickets</strong>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '8px' }}>
-                  {tickets.filter(t => t.status === 'open').length} open
-                </span>
-              </div>
-              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {tickets.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', fontSize: '13px', fontStyle: 'italic' }}>
-                    No support tickets yet. Employee submissions will appear here.
-                  </div>
-                ) : (
-                  tickets.map((tkt) => (
-                    <div key={tkt.id} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: '700', fontFamily: 'monospace', color: 'var(--text-primary)' }}>{tkt.id}</span>
-                          <span style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase',
-                            color: tkt.priority === 'High' ? '#ef4444' : tkt.priority === 'Medium' ? '#f59e0b' : 'var(--text-muted)' }}>
-                            {tkt.priority}
-                          </span>
-                          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{tkt.category}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 8px', borderRadius: '4px',
-                            backgroundColor: tkt.status === 'open' ? 'rgba(59,130,246,0.1)' : 'rgba(16,185,129,0.1)',
-                            color: tkt.status === 'open' ? '#3b82f6' : '#10b981' }}>
-                            {tkt.status}
-                          </span>
-                          {tkt.status === 'open' && (
-                            <button
-                              type="button"
-                              onClick={() => resolveTicket(tkt.id)}
-                              style={{ fontSize: '10px', fontWeight: '700', padding: '3px 10px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--accent-pink)', color: '#fff', cursor: 'pointer' }}
-                            >
-                              ✓ Mark Resolved
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>{tkt.description}</p>
-                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'flex', gap: '12px' }}>
-                        <span>From: <strong>{tkt.employee_name || 'Employee'}</strong></span>
-                        <span>Logged: {new Date(tkt.created_at).toLocaleString()}</span>
-                        {tkt.status === 'Resolved' && <span>Resolved</span>}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          ) : (
-            <>
-          <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <strong style={{ fontSize: '15px' }}>{currentChannelName}</strong>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '8px' }}>({currentMembersCount} members)</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {selectedChannel !== 'support-tickets' && (
-                <>
-                  {/* Manage Members Button */}
-                  <button
-                    type="button"
-                    onClick={() => setShowManageMembersModal(true)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '5px 10px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border-color)',
-                      backgroundColor: 'var(--bg-tertiary)',
-                      color: 'var(--text-secondary)',
-                      fontSize: '11px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent-pink)'}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
-                  >
-                    ⚙️ Manage Members
-                  </button>
-
-                  {/* Start Huddle Button */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setHuddlePeer({
-                        name: currentChannelName || 'HR / Management',
-                        roomName: currentChannelName || 'HR Portal Conference',
-                        channelId: selectedChannel
-                      });
-                    }}
-                    style={{
-                      backgroundColor: 'rgba(236,72,153,0.08)',
-                      border: 'none',
-                      borderRadius: '6px',
-                      padding: '5px 12px',
-                      color: 'var(--accent-pink)',
-                      fontSize: '11px',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      transition: 'background-color 0.2s ease'
-                    }}
-                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(236,72,153,0.15)'}
-                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(236,72,153,0.08)'}
-                  >
-                    <Video size={12} />
-                    <span>Start Huddle</span>
-                  </button>
-                </>
-              )}
-              <span style={{ fontSize: '11px', color: 'var(--accent-pink)', fontWeight: 'bold', textTransform: 'uppercase', backgroundColor: 'rgba(236,72,153,0.08)', padding: '2px 8px', borderRadius: '4px' }}>
-                {currentChannel?.type === 'staff' ? 'Staff Room' : currentChannel?.type === 'management' ? 'Management Room' : 'Grievance Room'}
-              </span>
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div className="custom-scroll" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px', marginBottom: '12px' }}>
-            {visibleMessages.map(m => {
-              const isOwn    = m.sender === 'You';
-              const isHover  = hoveredMsgId === m.id;
-              const menuOpen = openMenuId   === m.id;
-              const isEditing = editingMsgId === m.id;
-
-              return (
-                <div
-                  key={m.id}
-                  style={{ display: 'flex', flexDirection: 'column', alignSelf: isOwn ? 'flex-end' : 'flex-start', maxWidth: '72%', position: 'relative' }}
-                  onMouseEnter={() => setHoveredMsgId(m.id)}
-                  onMouseLeave={() => { setHoveredMsgId(null); }}
-                >
-                  {/* Sender name row */}
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textAlign: isOwn ? 'right' : 'left', marginBottom: '3px', display: 'flex', gap: '5px', justifyContent: isOwn ? 'flex-end' : 'flex-start', alignItems: 'center' }}>
-                    {m.saved && <Bookmark size={9} style={{ color: '#fbbf24', fill: '#fbbf24' }} />}
-                    {m.isPrivate && <Lock size={9} style={{ color: '#a78bfa' }} />}
-                    {m.sender}
-                    {m.edited && <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontStyle: 'italic' }}>(edited)</span>}
-                    {m.forwarded && <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>↪ forwarded</span>}
-                    {m.isPrivate && <span style={{ fontSize: '9px', color: '#a78bfa', fontWeight: 'bold', backgroundColor: 'rgba(167,139,250,0.1)', padding: '1px 4px', borderRadius: '3px' }}>PRIVATE</span>}
-                    {m.time && <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>{m.time}</span>}
-
-                    {/* ⋮ context menu trigger */}
-                    {(isHover || menuOpen) && (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); setOpenMenuId(menuOpen ? null : m.id); }}
-                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '1px 3px', borderRadius: '4px', display: 'flex', alignItems: 'center', transition: 'all 0.1s', backgroundColor: menuOpen ? 'rgba(236,72,153,0.1)' : 'transparent' }}
-                      >
-                        <MoreVertical size={13} />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Reply preview */}
-                  {m.replyTo && (
-                    <div style={{ backgroundColor: 'rgba(255,255,255,0.04)', borderLeft: '3px solid rgba(236,72,153,0.5)', padding: '4px 8px', borderRadius: '4px', marginBottom: '3px', fontSize: '11px', color: 'var(--text-muted)' }}>
-                      <strong style={{ color: 'var(--accent-pink)', fontSize: '10px' }}>{m.replyTo.sender}</strong>
-                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>{m.replyTo.text}</div>
-                    </div>
-                  )}
-
-                  {/* Bubble */}
-                  {isEditing ? (
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <input
-                        autoFocus
-                        value={editingText}
-                        onChange={e => setEditingText(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') handleEditSave(m.id); if (e.key === 'Escape') setEditingMsgId(null); }}
-                        style={{ flex: 1, backgroundColor: 'var(--bg-primary)', border: '1px solid var(--accent-pink)', color: '#fff', padding: '8px 10px', borderRadius: '8px', outline: 'none', fontSize: '13px' }}
-                      />
-                      <button type="button" onClick={() => handleEditSave(m.id)} style={{ background: 'var(--accent-pink)', border: 'none', borderRadius: '6px', padding: '6px', cursor: 'pointer', color: '#fff', display: 'flex' }}><Check size={13} /></button>
-                      <button type="button" onClick={() => setEditingMsgId(null)} style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '6px', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}><X size={13} /></button>
-                    </div>
-                  ) : (
-                    <div style={{ padding: '9px 13px', backgroundColor: isOwn ? (m.isPrivate ? '#7c3aed' : 'var(--accent-pink)') : 'var(--bg-tertiary)', borderRadius: isOwn ? '12px 12px 3px 12px' : '12px 12px 12px 3px', color: isOwn ? '#fff' : 'var(--text-primary)', fontSize: '13px', border: isOwn ? 'none' : '1px solid var(--border-color)', lineHeight: '1.5', boxShadow: m.saved ? '0 0 0 1.5px #fbbf24' : 'none' }}>
-                      {m.mention && <span style={{ color: m.isPrivate ? '#c4b5fd' : '#fde68a', fontWeight: 'bold', marginRight: '4px' }}>@{m.mention}</span>}
-                      {m.text.replace(`@${m.mention} `, '')}
-                    </div>
-                  )}
-
-                  {/* Floating context menu */}
-                  {menuOpen && (
-                    <div
-                      ref={menuRef}
-                      style={{ position: 'absolute', [isOwn ? 'right' : 'left']: 0, top: '100%', marginTop: '4px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '10px', boxShadow: 'var(--shadow-lg)', zIndex: 600, minWidth: '160px', overflow: 'hidden', animation: 'fadeIn 0.12s ease' }}
-                      onClick={e => e.stopPropagation()}
-                    >
-                      <MenuItem icon={<Reply size={13} />}   label="Reply"           onClick={() => handleReply(m)} />
-                      {isOwn && <MenuItem icon={<Edit2 size={13} />} label="Edit"    onClick={() => handleEdit(m)} />}
-                      <MenuItem icon={<Forward size={13} />}  label="Forward"         onClick={() => handleForward(m)} />
-                      <MenuItem icon={<Bookmark size={13} />} label={m.saved ? 'Unsave' : 'Save'} onClick={() => handleSave(m.id, m.saved)} />
-                      {isOwn && <MenuItem icon={<Trash2 size={13} />} label="Delete" onClick={() => handleDelete(m.id)} danger />}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            {visibleMessages.length === 0 && (
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '13px', fontStyle: 'italic' }}>
-                No messages yet. Start collaborating below.
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* ── Compose Area ──────────────────────────────────────────────────── */}
-          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', position: 'relative' }}>
-
-            {/* @ Mention dropdown */}
-            {showMentionDropdown && filteredMembers.length > 0 && (
-              <div style={{ position: 'absolute', bottom: '100%', left: 0, right: 0, backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '10px', marginBottom: '6px', boxShadow: 'var(--shadow-lg)', zIndex: 500, overflow: 'hidden' }}>
-                <div style={{ padding: '6px 12px', fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-tertiary)' }}>📡 Mention a Channel Member</div>
-                {filteredMembers.map(member => (
-                  <div key={member.id} onClick={() => handleSelectMention(member)}
-                    style={{ padding: '10px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--border-color)', transition: 'background 0.1s' }}
-                    onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(236,72,153,0.06)'}
-                    onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(236,72,153,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold', color: 'var(--accent-pink)', flexShrink: 0 }}>{member.name.charAt(0)}</div>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>{member.name}</div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{member.role}</div>
-                    </div>
-                    <div style={{ marginLeft: 'auto', fontSize: '10px', color: 'var(--accent-pink)', fontWeight: 'bold' }}>@mention</div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Reply preview bar */}
-            {replyTo && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', backgroundColor: 'rgba(255,255,255,0.03)', borderLeft: '3px solid var(--accent-pink)', padding: '6px 10px', borderRadius: '6px' }}>
-                <Reply size={12} style={{ color: 'var(--accent-pink)', flexShrink: 0 }} />
-                <div style={{ flex: 1, fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  <strong style={{ color: 'var(--accent-pink)' }}>{replyTo.sender}:</strong> {replyTo.text}
-                </div>
-                <button type="button" onClick={() => setReplyTo(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }}><X size={12} /></button>
-              </div>
-            )}
-
-            {/* Mentioned badge + Private toggle */}
-            {mentionedMember && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'rgba(236,72,153,0.1)', border: '1px solid rgba(236,72,153,0.25)', borderRadius: '6px', padding: '4px 10px', fontSize: '12px', color: 'var(--accent-pink)', fontWeight: '600' }}>
-                  <span>@{mentionedMember.name}</span>
-                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 'normal' }}>· {mentionedMember.role}</span>
-                  <button type="button" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '12px', padding: '0 0 0 4px', lineHeight: 1 }} onClick={() => { setMentionedMember(null); setIsPrivate(false); setNewMsg(newMsg.replace(`@${mentionedMember.name} `, '')); }}>✕</button>
-                </div>
-                <button type="button" onClick={() => setIsPrivate(p => !p)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '6px', border: isPrivate ? '1px solid #7c3aed' : '1px solid var(--border-color)', backgroundColor: isPrivate ? 'rgba(124,58,237,0.12)' : 'transparent', color: isPrivate ? '#a78bfa' : 'var(--text-muted)', fontSize: '11px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }}>
-                  {isPrivate ? <Lock size={11} /> : <Eye size={11} />}
-                  {isPrivate ? 'Private (only @mention sees this)' : 'Public (group can see)'}
-                </button>
-              </div>
-            )}
-
-            {/* Input + Send */}
-            <form onSubmit={handleSend} style={{ display: 'flex', gap: '8px' }}>
-              <input
-                ref={inputRef}
-                type="text"
-                placeholder={isStaffChannel ? 'Write message... (type @ to mention someone)' : 'Write message...'}
-                value={newMsg}
-                onChange={handleInputChange}
-                style={{ flex: 1, backgroundColor: 'var(--bg-primary)', border: `1px solid ${isPrivate ? '#7c3aed' : 'var(--border-color)'}`, color: '#fff', padding: '10px 13px', borderRadius: '8px', outline: 'none', fontSize: '13px', transition: 'border-color 0.2s' }}
-              />
-              <button type="submit" style={{ backgroundColor: isPrivate ? '#7c3aed' : 'var(--accent-pink)', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}>
-                {isPrivate ? <Lock size={14} /> : <Send size={14} />}
-              </button>
-            </form>
-          </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* ── Forward Modal ─────────────────────────────────────────────────────── */}
-      {forwardMsg && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
-          <div style={{ width: '420px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderLeft: '4px solid var(--accent-pink)', padding: '24px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-              <h3 style={{ margin: 0, border: 'none', padding: 0, color: 'var(--accent-pink)', display: 'flex', alignItems: 'center', gap: '8px' }}><Forward size={16} /> Forward Message</h3>
-              <button type="button" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} onClick={() => setForwardMsg(null)}><X size={16} /></button>
-            </div>
-            <div style={{ backgroundColor: 'var(--bg-tertiary)', borderLeft: '3px solid var(--border-color)', padding: '10px 12px', borderRadius: '6px', fontSize: '12px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-              "{forwardMsg.text}"
-            </div>
-            <div>
-              <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Forward to channel</label>
-              <select value={forwardTarget} onChange={e => setForwardTarget(e.target.value)}
-                style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }}>
-                {allChannels.filter(c => c.id !== selectedChannel).map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
-              <button type="button" style={{ background: 'none', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }} onClick={() => setForwardMsg(null)}>Cancel</button>
-              <button type="button" style={{ backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }} onClick={handleForwardConfirm}>Forward Now</button>
-            </div>
+              {callScreenMic ? <Mic size={24} color="#FFF" /> : <MicOff size={24} color="#FFF" />}
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setCallScreenCamera(!callScreenCamera); }} 
+              style={{ width: '56px', height: '56px', borderRadius: '28px', border: 'none', cursor: 'pointer', background: callScreenCamera ? '#334155' : 'var(--ceo-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+            >
+              {callScreenCamera ? <Video size={24} color="#FFF" /> : <VideoOff size={24} color="#FFF" />}
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); toggleScreenShare(); }} 
+              style={{ width: '56px', height: '56px', borderRadius: '28px', border: 'none', cursor: 'pointer', background: callScreenShare ? 'var(--ceo-success)' : '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+            >
+              <Monitor size={24} color="#FFF" />
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleEndCall(); }} 
+              style={{ width: '80px', height: '56px', borderRadius: '28px', border: 'none', cursor: 'pointer', background: 'var(--ceo-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+            >
+              <PhoneOff size={24} color="#FFF" />
+            </button>
           </div>
         </div>
       )}
 
-      {/* ── Create Channel Modal ──────────────────────────────────────────────── */}
-      {showCreateModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
-          <div style={{ width: '480px', maxHeight: '90vh', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderLeft: '4px solid var(--accent-pink)', padding: '24px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-              <h3 style={{ margin: 0, color: 'var(--accent-pink)', display: 'flex', alignItems: 'center', gap: '8px' }}>➕ Create Corporate Channel</h3>
-              <button type="button" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} onClick={() => setShowCreateModal(false)}><X size={16} /></button>
+      {/* === MODALS === */}
+      {/* Create Channel Modal */}
+      {isCreateChannelOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+          <div style={{ background: '#FFF', width: '400px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <div style={{ padding: '20px', borderBottom: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--ceo-text-primary)' }}>Create New Channel</h3>
+              <button onClick={() => setIsCreateChannelOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={18} color="var(--ceo-text-muted)" /></button>
             </div>
-            
-            <form onSubmit={handleCreateChannel} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Channel Name</label>
-                <input
+            <form onSubmit={handleCreateChannel} style={{ padding: '20px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>CHANNEL NAME</label>
+              <div style={{ display: 'flex', alignItems: 'center', background: '#F8FAFC', border: '1px solid var(--ceo-border)', borderRadius: '8px', padding: '0 12px' }}>
+                <Hash size={16} color="var(--ceo-text-muted)" />
+                <input 
+                  autoFocus
                   required
-                  type="text"
-                  placeholder="e.g. #design-scrum"
                   value={newChannelName}
-                  onChange={e => setNewChannelName(e.target.value)}
-                  style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }}
+                  onChange={(e) => setNewChannelName(e.target.value)}
+                  placeholder="e.g. marketing-campaign" 
+                  style={{ width: '100%', border: 'none', background: 'transparent', padding: '12px', fontSize: '14px', outline: 'none' }} 
                 />
               </div>
-
-              <div>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Channel Description / Label</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Design & UX alignment room"
-                  value={newChannelLabel}
-                  onChange={e => setNewChannelLabel(e.target.value)}
-                  style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Channel Type</label>
-                <select
-                  value={newChannelType}
-                  onChange={e => setNewChannelType(e.target.value)}
-                  style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }}
-                >
-                  <option value="staff">Staff Room (General corporate communications)</option>
-                  <option value="management">Management Room (Restricted forums)</option>
-                  <option value="grievance">Grievance Room (Confidential/HR Support)</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Select Roster Members</label>
-                <div style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  
-                  {/* CEO option */}
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', cursor: 'pointer', padding: '4px', borderRadius: '4px' }} className="member-select-row">
-                    <input
-                      type="checkbox"
-                      checked={selectedRosterMembers.includes('ceo')}
-                      onChange={(e) => {
-                        if (e.target.checked) setSelectedRosterMembers(prev => [...prev, 'ceo']);
-                        else setSelectedRosterMembers(prev => prev.filter(id => id !== 'ceo'));
-                      }}
-                      style={{ cursor: 'pointer' }}
-                    />
-                    <div>
-                      <strong>John Doe</strong> <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>(CEO)</span>
-                    </div>
-                  </label>
-
-                  {/* HR option */}
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', cursor: 'pointer', padding: '4px', borderRadius: '4px' }} className="member-select-row">
-                    <input
-                      type="checkbox"
-                      checked={selectedRosterMembers.includes('hr')}
-                      onChange={(e) => {
-                        if (e.target.checked) setSelectedRosterMembers(prev => [...prev, 'hr']);
-                        else setSelectedRosterMembers(prev => prev.filter(id => id !== 'hr'));
-                      }}
-                      style={{ cursor: 'pointer' }}
-                    />
-                    <div>
-                      <strong>Sarah Jenkins</strong> <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>(HR Manager - You)</span>
-                    </div>
-                  </label>
-
-                  {/* Employees list */}
-                  {(db.employees || []).map(emp => (
-                    <label key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', cursor: 'pointer', padding: '4px', borderRadius: '4px' }} className="member-select-row">
-                      <input
-                        type="checkbox"
-                        checked={selectedRosterMembers.includes(String(emp.id))}
+              <div style={{ marginTop: '16px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>SELECT MEMBERS</label>
+                <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--ceo-border)', borderRadius: '8px', padding: '8px', background: '#F8FAFC' }}>
+                  {employees.filter(e => String(e.id) !== 'ceo').map(emp => (
+                    <label key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', cursor: 'pointer', borderRadius: '4px', ':hover': { background: '#FFF' } }}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedMembers.includes(String(emp.id))}
                         onChange={(e) => {
-                          const idStr = String(emp.id);
-                          if (e.target.checked) setSelectedRosterMembers(prev => [...prev, idStr]);
-                          else setSelectedRosterMembers(prev => prev.filter(id => id !== idStr));
+                          if (e.target.checked) {
+                            setSelectedMembers([...selectedMembers, String(emp.id)]);
+                          } else {
+                            setSelectedMembers(selectedMembers.filter(id => id !== String(emp.id)));
+                          }
                         }}
-                        style={{ cursor: 'pointer' }}
                       />
-                      <div>
-                        <strong>{emp.name}</strong> <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>({emp.designation} · {emp.department})</span>
-                      </div>
+                      <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '24px', height: '24px', borderRadius: '12px' }}  />
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}>{emp.name}</span>
                     </label>
                   ))}
                 </div>
               </div>
-
-              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '14px', marginTop: '10px' }}>
-                <button type="button" style={{ background: 'none', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }} onClick={() => setShowCreateModal(false)}>Cancel</button>
-                <button type="submit" style={{ backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}>Create Channel</button>
+              <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button type="button" onClick={() => { setIsCreateChannelOpen(false); setSelectedMembers([]); setNewChannelName(''); }} className="ceo-btn" style={{ fontWeight: 700 }}>Cancel</button>
+                <button type="submit" className="ceo-btn ceo-btn-primary" style={{ fontWeight: 700 }}>Create Channel</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* ── Manage Members Modal ──────────────────────────────────────────────── */}
-      {showManageMembersModal && currentChannel && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
-          <div style={{ width: '460px', maxHeight: '80vh', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderLeft: '4px solid var(--accent-pink)', padding: '24px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-              <div>
-                <h3 style={{ margin: 0, color: 'var(--accent-pink)', display: 'flex', alignItems: 'center', gap: '8px' }}>⚙️ Manage Roster Members</h3>
-                <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>Channel: {currentChannel.name}</p>
+      {/* Edit Channel Modal */}
+      {isEditChannelOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+          <div style={{ background: '#FFF', width: '400px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <div style={{ padding: '20px', borderBottom: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--ceo-text-primary)' }}>Edit Channel Name</h3>
+              <button onClick={() => setIsEditChannelOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={18} color="var(--ceo-text-muted)" /></button>
+            </div>
+            <form onSubmit={handleEditChannel} style={{ padding: '20px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>NEW CHANNEL NAME</label>
+              <div style={{ display: 'flex', alignItems: 'center', background: '#F8FAFC', border: '1px solid var(--ceo-border)', borderRadius: '8px', padding: '0 12px' }}>
+                <Hash size={16} color="var(--ceo-text-muted)" />
+                <input 
+                  autoFocus
+                  required
+                  value={editChannelName}
+                  onChange={(e) => setEditChannelName(e.target.value)}
+                  placeholder="e.g. marketing-campaign" 
+                  style={{ width: '100%', border: 'none', background: 'transparent', padding: '12px', fontSize: '14px', outline: 'none' }} 
+                />
               </div>
-              <button type="button" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} onClick={() => setShowManageMembersModal(false)}><X size={16} /></button>
+              <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button type="button" onClick={() => setIsEditChannelOpen(false)} className="ceo-btn" style={{ fontWeight: 700 }}>Cancel</button>
+                <button type="submit" className="ceo-btn ceo-btn-primary" style={{ fontWeight: 700 }}>Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Manage Members Modal */}
+      {isAddMemberOpen && !isDM && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+          <div style={{ background: '#FFF', width: '500px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', maxHeight: '85vh' }}>
+            <div style={{ padding: '20px', borderBottom: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--ceo-text-primary)' }}>Manage Members</h3>
+                <div style={{ fontSize: '12px', color: 'var(--ceo-text-secondary)' }}>#{selectedChannel}</div>
+              </div>
+              <button onClick={() => setIsAddMemberOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={18} color="var(--ceo-text-muted)" /></button>
             </div>
             
-            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
-              
-              {/* CEO */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', backgroundColor: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                <div>
-                  <strong style={{ fontSize: '13px' }}>John Doe</strong>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>CEO</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleToggleMember('ceo')}
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    padding: '4px 10px',
-                    borderRadius: '4px',
-                    border: 'none',
-                    backgroundColor: currentChannel.members.includes('ceo') ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)',
-                    color: currentChannel.members.includes('ceo') ? '#ef4444' : '#10b981',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {currentChannel.members.includes('ceo') ? '✕ Remove' : '＋ Add'}
-                </button>
+            <form onSubmit={handleAddGuest} style={{ padding: '16px', borderBottom: '1px solid var(--ceo-divider)', background: '#F8FAFC' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ceo-text-muted)', marginBottom: '12px', letterSpacing: '0.5px' }}>INVITE GUEST BY PHONE</div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input required value={newGuestName} onChange={e=>setNewGuestName(e.target.value)} type="text" placeholder="Guest Name" className="ceo-form-input" style={{ flex: 1, height: '36px', fontSize: '13px' }} />
+                <input required value={newGuestPhone} onChange={e=>setNewGuestPhone(e.target.value)} type="text" placeholder="+91 Phone Number" className="ceo-form-input" style={{ flex: 1, height: '36px', fontSize: '13px' }} />
+                <button type="submit" className="ceo-btn ceo-btn-primary" style={{ padding: '0 16px', fontWeight: 700 }}>Invite</button>
               </div>
+            </form>
 
-              {/* HR */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', backgroundColor: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                <div>
-                  <strong style={{ fontSize: '13px' }}>Sarah Jenkins</strong>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>HR Manager (You)</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleToggleMember('hr')}
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    padding: '4px 10px',
-                    borderRadius: '4px',
-                    border: 'none',
-                    backgroundColor: currentChannel.members.includes('hr') ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)',
-                    color: currentChannel.members.includes('hr') ? '#ef4444' : '#10b981',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {currentChannel.members.includes('hr') ? '✕ Remove' : '＋ Add'}
-                </button>
-              </div>
-
-              {/* Employees */}
-              {(db.employees || []).map(emp => {
-                const idStr = String(emp.id);
-                const isMember = currentChannel?.members && currentChannel.members.includes(idStr);
+            <div style={{ overflowY: 'auto', flex: 1, padding: '8px 0', background: '#FFF' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ceo-text-muted)', margin: '8px 16px', letterSpacing: '0.5px' }}>EXISTING EMPLOYEES</div>
+              {employees.map(emp => {
+                const isMember = (channelMembers[selectedChannel] || []).includes(emp.id);
                 return (
-                  <div key={emp.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', backgroundColor: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                    <div>
-                      <strong style={{ fontSize: '13px' }}>{emp.name}</strong>
-                      <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{emp.designation} · {emp.department}</div>
+                  <div key={emp.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid var(--ceo-border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '32px', height: '32px', borderRadius: '16px' }}  />
+                      <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}>{emp.name} {emp.isMe && '(You)'}</div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleMember(idStr)}
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: '700',
-                        padding: '4px 10px',
-                        borderRadius: '4px',
-                        border: 'none',
-                        backgroundColor: isMember ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)',
-                        color: isMember ? '#ef4444' : '#10b981',
-                        cursor: 'pointer'
+                    <button 
+                      onClick={() => toggleMemberInChannel(emp.id)}
+                      disabled={emp.isMe}
+                      className="ceo-btn" 
+                      style={{ 
+                        padding: '6px 12px', fontSize: '12px', fontWeight: 700, 
+                        background: isMember ? 'transparent' : 'var(--ceo-primary)', 
+                        color: isMember ? 'var(--ceo-text-secondary)' : '#FFF',
+                        border: isMember ? '1px solid var(--ceo-border)' : 'none',
+                        opacity: emp.isMe ? 0.5 : 1,
+                        cursor: emp.isMe ? 'not-allowed' : 'pointer'
                       }}
                     >
-                      {isMember ? '✕ Remove' : '＋ Add'}
+                      {isMember ? 'Remove' : 'Add'}
                     </button>
                   </div>
                 );
               })}
             </div>
+          </div>
+        </div>
+      )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '14px', marginTop: '10px' }}>
-              <button type="button" style={{ backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '8px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }} onClick={() => setShowManageMembersModal(false)}>Done</button>
+      {/* Basic inline styling for pulse animation */}
+      <style>{`
+        @keyframes pulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.4; }
+          100% { opacity: 1; }
+        }
+        .message-row .msg-actions {
+          opacity: 0 !important;
+        }
+        .message-row:hover .msg-actions {
+          opacity: 1 !important;
+        }
+      `}</style>
+
+      {/* Context Menu (Double Tap / Right Click) */}
+      {contextMenu && (
+        <div 
+          style={{ position: 'fixed', inset: 0, zIndex: 3000 }} 
+          onClick={closeContextMenu}
+          onContextMenu={(e) => { e.preventDefault(); closeContextMenu(); }}
+        >
+          <div 
+            style={{ 
+              position: 'absolute', 
+              top: contextMenu.y, 
+              left: Math.min(contextMenu.x, window.innerWidth - 200), // prevent going off-screen
+              background: '#FFF', 
+              borderRadius: '12px', 
+              boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)', 
+              border: '1px solid var(--ceo-border)',
+              width: '180px',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--ceo-divider)', background: '#F8FAFC', fontSize: '11px', fontWeight: 700, color: 'var(--ceo-text-muted)' }}>
+              MESSAGE ACTIONS
+            </div>
+            
+            <button 
+              onClick={() => { setShowEmojiPicker(contextMenu.msg.id); }} 
+              style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '12px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--ceo-divider)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}
+            >
+              <Smile size={16} /> React
+            </button>
+
+            <button 
+              onClick={() => { 
+                let fwdText = `[Forwarded]: ${contextMenu.msg.text || ''}`;
+                if (contextMenu.msg.attachment_url) fwdText += ` (Attachment: http://localhost:8000${contextMenu.msg.attachment_url})`;
+                setInputVal(fwdText.trim());
+                closeContextMenu();
+              }} 
+              style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '12px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--ceo-divider)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}
+            >
+              <Send size={16} /> Forward Message
+            </button>
+
+            {/* If it's my message, I can edit/delete */}
+            {(contextMenu.msg.isMe || (contextMenu.msg.sender && contextMenu.msg.sender.includes('CEO'))) && (
+              <>
+                <button 
+                  onClick={() => { setEditingMessageId(contextMenu.msg.id); setEditingText(contextMenu.msg.text); closeContextMenu(); }} 
+                  style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '12px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--ceo-divider)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}
+                >
+                  <MessageSquare size={16} /> Edit Message
+                </button>
+                <button 
+                  onClick={() => { handleDeleteMessage(contextMenu.msg.id); closeContextMenu(); }} 
+                  style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '12px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--ceo-danger)' }}
+                >
+                  <Trash2 size={16} /> Delete Message
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Emoji Picker Overlay */}
+          {showEmojiPicker && (
+            <div 
+              style={{ position: 'absolute', top: contextMenu.y + 10, left: Math.min(contextMenu.x + 190, window.innerWidth - 350), zIndex: 3001 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <EmojiPicker 
+                onEmojiClick={(emojiData) => {
+                  handleReactMessage(showEmojiPicker, contextMenu.msg.reactions, emojiData.emoji);
+                  closeContextMenu();
+                }} 
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Lightbox Modal */}
+      {lightboxMedia && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button onClick={() => setLightboxMedia(null)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#FFF' }}>
+            <X size={32} />
+          </button>
+          <a href={lightboxMedia.url} download target="_blank" rel="noreferrer" style={{ position: 'absolute', top: '20px', right: '80px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#FFF', textDecoration: 'none' }}>
+            <Download size={32} />
+          </a>
+          {lightboxMedia.type === 'image' ? (
+            <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={lightboxMedia.url} alt="fullscreen" style={{ maxWidth: '90%', maxHeight: '90%', objectFit: 'contain' }}  />
+          ) : (
+            <video src={lightboxMedia.url} style={{ maxWidth: '90%', maxHeight: '90%' }} controls autoPlay />
+          )}
+        </div>
+      )}
+
+      {/* Group Members Modal */}
+      {showGroupMembersModal && currentChannel && !isDM && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#FFF', borderRadius: '16px', width: '400px', maxWidth: '90%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--ceo-text-primary)' }}>Group Members</h3>
+              <button onClick={() => setShowGroupMembersModal(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={20} color="var(--ceo-text-muted)" /></button>
+            </div>
+            <div style={{ padding: '24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {(currentChannel.members || []).map(empId => {
+                const emp = employees.find(e => String(e.id) === String(empId) || e.id === empId);
+                const name = emp ? emp.name : (empId === 'ceo' ? 'CEO' : (empId === 'hr' ? 'HR Manager' : `Emp #${empId}`));
+                const avatar = emp?.photo ? `http://localhost:8000${emp.photo}` : (emp?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`);
+                return (
+                  <div key={empId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={avatar} alt={name} style={{ width: '40px', height: '40px', borderRadius: '20px', objectFit: 'cover', border: '1px solid var(--ceo-border)' }}  />
+                      <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--ceo-text-primary)' }}>{name}</div>
+                    </div>
+                    {empId !== 'ceo' && (
+                      <button 
+                        onClick={() => {
+                          setSelectedChannel(`dm-${empId}`);
+                          setShowGroupMembersModal(false);
+                        }}
+                        style={{ padding: '6px 12px', background: '#F1F5F9', border: '1px solid var(--ceo-border)', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', color: 'var(--ceo-text-primary)', display: 'flex', gap: '6px', alignItems: 'center' }}
+                      >
+                        <MessageSquare size={14} /> Message
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Dynamic Jitsi Huddle Overlay ────────────────────────────────────── */}
       {huddlePeer && (
-        <HuddleModal
-          peer={huddlePeer}
-          onClose={() => setHuddlePeer(null)}
+        <HuddleModal 
+          peer={huddlePeer} 
+          onClose={() => setHuddlePeer(null)} 
         />
       )}
+
     </div>
-  );
+);
 }
+

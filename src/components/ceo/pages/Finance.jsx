@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import useSWR from 'swr';
 import { 
   IndianRupee, TrendingUp, TrendingDown, AlertTriangle, 
   Plus, Check, X, Calculator, Settings, Clock, CheckCircle,
@@ -10,72 +11,22 @@ import {
 import '../CEO.css';
 
 // ==========================================
-// MOCK DATA 
+// DEFAULT FALLBACKS
 // ==========================================
-const kpiData = {
-  revenue: { val: '₹12.4M', trend: '+14%', up: true },
-  grossProfit: { val: '₹4.8M', trend: '+8%', up: true },
-  netProfit: { val: '₹2.1M', trend: '+5%', up: true },
-  opex: { val: '₹3.6M', trend: '-2%', up: false }, // lower is good for opex but we'll show neutral
-  cash: { val: '₹8.5M', trend: '+11%', up: true },
-  burnRate: { val: '₹1.2M/mo', trend: 'Stable', up: null }
+const defaultKpiData = {
+  revenue: { val: '₹0M', trend: '0%', up: true },
+  grossProfit: { val: '₹0M', trend: '0%', up: true },
+  netProfit: { val: '₹0M', trend: '0%', up: true },
+  opex: { val: '₹0M', trend: '0%', up: false },
+  cash: { val: '₹0M', trend: '0%', up: true },
+  burnRate: { val: '₹0/mo', trend: 'Stable', up: null }
 };
 
-const revenueTrend = [
-  { month: 'Jan', revenue: 8.2, profit: 2.1 },
-  { month: 'Feb', revenue: 9.1, profit: 2.3 },
-  { month: 'Mar', revenue: 10.5, profit: 3.0 },
-  { month: 'Apr', revenue: 11.2, profit: 3.2 },
-  { month: 'May', revenue: 12.4, profit: 3.5 },
-];
-
-const cashFlowData = [
-  { month: 'Jan', in: 9, out: 7 },
-  { month: 'Feb', in: 10, out: 8 },
-  { month: 'Mar', in: 11, out: 8.5 },
-  { month: 'Apr', in: 12, out: 9 },
-  { month: 'May', in: 13, out: 10 },
-];
-
-const mockBudgets = [
-  { id: 1, dept: 'Marketing', title: 'Q3 Global Campaign', amount: '₹2,500,000', reqBy: 'David L.', status: 'pending', variance: '+15% vs Last Qtr' },
-  { id: 2, dept: 'IT Infrastructure', title: 'AWS Enterprise Renewal', amount: '₹1,850,000', reqBy: 'Sarah C.', status: 'pending', variance: 'Within Limits' },
-  { id: 3, dept: 'Sales', title: 'CRM Upgrade', amount: '₹400,000', reqBy: 'Amit P.', status: 'approved', variance: '-5% vs Last Qtr' },
-];
-
-const executiveApprovals = [
-  { id: 1, type: 'CapEx', title: 'New Bangalore R&D Office Lease', amount: '₹14,000,000', status: 'pending', risk: 'High' },
-  { id: 2, type: 'Vendor Contract', title: 'Salesforce 3-Year Deal', amount: '₹4,500,000', status: 'pending', risk: 'Medium' },
-];
-
-const arData = [
-  { client: 'Acme Corp', invoice: 'INV-2041', amount: '₹1,200,000', daysOverdue: 14, status: 'Overdue' },
-  { client: 'Global Tech', invoice: 'INV-2045', amount: '₹850,000', daysOverdue: 0, status: 'Pending' },
-  { client: 'Nexus Retail', invoice: 'INV-2030', amount: '₹4,300,000', daysOverdue: 45, status: 'High Risk' },
-];
-
-const apData = [
-  { vendor: 'AWS India', ref: 'AWS-MAY-26', amount: '₹950,000', dueDate: '15 Jun 2026', status: 'Upcoming' },
-  { vendor: 'WeWork', ref: 'WW-Q3', amount: '₹2,100,000', dueDate: '01 Jul 2026', status: 'Upcoming' },
-];
-
-const riskData = [
-  { category: 'Cash Flow', level: 'Low', desc: 'Operating runway > 18 months.' },
-  { category: 'Collections', level: 'High', desc: '₹4.3M stuck > 45 days (Nexus Retail).' },
-  { category: 'Budget', level: 'Medium', desc: 'Marketing exceeding Q2 budget by 12%.' },
-  { category: 'Compliance', level: 'Low', desc: 'All statutory payments cleared.' },
-];
-
-
-
-const mockPayroll = [
-  { id: 1, name: 'Alice Smith', dept: 'Engineering', gross: '₹1,50,000', net: '₹1,37,500', status: 'Processed' },
-  { id: 2, name: 'Rahul Verma', dept: 'Marketing', gross: '₹85,000', net: '₹76,800', status: 'Processed' },
-];
-
-const mockStatutory = [
-  { id: 1, type: 'Provident Fund (PF)', amount: '₹4,50,000', month: 'May 2026', dueDate: '15 Jun 2026', status: 'Paid' },
-  { id: 2, type: 'TDS', amount: '₹8,20,000', month: 'May 2026', dueDate: '07 Jun 2026', status: 'Paid' },
+const defaultRiskData = [
+  { category: 'Cash Flow', level: 'Low', desc: 'No data' },
+  { category: 'Collections', level: 'Low', desc: 'No data' },
+  { category: 'Budget', level: 'Low', desc: 'No data' },
+  { category: 'Compliance', level: 'Low', desc: 'No data' },
 ];
 
 const SUBTABS = [
@@ -101,9 +52,9 @@ const KpiCard = ({ title, value, trend, up }) => (
 );
 
 const OverviewTab = ({ data }) => {
-  const kpis = data?.kpiData || kpiData;
-  const revTrend = data?.revenueTrend || revenueTrend;
-  const cashFlow = data?.cashFlowData || cashFlowData;
+  const kpis = data?.kpiData || defaultKpiData;
+  const revTrend = data?.revenueTrend || [];
+  const cashFlow = data?.cashFlowData || [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -189,7 +140,7 @@ const GovernanceTab = ({ budgets, approvals, onActionApproval, onActionBudget })
     <div className="ceo-command-panel">
       <div className="ceo-command-header"><div className="ceo-typography-card-title"><ShieldAlert size={18} color="var(--ceo-danger)" /> Financial Risk Monitoring</div></div>
       <div className="ceo-command-content ceo-grid-4" style={{ padding: '24px' }}>
-        {riskData.map(r => (
+        {defaultRiskData.map(r => (
           <div key={r.category} style={{ padding: '16px', borderRadius: '8px', border: '1px solid var(--ceo-border)', background: r.level === 'High' ? '#FEF2F2' : '#FFF' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
               <span style={{ fontWeight: 600, fontSize: '14px' }}>{r.category}</span>
@@ -289,8 +240,8 @@ const GovernanceTab = ({ budgets, approvals, onActionApproval, onActionBudget })
 );
 
 const ArApTab = ({ ar, ap }) => {
-  const arList = ar || arData;
-  const apList = ap || apData;
+  const arList = ar || [];
+  const apList = ap || [];
 
   return (
     <div className="ceo-grid-2">
@@ -384,8 +335,8 @@ const OperationsTab = ({ payroll, statutory, components, onSaveSalaryStructure }
     onSaveSalaryStructure(localComponents);
   };
 
-  const payrollList = payroll || mockPayroll;
-  const statList = statutory || mockStatutory;
+  const payrollList = payroll || [];
+  const statList = statutory || [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -502,24 +453,58 @@ export default function Finance() {
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [data, setData] = useState(null);
+  const [kpiData, setKpiData] = useState(null);
+  const [revenueTrend, setRevTrend] = useState([]);
+  const [cashFlowData, setCashFlow] = useState([]);
+  const [budgets, setBudgets] = useState([]);
+  const [arData, setArData] = useState([]);
+  const [apData, setApData] = useState([]);
+  const [statutory, setStatutory] = useState([]);
+  const [salaryStructure, setSalaryStructure] = useState([]);
+  const [payrollRegister, setPayroll] = useState([]);
+  const [executiveApprovals, setApprovals] = useState([]);
+  
+  const [showKpiModal, setShowKpiModal] = useState(false);
+  const [kpiForm, setKpiForm] = useState({
+    revenue: '₹12.5M', revTrend: '+12%',
+    grossProfit: '₹4.2M', gpTrend: '+5%',
+    netProfit: '₹2.1M', npTrend: '+8%',
+    burnRate: '₹400K/mo', burnTrend: 'Stable'
+  });
 
   const token = localStorage.getItem('nsg_jwt_token');
 
   const fetchFinanceData = async () => {
-    if (!token) return;
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/ceo-portal/finance/data', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const val = await res.json();
-        setData(val);
-      } else {
-        setError('Failed to fetch finance dashboard data.');
+      const headers = { 'Authorization': `Bearer ${token}` };
+      const [kpiRes, trRes, budRes, arRes, apRes, statRes, salRes, payRes, appRes] = await Promise.all([
+        fetch('/api/ceo-portal/finance/kpis', { headers }),
+        fetch('/api/ceo-portal/finance/trends', { headers }),
+        fetch('/api/ceo-portal/finance/budgets-list', { headers }),
+        fetch('/api/ceo-portal/finance/ar', { headers }),
+        fetch('/api/ceo-portal/finance/ap', { headers }),
+        fetch('/api/ceo-portal/finance/statutory-list', { headers }),
+        fetch('/api/ceo-portal/finance/salary-components', { headers }),
+        fetch('/api/ceo-portal/finance/payroll-register', { headers }),
+        fetch('/api/ceo-portal/finance/approvals-list', { headers })
+      ]);
+
+      if(kpiRes.ok) setKpiData(await kpiRes.json());
+      if(trRes.ok) {
+        const trends = await trRes.json();
+        setRevTrend(trends.map(t => ({ month: t.month, revenue: t.revenue, profit: t.profit })));
+        setCashFlow(trends.map(t => ({ month: t.month, in: t.cash_in, out: t.cash_out })));
       }
+      if(budRes.ok) setBudgets(await budRes.json());
+      if(arRes.ok) setArData(await arRes.json());
+      if(apRes.ok) setApData(await apRes.json());
+      if(statRes.ok) setStatutory(await statRes.json());
+      if(salRes.ok) setSalaryStructure(await salRes.json());
+      if(payRes.ok) setPayroll(await payRes.json());
+      if(appRes.ok) setApprovals(await appRes.json());
+      
     } catch (e) {
       console.error(e);
       setError('Connection error loading finance data.');
@@ -533,7 +518,6 @@ export default function Finance() {
   }, []);
 
   const handleActionApproval = async (id, rawType, action) => {
-    if (!token) return;
     try {
       const endpoint = rawType === 'expense' 
         ? `/api/ceo-portal/expenses/${id}/${action}`
@@ -543,39 +527,25 @@ export default function Finance() {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) {
-        fetchFinanceData();
-      } else {
-        alert(`Failed to ${action} approval.`);
-      }
-    } catch (e) {
-      console.error(e);
-      alert(`Error during ${action} action.`);
-    }
+      if (res.ok) fetchFinanceData();
+      else alert(`Failed to ${action} approval.`);
+    } catch (e) { alert(`Error during ${action} action.`); }
   };
 
   const handleActionBudget = async (id, action) => {
-    if (!token) return;
     try {
       const res = await fetch(`/api/ceo-portal/finance/budgets/${id}/${action}`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) {
-        fetchFinanceData();
-      } else {
-        alert(`Failed to ${action} budget.`);
-      }
-    } catch (e) {
-      console.error(e);
-      alert(`Error during budget action.`);
-    }
+      if (res.ok) fetchFinanceData();
+      else alert(`Failed to ${action} budget.`);
+    } catch (e) { alert(`Error during budget action.`); }
   };
 
   const handleSaveSalaryStructure = async (components) => {
-    if (!token) return;
     try {
-      const res = await fetch('/api/ceo-portal/finance/salary-structure', {
+      const res = await fetch('/api/ceo-portal/finance/salary-components', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -583,15 +553,31 @@ export default function Finance() {
         },
         body: JSON.stringify({ components })
       });
+      if (res.ok) fetchFinanceData();
+      else alert('Failed to save salary structure.');
+    } catch (e) { alert('Error saving salary structure.'); }
+  };
+
+  const handleSaveKpi = async () => {
+    const newKpiData = {
+      revenue: { val: kpiForm.revenue, trend: kpiForm.revTrend, up: true },
+      grossProfit: { val: kpiForm.grossProfit, trend: kpiForm.gpTrend, up: true },
+      netProfit: { val: kpiForm.netProfit, trend: kpiForm.npTrend, up: true },
+      opex: kpiData?.opex || { val: '₹0M', trend: '0%', up: false }, 
+      cash: kpiData?.cash || { val: '₹0M', trend: '0%', up: true }, 
+      burnRate: { val: kpiForm.burnRate, trend: kpiForm.burnTrend, up: null }
+    };
+    try {
+      const res = await fetch('/api/ceo-portal/configs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ key: 'finance_kpi_data', value: JSON.stringify(newKpiData) })
+      });
       if (res.ok) {
+        setShowKpiModal(false);
         fetchFinanceData();
-      } else {
-        alert('Failed to save salary structure.');
-      }
-    } catch (e) {
-      console.error(e);
-      alert('Error saving salary structure.');
-    }
+      } else alert('Failed to save KPIs.');
+    } catch (e) { alert('Error saving KPIs.'); }
   };
 
   if (loading) {
@@ -619,9 +605,14 @@ export default function Finance() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', paddingBottom: '32px' }}>
       
       {/* HEADER */}
-      <div style={{ marginBottom: '24px' }}>
-        <h1 className="ceo-typography-page-title">Executive Finance Command Center</h1>
-        <p className="ceo-typography-body" style={{ marginTop: '8px' }}>Monitor financial health, approve capital expenditures, and analyze cash flow intelligence.</p>
+      <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1 className="ceo-typography-page-title">Executive Finance Command Center</h1>
+          <p className="ceo-typography-body" style={{ marginTop: '8px' }}>Monitor financial health, approve capital expenditures, and analyze cash flow intelligence.</p>
+        </div>
+        <button className="ceo-btn" style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--ceo-primary)', color: 'white', border: 'none' }} onClick={() => setShowKpiModal(true)}>
+          <Settings size={16} /> Update KPIs
+        </button>
       </div>
 
       {/* CLEAN SUBTABS NAVIGATION */}
@@ -650,26 +641,79 @@ export default function Finance() {
 
       {/* DYNAMIC TAB RENDERING */}
       <div style={{ flex: 1 }}>
-        {activeTab === 'overview' && <OverviewTab data={data} />}
+        {activeTab === 'overview' && <OverviewTab data={{ kpiData, revenueTrend, cashFlowData }} />}
         {activeTab === 'governance' && (
           <GovernanceTab 
-            budgets={data?.budgets} 
-            approvals={data?.executiveApprovals}
+            budgets={budgets} 
+            approvals={executiveApprovals}
             onActionApproval={handleActionApproval}
             onActionBudget={handleActionBudget}
           />
         )}
-        {activeTab === 'arap' && <ArApTab ar={data?.arData} ap={data?.apData} />}
+        {activeTab === 'arap' && <ArApTab ar={arData} ap={apData} />}
         {activeTab === 'operations' && (
           <OperationsTab 
-            payroll={data?.payrollRegister}
-            statutory={data?.statutory}
-            components={data?.salaryStructure || []} 
+            payroll={payrollRegister}
+            statutory={statutory}
+            components={salaryStructure} 
             onSaveSalaryStructure={handleSaveSalaryStructure}
           />
         )}
       </div>
-      
+
+      {/* UPDATE KPIs MODAL */}
+      {showKpiModal && (
+        <div className="ceo-modal-overlay" onClick={() => setShowKpiModal(false)}>
+          <div className="ceo-modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+            <div className="ceo-modal-header">
+              <h2>Update Financial KPIs</h2>
+              <button className="ceo-modal-close" onClick={() => setShowKpiModal(false)}><X size={20}/></button>
+            </div>
+            <div className="ceo-modal-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div>
+                <label className="ceo-form-label">Total Revenue (val)</label>
+                <input className="ceo-form-input" value={kpiForm.revenue} onChange={e => setKpiForm({...kpiForm, revenue: e.target.value})} placeholder="e.g. ₹12.5M" />
+              </div>
+              <div>
+                <label className="ceo-form-label">Revenue Trend</label>
+                <input className="ceo-form-input" value={kpiForm.revTrend} onChange={e => setKpiForm({...kpiForm, revTrend: e.target.value})} placeholder="e.g. +12%" />
+              </div>
+
+              <div>
+                <label className="ceo-form-label">Gross Profit (val)</label>
+                <input className="ceo-form-input" value={kpiForm.grossProfit} onChange={e => setKpiForm({...kpiForm, grossProfit: e.target.value})} placeholder="e.g. ₹4.2M" />
+              </div>
+              <div>
+                <label className="ceo-form-label">Gross Profit Trend</label>
+                <input className="ceo-form-input" value={kpiForm.gpTrend} onChange={e => setKpiForm({...kpiForm, gpTrend: e.target.value})} placeholder="e.g. +5%" />
+              </div>
+
+              <div>
+                <label className="ceo-form-label">Net Profit (val)</label>
+                <input className="ceo-form-input" value={kpiForm.netProfit} onChange={e => setKpiForm({...kpiForm, netProfit: e.target.value})} placeholder="e.g. ₹2.1M" />
+              </div>
+              <div>
+                <label className="ceo-form-label">Net Profit Trend</label>
+                <input className="ceo-form-input" value={kpiForm.npTrend} onChange={e => setKpiForm({...kpiForm, npTrend: e.target.value})} placeholder="e.g. +8%" />
+              </div>
+
+              <div>
+                <label className="ceo-form-label">Burn Rate (val)</label>
+                <input className="ceo-form-input" value={kpiForm.burnRate} onChange={e => setKpiForm({...kpiForm, burnRate: e.target.value})} placeholder="e.g. ₹400K/mo" />
+              </div>
+              <div>
+                <label className="ceo-form-label">Burn Rate Trend</label>
+                <input className="ceo-form-input" value={kpiForm.burnTrend} onChange={e => setKpiForm({...kpiForm, burnTrend: e.target.value})} placeholder="e.g. Stable" />
+              </div>
+            </div>
+            <div className="ceo-modal-footer">
+              <button className="ceo-btn" onClick={() => setShowKpiModal(false)}>Cancel</button>
+              <button className="ceo-btn ceo-btn-primary" onClick={handleSaveKpi}>Save & Update</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

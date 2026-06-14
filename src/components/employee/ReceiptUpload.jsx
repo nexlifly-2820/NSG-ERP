@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Check, AlertCircle, X } from 'lucide-react';
+import AvatarFallback from '../common/AvatarFallback';
 
 export default function ReceiptUpload({ onFile, accept = 'image/*,application/pdf' }) {
   const [file, setFile] = useState(null);
@@ -272,11 +273,11 @@ export default function ReceiptUpload({ onFile, accept = 'image/*,application/pd
                 PDF File
               </span>
             ) : preview ? (
-              <img 
+              <AvatarFallback
                 src={preview} 
                 alt="Receipt Preview" 
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-              />
+               />
             ) : (
               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>No preview</span>
             )}

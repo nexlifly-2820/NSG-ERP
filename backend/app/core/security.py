@@ -2,7 +2,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Union, Any
 from jose import jwt, JWTError
 import bcrypt
-from fastapi import Depends, HTTPException, status
+import json
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.config import settings
@@ -40,13 +41,23 @@ def create_access_token(data: dict, expires_delta: Union[timedelta, None] = None
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> models.User:
+def get_current_user(request: Request, db: Session = Depends(get_db)) -> models.User:
     """Dependency injection function to validate JWT tokens and return the current user."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    
+    token = request.cookies.get("nsg_jwt_token")
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+            
+    if not token:
+        raise credentials_exception
+
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         email: str = payload.get("sub")
@@ -60,3 +71,29 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise credentials_exception
         
     return user
+
+def check_rbac_permission(db: Session, user: models.User, action: str):
+    """Check dynamic RBAC matrix from SystemSettings."""
+    role_map = {
+        "ceo": "CEO",
+        "admin": "CEO",
+        "hr": "HR Manager",
+        "finance": "Finance Manager",
+        "manager": "Team Lead",
+        "employee": "Employee"
+    }
+    ui_role = role_map.get(user.role, "Employee")
+
+    setting = db.query(models.SystemSettings).filter(models.SystemSettings.key == "security_rbac_matrix").first()
+    if setting and setting.value:
+        try:
+            matrix = json.loads(setting.value)
+            if action in matrix:
+                if not matrix[action].get(ui_role, False):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"Operation forbidden. RBAC matrix denies '{ui_role}' access to '{action}'."
+                    )
+        except json.JSONDecodeError:
+            pass
+
