@@ -2,14 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { Search, Filter, Download, XCircle, Mail, Phone, Award, UserPlus, FileText, CalendarDays, Users, Building, ShieldCheck, TrendingUp } from 'lucide-react';
 import '../CEO.css';
 
-const MOCK_DATA = [
-  { id: 'EMP-104', name: 'Rajiv Sharma', dept: 'Engineering', role: 'Senior Frontend Dev', joinDate: '12 Jan 2023', status: 'Active', avatar: 'https://ui-avatars.com/api/?name=Rajiv+Sharma&background=2563EB&color=fff', email: 'rajiv.s@nsg.com', phone: '+91 98765 43210', leaves: { casual: 12, sick: 8 } },
-  { id: 'EMP-106', name: 'Amit Singh', dept: 'Sales', role: 'VP Sales', joinDate: '04 Mar 2021', status: 'On Leave', avatar: 'https://ui-avatars.com/api/?name=Amit+Singh&background=F59E0B&color=fff', email: 'amit.s@nsg.com', phone: '+91 98765 43212', leaves: { casual: 4, sick: 2 } },
-  { id: 'EMP-112', name: 'Priya Menon', dept: 'Marketing', role: 'Marketing Manager', joinDate: '15 Aug 2022', status: 'Active', avatar: 'https://ui-avatars.com/api/?name=Priya+Menon&background=10B981&color=fff', email: 'priya.m@nsg.com', phone: '+91 98765 43214', leaves: { casual: 10, sick: 5 } },
-  { id: 'EMP-118', name: 'Rahul Verma', dept: 'Engineering', role: 'Backend Engineer', joinDate: '22 Nov 2023', status: 'Active', avatar: 'https://ui-avatars.com/api/?name=Rahul+Verma&background=8B5CF6&color=fff', email: 'rahul.v@nsg.com', phone: '+91 98765 43215', leaves: { casual: 14, sick: 10 } },
-  { id: 'EMP-124', name: 'Anjali Desai', dept: 'Sales', role: 'Account Executive', joinDate: '10 Feb 2024', status: 'Active', avatar: 'https://ui-avatars.com/api/?name=Anjali+Desai&background=EF4444&color=fff', email: 'anjali.d@nsg.com', phone: '+91 98765 43216', leaves: { casual: 15, sick: 12 } },
-  { id: 'EMP-130', name: 'Vikram Reddy', dept: 'Engineering', role: 'DevOps Engineer', joinDate: '05 May 2022', status: 'Active', avatar: 'https://ui-avatars.com/api/?name=Vikram+Reddy&background=0EA5E9&color=fff', email: 'vikram.r@nsg.com', phone: '+91 98765 43218', leaves: { casual: 8, sick: 4 } },
-];
+
+
 
 export default function People() {
   const [employees, setEmployees] = useState([]);
@@ -18,66 +12,238 @@ export default function People() {
   
   // Add Employee Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newEmp, setNewEmp] = useState({ name: '', dept: 'Engineering', role: '', email: '', phone: '', status: 'Active' });
+  const [newEmp, setNewEmp] = useState({ name: '', dept: 'Engineering', role: '', email: '', phone: '', status: 'Active', sysRole: 'employee' });
 
   // Full Profile & Messaging State
   const [isFullProfileOpen, setIsFullProfileOpen] = useState(false);
   const [isMessageOpen, setIsMessageOpen] = useState(false);
   const [messageText, setMessageText] = useState('');
 
+  // Edit Profile & Password Reset State
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [editEmpData, setEditEmpData] = useState(null);
+  const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [updating, setUpdating] = useState(false);
+
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDept, setSelectedDept] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
 
+  const [teamLeads, setTeamLeads] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  React.useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        const token = localStorage.getItem('nsg_jwt_token');
-        const res = await fetch('/api/hr-portal/employees', { headers: { 'Authorization': `Bearer ${token}` } });
-        if (res.ok) {
-          const data = await res.json();
-          const formatted = data.map(emp => ({
-            ...emp,
-            id: `EMP-${emp.id}`,
-            role: emp.role || 'Employee',
-            dept: emp.department || 'Operations',
-            joinDate: emp.date_joined || '12 Jan 2023',
-            status: 'Active',
-            avatar: `https://ui-avatars.com/api/?name=${emp.name.replace(/ /g, '+')}&background=0F172A&color=fff`,
-            leaves: { casual: 10, sick: 5 }
-          }));
-          setEmployees(formatted);
-        }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
+  const fetchEmployees = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/ceo-portal/users', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        const formatted = data.map(emp => ({
+          ...emp,
+          id: emp.emp_id || `EMP-${emp.id}`,
+          dbId: emp.id,
+          role: emp.designation || 'Employee',
+          dept: emp.department || 'Operations',
+          joinDate: emp.join_date || 'N/A',
+          status: emp.status === 'active' ? 'Active' : (emp.status || 'Active'),
+          avatar: emp.photo || `https://ui-avatars.com/api/?name=${emp.name.replace(/ /g, '+')}&background=0F172A&color=fff`,
+          sysRole: emp.role,
+          email: emp.email,
+          manager_id: emp.manager_id
+        }));
+        setEmployees(formatted);
       }
-    };
+      const tlRes = await fetch('/api/hr-portal/team-leads', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (tlRes.ok) {
+        setTeamLeads(await tlRes.json());
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
     fetchEmployees();
   }, []);
 
-  const handleAddEmployee = (e) => {
+  const handleAddEmployee = async (e) => {
     e.preventDefault();
     if (!newEmp.name || !newEmp.role || !newEmp.email) return;
-    const empId = `EMP-${Math.floor(Math.random() * 900) + 100}`;
-    const newRecord = {
-      ...newEmp,
-      id: empId,
-      joinDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      avatar: `https://ui-avatars.com/api/?name=${newEmp.name.replace(/ /g, '+')}&background=0F172A&color=fff`,
-      leaves: { casual: 0, sick: 0 }
-    };
-    setEmployees([newRecord, ...employees]);
-    setIsAddModalOpen(false);
-    setNewEmp({ name: '', dept: 'Engineering', role: '', email: '', phone: '', status: 'Active' });
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const response = await fetch('/api/ceo-portal/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: newEmp.name,
+          email: newEmp.email,
+          department: newEmp.dept,
+          designation: newEmp.role,
+          role: newEmp.sysRole,
+          phone: newEmp.phone,
+          join_date: new Date().toISOString().split('T')[0],
+          status: 'active'
+        })
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        alert(`Error: ${err.detail || 'Failed to add user'}`);
+        return;
+      }
+      
+      const result = await response.json();
+      alert(`User ${result.name} successfully added!\n\nRole: ${result.role}\nEmail: ${result.email}\nTemporary Password: ${result.temporary_password}\n\nPlease share these credentials.`);
+      
+      setIsAddModalOpen(false);
+      setNewEmp({ name: '', dept: 'Engineering', role: '', email: '', phone: '', status: 'Active', sysRole: 'employee' });
+      
+      // Reload employees
+      const res = await fetch('/api/ceo-portal/users', { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        const formatted = data.map(emp => ({
+          ...emp,
+          id: emp.emp_id || `EMP-${emp.id}`,
+          role: emp.designation || 'Employee',
+          dept: emp.department || 'Operations',
+          joinDate: emp.join_date || 'N/A',
+          status: emp.status === 'active' ? 'Active' : (emp.status || 'Active'),
+          avatar: emp.photo || `https://ui-avatars.com/api/?name=${emp.name.replace(/ /g, '+')}&background=0F172A&color=fff`,
+          sysRole: emp.role
+        }));
+        setEmployees(formatted);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error while adding user.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditProfileSubmit = async (e) => {
+    e.preventDefault();
+    if (!editEmpData || !selectedEmp) return;
+    setUpdating(true);
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/hr-portal/employees/${selectedEmp.dbId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: editEmpData.name,
+          email: editEmpData.email,
+          department: editEmpData.dept,
+          designation: editEmpData.role,
+          role: editEmpData.sysRole,
+          status: editEmpData.status.toLowerCase(),
+          manager_id: editEmpData.manager_id ? parseInt(editEmpData.manager_id) : null,
+          manager: editEmpData.manager_id ? teamLeads.find(tl => tl.id === parseInt(editEmpData.manager_id))?.name : null
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Failed to update profile');
+      }
+      await fetchEmployees();
+      setIsEditProfileOpen(false);
+      setIsFullProfileOpen(false); // Close full profile to force refresh on next open
+      alert('Profile updated successfully.');
+    } catch (err) {
+      alert('Error updating profile: ' + err.message);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleResetPasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (!newPassword || !selectedEmp) return;
+    setUpdating(true);
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/ceo-portal/users/${selectedEmp.dbId}/password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ new_password: newPassword })
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Failed to reset password');
+      }
+      setIsResetPasswordOpen(false);
+      setNewPassword('');
+      alert('Password reset successfully.');
+    } catch (err) {
+      alert('Error resetting password: ' + err.message);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleDeleteEmployee = async () => {
+    if (!selectedEmp) return;
+    const confirmDelete = window.confirm(`Are you sure you want to permanently delete ${selectedEmp.name}? This action cannot be undone.`);
+    if (!confirmDelete) return;
+    
+    setUpdating(true);
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/ceo-portal/users/${selectedEmp.dbId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Failed to delete employee');
+      }
+      await fetchEmployees();
+      setIsFullProfileOpen(false);
+      setSelectedEmp(null);
+      alert('Employee deleted successfully.');
+    } catch (err) {
+      alert('Error deleting employee: ' + err.message);
+    } finally {
+      setUpdating(false);
+    }
   };
 
   const handleDownload = (filename) => {
-    const blob = new Blob([`Dummy content for ${filename}`], { type: 'text/plain' });
+    if (filteredEmployees.length === 0) {
+      alert("No data to export");
+      return;
+    }
+    const headers = ["Employee ID", "Name", "Email", "Department", "Designation", "System Role", "Status", "Join Date"];
+    const csvContent = [
+      headers.join(","),
+      ...filteredEmployees.map(emp => [
+        emp.id,
+        `"${emp.name}"`,
+        emp.email,
+        `"${emp.dept}"`,
+        `"${emp.role}"`,
+        emp.sysRole,
+        emp.status,
+        emp.joinDate
+      ].join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -97,17 +263,27 @@ export default function People() {
     });
   }, [employees, searchTerm, selectedDept, selectedStatus]);
 
-  // Dynamic KPIs based on filtered data (simulating a large org even with small mock data)
-  // For realism, if no filters, show org-wide stats. If filtered, show subset stats.
-  const isFiltered = searchTerm || selectedDept || selectedStatus;
-  const headcount = isFiltered ? filteredEmployees.length : 1245;
-  const activeCount = isFiltered ? filteredEmployees.filter(e => e.status === 'Active').length : 1180;
+  // Dynamic KPIs based on actual data
+  const headcount = filteredEmployees.length;
+  const activeCount = filteredEmployees.filter(e => e.status === 'Active' || e.status === 'active').length;
   
+  // Real dynamic data instead of hardcoded numbers
+  const uniqueDepartments = new Set(filteredEmployees.map(e => e.dept)).size;
+  
+  // Calculate recent joiners (last 30 days)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const recentJoiners = filteredEmployees.filter(e => {
+    if (!e.joinDate || e.joinDate === 'N/A') return false;
+    const d = new Date(e.joinDate);
+    return d >= thirtyDaysAgo;
+  }).length;
+
   const kpiStats = [
-    { label: 'Total Headcount', val: headcount.toLocaleString(), sub: isFiltered ? 'Filtered Results' : '+12 this month', status: 'primary', icon: Users },
-    { label: 'Active Employees', val: activeCount.toLocaleString(), sub: isFiltered ? 'Matching Active' : '94% Active Rate', status: 'success', icon: ShieldCheck },
-    { label: 'Open Positions', val: isFiltered ? '—' : '42', sub: isFiltered ? 'N/A in filter' : 'Critical: 8', status: 'warning', icon: Building },
-    { label: 'Avg. Attrition', val: isFiltered ? '—' : '4.2%', sub: isFiltered ? 'N/A in filter' : 'Target: < 5%', status: 'success', icon: TrendingUp },
+    { label: 'Total Headcount', val: headcount.toLocaleString(), sub: 'Filtered Results', status: 'primary', icon: Users },
+    { label: 'Active Employees', val: activeCount.toLocaleString(), sub: 'Matching Active', status: 'success', icon: ShieldCheck },
+    { label: 'Total Departments', val: uniqueDepartments.toString(), sub: 'Active Departments', status: 'warning', icon: Building },
+    { label: 'Recent Joiners', val: recentJoiners.toString(), sub: 'Last 30 Days', status: 'success', icon: TrendingUp },
   ];
 
   return (
@@ -180,7 +356,7 @@ export default function People() {
 
             <div style={{ flex: 1 }}></div>
             
-            <button className="ceo-btn" style={{ height: '40px', fontSize: '13px', fontWeight: 600, background: '#FFF' }}><Download size={16} /> Export CSV</button>
+            <button onClick={() => handleDownload('employees_export.csv')} className="ceo-btn" style={{ height: '40px', fontSize: '13px', fontWeight: 600, background: '#FFF' }}><Download size={16} /> Export CSV</button>
             <button onClick={() => setIsAddModalOpen(true)} className="ceo-btn ceo-btn-primary" style={{ height: '40px', fontSize: '13px', fontWeight: 600 }}><UserPlus size={16} /> Add Employee</button>
           </div>
 
@@ -210,7 +386,7 @@ export default function People() {
                     >
                       <td style={{ padding: '16px 20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                          <img src={emp.avatar} alt={emp.name} style={{ width: '40px', height: '40px', borderRadius: '20px', border: '1px solid var(--ceo-border)' }} />
+                          <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '40px', height: '40px', borderRadius: '20px', border: '1px solid var(--ceo-border)' }}  />
                           <div>
                             <div style={{ fontWeight: 700, color: 'var(--ceo-text-primary)' }}>{emp.name}</div>
                             <div style={{ fontSize: '11px', color: 'var(--ceo-text-muted)', fontWeight: 600, marginTop: '2px' }}>{emp.id}</div>
@@ -241,7 +417,7 @@ export default function People() {
           <div className="ceo-command-panel" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div className="ceo-command-header" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', background: 'linear-gradient(to right, #F8FAFC, #FFFFFF)', borderBottom: '1px solid var(--ceo-border)' }}>
               <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                <img src={selectedEmp.avatar} alt={selectedEmp.name} style={{ width: '56px', height: '56px', borderRadius: '10px', border: '3px solid #FFF', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} />
+                <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={selectedEmp.avatar} alt={selectedEmp.name} style={{ width: '56px', height: '56px', borderRadius: '10px', border: '3px solid #FFF', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}  />
                 <div>
                   <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--ceo-text-primary)' }}>{selectedEmp.name}</div>
                   <div style={{ fontSize: '13px', color: 'var(--ceo-text-secondary)', fontWeight: 600, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -258,7 +434,7 @@ export default function People() {
               
               {/* TABS */}
               <div style={{ display: 'flex', borderBottom: '1px solid var(--ceo-divider)', padding: '0 20px', background: '#FFF' }}>
-                {['Info', 'Documents', 'Leave Balance'].map(tab => (
+                {['Info', 'Documents'].map(tab => (
                   <button 
                     key={tab} 
                     onClick={() => setActiveTab(tab)}
@@ -345,18 +521,7 @@ export default function People() {
                   </div>
                 )}
 
-                {activeTab === 'Leave Balance' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                    <div style={{ padding: '32px 24px', background: '#FFF', borderRadius: '12px', border: '1px solid var(--ceo-border)', textAlign: 'center', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
-                      <div style={{ fontSize: '42px', fontWeight: 800, color: 'var(--ceo-primary)', lineHeight: 1 }}>{selectedEmp.leaves.casual}</div>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginTop: '12px', letterSpacing: '0.5px' }}>CASUAL LEAVES</div>
-                    </div>
-                    <div style={{ padding: '32px 24px', background: '#FFF', borderRadius: '12px', border: '1px solid var(--ceo-border)', textAlign: 'center', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
-                      <div style={{ fontSize: '42px', fontWeight: 800, color: 'var(--ceo-text-primary)', lineHeight: 1 }}>{selectedEmp.leaves.sick}</div>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginTop: '12px', letterSpacing: '0.5px' }}>SICK LEAVES</div>
-                    </div>
-                  </div>
-                )}
+                {/* Leave Balance tab removed due to fake data rules */}
 
                 <div style={{ marginTop: 'auto', paddingTop: '16px', display: 'flex', gap: '12px' }}>
                   <button onClick={() => setIsMessageOpen(true)} className="ceo-btn" style={{ flex: 1, justifyContent: 'center', padding: '10px', fontWeight: 700, background: '#FFF' }}>Send Message</button>
@@ -383,6 +548,20 @@ export default function People() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>SYSTEM ACCESS ROLE *</label>
+                  <select value={newEmp.sysRole} onChange={e => setNewEmp({...newEmp, sysRole: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }}>
+                    <option value="employee">Employee</option>
+                    <option value="hr">Human Resources (HR)</option>
+                    <option value="tl">Team Lead (TL)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>DESIGNATION *</label>
+                  <input required value={newEmp.role} onChange={e => setNewEmp({...newEmp, role: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }} placeholder="e.g. Senior Dev" />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>DEPARTMENT</label>
                   <select value={newEmp.dept} onChange={e => setNewEmp({...newEmp, dept: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }}>
                     <option value="Executive">Executive</option>
@@ -394,15 +573,11 @@ export default function People() {
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>DESIGNATION *</label>
-                  <input required value={newEmp.role} onChange={e => setNewEmp({...newEmp, role: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }} placeholder="e.g. Senior Dev" />
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>EMAIL ADDRESS *</label>
                   <input required type="email" value={newEmp.email} onChange={e => setNewEmp({...newEmp, email: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }} placeholder="email@nsg.com" />
                 </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>PHONE NUMBER</label>
                   <input value={newEmp.phone} onChange={e => setNewEmp({...newEmp, phone: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }} placeholder="+91 98765..." />
@@ -423,7 +598,7 @@ export default function People() {
           <div style={{ background: '#FFF', width: '800px', height: '80vh', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', display: 'flex', flexDirection: 'column', animation: 'fadeIn 0.2s ease-out' }}>
             <div style={{ padding: '32px', borderBottom: '1px solid var(--ceo-divider)', background: 'linear-gradient(to right, #F8FAFC, #FFFFFF)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-                <img src={selectedEmp.avatar} alt={selectedEmp.name} style={{ width: '80px', height: '80px', borderRadius: '16px', border: '4px solid #FFF', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={selectedEmp.avatar} alt={selectedEmp.name} style={{ width: '80px', height: '80px', borderRadius: '16px', border: '4px solid #FFF', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}  />
                 <div>
                   <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--ceo-text-primary)' }}>{selectedEmp.name}</div>
                   <div style={{ fontSize: '15px', color: 'var(--ceo-text-secondary)', fontWeight: 600, marginTop: '4px' }}>{selectedEmp.role} &bull; {selectedEmp.dept}</div>
@@ -448,7 +623,7 @@ export default function People() {
                   <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '16px' }}>REPORTING STRUCTURE</h3>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                     <Users size={20} color="var(--ceo-text-muted)" />
-                    <span style={{ fontSize: '14px', fontWeight: 600 }}>Reports to: CTO</span>
+                    <span style={{ fontSize: '14px', fontWeight: 600 }}>Reports to: {selectedEmp.manager_id ? (teamLeads.find(tl => tl.id === selectedEmp.manager_id)?.name || 'Team Lead') : 'CEO/HR'}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <Users size={20} color="var(--ceo-text-muted)" />
@@ -467,6 +642,18 @@ export default function People() {
                     <tr><td>{selectedEmp.joinDate}</td><td>Initial Offer</td><td><span className="ceo-badge success">Accepted</span></td></tr>
                   </tbody>
                 </table>
+              </div>
+
+              {/* Admin Actions */}
+              <div style={{ background: '#FFF', padding: '24px', borderRadius: '12px', border: '1px solid var(--ceo-border)' }}>
+                <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '16px' }}>ADMIN ACTIONS</h3>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button onClick={() => { setEditEmpData({...selectedEmp}); setIsEditProfileOpen(true); }} className="ceo-btn" style={{ fontWeight: 700 }}>Edit Profile</button>
+                  <button onClick={() => setIsResetPasswordOpen(true)} className="ceo-btn" style={{ fontWeight: 700, color: 'var(--ceo-danger)', border: '1px solid var(--ceo-danger)' }}>Reset Password</button>
+                  <button onClick={handleDeleteEmployee} disabled={updating} className="ceo-btn" style={{ fontWeight: 700, color: '#FFF', background: 'var(--ceo-danger)', border: '1px solid var(--ceo-danger)' }}>
+                    {updating ? 'Deleting...' : 'Delete Employee'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -498,6 +685,104 @@ export default function People() {
                 }} className="ceo-btn ceo-btn-primary" style={{ fontWeight: 700 }}>Send Message</button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT PROFILE MODAL */}
+      {isEditProfileOpen && editEmpData && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
+          <div style={{ background: '#FFF', width: '500px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', overflow: 'hidden', animation: 'fadeIn 0.2s ease-out' }}>
+            <div style={{ padding: '24px', borderBottom: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC' }}>
+              <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--ceo-text-primary)' }}>Edit Profile</div>
+              <button onClick={() => setIsEditProfileOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--ceo-text-muted)' }}><XCircle size={20} /></button>
+            </div>
+            <form onSubmit={handleEditProfileSubmit} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>FULL NAME</label>
+                <input required value={editEmpData.name} onChange={e => setEditEmpData({...editEmpData, name: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>EMAIL ADDRESS</label>
+                  <input required type="email" value={editEmpData.email} onChange={e => setEditEmpData({...editEmpData, email: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>SYSTEM ROLE</label>
+                  <select value={editEmpData.sysRole} onChange={e => setEditEmpData({...editEmpData, sysRole: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }}>
+                    <option value="employee">Employee</option>
+                    <option value="hr">Human Resources (HR)</option>
+                    <option value="tl">Team Lead (TL)</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>DEPARTMENT</label>
+                  <select value={editEmpData.dept} onChange={e => setEditEmpData({...editEmpData, dept: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }}>
+                    <option value="Executive">Executive</option>
+                    <option value="Engineering">Engineering</option>
+                    <option value="Sales">Sales</option>
+                    <option value="Marketing">Marketing</option>
+                    <option value="HR">HR</option>
+                    <option value="Finance">Finance</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>DESIGNATION</label>
+                  <input required value={editEmpData.role} onChange={e => setEditEmpData({...editEmpData, role: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }} />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>STATUS</label>
+                  <select value={editEmpData.status} onChange={e => setEditEmpData({...editEmpData, status: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }}>
+                    <option value="Active">Active</option>
+                    <option value="Probation">Probation</option>
+                    <option value="Terminated">Terminated</option>
+                    <option value="Resigned">Resigned</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>REPORTS TO (TEAM LEAD)</label>
+                  <select value={editEmpData.manager_id || ''} onChange={e => setEditEmpData({...editEmpData, manager_id: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }}>
+                    <option value="">None (Direct to CEO/HR)</option>
+                    {teamLeads.map(tl => (
+                      <option key={tl.id} value={tl.id}>{tl.name} ({tl.department})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div style={{ marginTop: '12px', display: 'flex', gap: '12px', justifyContent: 'flex-end', borderTop: '1px solid var(--ceo-divider)', paddingTop: '24px' }}>
+                <button type="button" onClick={() => setIsEditProfileOpen(false)} className="ceo-btn" style={{ fontWeight: 700, padding: '10px 20px' }}>Cancel</button>
+                <button type="submit" className="ceo-btn ceo-btn-primary" disabled={updating} style={{ fontWeight: 700, padding: '10px 20px' }}>{updating ? 'Saving...' : 'Save Changes'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* RESET PASSWORD MODAL */}
+      {isResetPasswordOpen && selectedEmp && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
+          <div style={{ background: '#FFF', width: '400px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', overflow: 'hidden', animation: 'fadeIn 0.2s ease-out' }}>
+            <div style={{ padding: '24px', borderBottom: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC' }}>
+              <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--ceo-danger)' }}>Reset Password</div>
+              <button onClick={() => setIsResetPasswordOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--ceo-text-muted)' }}><XCircle size={20} /></button>
+            </div>
+            <form onSubmit={handleResetPasswordSubmit} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <p style={{ fontSize: '14px', color: 'var(--ceo-text-secondary)', lineHeight: 1.5 }}>
+                You are about to force reset the password for <strong>{selectedEmp.name}</strong>.
+              </p>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>NEW PASSWORD *</label>
+                <input required type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="ceo-form-input" style={{ width: '100%', padding: '12px' }} placeholder="Enter new password" />
+              </div>
+              <div style={{ marginTop: '12px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => setIsResetPasswordOpen(false)} className="ceo-btn" style={{ fontWeight: 700, padding: '10px 20px' }}>Cancel</button>
+                <button type="submit" className="ceo-btn" disabled={updating} style={{ fontWeight: 700, padding: '10px 20px', background: 'var(--ceo-danger)', color: '#FFF', border: 'none' }}>{updating ? 'Resetting...' : 'Reset Password'}</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

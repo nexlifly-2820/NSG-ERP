@@ -209,7 +209,8 @@ def clock_out(current_user: models.User = Depends(security.get_current_user), db
     log.clock_out = local_now
     
     # Calculate elapsed hours
-    elapsed_time = local_now - log.clock_in
+    start_time = log.clock_in.replace(tzinfo=local_now.tzinfo) if log.clock_in.tzinfo is None else log.clock_in
+    elapsed_time = local_now - start_time
     hours_worked = elapsed_time.total_seconds() / 3600.0
     log.total_hours = round(hours_worked, 2)
     

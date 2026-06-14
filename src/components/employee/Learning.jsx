@@ -16,14 +16,12 @@ const MODULES = [
 
 const CURRENT_EMPLOYEE_ID = 102;
 
-export default function Learning({ db, onUpdateDb, currentUser }) {
+export default function Learning({ currentUser }) {
   const employeeId = currentUser?.id || CURRENT_EMPLOYEE_ID;
   const employeeName = currentUser?.name || 'Jane Smith';
 
-  // Use HR-managed questions or fallback to defaults
-  const QUIZ_QUESTIONS = (db?.quizQuestions && db.quizQuestions.length > 0)
-    ? db.quizQuestions
-    : DEFAULT_QUIZ_QUESTIONS;
+  // Fallback to defaults since there is no backend endpoint for custom questions yet
+  const QUIZ_QUESTIONS = DEFAULT_QUIZ_QUESTIONS;
 
   const [progress, setProgress] = useState({ completed_modules: 0, quiz_score: 0, passed: false });
   const [completedModules, setCompletedModules] = useState(new Set());
@@ -40,7 +38,7 @@ export default function Learning({ db, onUpdateDb, currentUser }) {
   const fetchProgress = async () => {
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch('http://localhost:8000/employee-portal/learning/progress', {
+      const res = await fetch('/api/employee-portal/learning/progress', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -65,7 +63,7 @@ export default function Learning({ db, onUpdateDb, currentUser }) {
   const updateProgressAPI = async (payload) => {
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      await fetch('http://localhost:8000/employee-portal/learning/progress', {
+      await fetch('/api/employee-portal/learning/progress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(payload)

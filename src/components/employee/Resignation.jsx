@@ -11,7 +11,7 @@ const defaultChecklist = [
   { id: 'kt_upload', label: 'KT document upload', completed: false, fileName: null }
 ];
 
-export default function Resignation({ db, onUpdateDb, currentUser }) {
+export default function Resignation({ currentUser }) {
   const [resignationData, setResignationData] = useState(null);
   const [checklist, setChecklist] = useState(defaultChecklist);
   const [earlyReliefStatus, setEarlyReliefStatus] = useState(null);
@@ -22,7 +22,7 @@ export default function Resignation({ db, onUpdateDb, currentUser }) {
   const fetchResignation = async () => {
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch('http://localhost:8000/employee-portal/resignation/status', {
+      const res = await fetch('/api/employee-portal/resignation/status', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -35,6 +35,14 @@ export default function Resignation({ db, onUpdateDb, currentUser }) {
             status: data.status,
             daysServed: 8
           });
+          if (data.early_relief_status) {
+             setEarlyReliefStatus(data.early_relief_status);
+          }
+          if (data.exit_checklist) {
+             try {
+                setChecklist(JSON.parse(data.exit_checklist));
+             } catch(e){}
+          }
         } else {
           setResignationData(null);
         }
@@ -48,31 +56,20 @@ export default function Resignation({ db, onUpdateDb, currentUser }) {
 
   useEffect(() => {
     fetchResignation();
-    
-    // Checklist and Early Relief from local storage as they are not entirely mapped in the simplified backend model
-    const savedChecklist = localStorage.getItem('nsg_employee_resignation_checklist');
-    if (savedChecklist) setChecklist(JSON.parse(savedChecklist));
-    
-    const savedRelief = localStorage.getItem('nsg_employee_resignation_early_relief');
-    if (savedRelief) setEarlyReliefStatus(savedRelief);
   }, []);
-
-  useEffect(() => {
-    if (earlyReliefStatus) {
-      localStorage.setItem('nsg_employee_resignation_early_relief', earlyReliefStatus);
-    } else {
-      localStorage.removeItem('nsg_employee_resignation_early_relief');
-    }
-  }, [earlyReliefStatus]);
 
   // --- Handlers ---
   const handleResignSubmit = async (data) => {
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch('http://localhost:8000/employee-portal/resignation/submit', {
+      const res = await fetch('/api/employee-portal/resignation/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ reason: data.reason || 'Personal Reasons' })
+        body: JSON.stringify({ 
+           submissionDate: data.submissionDate,
+           lwdDate: data.lwdDate,
+           reason: data.reason || 'Personal Reasons' 
+        })
       });
       if (res.ok) {
         showToast('Resignation submitted successfully.');
@@ -82,6 +79,17 @@ export default function Resignation({ db, onUpdateDb, currentUser }) {
         alert(err.detail || 'Error submitting resignation');
       }
     } catch (e) { console.error(e); }
+  };
+
+  const syncChecklistToBackend = async (newChecklist) => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      await fetch('/api/employee-portal/resignation/update-checklist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ checklist: newChecklist })
+      });
+    } catch(e) {}
   };
 
   const handleToggleTask = (taskId) => {
@@ -97,7 +105,7 @@ export default function Resignation({ db, onUpdateDb, currentUser }) {
     });
 
     setChecklist(updated);
-    localStorage.setItem('nsg_employee_resignation_checklist', JSON.stringify(updated));
+    syncChecklistToBackend(updated);
     showToast('Checklist task updated.');
   };
 
@@ -114,14 +122,22 @@ export default function Resignation({ db, onUpdateDb, currentUser }) {
     });
 
     setChecklist(updated);
-    localStorage.setItem('nsg_employee_resignation_checklist', JSON.stringify(updated));
+    syncChecklistToBackend(updated);
     showToast('KT document uploaded successfully.');
   };
 
-  const handleRequestEarlyRelief = () => {
-    setEarlyReliefStatus('requested');
-    localStorage.setItem('nsg_employee_resignation_early_relief', 'requested');
-    showToast('Early relief requested.');
+  const handleRequestEarlyRelief = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/employee-portal/resignation/request-early-relief', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+         setEarlyReliefStatus('requested');
+         showToast('Early relief requested.');
+      }
+    } catch(e){}
   };
 
   const handleSimulateApproveEarlyRelief = () => {
@@ -143,7 +159,7 @@ export default function Resignation({ db, onUpdateDb, currentUser }) {
   const handleResetResignation = async () => {
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch('http://localhost:8000/employee-portal/resignation/withdraw', {
+      const res = await fetch('/api/employee-portal/resignation/withdraw', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -151,8 +167,6 @@ export default function Resignation({ db, onUpdateDb, currentUser }) {
         setResignationData(null);
         setChecklist(defaultChecklist);
         setEarlyReliefStatus(null);
-        localStorage.removeItem('nsg_employee_resignation_early_relief');
-        localStorage.removeItem('nsg_employee_resignation_checklist');
         showToast('Resignation withdrawn.');
         fetchResignation();
       }
@@ -275,9 +289,8 @@ export default function Resignation({ db, onUpdateDb, currentUser }) {
         {/* left/main area: Form OR Submission status card */}
         <div className="area-main">
           {resignationData ? (() => {
-              const dbRecord = db?.resignations?.find(r => r.employee_id === employeeId);
-              const hrStatus = dbRecord?.status || 'pending';
-              const confirmedLwd = dbRecord?.LWD || resignationData.lwdDate;
+              const hrStatus = resignationData.status || 'pending';
+              const confirmedLwd = resignationData.lwdDate;
               return (
                 <div className="status-card">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--accent-green)' }}>

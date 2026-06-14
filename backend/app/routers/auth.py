@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
@@ -6,6 +6,7 @@ from typing import Optional
 
 from app import models, database
 from app.core import security
+from app.config import settings
 
 router = APIRouter(
     prefix="/auth",
@@ -32,6 +33,7 @@ class UserResponse(BaseModel):
     designation: Optional[str] = None
     emp_id: Optional[str] = None
     phone: Optional[str] = None
+    photo: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -68,7 +70,7 @@ def register(user_in: UserCreate, db: Session = Depends(database.get_db)):
     return db_user
 
 @router.post("/login", response_model=Token)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
+def login(response: Response, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
     # OAuth2 specifies 'username' parameter in login form, mapping it to user's email
     user = db.query(models.User).filter(models.User.email == form_data.username).first()
     if not user or not security.verify_password(form_data.password, user.hashed_password):
@@ -79,7 +81,23 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         )
     
     access_token = security.create_access_token(data={"sub": user.email})
+    
+    # Set HttpOnly Cookie
+    response.set_cookie(
+        key="nsg_jwt_token",
+        value=access_token,
+        httponly=True,
+        secure=False, # Set to True in production with HTTPS
+        samesite="lax",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    )
+    
     return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/logout")
+def logout(response: Response):
+    response.delete_cookie("nsg_jwt_token", httponly=True, samesite="lax")
+    return {"message": "Successfully logged out"}
 
 @router.get("/me", response_model=UserResponse)
 def read_users_me(current_user: models.User = Depends(security.get_current_user)):

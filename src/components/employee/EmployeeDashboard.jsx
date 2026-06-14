@@ -1,28 +1,52 @@
+// Crash fix applied
 import { useState, useEffect } from 'react';
 import './Employee.css';
 
-const CURRENT_EMPLOYEE_ID = 102; // Jane Smith (logged-in employee)
-
-export default function EmployeeDashboard({ db, onUpdateDb, setActiveTab, currentUser }) {
-  const employeeId = currentUser?.id || CURRENT_EMPLOYEE_ID;
+export default function EmployeeDashboard({ setActiveTab, currentUser }) {
+  const employeeId = currentUser?.id;
   const employee = currentUser ? {
     id: currentUser.id,
     name: currentUser.name,
-    designation: currentUser.designation || 'Senior Developer',
-    department: currentUser.department || 'Engineering',
-    employeeCode: currentUser.emp_id || 'NSG-EMP-102'
-  } : ((db?.employees || []).find(e => e.id === employeeId) || {
-    name: 'Jane Smith',
-    designation: 'Senior Developer',
-    department: 'Engineering',
-    employeeCode: 'NSG-EMP-102'
-  });
+    designation: currentUser.designation || currentUser.role || 'Unassigned',
+    department: currentUser.department || 'Unassigned',
+    employeeCode: currentUser.emp_id || (currentUser.id ? `NSG-EMP-${currentUser.id}` : 'Unassigned')
+  } : {
+    name: 'Loading...',
+    designation: '...',
+    department: '...',
+    employeeCode: '...'
+  };
 
   // ── Clock-in state ────────────────────────────────────────────────
   const [clockedIn, setClockedIn] = useState(false);
   const [clockInTime, setClockInTime] = useState(null);
   const [elapsed, setElapsed] = useState('');
   const [clockBusy, setClockBusy] = useState(false);
+  const token = localStorage.getItem('nsg_jwt_token');
+
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        const res = await fetch('/api/attendance/my-logs', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const logs = await res.json();
+          // Check if there is an active log for today
+          const today = new Date().toISOString().split('T')[0];
+          const activeLog = logs.find(l => l.date === today);
+          if (activeLog && activeLog.clock_in && !activeLog.clock_out) {
+            setClockedIn(true);
+            setClockInTime(new Date(activeLog.clock_in).getTime());
+          } else {
+            setClockedIn(false);
+            setClockInTime(null);
+          }
+        }
+      } catch (e) { console.error(e); }
+    };
+    fetchLogs();
+  }, [token]);
 
   // Live elapsed timer
   useEffect(() => {
@@ -39,23 +63,63 @@ export default function EmployeeDashboard({ db, onUpdateDb, setActiveTab, curren
     return () => clearInterval(id);
   }, [clockedIn, clockInTime]);
 
-  const handleClockIn = () => {
+  const handleClockIn = async () => {
     setClockBusy(true);
-    setTimeout(() => {
-      setClockedIn(true);
-      setClockInTime(Date.now());
-      setClockBusy(false);
-    }, 600);
+    let mode = "office";
+    let lat = 12.9716;
+    let lng = 77.5946;
+
+    if (navigator.geolocation) {
+      try {
+        const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 3000 }));
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+        if (Math.abs(lat - 12.9716) > 0.05 || Math.abs(lng - 77.5946) > 0.05) mode = "wfh";
+      } catch (e) { mode = "wfh"; }
+    }
+    
+    try {
+      const res = await fetch('/api/attendance/clock-in', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ work_mode: mode, latitude: lat, longitude: lng })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setClockedIn(true);
+        setClockInTime(new Date(data.clock_in).getTime());
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.detail || 'Failed to clock in');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Network error during clock-in');
+    }
+    setClockBusy(false);
   };
 
-  const handleClockOut = () => {
+  const handleClockOut = async () => {
     setClockBusy(true);
-    setTimeout(() => {
-      setClockedIn(false);
-      setClockInTime(null);
-      setElapsed('');
-      setClockBusy(false);
-    }, 600);
+    try {
+      const res = await fetch('/api/attendance/clock-out', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setClockedIn(false);
+        setClockInTime(null);
+        setElapsed('');
+        alert('Clocked out successfully!');
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.detail || 'Failed to clock out');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Network error during clock-out');
+    }
+    setClockBusy(false);
   };
 
   // ── Greeting ─────────────────────────────────────────────────────
@@ -63,49 +127,97 @@ export default function EmployeeDashboard({ db, onUpdateDb, setActiveTab, curren
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const isLate = hour >= 10 && !clockedIn;
 
+  // ── Dashboard Data Fetch ──────────────────────────────────────────
+  const userRole = (currentUser?.role || '').toLowerCase();
+  const hideTasks = userRole === 'hr' || userRole === 'ceo';
+
+  const [dbData, setDbData] = useState({
+    tasks: [],
+    leaveBalances: null,
+    payslips: [],
+    assets: [],
+    announcements: [],
+    notifications: [],
+    channels: []
+  });
+
+  useEffect(() => {
+    const fetchAll = async () => {
+      try {
+        const headers = { 'Authorization': `Bearer ${token}` };
+        const [
+          tasksRes, leaveRes, payslipRes, assetsRes, 
+          annRes, notifRes, chanRes
+        ] = await Promise.all([
+          fetch('/api/employee-portal/tasks/my-tasks', { headers }),
+          fetch('/api/employee-portal/leave/my-balances', { headers }),
+          fetch('/api/employee-portal/payroll/my-payslips', { headers }),
+          fetch('/api/employee-portal/resignation/my-assets', { headers }),
+          fetch('/api/employee-portal/announcements', { headers }),
+          fetch('/api/attendance/my-notifications', { headers }),
+          fetch('/api/employee-portal/chat/my-channels', { headers })
+        ]);
+
+        const tasks = tasksRes.ok ? await tasksRes.json() : [];
+        const leaveBalances = leaveRes.ok ? await leaveRes.json() : null;
+        const payslips = payslipRes.ok ? await payslipRes.json() : [];
+        const assets = assetsRes.ok ? await assetsRes.json() : [];
+        const announcements = annRes.ok ? await annRes.json() : [];
+        const notifications = notifRes.ok ? await notifRes.json() : [];
+        const channels = chanRes.ok ? await chanRes.json() : [];
+
+        announcements.forEach(ann => {
+          fetch(`/api/employee-portal/announcements/${ann.id}/read`, { method: 'POST', headers }).catch(() => {});
+        });
+        setDbData({ tasks, leaveBalances, payslips, assets, announcements, notifications, channels });
+      } catch (e) { console.error('Dashboard fetch error', e); }
+    };
+    fetchAll();
+  }, [token]);
+
   // ── Tasks for this employee ───────────────────────────────────────
-  const myTasks = (db?.tasks || []).filter(t => t.assignee === employee.name);
+  const myTasks = dbData.tasks;
   const openTasks = myTasks.filter(t => t.status !== 'done');
   const doneTasks = myTasks.filter(t => t.status === 'done');
 
   // ── Leave balance ─────────────────────────────────────────────────
-  const myLeave = (db?.leaveBalances || []).find(b => b.employee_id === employeeId);
+  const myLeave = dbData.leaveBalances;
 
   // ── Payslip ───────────────────────────────────────────────────────
-  const myPayslips = (db?.payslips || []).filter(p => p.employee_id === employeeId);
+  const myPayslips = dbData.payslips;
   const latestPayslip = myPayslips.sort((a, b) => (b.period || '').localeCompare(a.period || ''))[0];
 
   // ── Assets ───────────────────────────────────────────────────────
-  const myAssets = (db?.assets || []).filter(a => a.employee_id === employeeId);
+  const myAssets = dbData.assets;
 
   // ── Channels (unread badge) ───────────────────────────────────────
-  const myChannels = (db?.chatChannels || []).filter(c => c.members && c.members.includes(String(employeeId)));
+  const myChannels = dbData.channels;
 
   // ── Derived leave statistics ──────────────────────────────────────
-  const clLeft = myLeave?.CL ?? 12;
-  const slLeft = myLeave?.SL ?? 8;
-  const elLeft = myLeave?.EL ?? 15;
+  const clLeft = myLeave?.CL ?? 0;
+  const slLeft = myLeave?.SL ?? 0;
+  const elLeft = myLeave?.EL ?? 0;
   const totalLeft = clLeft + slLeft + elLeft;
-  const totalUsed = (12 - clLeft) + (8 - slLeft) + (15 - elLeft);
 
   // ── Pending actions ───────────────────────────────────────────────
   const [doneActions, setDoneActions] = useState({});
   const pendingActions = [
     { id: 'ts', label: 'Submit weekly timesheet', sub: 'Due: End of day today', tab: 'timesheet' },
-    { id: 'lv', label: 'Review leave balance', sub: `${totalUsed} days used`, tab: 'leave' },
+    { id: 'lv', label: 'Review leave balance', sub: `Balance: ${totalLeft} days`, tab: 'leave' },
     { id: 'exp', label: 'File pending expenses', sub: 'Upload receipts and submit claims', tab: 'expenses' },
     { id: 'asset', label: 'Review asset NOC status', sub: `${myAssets.length} assigned asset(s)`, tab: 'assets' },
   ];
 
   // ── Notifications ─────────────────────────────────────────────────
   const [notifRead, setNotifRead] = useState({});
-  const notifications = [
-    { id: 'n1', icon: '📋', msg: 'Your timesheet for Sprint 14 is pending HR review.', time: '10 min ago', unread: true },
-    { id: 'n2', icon: '💬', msg: 'Sarah Jenkins (HR) sent a message in #grievance-room.', time: '35 min ago', unread: true },
-    { id: 'n3', icon: '✅', msg: 'Your leave request for June 10 was approved.', time: '2 hrs ago', unread: false },
-    { id: 'n4', icon: '💰', msg: `Payslip for ${latestPayslip?.period || 'May 2026'} is now available.`, time: 'Yesterday', unread: false },
-    { id: 'n5', icon: '📦', msg: 'Asset NOC for Corporate MacBook Pro Silicon is pending.', time: '2 days ago', unread: false },
-  ];
+  const notifications = dbData.notifications.map(n => ({
+    id: n.id,
+    icon: n.type === 'warning' ? '⚠️' : n.type === 'success' ? '✅' : '🔔',
+    msg: n.message,
+    time: n.timestamp ? new Date(n.timestamp).toLocaleTimeString() : 'Just now',
+    unread: !n.read
+  }));
+
 
   // Priority color util
   const priorityClass = p => ({ high: 'emp-priority--high', medium: 'emp-priority--medium', low: 'emp-priority--low' }[p] || 'emp-priority--low');
@@ -187,8 +299,8 @@ export default function EmployeeDashboard({ db, onUpdateDb, setActiveTab, curren
             },
             {
               label: 'Leave Balance',
-              value: myLeave ? `${totalLeft} days` : 'N/A',
-              sub: `${totalUsed} used this year`,
+              value: myLeave ? `${totalLeft} days` : '0 days',
+              sub: myLeave ? 'Available this year' : 'Pending allocation',
               color: '#10b981',
               icon: '🌴',
               onClick: () => setActiveTab('leave')
@@ -232,53 +344,55 @@ export default function EmployeeDashboard({ db, onUpdateDb, setActiveTab, curren
         <div className="emp-grid">
 
           {/* ── Tasks ── */}
-          <div className="emp-card emp-grid__tasks">
-            <div className="emp-section-header" style={{ marginBottom: 14 }}>
-              <div className="emp-section-header__left">
-                <span style={{ fontSize: 16 }}>📋</span>
-                <span className="emp-section-header__title">My Active Tasks</span>
-                <span className="emp-badge-count" style={{ background: 'rgba(96,165,250,0.1)', color: '#60a5fa' }}>{openTasks.length}</span>
+          {!hideTasks && (
+            <div className="emp-card emp-grid__tasks">
+              <div className="emp-section-header" style={{ marginBottom: 14 }}>
+                <div className="emp-section-header__left">
+                  <span style={{ fontSize: 16 }}>📋</span>
+                  <span className="emp-section-header__title">My Active Tasks</span>
+                  <span className="emp-badge-count" style={{ background: 'rgba(96,165,250,0.1)', color: '#60a5fa' }}>{openTasks.length}</span>
+                </div>
+                <button
+                  style={{ fontSize: 12, background: 'none', border: '1px solid var(--border-color)', borderRadius: 8, padding: '5px 12px', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                  onClick={() => setActiveTab('tasks')}
+                >
+                  View All →
+                </button>
               </div>
-              <button
-                style={{ fontSize: 12, background: 'none', border: '1px solid var(--border-color)', borderRadius: 8, padding: '5px 12px', color: 'var(--text-secondary)', cursor: 'pointer' }}
-                onClick={() => setActiveTab('tasks')}
-              >
-                View All →
-              </button>
-            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {openTasks.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)', fontSize: 13 }}>
-                  🎉 No open tasks — great job!
-                </div>
-              )}
-              {openTasks.slice(0, 5).map(task => (
-                <div key={task.id} className="emp-task-row">
-                  <span className={`emp-priority ${priorityClass(task.priority)}`}>{task.priority}</span>
-                  <div style={{ flex: 1 }}>
-                    <div className="emp-task-title">{task.title}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                      {task.project} · Sprint: {task.sprint} · Due: {task.due}
-                    </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {openTasks.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)', fontSize: 13 }}>
+                    🎉 No open tasks — great job!
                   </div>
-                  <span className="emp-status-chip" style={statusStyle(task.status)}>{task.status.replace('-', ' ')}</span>
-                </div>
-              ))}
-              {doneTasks.length > 0 && (
-                <div style={{ marginTop: 12 }}>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8, fontWeight: 700 }}>✅ Completed</div>
-                  {doneTasks.slice(0,2).map(task => (
-                    <div key={task.id} className="emp-task-row" style={{ opacity: 0.5 }}>
-                      <span className={`emp-priority ${priorityClass(task.priority)}`}>{task.priority}</span>
-                      <div className="emp-task-title emp-task-title--done">{task.title}</div>
-                      <span className="emp-status-chip" style={statusStyle(task.status)}>done</span>
+                )}
+                {openTasks.slice(0, 5).map(task => (
+                  <div key={task.id} className="emp-task-row">
+                    <span className={`emp-priority ${priorityClass(task.priority)}`}>{task.priority}</span>
+                    <div style={{ flex: 1 }}>
+                      <div className="emp-task-title">{task.title}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                        {task.project} · Sprint: {task.sprint} · Due: {task.due}
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                    <span className="emp-status-chip" style={statusStyle(task.status)}>{task.status.replace('-', ' ')}</span>
+                  </div>
+                ))}
+                {doneTasks.length > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8, fontWeight: 700 }}>✅ Completed</div>
+                    {doneTasks.slice(0,2).map(task => (
+                      <div key={task.id} className="emp-task-row" style={{ opacity: 0.5 }}>
+                        <span className={`emp-priority ${priorityClass(task.priority)}`}>{task.priority}</span>
+                        <div className="emp-task-title emp-task-title--done">{task.title}</div>
+                        <span className="emp-status-chip" style={statusStyle(task.status)}>done</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* ── CEO Announcements ── */}
           <div className="emp-card" style={{ marginTop: 16 }}>
@@ -287,17 +401,17 @@ export default function EmployeeDashboard({ db, onUpdateDb, setActiveTab, curren
                 <span style={{ fontSize: 16 }}>📢</span>
                 <span className="emp-section-header__title">CEO Announcements</span>
                 <span className="emp-badge-count" style={{ background: 'rgba(245,158,11,0.1)', color: '#fbbf24' }}>
-                  {(db?.announcements || []).length}
+                  {dbData.announcements.length}
                 </span>
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {(db?.announcements || []).length === 0 ? (
+              {dbData.announcements.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '30px 20px', color: 'var(--text-muted)', fontSize: 13 }}>
                   No announcements yet.
                 </div>
               ) : (
-                (db?.announcements || []).slice(0, 3).map(ann => (
+                dbData.announcements.slice(0, 3).map(ann => (
                   <div key={ann.id} style={{
                     padding: '14px',
                     background: 'var(--bg-primary)',
@@ -315,7 +429,7 @@ export default function EmployeeDashboard({ db, onUpdateDb, setActiveTab, curren
                       )}
                     </div>
                     <strong style={{ fontSize: 13, color: '#fff' }}>{ann.title}</strong>
-                    <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>{ann.body}</p>
+                    <div dangerouslySetInnerHTML={{ __html: ann.body }} className="quill-content" style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }} />
                   </div>
                 ))
               )}
@@ -455,3 +569,4 @@ export default function EmployeeDashboard({ db, onUpdateDb, setActiveTab, curren
     </div>
   );
 }
+

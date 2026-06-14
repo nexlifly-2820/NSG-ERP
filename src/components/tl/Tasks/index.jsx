@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import useSWR from 'swr';
+import AvatarFallback from '../../common/AvatarFallback';
 import styles from './tasks.module.css';
 import { PlusSquare, List, XCircle, GitPullRequest, Edit, UserPlus, RotateCcw, Check, X } from 'lucide-react';
 
@@ -7,8 +9,12 @@ export default function Tasks({ currentUser }) {
   const [subtasks, setSubtasks] = useState(['']);
   const [groupBy, setGroupBy] = useState('None');
   
-  const [teamMembers, setTeamMembers] = useState([]);
-  const [tasks, setTasks] = useState([]);
+  const token = localStorage.getItem('nsg_jwt_token');
+  const fetcher = (url) => fetch(url, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.json());
+
+  const { data: teamMembers = [], mutate: mutateTeam } = useSWR('/api/team-lead/team-members', fetcher);
+  const { data: tasks = [], mutate: mutateTasks } = useSWR('/api/team-lead/tasks', fetcher);
+  const { data: projectsData = [], mutate: mutateProjects } = useSWR('/api/team-lead/projects', fetcher);
 
   const [taskTitle, setTaskTitle] = useState('');
   const [taskPoints, setTaskPoints] = useState('');
@@ -16,7 +22,7 @@ export default function Tasks({ currentUser }) {
   const [taskAssignee, setTaskAssignee] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
   const [taskProject, setTaskProject] = useState('NSG-ERP Core');
-  const [taskSprint, setTaskSprint] = useState('Sprint 14');
+  const [taskSprint, setTaskSprint] = useState('Sprint 1');
   const [taskAcceptance, setTaskAcceptance] = useState('');
   const [taskDue, setTaskDue] = useState('');
   const [editingTaskId, setEditingTaskId] = useState(null);
@@ -29,30 +35,7 @@ export default function Tasks({ currentUser }) {
   const [rejectTaskId, setRejectTaskId] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
 
-  useEffect(() => {
-    fetchTeamMembers();
-    fetchTasks();
-  }, []);
 
-  const fetchTeamMembers = async () => {
-    try {
-      const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch('http://localhost:8000/team-lead/team-members', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) setTeamMembers(await res.json());
-    } catch (e) { console.error(e); }
-  };
-
-  const fetchTasks = async () => {
-    try {
-      const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch('http://localhost:8000/team-lead/tasks', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) setTasks(await res.json());
-    } catch (e) { console.error(e); }
-  };
 
   const handleAddSubtask = () => setSubtasks([...subtasks, '']);
   const handleRemoveSubtask = (index) => setSubtasks(subtasks.filter((_, i) => i !== index));
@@ -90,7 +73,7 @@ export default function Tasks({ currentUser }) {
     }
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch(`http://localhost:8000/team-lead/tasks/${reassignTaskId}/reassign`, {
+      const res = await fetch(`/api/team-lead/tasks/${reassignTaskId}/reassign`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -101,7 +84,7 @@ export default function Tasks({ currentUser }) {
       if (res.ok) {
         if (window.toast) window.toast.success("Task reassigned successfully!");
         setReassignModalOpen(false);
-        fetchTasks();
+        mutateTasks();
       } else {
         const data = await res.json();
         if (window.toast) window.toast.error(data.detail || "Failed to reassign task");
@@ -153,17 +136,17 @@ export default function Tasks({ currentUser }) {
       description: taskDescription.trim() || 'Created via TL sprint board',
       priority: priorityVal,
       sp: parseInt(taskPoints) || 1,
-      due: taskDue || '2026-06-15',
+      due: taskDue || new Date().toISOString().split('T')[0],
       assignee_id: parseInt(taskAssignee),
       subtasks: subtasks.filter(t => t.trim() !== ''),
       acceptance: taskAcceptance.split('\n').map(a => a.trim().replace(/^- /, '')).filter(a => a !== '')
     };
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      let url = 'http://localhost:8000/team-lead/tasks';
+      let url = '/api/team-lead/tasks';
       let method = 'POST';
       if (editingTaskId) {
-        url = `http://localhost:8000/team-lead/tasks/${editingTaskId}`;
+        url = `/api/team-lead/tasks/${editingTaskId}`;
         method = 'PATCH';
       }
       const res = await fetch(url, {
@@ -183,7 +166,7 @@ export default function Tasks({ currentUser }) {
         setTaskAcceptance('');
         setEditingTaskId(null);
         setActiveView('list');
-        fetchTasks();
+        mutateTasks();
         if (window.toast) window.toast.success(editingTaskId ? "Task updated successfully!" : "Task created successfully!");
         else alert(editingTaskId ? "Task updated successfully!" : "Task created successfully!");
         setSubtasks(['']);
@@ -194,11 +177,11 @@ export default function Tasks({ currentUser }) {
   const handleApprovePr = async (taskId) => {
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch(`http://localhost:8000/team-lead/tasks/${taskId}/approve-pr`, {
+      const res = await fetch(`/api/team-lead/tasks/${taskId}/approve-pr`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) fetchTasks();
+      if (res.ok) mutateTasks();
     } catch (e) { console.error(e); }
   };
 
@@ -215,7 +198,7 @@ export default function Tasks({ currentUser }) {
     }
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch(`http://localhost:8000/team-lead/tasks/${rejectTaskId}/reject-pr`, {
+      const res = await fetch(`/api/team-lead/tasks/${rejectTaskId}/reject-pr`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ reason: rejectReason })
@@ -223,7 +206,7 @@ export default function Tasks({ currentUser }) {
       if (res.ok) {
         if (window.toast) window.toast.success("PR Rejected successfully.");
         setRejectModalOpen(false);
-        fetchTasks();
+        mutateTasks();
       }
     } catch (e) { console.error(e); }
   };
@@ -234,8 +217,6 @@ export default function Tasks({ currentUser }) {
       id: t.id,
       title: t.title,
       reason: t.rejected_reason || 'Rework required.',
-      rejectedBy: 'Marcus Vance',
-      rejectedAt: 'Recently',
       resubmitDue: t.due || 'TBD'
     }));
 
@@ -246,8 +227,7 @@ export default function Tasks({ currentUser }) {
       title: t.title,
       prUrl: t.pr_url || '#PR',
       author: getAssigneeName(t.user_id),
-      openedAt: 'Today',
-      hoursPending: 2
+      due: t.due || 'TBD'
     }));
 
   const getGroupedTasks = () => {
@@ -318,16 +298,16 @@ export default function Tasks({ currentUser }) {
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Project</label>
                 <select className={styles.formSelect} value={taskProject} onChange={(e) => setTaskProject(e.target.value)}>
-                  <option>Select Project...</option>
-                  <option>NSG-ERP Core</option>
-                  <option>Mobile App</option>
-                  <option>Marketing Website</option>
+                  <option value="">Select Project...</option>
+                  {projectsData.map(proj => (
+                    <option key={proj.id} value={proj.name}>{proj.name}</option>
+                  ))}
                 </select>
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Sprint ID</label>
                 <select className={styles.formSelect} value={taskSprint} onChange={(e) => setTaskSprint(e.target.value)}>
-                  {[...new Set(['Sprint 14', 'Sprint 13', ...((tasks || []).map(t => t.sprint).filter(Boolean))])].map(s => (
+                  {[...new Set(((tasks || []).map(t => t.sprint).filter(Boolean)))].map(s => (
                     <option key={s} value={s}>{s}</option>
                   ))}
                   <option value="Backlog">Backlog</option>
@@ -402,7 +382,7 @@ export default function Tasks({ currentUser }) {
                           <td className={styles.taskTitle}>{task.title}</td>
                           <td>
                             <div className={styles.assigneeCell}>
-                              <div className={styles.avatar}>{task.avatar}</div>
+                              <AvatarFallback name={task.assignee} size="24px" />
                               {task.assignee}
                             </div>
                           </td>
@@ -443,8 +423,6 @@ export default function Tasks({ currentUser }) {
                   <tr>
                     <th>Task Title</th>
                     <th>Rejection Reason</th>
-                    <th>Rejected By</th>
-                    <th>Rejected At</th>
                     <th>Resubmit Deadline</th>
                     <th>Action</th>
                   </tr>
@@ -454,8 +432,6 @@ export default function Tasks({ currentUser }) {
                     <tr key={task.id}>
                       <td className={styles.taskTitle}>{task.title}</td>
                       <td style={{ color: 'var(--danger)', fontWeight: 500 }}>{task.reason}</td>
-                      <td>{task.rejectedBy}</td>
-                      <td>{task.rejectedAt}</td>
                       <td style={{ fontWeight: 600 }}>{task.resubmitDue}</td>
                       <td>
                         <button className={`${styles.actionBtn} ${styles.primary}`}>
@@ -480,8 +456,7 @@ export default function Tasks({ currentUser }) {
                     <th>Task Title</th>
                     <th>PR Link</th>
                     <th>Author</th>
-                    <th>Opened At</th>
-                    <th>Time Pending</th>
+                    <th>Due Date</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -495,12 +470,7 @@ export default function Tasks({ currentUser }) {
                         </a>
                       </td>
                       <td>{pr.author}</td>
-                      <td>{pr.openedAt}</td>
-                      <td>
-                        <span className={`${styles.timePending} ${pr.hoursPending > 24 ? styles.red : ''}`}>
-                          {pr.hoursPending} hours
-                        </span>
-                      </td>
+                      <td>{pr.due}</td>
                       <td>
                         <div className={styles.actionGroup}>
                           <button className={`${styles.actionBtn} ${styles.success}`} onClick={() => handleApprovePr(pr.id)}><Check size={12}/> Approve PR</button>

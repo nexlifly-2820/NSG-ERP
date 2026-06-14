@@ -8,7 +8,7 @@ import HrSidebar from '../hr/HrSidebar';
 import TlSidebar from '../tl/TlSidebar';
 import EmployeeSidebar from '../employee/EmployeeSidebar';
 
-export default function Sidebar({ activeRole, activeTab, setActiveTab }) {
+export default function Sidebar({ activeRole, activeTab, setActiveTab, currentUser }) {
   const currentRoleColor = {
     CEO: '#f59e0b',
     HR: '#ec4899',
@@ -39,11 +39,16 @@ export default function Sidebar({ activeRole, activeTab, setActiveTab }) {
 
   const RoleIconComponent = roleIcon;
 
+  const handleLogout = () => {
+        window.location.hash = '#/login';
+    window.location.reload();
+  };
+
   return (
     <aside className="app-sidebar">
       {/* Brand Header */}
       <div className="sidebar-brand" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px', marginBottom: '24px' }}>
-        <img src="/hmns-logo.png" alt="HMNS Software" style={{ width: '160px', height: 'auto', objectFit: 'contain', background: '#fff', padding: '6px 10px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }} />
+        <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src="/hmns-logo.png" alt="HMNS Software" style={{ width: '160px', height: 'auto', objectFit: 'contain', background: '#fff', padding: '6px 10px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}  />
         <span style={{ color: currentRoleColor, fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', paddingLeft: '4px', marginTop: '2px' }}>{roleLabel}</span>
       </div>
 
@@ -53,16 +58,21 @@ export default function Sidebar({ activeRole, activeTab, setActiveTab }) {
         {activeRole === 'CEO' && <CeoSidebar activeTab={activeTab} setActiveTab={setActiveTab} />}
         {activeRole === 'HR' && <HrSidebar activeTab={activeTab} setActiveTab={setActiveTab} />}
         {activeRole === 'TL' && <TlSidebar activeTab={activeTab} setActiveTab={setActiveTab} />}
-        {activeRole === 'Employee' && <EmployeeSidebar activeTab={activeTab} setActiveTab={setActiveTab} />}
+        {activeRole === 'Employee' && <EmployeeSidebar activeTab={activeTab} setActiveTab={setActiveTab} currentUser={currentUser} />}
       </nav>
 
       {/* Footer Settings & Actions */}
       <div className="sidebar-footer">
-        <button className="nav-link footer-link">
-          <Settings size={18} />
-          <span>System Settings</span>
-        </button>
-        <button className="nav-link footer-link logout">
+        {(activeRole === 'CEO' || activeRole === 'HR') && (
+          <button 
+            className={`nav-link footer-link ${activeTab === 'settings' ? 'active' : ''}`}
+            onClick={() => setActiveTab('settings')}
+          >
+            <Settings size={18} />
+            <span>System Settings</span>
+          </button>
+        )}
+        <button className="nav-link footer-link logout" onClick={handleLogout}>
           <LogOut size={18} />
           <span>Logout</span>
         </button>

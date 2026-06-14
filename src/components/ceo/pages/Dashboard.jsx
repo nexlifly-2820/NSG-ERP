@@ -8,7 +8,7 @@ import '../CEO.css';
 // ==========================================
 // DASHBOARD COMPONENT (INTEGRATED WITH REAL DATA)
 // ==========================================
-export default function Dashboard({ db, onUpdateDb }) {
+export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [summaryData, setSummaryData] = useState({
@@ -32,7 +32,6 @@ export default function Dashboard({ db, onUpdateDb }) {
   const token = localStorage.getItem('nsg_jwt_token');
 
   const fetchData = async () => {
-    if (!token) return;
     setLoading(true);
     setError('');
     try {
@@ -63,9 +62,9 @@ export default function Dashboard({ db, onUpdateDb }) {
         type: "Payroll Payout",
         by: p.maker_id || "HR Office",
         dept: "Finance",
-        urgency: "Critical",
+        urgency: "High",
         date: p.maker_signed_at ? new Date(p.maker_signed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Recent",
-        amount: `₹${(p.month === 5 ? "24.5" : "22.1")}M`,
+        amount: `₹${(p.total_amount || 0).toLocaleString()}`,
         rawType: "payroll"
       }));
 
@@ -136,55 +135,19 @@ export default function Dashboard({ db, onUpdateDb }) {
         };
       });
 
-      // 5. Fetch all attendance logs for heatmap calculation
-      const attRes = await fetch('/api/attendance/all-logs', { headers });
-      const attendanceLogs = attRes.ok ? await attRes.json() : [];
-
-      // Compute last 14 days dates starting from May 24, 2026 to Jun 6, 2026
-      const calculatedDates = [];
-      const startDate = new Date("2026-05-24");
-      for (let i = 0; i < 14; i++) {
-        const d = new Date(startDate);
-        d.setDate(startDate.getDate() + i);
-        const monthNames = ["May", "Jun"];
-        const monthStr = d.getMonth() === 4 ? "May" : "Jun";
-        calculatedDates.push(`${monthStr} ${d.getDate()}`);
-      }
-
-      // Compute heatmapDataState: [deptIndex][dateIndex] = attendance %
-      const computedHeatmap = heatmapDepts.map(dept => {
-        // Find users in this department
-        const deptUserIds = employees.filter(e => e.department === dept).map(e => e.id);
-        if (deptUserIds.length === 0) {
-          return calculatedDates.map(() => 0); // Real data, if no users, 0%
-        }
-
-        return calculatedDates.map(dateStr => {
-          const parts = dateStr.split(' ');
-          const dateMonth = parts[0];
-          const dateDay = parseInt(parts[1]);
-          const monthNum = dateMonth === "May" ? 5 : 6;
-          const targetDateStr = `2026-${monthNum < 10 ? '0' + monthNum : monthNum}-${dateDay < 10 ? '0' + dateDay : dateDay}`;
-
-          const dayLogs = attendanceLogs.filter(log => log.date === targetDateStr && deptUserIds.includes(log.user_id));
-          const presentLogs = dayLogs.filter(log => ["present", "late", "half-day"].includes(log.status));
-          
-          if (dayLogs.length === 0) {
-            return 0; // Realistic - no check-ins = 0%
-          }
-          return Math.round((presentLogs.length / dayLogs.length) * 100);
-        });
-      });
+      // 5. Fetch heatmap data from optimized API
+      const heatRes = await fetch('/api/ceo-portal/dashboard/heatmap', { headers });
+      const heatData = heatRes.ok ? await heatRes.json() : { dates: [], departments: heatmapDepts, data: heatmapDepts.map(() => [0,0,0,0,0,0,0,0,0,0,0,0,0,0]) };
 
       // Save to states
       if (summaryVal) {
         setSummaryData(summaryVal);
       } else {
         setSummaryData({
-          headcount: employees.length || 4,
+          headcount: employees.length || 0,
           activeBlockers: mappedEscalations.length,
           pendingApprovalsCount: combinedApprovals.length,
-          okrProgressAverage: 75,
+          okrProgressAverage: 0,
           riskIndex: mappedEscalations.length <= 2 ? 'Low' : 'High',
           monthlyPayroll: 0,
           activeProjects: 0
@@ -192,8 +155,8 @@ export default function Dashboard({ db, onUpdateDb }) {
       }
       setApprovalsList(combinedApprovals);
       setEscalationsList(mappedEscalations);
-      setDatesState(calculatedDates);
-      setHeatmapDataState(computedHeatmap);
+      setDatesState(heatData.dates);
+      setHeatmapDataState(heatData.data);
 
     } catch (err) {
       console.error("Error loading dashboard data:", err);
@@ -259,6 +222,35 @@ export default function Dashboard({ db, onUpdateDb }) {
     } catch (e) {
       console.error(e);
       alert('❌ Connection failed.');
+    }
+  };
+
+  const handleResolveEscalation = async (escId, dbId) => {
+    try {
+      const res = await fetch(`/api/ceo-portal/projects/escalations/${dbId}/resolve`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setEscalationsList(prev => prev.filter(e => e.id !== escId));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteEscalation = async (escId, dbId) => {
+    if (!window.confirm("Are you sure you want to delete this escalation permanently?")) return;
+    try {
+      const res = await fetch(`/api/ceo-portal/projects/escalations/${dbId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setEscalationsList(prev => prev.filter(e => e.id !== escId));
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -466,7 +458,11 @@ export default function Dashboard({ db, onUpdateDb }) {
                       <span className={`ceo-badge ${esc.severity === 'CRITICAL' ? 'critical' : esc.severity === 'HIGH' ? 'warning' : 'neutral'}`}>{esc.severity}</span>
                       <span className="ceo-typography-meta">{esc.module}</span>
                     </div>
-                    <span className="ceo-typography-meta"><Clock size={12} style={{ display: 'inline', marginRight: '4px' }}/>{esc.time}</span>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span className="ceo-typography-meta"><Clock size={12} style={{ display: 'inline', marginRight: '4px' }}/>{esc.time}</span>
+                      <button className="ceo-btn" style={{ padding: '2px 8px', fontSize: '11px', background: 'var(--ceo-success)', color: '#FFF', border: 'none' }} onClick={() => handleResolveEscalation(esc.id, esc.id.replace('E-', ''))}>Resolve</button>
+                      <button className="ceo-btn" style={{ padding: '2px 8px', fontSize: '11px', background: 'var(--ceo-danger)', color: '#FFF', border: 'none' }} onClick={() => handleDeleteEscalation(esc.id, esc.id.replace('E-', ''))}>Delete</button>
+                    </div>
                   </div>
                   <div className="ceo-typography-body" style={{ fontWeight: 500, color: 'var(--ceo-text-primary)' }}>{esc.msg}</div>
                 </div>

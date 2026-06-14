@@ -11,42 +11,7 @@ import '../CEO.css';
 const REPORT_TYPES = ['Headcount', 'Payroll Cost', 'Attendance', 'Leave Trends', 'Project Status', 'Attrition'];
 const COLORS = ['var(--ceo-primary)', 'var(--ceo-success)', 'var(--ceo-warning)', 'var(--ceo-purple)', 'var(--ceo-danger)'];
 
-// Fallback datasets (used when DB has no data yet)
-const FALLBACK = {
-  headcount: [
-    { month: 'Jan', count: 8, new: 3, left: 0 },
-    { month: 'Feb', count: 8, new: 0, left: 0 },
-    { month: 'Mar', count: 8, new: 0, left: 0 },
-    { month: 'Apr', count: 8, new: 0, left: 0 },
-    { month: 'May', count: 8, new: 0, left: 0 },
-    { month: 'Jun', count: 8, new: 2, left: 0 },
-    { month: 'Jul', count: 8, new: 0, left: 0 },
-  ],
-  payroll: [
-    { month: 'Jan', cost: 0.6 }, { month: 'Feb', cost: 0.6 }, { month: 'Mar', cost: 0.6 },
-    { month: 'Apr', cost: 0.65 }, { month: 'May', cost: 0.65 }, { month: 'Jun', cost: 0.65 },
-    { month: 'Jul', cost: 0.65 }
-  ],
-  attendance: [
-    { dept: 'Engineering', present: 95, wfh: 40, leave: 5 },
-    { dept: 'HR', present: 98, wfh: 60, leave: 2 },
-    { dept: 'Sales', present: 92, wfh: 10, leave: 8 },
-  ],
-  leaveTrends: [
-    { month: 'Jan', casual: 2, sick: 1 }, { month: 'Feb', casual: 1, sick: 0 },
-    { month: 'Mar', casual: 3, sick: 1 }, { month: 'Apr', casual: 1, sick: 0 },
-    { month: 'May', casual: 4, sick: 1 }, { month: 'Jun', casual: 5, sick: 2 },
-    { month: 'Jul', casual: 2, sick: 1 }
-  ],
-  projectStatus: [
-    { name: 'Active', value: 5 }, { name: 'Completed', value: 1 },
-    { name: 'At Risk', value: 1 }, { name: 'On Hold', value: 1 }
-  ],
-  attrition: [
-    { month: 'Jan', rate: 0 }, { month: 'Feb', rate: 0 }, { month: 'Mar', rate: 0 },
-    { month: 'Apr', rate: 0 }, { month: 'May', rate: 0 }, { month: 'Jun', rate: 0 }, { month: 'Jul', rate: 0 }
-  ]
-};
+
 
 export default function Reports() {
   const [activeReport, setActiveReport] = useState('Headcount');
@@ -73,8 +38,8 @@ export default function Reports() {
       setAnalytics(data);
     } catch (err) {
       console.error(err);
-      setError('Could not load live analytics. Showing estimated data.');
-      setAnalytics(null); // will fall back to estimates
+      setError('Could not load live analytics.');
+      setAnalytics(null);
     } finally {
       setLoading(false);
     }
@@ -82,17 +47,17 @@ export default function Reports() {
 
   useEffect(() => { fetchAnalytics(); }, []);
 
-  // Resolve data — use real data if available, otherwise fallback
+  // Resolve data — use real data or empty defaults
   const rawData = useMemo(() => ({
-    headcount: analytics?.headcount?.length ? analytics.headcount : FALLBACK.headcount,
-    payroll: analytics?.payroll?.length ? analytics.payroll : FALLBACK.payroll,
-    attendance: analytics?.attendance?.length ? analytics.attendance : FALLBACK.attendance,
-    leaveTrends: analytics?.leaveTrends?.length ? analytics.leaveTrends : FALLBACK.leaveTrends,
-    projectStatus: analytics?.projectStatus?.length ? analytics.projectStatus : FALLBACK.projectStatus,
-    attrition: analytics?.attrition?.length ? analytics.attrition : FALLBACK.attrition,
+    headcount: analytics?.headcount || [],
+    payroll: analytics?.payroll || [],
+    attendance: analytics?.attendance || [],
+    leaveTrends: analytics?.leaveTrends || [],
+    projectStatus: analytics?.projectStatus || [],
+    attrition: analytics?.attrition || [],
     departments: analytics?.departments || [],
-    totalEmployees: analytics?.totalEmployees || 8,
-    totalProjects: analytics?.totalProjects || 7,
+    totalEmployees: analytics?.totalEmployees || 0,
+    totalProjects: analytics?.totalProjects || 0,
   }), [analytics]);
 
   // Apply date range filter (slice months)
@@ -395,14 +360,7 @@ export default function Reports() {
             <select value={selectedDept} onChange={e => setSelectedDept(e.target.value)} style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '13px', fontWeight: 500, cursor: 'pointer', paddingRight: '8px' }}>
               <option value="All Departments">All Departments</option>
               {rawData.departments.map(d => <option key={d} value={d}>{d}</option>)}
-              {/* Fallback options if no real dept data */}
-              {rawData.departments.length === 0 && <>
-                <option value="Engineering">Engineering</option>
-                <option value="Sales">Sales</option>
-                <option value="HR">HR</option>
-                <option value="Marketing">Marketing</option>
-                <option value="Operations">Operations</option>
-              </>}
+
             </select>
           </div>
 

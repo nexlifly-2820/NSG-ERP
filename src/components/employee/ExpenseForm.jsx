@@ -9,6 +9,7 @@ export default function ExpenseForm({ onSubmitClaim }) {
   const [description, setDescription] = useState('');
   const [receiptFile, setReceiptFile] = useState(null);
   const [uploadKey, setUploadKey] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Validation errors state
   const [errors, setErrors] = useState({});
@@ -22,7 +23,7 @@ export default function ExpenseForm({ onSubmitClaim }) {
     { id: 'other', name: 'Other', color: 'hsl(0, 0%, 50%)' },
   ];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = {};
 
@@ -65,24 +66,29 @@ export default function ExpenseForm({ onSubmitClaim }) {
 
     // Reset error state
     setErrors({});
+    setIsSubmitting(true);
     
-    // Call onSubmitClaim callback
-    onSubmitClaim({
-      category,
-      amount: amountNum,
-      date,
-      description: description.trim(),
-      receiptName: receiptFile.name,
-      receiptSize: receiptFile.size,
-    });
+    try {
+      // Call onSubmitClaim callback
+      await onSubmitClaim({
+        category,
+        amount: amountNum,
+        date,
+        description: description.trim(),
+        receiptName: receiptFile.name,
+        receiptSize: receiptFile.size,
+      });
 
-    // Reset Form
-    setCategory('travel');
-    setAmount('');
-    setTcDate(new Date().toISOString().split('T')[0]);
-    setDescription('');
-    setReceiptFile(null);
-    setUploadKey((prev) => prev + 1);
+      // Reset Form
+      setCategory('travel');
+      setAmount('');
+      setTcDate(new Date().toISOString().split('T')[0]);
+      setDescription('');
+      setReceiptFile(null);
+      setUploadKey((prev) => prev + 1);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -262,28 +268,29 @@ export default function ExpenseForm({ onSubmitClaim }) {
 
       <button
         type="submit"
+        disabled={isSubmitting}
         style={{
           border: 'none',
           borderRadius: '8px',
           padding: '12px',
           fontSize: '13px',
           fontWeight: '700',
-          cursor: 'pointer',
+          cursor: isSubmitting ? 'not-allowed' : 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           gap: '8px',
-          backgroundColor: 'var(--accent-green)',
+          backgroundColor: isSubmitting ? '#9ca3af' : 'var(--accent-green)',
           color: 'white',
           boxShadow: 'var(--shadow-sm)',
           marginTop: '8px',
           transition: 'opacity 0.2s ease'
         }}
-        onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
-        onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+        onMouseOver={(e) => { if (!isSubmitting) e.currentTarget.style.opacity = '0.9'; }}
+        onMouseOut={(e) => { if (!isSubmitting) e.currentTarget.style.opacity = '1'; }}
       >
         <CreditCard size={16} />
-        Submit Claim
+        {isSubmitting ? 'Submitting...' : 'Submit Claim'}
       </button>
     </form>
   );

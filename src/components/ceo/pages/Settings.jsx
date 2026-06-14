@@ -15,13 +15,6 @@ const SETTINGS_CATEGORIES = [
   { id: 'audit', label: 'Audit Logs', icon: History }
 ];
 
-const mockAuditLogs = [
-  { id: 1, timestamp: "2025-05-31 10:15:22", user: "HR Admin (Priya)", action: "UPDATED_SALARY", module: "Payroll", details: "Changed Basic for EMP-104 from ₹45000 to ₹50000" },
-  { id: 2, timestamp: "2025-05-31 09:42:10", user: "System", action: "AUTO_ESCALATION", module: "Approvals", details: "Escalated Capex Request A-102 to CEO" },
-  { id: 3, timestamp: "2025-05-30 18:20:05", user: "CEO (Vivek)", action: "CHANGED_RBAC", module: "Settings", details: "Granted 'View Salary' to 'Team Lead' role" },
-  { id: 4, timestamp: "2025-05-30 14:10:00", user: "Manager (David)", action: "APPROVED_LEAVE", module: "People", details: "Approved Sick Leave for EMP-221" },
-  { id: 5, timestamp: "2025-05-30 11:05:44", user: "Finance (Sarah)", action: "BUDGET_REJECTED", module: "Finance", details: "Rejected Q3 Ad Spend for Marketing" }
-];
 
 const ROLES = ['CEO', 'HR Manager', 'Finance Manager', 'Team Lead', 'Employee'];
 const MODULES = ['View Salary', 'Run Payroll', 'Approve Leaves', 'Export Data', 'View Audit Logs'];
@@ -107,7 +100,6 @@ export default function Settings() {
   useEffect(() => {
     const fetchConfigsAndAudit = async () => {
       const token = localStorage.getItem('nsg_jwt_token');
-      if (!token) return;
       
       // 1. Fetch system configs
       try {
@@ -148,11 +140,11 @@ export default function Settings() {
           const data = await res.json();
           setAuditLogs(data);
         } else {
-          setAuditLogs(mockAuditLogs);
+          setAuditLogs([]);
         }
       } catch (err) {
         console.error("Failed to fetch audit logs", err);
-        setAuditLogs(mockAuditLogs);
+        setAuditLogs([]);
       }
     };
 
@@ -161,7 +153,6 @@ export default function Settings() {
 
   const saveSetting = async (key, value) => {
     const token = localStorage.getItem('nsg_jwt_token');
-    if (!token) return false;
     try {
       const res = await fetch('/api/ceo-portal/configs', {
         method: 'POST',

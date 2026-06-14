@@ -23,8 +23,8 @@ export default function Navbar({ activeRole, setActiveRole, navigateTo, hrDb = {
     { id: 'TL',       label: 'Team Lead',               icon: Award,    color: '#3b82f6', desc: 'Projects & delivery'      },
     { id: 'Employee', label: 'Staff Member',            icon: Briefcase,color: '#10b981', desc: 'Personal workspace'       },
   ];
-  const userRoleDetails = roles.find(r => r.id.toLowerCase() === (currentUser.role || 'employee').toLowerCase()) || roles[0];
-  const RoleIcon = userRoleDetails.icon;
+  const activeRoleDetails = roles.find(r => r.id.toLowerCase() === activeRole.toLowerCase()) || roles.find(r => r.id.toLowerCase() === (currentUser.role || 'employee').toLowerCase()) || roles[3];
+  const RoleIcon = activeRoleDetails.icon;
 
   // ── Derive live notifications from hrDb ────────────────────────────────────
   const buildNotifications = () => {
@@ -322,12 +322,12 @@ export default function Navbar({ activeRole, setActiveRole, navigateTo, hrDb = {
             className="role-selector-btn"
             onClick={() => { setShowRoleDropdown(v => !v); setShowNotifications(false); }}
           >
-            <div className="role-avatar" style={{ backgroundColor: userRoleDetails.color }}>
+            <div className="role-avatar" style={{ backgroundColor: activeRoleDetails.color }}>
               <RoleIcon size={18} color="#fff" />
             </div>
             <div className="role-info">
               <span className="user-name">{currentUser.name || 'Sarah Jenkins'}</span>
-              <span className="user-role" style={{ color: userRoleDetails.color }}>{currentUser.designation || userRoleDetails.label}</span>
+              <span className="user-role" style={{ color: activeRoleDetails.color }}>{currentUser.designation || activeRoleDetails.label}</span>
             </div>
             <ChevronDown size={16} className={`chevron-icon ${showRoleDropdown ? 'rotate' : ''}`} />
           </button>
@@ -359,6 +359,7 @@ export default function Navbar({ activeRole, setActiveRole, navigateTo, hrDb = {
               </div>
               <div className="dropdown-list">
                 {roles
+                  .filter(r => r.id.toLowerCase() === (currentUser.role || 'employee').toLowerCase() || r.id === 'Employee')
                   .map(roleOption => {
                     const Icon = roleOption.icon;
                     const isSelected = roleOption.id.toLowerCase() === activeRole.toLowerCase();
@@ -369,7 +370,7 @@ export default function Navbar({ activeRole, setActiveRole, navigateTo, hrDb = {
                         onClick={() => {
                           setShowRoleDropdown(false);
                           if (!isSelected) {
-                            onLogout();
+                            setActiveRole(roleOption.id);
                           }
                         }}
                       >

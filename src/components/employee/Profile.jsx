@@ -2,139 +2,100 @@ import { useState, useEffect } from 'react';
 import BankSection from './BankSection';
 import DocCard from './DocCard';
 import { User, Mail, Home, Camera, Check, ChevronDown } from 'lucide-react';
+import AvatarFallback from '../common/AvatarFallback';
 
-const defaultDetails = {
-  dob: '1994-08-16',
-  gender: 'Female',
-  address: '121 Bakers Street, Tech City, BLR',
-  emergencyContactName: 'Robert Jenkins',
-  emergencyContactPhone: '+91 98765 43210'
-};
-
-const defaultBank = {
-  bankName: 'HDFC Bank Ltd',
-  holderName: 'Sarah Jenkins',
-  accountNumber: '50100482938128',
-  ifscCode: 'HDFC0000104',
-  status: 'verified'
-};
+const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?name=Employee&background=6d28d9&color=fff&size=150';
 
 const defaultDocs = [
-  { id: 'pan', docType: 'PAN Card', status: 'verified', uploadedAt: '2026-04-12' },
-  { id: 'aadhaar', docType: 'Aadhaar Card', status: 'verified', uploadedAt: '2026-04-12' },
+  { id: 'pan', docType: 'PAN Card', status: 'missing', uploadedAt: null },
+  { id: 'aadhaar', docType: 'Aadhaar Card', status: 'missing', uploadedAt: null },
   { id: 'degree', docType: 'Degree Certificate', status: 'missing', uploadedAt: null }
 ];
 
-export default function Profile({ db, onUpdateDb, currentUser }) {
-  // The logged-in employee ID is derived dynamically
+export default function Profile({ currentUser }) {
   const EMPLOYEE_ID = currentUser?.id || 102;
-  const empRecord = db?.employees?.find(e => e.id === EMPLOYEE_ID) || null;
+  const [liveProfile, setLiveProfile] = useState(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
 
-  // --- Derive initial states from db.employees if available, else localStorage/defaults ---
-  const getInitialPersonal = () => {
-    if (empRecord) {
-      return {
-        dob: empRecord.dob || defaultDetails.dob,
-        gender: empRecord.gender || defaultDetails.gender,
-        address: empRecord.address || defaultDetails.address,
-        emergencyContactName: empRecord.emergencyContactName || defaultDetails.emergencyContactName,
-        emergencyContactPhone: empRecord.emergencyContactPhone || defaultDetails.emergencyContactPhone
-      };
-    }
-    const saved = localStorage.getItem('nsg_employee_profile_details');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return {
-          dob: parsed.dob || defaultDetails.dob,
-          gender: parsed.gender || defaultDetails.gender,
-          address: parsed.address || defaultDetails.address,
-          emergencyContactName: parsed.emergencyContactName || parsed.emergencyContact_name || 'Robert Jenkins',
-          emergencyContactPhone: parsed.emergencyContactPhone || parsed.emergencyContact || '+91 98765 43210'
-        };
-      } catch { return defaultDetails; }
-    }
-    return defaultDetails;
-  };
-
-  const [personalDetails, setPersonalDetails] = useState(getInitialPersonal);
-
-  // Bank data: from db.employees bank fields
-  const getInitialBank = () => {
-    if (empRecord && empRecord.bank_name) {
-      return {
-        bankName: empRecord.bank_name,
-        holderName: empRecord.name || defaultBank.holderName,
-        accountNumber: empRecord.account_number || defaultBank.accountNumber,
-        ifscCode: empRecord.ifsc_code || defaultBank.ifscCode,
-        status: empRecord.bank_status || 'verified'
-      };
-    }
-    const saved = localStorage.getItem('nsg_employee_profile_bank');
-    return saved ? JSON.parse(saved) : defaultBank;
-  };
-
-  const [bankData, setBankData] = useState(getInitialBank);
-
-  // Docs: from db.documents if available, else localStorage/defaults
-  const getInitialDocs = () => {
-    if (db?.documents) {
-      const empDocs = db.documents.filter(d => d.employee_id === EMPLOYEE_ID);
-      if (empDocs.length > 0) return empDocs;
-    }
-    const saved = localStorage.getItem('nsg_employee_profile_docs');
-    return saved ? JSON.parse(saved) : defaultDocs;
-  };
-
-  const [docs, setDocs] = useState(getInitialDocs);
-
-  const [avatar, setAvatar] = useState(() => {
-    return localStorage.getItem('nsg_employee_profile_avatar') || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150';
+  const [personalDetails, setPersonalDetails] = useState({
+    dob: '', gender: 'Male', address: '',
+    emergencyContactName: '', emergencyContactPhone: ''
   });
 
-  const [isEditingDetails, setIsEditingDetails] = useState(false);
-  
-  // Details form fields
-  const [dob, setDob] = useState(personalDetails.dob);
-  const [gender, setGender] = useState(personalDetails.gender);
-  const [address, setAddress] = useState(personalDetails.address);
-  const [emergencyContactName, setEmergencyContactName] = useState(personalDetails.emergencyContactName);
-  const [emergencyContactPhone, setEmergencyContactPhone] = useState(personalDetails.emergencyContactPhone);
+  const [bankData, setBankData] = useState({
+    bankName: '', holderName: '', accountNumber: '', ifscCode: '', status: 'unverified'
+  });
 
+  const [docs, setDocs] = useState(defaultDocs);
+  const [avatar, setAvatar] = useState(DEFAULT_AVATAR);
+  const [isEditingDetails, setIsEditingDetails] = useState(false);
+  const [dob, setDob] = useState('');
+  const [gender, setGender] = useState('Male');
+  const [address, setAddress] = useState('');
+  const [emergencyContactName, setEmergencyContactName] = useState('');
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState('');
   const [toast, setToast] = useState(null);
   const [detailsErrors, setDetailsErrors] = useState({});
-
-  // Image Cropping Dialog states
   const [croppedImageSrc, setCroppedImageSrc] = useState(null);
   const [showCropModal, setShowCropModal] = useState(false);
-
-  // Responsive / Viewport states
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [expandedSection, setExpandedSection] = useState('photo'); // 'photo', 'details', 'bank', 'docs'
+  const [expandedSection, setExpandedSection] = useState('photo');
 
-  // --- Resize Listener ---
+  // Fetch ALL profile data from backend on mount
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
+    const fetchProfileData = async () => {
+      try {
+        const token = localStorage.getItem('nsg_jwt_token');
+        const res = await fetch('/api/employee-portal/profile/details', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setLiveProfile(data);
+          // Populate personal details from DB
+          const dobVal = data.dob ? data.dob.slice(0, 10) : '';
+          setDob(dobVal);
+          setGender(data.gender || 'Male');
+          setAddress(data.address || '');
+          setEmergencyContactName(data.emergency_contact_name || '');
+          setEmergencyContactPhone(data.emergency_contact_phone || '');
+          setPersonalDetails({
+            dob: dobVal, gender: data.gender || 'Male',
+            address: data.address || '',
+            emergencyContactName: data.emergency_contact_name || '',
+            emergencyContactPhone: data.emergency_contact_phone || ''
+          });
+          // Avatar from DB
+          if (data.photo) setAvatar(data.photo);
+          // Bank from DB
+          if (data.bank_name || data.account_number) {
+            setBankData({
+              bankName: data.bank_name || '',
+              holderName: data.name || '',
+              accountNumber: data.account_number || '',
+              ifscCode: data.ifsc_code || '',
+              status: (data.bank_name && data.account_number) ? 'verified' : 'unverified'
+            });
+          }
+          // Documents from DB
+          if (data.documents) {
+            try { setDocs(JSON.parse(data.documents)); } catch {}
+          }
+          setProfileLoaded(true);
+        }
+      } catch (err) {
+        console.error('Failed to fetch profile', err);
+      }
     };
+    fetchProfileData();
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // --- Sync to LocalStorage ---
-  useEffect(() => {
-    localStorage.setItem('nsg_employee_profile_details', JSON.stringify(personalDetails));
-  }, [personalDetails]);
-
-  useEffect(() => {
-    localStorage.setItem('nsg_employee_profile_bank', JSON.stringify(bankData));
-  }, [bankData]);
-
-  useEffect(() => {
-    localStorage.setItem('nsg_employee_profile_docs', JSON.stringify(docs));
-  }, [docs]);
-
-  // --- DOB Age Validator ---
   const checkAge = (dobString) => {
     if (!dobString) return { valid: false, message: 'Date of Birth is required.' };
     const birthDate = new Date(dobString);
@@ -156,72 +117,51 @@ export default function Profile({ db, onUpdateDb, currentUser }) {
     return { valid: true };
   };
 
-  // --- Handlers ---
-  const handleSaveDetails = (e) => {
+  const handleSaveDetails = async (e) => {
     e.preventDefault();
     const newErrors = {};
 
-    // Validate DOB
     const ageCheck = checkAge(dob);
-    if (!ageCheck.valid) {
-      newErrors.dob = ageCheck.message;
-    }
-
-    // Validate Emergency Contact Name
-    if (!emergencyContactName.trim()) {
-      newErrors.emergencyContactName = 'Emergency contact name is required.';
-    }
-
-    // Validate Emergency Phone (Indian Mobile standard: ^(\+91[-\s]?)?[0]?[6-9]\d{9}$)
+    if (!ageCheck.valid) newErrors.dob = ageCheck.message;
+    if (!emergencyContactName.trim()) newErrors.emergencyContactName = 'Emergency contact name is required.';
     const cleanPhone = emergencyContactPhone.trim().replace(/[\s-]/g, '');
     const phoneRegex = /^(\+91)?[0]?[6-9]\d{9}$/;
-    if (!emergencyContactPhone.trim()) {
-      newErrors.emergencyContactPhone = 'Emergency contact phone is required.';
-    } else if (!phoneRegex.test(cleanPhone)) {
-      newErrors.emergencyContactPhone = 'Invalid format (e.g. +91 98765 43210 or 9876543210).';
-    }
+    if (!emergencyContactPhone.trim()) newErrors.emergencyContactPhone = 'Emergency contact phone is required.';
+    else if (!phoneRegex.test(cleanPhone)) newErrors.emergencyContactPhone = 'Invalid format (e.g. +91 98765 43210)';
+    if (!address.trim()) newErrors.address = 'Address is required.';
+    else if (address.length > 500) newErrors.address = 'Address cannot exceed 500 characters.';
 
-    // Validate Address
-    if (!address.trim()) {
-      newErrors.address = 'Address is required.';
-    } else if (address.length > 500) {
-      newErrors.address = 'Address cannot exceed 500 characters.';
-    }
-
-    if (Object.keys(newErrors).length > 0) {
-      setDetailsErrors(newErrors);
-      return;
-    }
-
+    if (Object.keys(newErrors).length > 0) { setDetailsErrors(newErrors); return; }
     setDetailsErrors({});
-    const updatedPersonal = {
-      dob,
-      gender,
-      address,
-      emergencyContactName: emergencyContactName.trim(),
-      emergencyContactPhone: emergencyContactPhone.trim()
-    };
-    setPersonalDetails(updatedPersonal);
 
-    // Write back to shared db.employees so HR portal sees the update
-    if (db && onUpdateDb) {
-      const updatedEmployees = (db.employees || []).map(e =>
-        e.id === EMPLOYEE_ID ? { ...e, ...updatedPersonal } : e
-      );
-      onUpdateDb({ ...db, employees: updatedEmployees });
-    } else {
-      // Fallback to localStorage if db not available
-      localStorage.setItem('nsg_employee_profile_details', JSON.stringify(updatedPersonal));
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/employee-portal/profile/update-personal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          dob, gender, address,
+          emergency_contact_name: emergencyContactName.trim(),
+          emergency_contact_phone: emergencyContactPhone.trim()
+        })
+      });
+      if (res.ok) {
+        setPersonalDetails({ dob, gender, address, emergencyContactName: emergencyContactName.trim(), emergencyContactPhone: emergencyContactPhone.trim() });
+        setIsEditingDetails(false);
+        showToast('Personal details saved to database ✓');
+      } else {
+        showToast('Failed to save details — please try again');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Network error saving details');
     }
-
-    setIsEditingDetails(false);
-    showToast('Personal details updated successfully');
   };
 
   const handleUpdateBank = async (updatedBank) => {
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch('http://localhost:8000/employee-portal/profile/update-bank', {
+      const res = await fetch('/api/employee-portal/profile/update-bank', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
@@ -231,47 +171,39 @@ export default function Profile({ db, onUpdateDb, currentUser }) {
         })
       });
       if (res.ok) {
-        setBankData(updatedBank);
-        showToast('Bank details submitted for verification');
+        setBankData({ ...updatedBank, status: 'pending' });
+        showToast('Bank details saved to database ✓');
+      } else {
+        showToast('Failed to update bank details');
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); showToast('Network error'); }
   };
 
   const handleSimulateBankVerify = (status) => {
-    const updated = { ...bankData, status };
-    setBankData(updated);
-    if (db && onUpdateDb) {
-      const updatedEmployees = (db.employees || []).map(e =>
-        e.id === EMPLOYEE_ID ? { ...e, bank_status: status } : e
-      );
-      onUpdateDb({ ...db, employees: updatedEmployees });
-    }
+    setBankData(prev => ({ ...prev, status }));
     showToast(`Bank account status: ${status}`);
   };
 
-  const handleUploadDoc = (id, fileName) => {
+  const handleUploadDoc = async (id, fileName) => {
     const today = new Date().toISOString().split('T')[0];
     const updatedDocs = docs.map(d => {
-      if (d.id === id) {
-        return {
-          ...d,
-          status: fileName ? 'pending' : 'missing',
-          uploadedAt: fileName ? today : null
-        };
-      }
+      if (d.id === id) return { ...d, status: fileName ? 'pending' : 'missing', uploadedAt: fileName ? today : null };
       return d;
     });
     setDocs(updatedDocs);
-    showToast(fileName ? 'Document uploaded for verification' : 'Document removed');
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      await fetch('/api/employee-portal/profile/update-documents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ documents: updatedDocs })
+      });
+    } catch (e) { console.error(e); }
+    showToast(fileName ? 'Document uploaded & saved to database ✓' : 'Document removed');
   };
 
   const handleSimulateVerifyDoc = (id, status) => {
-    const updatedDocs = docs.map(d => {
-      if (d.id === id) {
-        return { ...d, status };
-      }
-      return d;
-    });
+    const updatedDocs = docs.map(d => d.id === id ? { ...d, status } : d);
     setDocs(updatedDocs);
     showToast(`Document status updated to ${status}`);
   };
@@ -320,12 +252,11 @@ export default function Profile({ db, onUpdateDb, currentUser }) {
   // --- Sub-renderers to keep code clean and modular ---
 
   const renderPhotoSection = () => {
-    // Live data from db.employees — falls back to hardcoded if db not available
-    const liveName = empRecord?.name || 'Jane Smith';
-    const liveEmpId = empRecord?.emp_id || 'NSG-0102';
-    const liveEmail = empRecord?.email || 'jane.smith@hnms.com';
-    const liveDept = empRecord?.department || 'IT';
-    const liveDesignation = empRecord?.designation || 'Systems Executive';
+    const liveName = liveProfile?.name || currentUser?.name || 'Loading...';
+    const liveEmpId = liveProfile?.emp_id || currentUser?.emp_id || (currentUser?.id ? `NSG-0${currentUser.id}` : '...');
+    const liveEmail = liveProfile?.email || currentUser?.email || '...';
+    const liveDept = liveProfile?.department || currentUser?.department || 'Unassigned';
+    const liveDesignation = liveProfile?.designation || currentUser?.designation || liveProfile?.role || currentUser?.role || 'Unassigned';
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '16px', position: 'relative' }}>
@@ -340,7 +271,7 @@ export default function Profile({ db, onUpdateDb, currentUser }) {
             accept="image/*" 
             style={{ display: 'none' }} 
           />
-          <img src={avatar} alt="Avatar" className="avatar-img" />
+          <AvatarFallback src={avatar} alt="Avatar" className="avatar-img"  />
           <div className="avatar-overlay">
             <Camera size={20} />
           </div>
@@ -359,7 +290,7 @@ export default function Profile({ db, onUpdateDb, currentUser }) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Home size={14} style={{ color: 'var(--text-muted)' }} />
-            <span>{liveDept} — {empRecord?.status === 'active' ? 'Active Employee' : empRecord?.status || 'Active Employee'}</span>
+            <span>{liveDept} — {liveProfile?.is_active ? 'Active Employee' : 'Inactive Employee'}</span>
           </div>
         </div>
       </div>
@@ -750,7 +681,7 @@ export default function Profile({ db, onUpdateDb, currentUser }) {
               justifyContent: 'center',
               alignItems: 'center'
             }}>
-              <img 
+              <AvatarFallback
                 src={croppedImageSrc} 
                 alt="Cropped Preview" 
                 style={{
@@ -758,7 +689,7 @@ export default function Profile({ db, onUpdateDb, currentUser }) {
                   height: '100%',
                   objectFit: 'cover'
                 }}
-              />
+               />
             </div>
 
             <div style={{ display: 'flex', gap: '12px', width: '100%', justifyContent: 'center' }}>
@@ -784,12 +715,29 @@ export default function Profile({ db, onUpdateDb, currentUser }) {
               </button>
               <button 
                 type="button"
-                onClick={() => {
-                  setAvatar(croppedImageSrc);
-                  localStorage.setItem('nsg_employee_profile_avatar', croppedImageSrc);
-                  setShowCropModal(false);
-                  setCroppedImageSrc(null);
-                  showToast('Avatar photo updated successfully');
+                onClick={async () => {
+                  try {
+                    const token = localStorage.getItem('nsg_jwt_token');
+                    const res = await fetch('/api/employee-portal/profile/update-avatar', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                      body: JSON.stringify({ photo_url: croppedImageSrc })
+                    });
+                    if (res.ok) {
+                      setAvatar(croppedImageSrc);
+                      setShowCropModal(false);
+                      setCroppedImageSrc(null);
+                      showToast('Profile photo saved to database ✓');
+                    } else {
+                      showToast('Failed to save photo');
+                    }
+                  } catch (e) {
+                    // Fallback: save locally if network fails
+                    setAvatar(croppedImageSrc);
+                    setShowCropModal(false);
+                    setCroppedImageSrc(null);
+                    showToast('Photo updated (offline mode)');
+                  }
                 }}
                 style={{
                   flex: 1,

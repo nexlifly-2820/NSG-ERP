@@ -4,13 +4,6 @@ import './Timesheet.css';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
-const SPRINT_TASKS = [
-  { id: 1, name: 'API Integration – Auth Module',   sprint: 'Sprint 14' },
-  { id: 2, name: 'UI Fix – Dashboard Cards',         sprint: 'Sprint 14' },
-  { id: 3, name: 'Code Review – PR #204',            sprint: 'Sprint 14' },
-  { id: 4, name: 'Write Unit Tests – UserService',   sprint: 'Sprint 13' },
-  { id: 5, name: 'Deploy Staging v2.4',              sprint: 'Sprint 13' },
-];
 
 function getWeekDates(offset = 0) {
   const now = new Date();
@@ -46,24 +39,41 @@ function weekTotal(rows) {
 
 // ─── AddTaskModal ─────────────────────────────────────────────────────────────
 
-function AddTaskModal({ onAdd, onClose, existingIds, availableTasks }) {
+function AddTaskModal({ onAdd, onClose, existingIds, existingNames, availableTasks }) {
   const available = availableTasks.filter(t => !existingIds.includes(t.id));
+  const [customTaskName, setCustomTaskName] = useState('');
+
+  const handleAddCustom = () => {
+    if (!customTaskName.trim()) return;
+    if (existingNames && existingNames.includes(customTaskName.trim().toLowerCase())) {
+      alert("This task already exists in your timesheet.");
+      return;
+    }
+    onAdd({
+      id: null, // Must be null so backend Pydantic Optional[int] doesn't throw 422
+      name: customTaskName.trim(),
+      sprint: 'General'
+    });
+    onClose();
+  };
+
   return (
     <div className="ts-modal-overlay" onClick={onClose}>
       <div className="ts-modal" onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div className="ts-modal__title">Add Task to Timesheet</div>
-            <div className="ts-modal__sub">Pick a sprint task to track hours</div>
+            <div className="ts-modal__sub">Pick a sprint task or add a custom one</div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ts-text-dim)' }}>
             <X size={18} />
           </button>
         </div>
+
         <div className="ts-modal__list">
           {available.length === 0 ? (
-            <p style={{ color: 'var(--ts-text-muted)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
-              All sprint tasks already added.
+            <p style={{ color: 'var(--ts-text-muted)', fontSize: 13, textAlign: 'center', padding: '16px 0', margin: 0 }}>
+              No assigned sprint tasks. Add a custom task below.
             </p>
           ) : (
             available.map(t => (
@@ -76,8 +86,36 @@ function AddTaskModal({ onAdd, onClose, existingIds, availableTasks }) {
             ))
           )}
         </div>
-        <div className="ts-modal__actions">
-          <button className="ts-modal__cancel-btn" onClick={onClose}>Cancel</button>
+
+        <div style={{ padding: '16px', borderTop: '1px solid var(--ts-border)', background: 'var(--ts-bg-inner)', borderBottomLeftRadius: 12, borderBottomRightRadius: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ts-text)', marginBottom: 8 }}>Or add a custom activity</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input 
+              type="text" 
+              placeholder="e.g., Interviews, Team Meeting, Admin" 
+              value={customTaskName}
+              onChange={e => setCustomTaskName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAddCustom()}
+              style={{ 
+                flex: 1, padding: '8px 12px', borderRadius: 6, 
+                border: '1px solid var(--ts-border)', 
+                background: 'var(--ts-bg-card)', color: '#fff', fontSize: 13 
+              }}
+            />
+            <button 
+              onClick={handleAddCustom}
+              disabled={!customTaskName.trim()}
+              style={{ 
+                padding: '8px 16px', borderRadius: 6, 
+                background: customTaskName.trim() ? 'var(--ts-violet)' : 'var(--ts-border)', 
+                color: customTaskName.trim() ? '#fff' : 'var(--ts-text-muted)', 
+                border: 'none', cursor: customTaskName.trim() ? 'pointer' : 'not-allowed', 
+                fontWeight: 600, fontSize: 13, transition: 'background 0.2s'
+              }}
+            >
+              Add
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -188,12 +226,12 @@ export default function Timesheet() {
     const fetchTasks = async () => {
       try {
         const token = localStorage.getItem('nsg_jwt_token');
-        const res = await fetch('http://localhost:8000/employee-portal/tasks/my-tasks', {
+        const res = await fetch('/api/employee-portal/tasks/my-tasks', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
           const data = await res.json();
-          setAvailableTasks(data.map(t => ({ id: t.id, name: t.title, sprint: t.sprint })));
+          setAvailableTasks(data.map(t => ({ id: t.id, name: t.title, sprint: t.sprint || 'General' })));
         }
       } catch (e) { console.error(e); }
     };
@@ -205,7 +243,7 @@ export default function Timesheet() {
     const fetchTimesheet = async () => {
       try {
         const token = localStorage.getItem('nsg_jwt_token');
-        const res = await fetch(`http://localhost:8000/timesheets/my-timesheets?week_start_date=${weekStartDateStr}`, {
+        const res = await fetch(`/api/timesheets/my-timesheets?week_start_date=${weekStartDateStr}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -216,45 +254,31 @@ export default function Timesheet() {
             setStatus(ts.status || 'draft');
             setRejectedReason(ts.rejection_comment || '');
           } else {
-            // Setup defaults
-            setRows(availableTasks.slice(0, 3).map(t => ({
-              taskId: t.id,
-              name: t.name,
-              sprint: t.sprint,
-              hours: { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0 },
-            })));
+            // Empty week — start with blank rows
+            setRows([]);
             setStatus('draft');
             setRejectedReason('');
           }
         }
       } catch (e) { console.error(e); }
     };
-    // Re-run whenever week offset or available tasks change (so we have default tasks if empty)
     fetchTimesheet();
-  }, [weekStartDateStr, availableTasks.length]);
+  }, [weekStartDateStr]);
 
   // Autosave draft edits to global database
   const triggerAutoSave = async (updatedRows) => {
     if (status === 'submitted' || status === 'approved') return;
-    
-    // Clear existing timer
-    if (autoSaveTimer.current) {
-      clearTimeout(autoSaveTimer.current);
-    }
-    
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(async () => {
       try {
         const token = localStorage.getItem('nsg_jwt_token');
-        await fetch('http://localhost:8000/timesheets/save', {
+        await fetch('/api/timesheets/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({
-            week_start_date: weekStartDateStr,
-            rows: updatedRows
-          })
+          body: JSON.stringify({ week_start_date: weekStartDateStr, rows: updatedRows })
         });
       } catch (e) { console.error(e); }
-    }, 1000); // 1s debounce
+    }, 1000);
   };
 
   function updateHours(rowIdx, day, val) {
@@ -283,17 +307,14 @@ export default function Timesheet() {
   const handleSubmit = async () => {
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      // Ensure it's saved first
-      await fetch('http://localhost:8000/timesheets/save', {
+      // Save first
+      await fetch('/api/timesheets/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          week_start_date: weekStartDateStr,
-          rows: rows
-        })
+        body: JSON.stringify({ week_start_date: weekStartDateStr, rows: rows })
       });
       // Then submit
-      const res = await fetch('http://localhost:8000/timesheets/submit', {
+      const res = await fetch('/api/timesheets/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ week_start_date: weekStartDateStr })
@@ -397,7 +418,7 @@ export default function Timesheet() {
 
         {/* Task rows */}
         {rows.map((row, rowIdx) => (
-          <div key={row.taskId} style={{
+          <div key={rowIdx} style={{
             display: 'grid',
             gridTemplateColumns: '180px repeat(5, 1fr) 80px 36px',
             borderBottom: '1px solid var(--ts-border-subtle)',
@@ -525,17 +546,6 @@ export default function Timesheet() {
         </button>
       </div>
 
-      {/* Dev test */}
-      {status === 'submitted' && (
-        <div style={{ marginTop: 10, textAlign: 'right' }}>
-          <button
-            onClick={() => { setStatus('rejected'); setRejectedReason('Monday hours missing — only 6h logged.'); }}
-            style={{ fontSize: 11, color: 'var(--ts-red)', background: 'none', border: 'none', cursor: 'pointer' }}
-          >
-            [Dev] Simulate TL Rejection
-          </button>
-        </div>
-      )}
 
       {/* Modals */}
       {showAddModal && (
@@ -543,6 +553,7 @@ export default function Timesheet() {
           onAdd={addTask}
           onClose={() => setShowAddModal(false)}
           existingIds={rows.map(r => r.taskId)}
+          existingNames={rows.map(r => r.name.toLowerCase())}
           availableTasks={availableTasks}
         />
       )}

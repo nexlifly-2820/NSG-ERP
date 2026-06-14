@@ -54,36 +54,7 @@ function getHaversineDistance(lat1, lon1, lat2, lon2) {
 
 // ─── Mock monthly log data ────────────────────────────────────────────────────
 
-function generateMockLog() {
-  const today = new Date();
-  const rows = [];
-  for (let d = 1; d <= today.getDate(); d++) {
-    const date = new Date(today.getFullYear(), today.getMonth(), d);
-    const day = date.getDay();
-    if (day === 0 || day === 6) {
-      rows.push({ date, status: 'holiday', inTime: null, outTime: null, hours: null });
-      continue;
-    }
-    if (d === today.getDate()) {
-      rows.push({ date, status: 'today', inTime: null, outTime: null, hours: null });
-      continue;
-    }
-    const statuses = ['present', 'present', 'present', 'wfh', 'present', 'absent', 'late'];
-    const status = statuses[d % statuses.length];
-    const inH  = status === 'late' ? 10 : 9;
-    const inM  = status === 'late' ? (15 + (d % 30)) : (d % 15);
-    const outH = 18;
-    const outM = d % 30;
-    rows.push({
-      date,
-      status,
-      inTime:  `${String(inH).padStart(2,'0')}:${String(inM).padStart(2,'0')}`,
-      outTime: `${String(outH).padStart(2,'0')}:${String(outM).padStart(2,'0')}`,
-      hours:   `${outH - inH}h ${outM}m`,
-    });
-  }
-  return rows.reverse();
-}
+
 
 const STATUS_CONFIG = {
   present:  { label: 'Present',  cls: 'att-log-pill--present'  },
@@ -174,8 +145,8 @@ function ClockInOutPanel({ clockState, onClockIn, onClockOut, liveClock, elapsed
             </>
           ) : clockState === 'already' ? (
             <>
-              <CheckCircle2 size={24} style={{ color: '#60a5fa' }} />
-              <span className="att-clock-btn__label" style={{ fontSize: 14 }}>Clocked In</span>
+              <CheckCircle2 size={24} style={{ color: '#10b981' }} />
+              <span className="att-clock-btn__label" style={{ fontSize: 14 }}>Done for Today</span>
             </>
           ) : (
             <>
@@ -209,8 +180,8 @@ function ClockInOutPanel({ clockState, onClockIn, onClockOut, liveClock, elapsed
       )}
 
       {clockState === 'already' && (
-        <div className="att-already-msg">
-          You already clocked in today. Clock-out available above.
+        <div className="att-already-msg" style={{ color: '#10b981', fontWeight: 600 }}>
+          You have successfully completed your attendance for today.
         </div>
       )}
     </div>
@@ -222,9 +193,15 @@ function ClockInOutPanel({ clockState, onClockIn, onClockOut, liveClock, elapsed
 // ════════════════════════════════════════════════════════
 
 function TodayStatusCard({ clockState, clockInTime, clockOutTime, elapsed }) {
-  const hoursWorked = elapsed !== null
-    ? (elapsed / 3_600_000).toFixed(1)
-    : clockState === 'idle' ? '—' : '0.0';
+  let hoursWorked = '—';
+  if (clockState === 'already' && clockInTime && clockOutTime) {
+    const diffMs = clockOutTime.getTime() - clockInTime.getTime();
+    hoursWorked = (diffMs / 3_600_000).toFixed(1);
+  } else if (elapsed !== null) {
+    hoursWorked = (elapsed / 3_600_000).toFixed(1);
+  } else if (clockState === 'clocked-in') {
+    hoursWorked = '0.0';
+  }
 
   const workMode = clockState === 'clocked-in' || clockInTime
     ? 'Office'
@@ -655,7 +632,7 @@ function CorrectionForm() {
 //  ROOT — EmpAttendancePage
 // ════════════════════════════════════════════════════════
 
-export default function Attendance({ db, onUpdateDb, currentUser }) {
+export default function Attendance({ currentUser }) {
   const employeeId = currentUser?.id || 102;
   // Clock state: idle | searching | clocked-in | already
   const [clockState, setClockState] = useState('idle');
@@ -747,7 +724,8 @@ export default function Attendance({ db, onUpdateDb, currentUser }) {
     setGpsStatus('searching');
     setToast(null);
 
-    const geofence = db?.geofenceSettings || {
+    const savedGeofence = localStorage.getItem('nsg_geofence_settings');
+    const geofence = savedGeofence ? JSON.parse(savedGeofence) : {
       enabled: true,
       latitude: 12.9716,
       longitude: 77.5946,

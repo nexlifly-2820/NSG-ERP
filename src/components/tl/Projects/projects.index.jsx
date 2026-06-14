@@ -3,7 +3,7 @@ import styles from './projects.module.css';
 import { Briefcase, Calendar, Users, ListTodo, KanbanSquare, GitCommit, Search, Plus, Play, MoreVertical, Flag, Clock, X, HelpCircle, Eye, CheckCircle, AlertCircle, ChevronRight, AlertTriangle, Menu, CheckSquare, Paperclip, MessageSquare, User, Tag, Info, Lock, ChevronDown } from 'lucide-react';
 
 
-const Projects = ({ db, onUpdateDb }) => {
+const Projects = () => {
   const [activeProject, setActiveProject] = useState(null);
   const [activeView, setActiveView] = useState('board'); // board, create_sprint, kanban, timeline
 
@@ -21,12 +21,9 @@ const Projects = ({ db, onUpdateDb }) => {
   const [spTarget, setSpTarget] = useState(40);
 
   // 2. Create Sprint Form Data
-  const [productBacklog, setProductBacklog] = useState([
-    { id: 'b1', title: 'Implement OAuth 2.0 Login', points: 5, okr: 'Q2-Obj-1', description: 'Add secure OAuth 2.0 authentication flow to the login portal.', priority: 'High', assignee: 'Select Team Member...', project: 'NSG-ERP Core', labels: 'frontend, security, auth', criteria: '- Given user is on login page\n- When they click "Login with Google"\n- Then they are redirected to Google Auth\n- And upon success, they receive a JWT token.' },
-    { id: 'b2', title: 'Design Database Schema for Video Huddles', points: 8, okr: 'Q2-Obj-2', description: 'Draft the initial ERD and schema migrations for the video huddles feature.', priority: 'Medium', assignee: 'Michael Chang', project: 'NSG-ERP Core', labels: 'backend, database', criteria: '- Must support multiple participants\n- Must track connection states' },
-    { id: 'b3', title: 'Setup CI/CD Pipeline', points: 3, okr: 'Q2-Obj-1', description: 'Configure GitHub Actions for automated testing and deployment.', priority: 'Critical', assignee: 'David Miller', project: 'Infrastructure', labels: 'devops, ci-cd', criteria: '- Runs tests on PR\n- Deploys to staging on merge' },
-    { id: 'b4', title: 'Refactor Auth Middleware', points: 2, okr: 'Q2-Obj-3', description: 'Clean up the authentication middleware to use the new caching service.', priority: 'Low', assignee: 'Sarah Jenkins', project: 'NSG-ERP Core', labels: 'backend, tech-debt', criteria: '- Uses Redis for session caching\n- Response time < 50ms' },
-  ]);
+  const [productBacklog, setProductBacklog] = useState([]);
+  const [milestonesData, setMilestonesData] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
   const [sprintBacklog, setSprintBacklog] = useState([]);
 
   // 3. Kanban Task Board Data — from backend
@@ -43,34 +40,87 @@ const Projects = ({ db, onUpdateDb }) => {
 
   // Fetch real projects from backend
   useEffect(() => {
-    const fetchProjects = async () => {
+    const fetchProjectsAndTeam = async () => {
       setProjectsLoading(true);
       try {
-        const res = await fetch('http://localhost:8000/team-lead/projects', {
-          headers: { 'Authorization': `Bearer ${token()}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setProjectsData(data);
-        }
+        const [projRes, teamRes] = await Promise.all([
+          fetch('/api/team-lead/projects', { headers: { 'Authorization': `Bearer ${token()}` } }),
+          fetch('/api/team-lead/team-members', { headers: { 'Authorization': `Bearer ${token()}` } })
+        ]);
+        if (projRes.ok) setProjectsData(await projRes.json());
+        if (teamRes.ok) setTeamMembers(await teamRes.json());
       } catch (err) {
-        console.error('Failed to fetch projects:', err);
+        console.error('Failed to fetch initial data:', err);
       } finally {
         setProjectsLoading(false);
       }
     };
-    fetchProjects();
+    fetchProjectsAndTeam();
   }, []);
+
+  const fetchBacklog = async (projectId) => {
+    try {
+      const res = await fetch(`/api/team-lead/projects/${projectId}/backlog`, {
+        headers: { 'Authorization': `Bearer ${token()}` }
+      });
+      if (res.ok) {
+        const tasks = await res.json();
+        setProductBacklog(tasks.map(t => ({
+          id: String(t.id),
+          title: t.title,
+          points: t.sp || 1,
+          okr: 'Q2-Obj',
+          description: t.description || '',
+          priority: (t.priority || 'Medium').charAt(0).toUpperCase() + (t.priority || 'Medium').slice(1),
+          assignee: t.user_id ? String(t.user_id) : 'Select Team Member...',
+          project: t.project || '',
+          labels: 'task',
+          criteria: t.acceptance ? JSON.parse(t.acceptance).join('\\n') : ''
+        })));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchMilestones = async (projectId) => {
+    try {
+      const res = await fetch(`/api/team-lead/projects/${projectId}/milestones`, {
+        headers: { 'Authorization': `Bearer ${token()}` }
+      });
+      if (res.ok) {
+        setMilestonesData(await res.json());
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeProject) {
+      if (activeView === 'create_sprint') {
+        fetchBacklog(activeProject.id);
+      } else if (activeView === 'timeline') {
+        fetchMilestones(activeProject.id);
+      } else if (activeView === 'kanban') {
+        fetchTasks();
+      }
+    }
+  }, [activeProject, activeView]);
 
   // Fetch real tasks from backend for Kanban board
   const fetchTasks = async () => {
     setKanbanLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/team-lead/tasks', {
+      const res = await fetch('/api/team-lead/tasks', {
         headers: { 'Authorization': `Bearer ${token()}` }
       });
       if (res.ok) {
-        const tasks = await res.json();
+        let tasks = await res.json();
+        // Filter tasks so we only show those belonging to the currently active project!
+        if (activeProject) {
+          tasks = tasks.filter(t => t.project === activeProject.name);
+        }
         // Map task status → kanban column
         const columns = { todo: [], inProgress: [], codeReview: [], testing: [], completed: [] };
         tasks.forEach(t => {
@@ -121,44 +171,18 @@ const Projects = ({ db, onUpdateDb }) => {
   const [selectedTaskDetails, setSelectedTaskDetails] = useState(null);
 
   const getAssigneeDisplay = (assigneeStr) => {
-    if (!assigneeStr || assigneeStr === 'SJ') return { avatar: 'SJ', name: 'Sarah Jenkins' };
-    if (assigneeStr === 'BS') return { avatar: 'BS', name: 'Bob Smith' };
-    if (assigneeStr === 'DM' || assigneeStr === 'David Miller') return { avatar: 'DM', name: 'David Miller' };
-    if (assigneeStr === 'MC' || assigneeStr === 'Michael Chang') return { avatar: 'SJ', name: 'Sarah Jenkins' };
-    if (assigneeStr === 'Select Team Member...') return { avatar: '?', name: 'Unassigned' };
-    if (assigneeStr.includes(' ')) {
-      const parts = assigneeStr.split(' ');
-      return { avatar: (parts[0][0] + parts[1][0]).toUpperCase(), name: assigneeStr };
-    }
+    if (!assigneeStr || assigneeStr === 'Select Team Member...' || assigneeStr === 'UN') return { avatar: '?', name: 'Unassigned' };
+    const member = teamMembers.find(m => String(m.id) === assigneeStr || m.name === assigneeStr);
+    if (member) return { avatar: member.name.substring(0, 2).toUpperCase(), name: member.name };
     return { avatar: assigneeStr.substring(0, 2).toUpperCase(), name: assigneeStr };
   };
-
-  useEffect(() => {
-    const handleNewTask = (e) => {
-      const task = e.detail;
-      setKanbanData(prev => ({
-        ...prev,
-        todo: [...prev.todo, task]
-      }));
-    };
-    window.addEventListener('add_kanban_task', handleNewTask);
-    return () => window.removeEventListener('add_kanban_task', handleNewTask);
-  }, []);
-
-  // 4. Milestones Timeline Data
-  const milestonesData = [
-    { id: 'm1', name: 'Project Kickoff & Requirements', dueDate: '2026-05-01', status: 'completed', progress: 100, tasks: 12 },
-    { id: 'm2', name: 'Alpha Release (Internal)', dueDate: '2026-06-15', status: 'in-progress', progress: 65, tasks: 34 },
-    { id: 'm3', name: 'Beta Release (Public)', dueDate: '2026-07-15', status: 'pending', progress: 0, tasks: 45 },
-    { id: 'm4', name: 'Final Production Rollout', dueDate: '2026-08-01', status: 'pending', progress: 0, tasks: 20 },
-  ];
 
   const handleDragStart = (e, taskId, sourceCol) => {
     e.dataTransfer.setData('taskId', taskId);
     e.dataTransfer.setData('sourceCol', sourceCol);
   };
 
-  const handleDrop = (e, targetCol) => {
+  const handleDrop = async (e, targetCol) => {
     e.preventDefault();
     const taskId = e.dataTransfer.getData('taskId');
     const sourceCol = e.dataTransfer.getData('sourceCol');
@@ -170,6 +194,27 @@ const Projects = ({ db, onUpdateDb }) => {
         [sourceCol]: prev[sourceCol].filter(t => t.id !== taskId),
         [targetCol]: [...prev[targetCol], task]
       }));
+
+      const statusMap = {
+        todo: 'pending',
+        inProgress: 'in-progress',
+        codeReview: 'blocked',
+        testing: 'pending',
+        completed: 'done'
+      };
+
+      try {
+        await fetch(`/api/team-lead/tasks/${task.dbId}/status`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token()}`
+          },
+          body: JSON.stringify({ status: statusMap[targetCol] || 'pending' })
+        });
+      } catch (err) {
+        console.error('Failed to update task status:', err);
+      }
     }
   };
 
@@ -256,7 +301,7 @@ const Projects = ({ db, onUpdateDb }) => {
           <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Loading projects from server...</div>
         ) : (
         <div className={styles.projectGrid}>
-          {projectsData.filter(p => activeFilter === 'All' || p.status === activeFilter).map(proj => {
+          {projectsData.filter(p => activeFilter === 'All' || (p.status || '').toLowerCase() === activeFilter.toLowerCase()).map(proj => {
             const budgetPct = proj.budget > 0 ? Math.min(100, Math.round((proj.used / proj.budget) * 100)) : 0;
             return (
             <div key={proj.id} className={styles.projectCard}>
@@ -357,62 +402,56 @@ const Projects = ({ db, onUpdateDb }) => {
           </div>
           <button 
             className={styles.startSprintBtn}
-            onClick={() => {
+            onClick={async () => {
               if (sprintBacklog.length > 0) {
-                const newTasks = sprintBacklog.map(item => {
-                  const assignedUser = item.assignee === 'Select Team Member...' || !item.assignee ? 'Unassigned' : item.assignee;
-                  const initials = assignedUser !== 'Unassigned' ? assignedUser.split(' ').map(n => n[0]).join('').toUpperCase() : 'UN';
-                  return {
-                    id: `t${item.id}`,
-                    title: item.title,
-                    points: item.points,
-                    priority: item.priority || 'Medium',
-                    assignee: initials,
-                    blocked: false
-                  };
-                });
-
-                const newDbTasks = sprintBacklog.map(item => {
-                  const assignedUser = item.assignee === 'Select Team Member...' || !item.assignee ? 'Unassigned' : item.assignee;
-                  return {
-                    id: Date.now() + Math.random(),
-                    project: activeProject?.name || item.project || 'NSG-ERP Core',
-                    sprint: sprintName,
-                    title: item.title,
-                    description: item.description || sprintGoal || 'Created via TL Sprint configuration',
-                    priority: (item.priority || 'Medium').toLowerCase(),
-                    status: 'pending',
-                    sp: item.points || 1,
-                    assignee: assignedUser,
-                    avatar: assignedUser !== 'Unassigned' ? assignedUser.split(' ').map(n => n[0]).join('').toUpperCase() : 'UN',
-                    due: endDate || '2026-06-15',
-                    subtasks: [],
-                    acceptance: item.criteria ? item.criteria.split('\n').map(c => c.trim().replace(/^-\s*/, '')).filter(Boolean) : [
-                      'Meets general code quality guidelines',
-                      'Verified on local staging build'
-                    ],
-                    prStatus: null,
-                    prUrl: '',
-                    rejectedReason: ''
-                  };
-                });
-
-                setKanbanData(prev => ({
-                  ...prev,
-                  todo: [...prev.todo, ...newTasks]
-                }));
-
-                if (db && onUpdateDb) {
-                  const currentTasks = Array.isArray(db.tasks) ? db.tasks : [];
-                  onUpdateDb({
-                    ...db,
-                    tasks: [...currentTasks, ...newDbTasks]
+                const taskIds = sprintBacklog.map(item => parseInt(item.id.replace('t', '')));
+                
+                try {
+                  const res = await fetch('/api/team-lead/tasks/batch-update', {
+                    method: 'PATCH',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${token()}`
+                    },
+                    body: JSON.stringify({
+                      task_ids: taskIds,
+                      sprint: sprintName,
+                      status: 'pending'
+                    })
                   });
-                }
 
-                setSprintBacklog([]);
+                  if (res.ok) {
+                    const newTasks = sprintBacklog.map(item => {
+                      const assignedUser = item.assignee === 'Select Team Member...' || !item.assignee ? 'Unassigned' : item.assignee;
+                      const member = teamMembers.find(m => String(m.id) === assignedUser || m.name === assignedUser);
+                      const initials = member ? member.name.substring(0, 2).toUpperCase() : (assignedUser !== 'Unassigned' ? assignedUser.substring(0, 2).toUpperCase() : 'UN');
+                      return {
+                        id: String(item.id),
+                        dbId: parseInt(item.id),
+                        title: item.title,
+                        points: item.points,
+                        priority: item.priority || 'Medium',
+                        assignee: assignedUser,
+                        blocked: false,
+                        progress: 0,
+                        date: endDate || ''
+                      };
+                    });
+
+                    setKanbanData(prev => ({
+                      ...prev,
+                      todo: [...prev.todo, ...newTasks]
+                    }));
+
+                    setSprintBacklog([]);
+                    setActiveView('kanban');
+                  }
+                } catch (err) {
+                  console.error('Failed to start sprint', err);
+                }
+              } else {
+                setActiveView('kanban');
               }
-              setActiveView('kanban');
             }}
           >
             <Play size={16} /> Start Sprint
@@ -651,11 +690,10 @@ const Projects = ({ db, onUpdateDb }) => {
               <div>
                 <label style={{ display: 'block', fontWeight: 700, fontSize: '13px', color: '#0f172a', marginBottom: '6px' }}>Assignee</label>
                 <select defaultValue={selectedTaskDetails.assignee} style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', color: '#0f172a', background: '#f8fafc', appearance: 'auto' }}>
-                  <option>Select Team Member...</option>
-                  <option>Sarah Jenkins</option>
-                  <option>David Miller</option>
-                  <option>Bob Smith</option>
-                  <option>Michael Chang</option>
+                  <option value="Select Team Member...">Select Team Member...</option>
+                  {teamMembers.map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
                 </select>
               </div>
             </div>

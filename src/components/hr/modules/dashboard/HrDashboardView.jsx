@@ -1,16 +1,56 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AlertTriangle, UserPlus, LogOut, Briefcase } from 'lucide-react';
 
-export function HrDashboardView({ db }) {
-  const employees = db?.employees || [];
-  const candidates = db?.candidates || [];
-  const disciplinaryTickets = db?.disciplinaryTickets || [];
-  const resignations = db?.resignations || [];
+export function HrDashboardView() {
+  const [metrics, setMetrics] = useState({
+    probationEmployees: 0,
+    pendingExits: 0,
+    activeCandidates: 0,
+    unresolvedGrievances: 0
+  });
+  const [probationList, setProbationList] = useState([]);
+  const [criticalAlerts, setCriticalAlerts] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
 
-  const openOnboardings = employees.filter(e => e.status === 'probation').length;
-  const pendingExits = resignations.filter(r => r.status === 'pending').length;
-  const activeRecruitments = candidates.filter(c => c.stage !== 'joined' && c.stage !== 'rejected').length;
-  const unresolvedGrievances = disciplinaryTickets.filter(t => t.status === 'issued').length;
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('nsg_jwt_token');
+        const headers = { 'Authorization': `Bearer ${token}` };
+
+        // Fetch metrics
+        const metricsRes = await fetch('/api/hr-portal/dashboard/metrics', { headers });
+        if (metricsRes.ok) {
+          const m = await metricsRes.json();
+          setMetrics(m);
+        }
+
+        // Fetch employees for probation list
+        const empRes = await fetch('/api/hr-portal/dashboard/onboarding-progress', { headers });
+        if (empRes.ok) {
+          const emps = await empRes.json();
+          setProbationList(emps);
+        }
+
+        // Fetch tickets for alerts list
+        const alertsRes = await fetch('/api/hr-portal/dashboard/sla-watchdog', { headers });
+        if (alertsRes.ok) {
+          const alerts = await alertsRes.json();
+          setCriticalAlerts(alerts);
+        }
+
+        // Fetch announcements
+        const annRes = await fetch('/api/hr-portal/announcements', { headers });
+        if (annRes.ok) {
+          const anns = await annRes.json();
+          setAnnouncements(anns);
+        }
+      } catch (err) {
+        console.error('Failed to fetch HR dashboard data:', err);
+      }
+    };
+    fetchData();
+  }, []);
 
   return (
     <div className="component-container">
@@ -21,6 +61,30 @@ export function HrDashboardView({ db }) {
         </div>
       </div>
 
+      {/* CEO Announcements Section */}
+      {announcements.length > 0 && (
+        <div style={{ marginBottom: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <span style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--text-primary)' }}>CEO Announcements</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+            {announcements.slice(0, 3).map(ann => (
+              <div key={ann.id} style={{
+                background: '#FFF', border: '1px solid #E2E8F0', borderLeft: ann.priority === 'Urgent' ? '4px solid #ef4444' : '4px solid #3b82f6',
+                borderRadius: '8px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748B' }}>{ann.author} • {ann.date}</span>
+                  {ann.priority === 'Urgent' && <span style={{ background: '#FEF2F2', color: '#ef4444', padding: '2px 8px', borderRadius: '12px', fontSize: '10px', fontWeight: 800 }}>URGENT</span>}
+                </div>
+                <div style={{ fontSize: '15px', fontWeight: 700, marginBottom: '8px', color: '#0F172A' }}>{ann.title}</div>
+                <div dangerouslySetInnerHTML={{ __html: ann.body }} style={{ fontSize: '13px', color: '#475569', lineHeight: 1.5, maxHeight: '3.6em', overflow: 'hidden' }}></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Metrics Row */}
       <div className="metrics-grid">
         <div className="metric-card" style={{ borderLeft: '4px solid var(--accent-pink)' }}>
@@ -30,7 +94,7 @@ export function HrDashboardView({ db }) {
               <UserPlus size={18} />
             </div>
           </div>
-          <span className="metric-value">{openOnboardings}</span>
+          <span className="metric-value">{metrics.probationEmployees}</span>
           <span className="info-txt">Active new hires in checklist</span>
         </div>
 
@@ -41,7 +105,7 @@ export function HrDashboardView({ db }) {
               <LogOut size={18} />
             </div>
           </div>
-          <span className="metric-value">{pendingExits}</span>
+          <span className="metric-value">{metrics.pendingExits}</span>
           <span className="info-txt">Resignations awaiting review</span>
         </div>
 
@@ -52,7 +116,7 @@ export function HrDashboardView({ db }) {
               <Briefcase size={18} />
             </div>
           </div>
-          <span className="metric-value">{activeRecruitments}</span>
+          <span className="metric-value">{metrics.activeCandidates}</span>
           <span className="info-txt">Candidates in ATS screening</span>
         </div>
 
@@ -63,7 +127,7 @@ export function HrDashboardView({ db }) {
               <AlertTriangle size={18} />
             </div>
           </div>
-          <span className="metric-value">{unresolvedGrievances}</span>
+          <span className="metric-value">{metrics.unresolvedGrievances}</span>
           <span className="info-txt">Warnings awaiting acknowledgment</span>
         </div>
       </div>
@@ -75,14 +139,23 @@ export function HrDashboardView({ db }) {
             <h3>New Joiners Checklist Progress</h3>
           </div>
           <div className="card-content-list">
-            {employees.filter(e => e.status === 'probation').map(joiner => (
-              <div key={joiner.id} className="strategic-list-item">
+            {probationList.map(joiner => (
+              <div key={joiner.employee_id} className="strategic-list-item">
                 <div className="progress-ring-mini" style={{ backgroundColor: 'var(--accent-pink)' }}></div>
                 <div className="item-text">
                   <h5>{joiner.name}</h5>
-                  <p>{joiner.designation} — Joined {joiner.join_date}</p>
+                  <p>{joiner.designation || 'New Hire'} — Joined {joiner.join_date}</p>
                 </div>
-                <span className="badge-pill warning">Onboarding Checklist Active</span>
+                <div style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px'}}>
+                   <span className={joiner.total_tasks > 0 && joiner.completed_tasks === joiner.total_tasks ? "badge-pill success" : "badge-pill warning"}>
+                     {joiner.total_tasks > 0 ? `${joiner.completed_tasks}/${joiner.total_tasks} Tasks Done` : 'No Tasks Assigned'}
+                   </span>
+                   {joiner.total_tasks > 0 && (
+                     <div style={{ width: '100px', height: '6px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                       <div style={{ width: `${(joiner.completed_tasks/joiner.total_tasks)*100}%`, height: '100%', backgroundColor: 'var(--accent-pink)' }}></div>
+                     </div>
+                   )}
+                </div>
               </div>
             ))}
           </div>
@@ -94,15 +167,18 @@ export function HrDashboardView({ db }) {
             <h3 style={{ color: '#ef4444' }}>⚠️ SLA Watchdog Alerts</h3>
           </div>
           <div className="card-content-list">
-            {disciplinaryTickets.filter(t => t.status === 'issued').map(t => {
-              const emp = employees.find(e => e.id === t.employee_id) || { name: 'Unknown' };
+            {criticalAlerts.map(t => {
+              const borderCol = t.severity === 'critical' ? '#ef4444' : '#f59e0b';
               return (
-                <div key={t.id} className="strategic-list-item" style={{ borderLeft: '3px solid #ef4444', paddingLeft: '8px' }}>
+                <div key={t.id} className="strategic-list-item" style={{ borderLeft: `3px solid ${borderCol}`, paddingLeft: '8px' }}>
                   <div className="item-text">
-                    <h5 style={{ color: 'var(--text-primary)' }}>{t.violation_type.toUpperCase()} Warning</h5>
-                    <p>Target: {emp.name} — Pending response</p>
+                    <h5 style={{ color: 'var(--text-primary)' }}>{t.title}</h5>
+                    <p>{t.employee_name} ({t.employee_id}) — {t.description}</p>
+                    {t.due_date && <small style={{color: '#64748b', fontSize: '0.75rem'}}>Due: {new Date(t.due_date).toLocaleDateString()}</small>}
                   </div>
-                  <span className="badge-pill danger">Critical</span>
+                  <span className={`badge-pill ${t.severity === 'critical' ? 'danger' : 'warning'}`}>
+                    {t.severity.toUpperCase()}
+                  </span>
                 </div>
               );
             })}

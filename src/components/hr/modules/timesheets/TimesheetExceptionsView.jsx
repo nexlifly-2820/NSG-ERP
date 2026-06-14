@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-
+import { notify } from '../../utils/notify';
 export function TimesheetExceptionsView() {
   const [exceptions, setExceptions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -7,7 +7,7 @@ export function TimesheetExceptionsView() {
   const fetchExceptions = async () => {
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch('http://localhost:8000/hr-portal/timesheets/exceptions', {
+      const res = await fetch('/api/hr-portal/timesheets/exceptions', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -27,17 +27,20 @@ export function TimesheetExceptionsView() {
   const handleApplyLOP = async (id, empName) => {
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch(`http://localhost:8000/hr-portal/timesheets/exceptions/${id}/resolve`, {
+      const res = await fetch(`/api/hr-portal/timesheets/exceptions/${id}/resolve`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
       if (res.ok) {
-        alert(`Loss-of-Pay (LOP) deduction rules locked / resolved for ${empName} timesheet exception.`);
+        notify(`Loss-of-Pay (LOP) deduction rules locked / resolved for ${empName} timesheet exception.`, 'success');
         fetchExceptions();
+      } else {
+        notify('Failed to apply LOP / Resolve', 'error');
       }
     } catch (e) {
       console.error(e);
+      notify('An error occurred while resolving.', 'error');
     }
   };
 

@@ -1,44 +1,56 @@
-import React from 'react';
-import Dashboard from './pages/Dashboard';
-import Finance from './pages/Finance';
-import People from './pages/People';
-import Projects from './pages/Projects';
-import Approvals from './pages/Approvals';
-import CompanySetup from './pages/CompanySetup';
-import Reports from './pages/Reports';
-import Settings from './pages/Settings';
-import Announcements from './pages/Announcements';
-import StrategyOKRs from './pages/StrategyOKRs';
-import Messaging from './pages/Messaging';
-import Vendors from './pages/Vendors';
-import DocumentVault from './pages/DocumentVault';
+import React, { lazy, Suspense } from 'react';
+import ErrorBoundary from '../tl/ErrorBoundary';
 import './CEO.css';
 
-export default function Ceo({ activeTab, db, onUpdateDb, queryParams, setQueryParams, currentUser }) {
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Finance = lazy(() => import('./pages/Finance'));
+const People = lazy(() => import('./pages/People'));
+const Projects = lazy(() => import('./pages/Projects'));
+const Approvals = lazy(() => import('./pages/Approvals'));
+const CompanySetup = lazy(() => import('./pages/CompanySetup'));
+const Reports = lazy(() => import('./pages/Reports'));
+const Settings = lazy(() => import('./pages/Settings'));
+const Announcements = lazy(() => import('./pages/Announcements'));
+const StrategyOKRs = lazy(() => import('./pages/StrategyOKRs'));
+const Messaging = lazy(() => import('./pages/Messaging'));
+const Vendors = lazy(() => import('./pages/Vendors'));
+const DocumentVault = lazy(() => import('./pages/DocumentVault'));
+const CeoPayroll = lazy(() => import('./pages/Payroll/CeoPayroll'));
+
+export default function Ceo({ activeTab, queryParams, setQueryParams, currentUser }) {
+  
+  const fallbackLoader = (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+      <div className="animate-spin" style={{ border: '4px solid #f3f3f3', borderTop: '4px solid #3b82f6', borderRadius: '50%', width: '40px', height: '40px' }}></div>
+    </div>
+  );
+
   const renderContent = () => {
-    const props = { db, onUpdateDb, queryParams, setQueryParams, currentUser };
+    const props = { queryParams, setQueryParams, currentUser };
     switch (activeTab) {
-      case 'dashboard': return <Dashboard {...props} />;
-      case 'companySetup': return <CompanySetup {...props} />;
-      case 'finance': return <Finance {...props} />;
-      case 'approvals': return <Approvals {...props} />;
-      case 'projects': return <Projects {...props} />;
-      case 'reports': return <Reports {...props} />;
-      case 'settings': return <Settings {...props} />;
-      case 'announcements': return <Announcements {...props} />;
-      case 'strategyOKRs': return <StrategyOKRs {...props} />;
-      case 'people': return <People {...props} />;
-      case 'messaging': return <Messaging {...props} />;
-      case 'vendors': return <Vendors {...props} />;
-      case 'vault': return <DocumentVault {...props} />;
-      default: return <Dashboard {...props} />;
+      case 'dashboard': return <ErrorBoundary><Dashboard {...props} /></ErrorBoundary>;
+      case 'companySetup': return <ErrorBoundary><CompanySetup {...props} /></ErrorBoundary>;
+      case 'finance': return <ErrorBoundary><Finance {...props} /></ErrorBoundary>;
+      case 'approvals': return <ErrorBoundary><Approvals {...props} /></ErrorBoundary>;
+      case 'projects': return <ErrorBoundary><Projects {...props} /></ErrorBoundary>;
+      case 'reports': return <ErrorBoundary><Reports {...props} /></ErrorBoundary>;
+      case 'settings': return <ErrorBoundary><Settings {...props} /></ErrorBoundary>;
+      case 'announcements': return <ErrorBoundary><Announcements {...props} /></ErrorBoundary>;
+      case 'strategyOKRs': return <ErrorBoundary><StrategyOKRs {...props} /></ErrorBoundary>;
+      case 'people': return <ErrorBoundary><People {...props} /></ErrorBoundary>;
+      case 'messaging': return <ErrorBoundary><Messaging {...props} /></ErrorBoundary>;
+      case 'vendors': return <ErrorBoundary><Vendors {...props} /></ErrorBoundary>;
+      case 'vault': return <ErrorBoundary><DocumentVault {...props} /></ErrorBoundary>;
+      case 'payroll': return <ErrorBoundary><CeoPayroll {...props} /></ErrorBoundary>;
+      default: return <ErrorBoundary><Dashboard {...props} /></ErrorBoundary>;
     }
   };
 
   return (
     <div className="ceo-module-container">
-      {renderContent()}
+      <Suspense fallback={fallbackLoader}>
+        {renderContent()}
+      </Suspense>
     </div>
   );
 }
-

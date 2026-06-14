@@ -1,32 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
+import useSWR from 'swr';
+
+const fetcher = url => fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('nsg_jwt_token')}` } }).then(res => res.json());
 import { Download, CheckCircle, AlertTriangle, Upload, X, FileText, Calculator, CreditCard, Loader } from 'lucide-react';
 import './Payroll.css';
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
 
-const PAYSLIPS = [
-  { id: 1, month: 'May 2025',   gross: 85250,  deductions: 12380, net: 72870 },
-  { id: 2, month: 'April 2025', gross: 85250,  deductions: 12380, net: 72870 },
-  { id: 3, month: 'March 2025', gross: 85250,  deductions: 11200, net: 74050 },
-  { id: 4, month: 'Feb 2025',   gross: 82000,  deductions: 11200, net: 70800 },
-  { id: 5, month: 'Jan 2025',   gross: 82000,  deductions: 11200, net: 70800 },
-];
-
-const CTC_EARNINGS = [
-  { label: 'Basic Salary',        amount: 42000 },
-  { label: 'HRA',                 amount: 16800 },
-  { label: 'Special Allowance',   amount: 14450 },
-  { label: 'Medical Allowance',   amount: 1250  },
-  { label: 'Transport Allowance', amount: 800   },
-  { label: 'Performance Bonus',   amount: 9950  },
-];
-
-const CTC_DEDUCTIONS = [
-  { label: 'PF (Employee)',    amount: 5040 },
-  { label: 'Professional Tax', amount: 200  },
-  { label: 'TDS',              amount: 5640 },
-  { label: 'Health Insurance', amount: 1500 },
-];
 
 const TAX_SLABS = [
   { from: 0,       to: 300000,   rate: 0  },
@@ -79,32 +58,55 @@ function SubTabs({ active, setActive }) {
 
 function PayslipsTab({ employeeId }) {
   const [downloading, setDownloading] = useState(null);
-  const [payslipsList, setPayslipsList] = useState([]);
+  
+  const { data: payslipsData } = useSWR('/api/employee-portal/payroll/my-payslips', fetcher);
+  const payslipsList = payslipsData?.items || [];
 
-  useEffect(() => {
-    const fetchPayslips = async () => {
-      try {
-        const token = localStorage.getItem('nsg_jwt_token');
-        const res = await fetch('/api/employee-portal/payroll/my-payslips', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setPayslipsList(data);
-        } else {
-          setPayslipsList(PAYSLIPS); // Fallback to mock if API fails
-        }
-      } catch (e) {
-        console.error(e);
-        setPayslipsList(PAYSLIPS); // Fallback
-      }
-    };
-    fetchPayslips();
-  }, []);
-
-  function handleDownload(id) {
-    setDownloading(id);
-    setTimeout(() => setDownloading(null), 1800);
+  function handleDownload(p) {
+    setDownloading(p.id);
+    const INR_fmt = n => `₹${Number(n).toLocaleString('en-IN')}`;
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthLabel = `${monthNames[(p.month||1)-1]} ${p.year || 2026}`;
+    const gross = (p.basic||0) + (p.hra||0) + (p.allowances||0);
+    const deductions = (p.epf||0) + (p.tds||0);
+    const html = `
+      <html><head><title>Payslip - ${monthLabel}</title>
+      <style>
+        body{font-family:Arial,sans-serif;padding:40px;color:#1a1a2e;background:#fff;}
+        h1{color:#6d28d9;margin:0 0 4px;}
+        .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #6d28d9;padding-bottom:16px;margin-bottom:24px;}
+        .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;font-size:14px;}
+        .bold{font-weight:700;} .green{color:#10b981;} .red{color:#ef4444;}
+        .net{background:#6d28d9;color:#fff;padding:16px;border-radius:8px;display:flex;justify-content:space-between;margin-top:24px;font-size:20px;font-weight:800;}
+      </style></head><body>
+      <div class="header">
+        <div><h1>NSG Group</h1><p style="margin:0;font-size:13px;color:#666;">Payslip for ${monthLabel}</p></div>
+        <div style="text-align:right;font-size:13px;"><p style="margin:0;"><strong>Status:</strong> Paid</p><p style="margin:4px 0 0;"><strong>Generated:</strong> ${new Date().toLocaleDateString('en-IN')}</p></div>
+      </div>
+      <h3 style="margin:0 0 12px;font-size:14px;text-transform:uppercase;color:#666;letter-spacing:0.05em;">Earnings</h3>
+      <div class="row"><span>Basic Salary</span><span class="bold green">${INR_fmt(p.basic||0)}</span></div>
+      <div class="row"><span>HRA</span><span class="bold green">${INR_fmt(p.hra||0)}</span></div>
+      <div class="row"><span>Allowances</span><span class="bold green">${INR_fmt(p.allowances||0)}</span></div>
+      ${p.lop > 0 ? `<div class="row"><span>LOP Penalty</span><span class="bold red">-${INR_fmt(p.lop)}</span></div>` : ''}
+      <div class="row bold" style="background:#f0fdf4;padding:8px;"><span>Gross Earnings</span><span class="green">${INR_fmt(gross)}</span></div>
+      <h3 style="margin:20px 0 12px;font-size:14px;text-transform:uppercase;color:#666;letter-spacing:0.05em;">Deductions</h3>
+      <div class="row"><span>EPF (Employee)</span><span class="bold red">-${INR_fmt(p.epf||0)}</span></div>
+      <div class="row"><span>TDS</span><span class="bold red">-${INR_fmt(p.tds||0)}</span></div>
+      <div class="row bold" style="background:#fff5f5;padding:8px;"><span>Total Deductions</span><span class="red">-${INR_fmt(deductions)}</span></div>
+      <div class="net"><span>Net Take-Home Pay</span><span>${INR_fmt(p.net)}</span></div>
+      </body></html>`;
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+      iframe.contentDocument.write(html);
+      iframe.contentDocument.close();
+      iframe.onload = () => {
+        iframe.contentWindow.print();
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+          setDownloading(null);
+        }, 1000);
+      };
   }
 
   return (
@@ -166,7 +168,7 @@ function PayslipsTab({ employeeId }) {
             {/* Download */}
             <button
               className="pay-download-btn"
-              onClick={() => handleDownload(p.id)}
+              onClick={() => handleDownload(p)}
               disabled={downloading === p.id}
               style={{ minWidth: 130, justifyContent: 'center' }}
             >
@@ -190,16 +192,18 @@ function PayslipsTab({ employeeId }) {
 // ─── CTC Breakdown Tab ────────────────────────────────────────────────────────
 
 function CtcBreakdownTab() {
-  const totalEarnings   = CTC_EARNINGS.reduce((s, r) => s + r.amount, 0);
-  const totalDeductions = CTC_DEDUCTIONS.reduce((s, r) => s + r.amount, 0);
-  const netTakeHome     = totalEarnings - totalDeductions;
+  const { data: ctcData, error } = useSWR('/api/employee-portal/payroll/ctc', fetcher);
+  const loading = !ctcData && !error;
+
+  if (loading) return <div style={{ padding: 20 }}>Loading...</div>;
+  if (!ctcData) return <div style={{ padding: 20 }}>Failed to load CTC data.</div>;
 
   return (
     <div className="pay-ctc-grid">
       {/* Earnings */}
       <div className="pay-ctc-table-wrap">
         <div className="pay-ctc-table-head pay-ctc-table-head--earn">💰 Earnings</div>
-        {CTC_EARNINGS.map(r => (
+        {ctcData.earnings.map(r => (
           <div key={r.label} className="pay-ctc-row">
             <span className="pay-ctc-row__name">{r.label}</span>
             <span className="pay-ctc-row__value pay-ctc-row__value--earn">{INR(r.amount)}</span>
@@ -207,7 +211,7 @@ function CtcBreakdownTab() {
         ))}
         <div className="pay-ctc-row" style={{ borderTop: '2px solid var(--pay-border)', background: 'var(--pay-bg-inner)' }}>
           <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--pay-text)' }}>Total Earnings</span>
-          <span style={{ fontWeight: 800, fontSize: 14, color: 'var(--pay-emerald)', fontVariantNumeric: 'tabular-nums' }}>{INR(totalEarnings)}</span>
+          <span style={{ fontWeight: 800, fontSize: 14, color: 'var(--pay-emerald)', fontVariantNumeric: 'tabular-nums' }}>{INR(ctcData.total_earnings)}</span>
         </div>
       </div>
 
@@ -215,7 +219,7 @@ function CtcBreakdownTab() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div className="pay-ctc-table-wrap">
           <div className="pay-ctc-table-head pay-ctc-table-head--deduct">📉 Deductions</div>
-          {CTC_DEDUCTIONS.map(r => (
+          {ctcData.deductions.map(r => (
             <div key={r.label} className="pay-ctc-row">
               <span className="pay-ctc-row__name">{r.label}</span>
               <span className="pay-ctc-row__value pay-ctc-row__value--deduct">-{INR(r.amount)}</span>
@@ -223,13 +227,13 @@ function CtcBreakdownTab() {
           ))}
           <div className="pay-ctc-row" style={{ borderTop: '2px solid var(--pay-border)', background: 'var(--pay-bg-inner)' }}>
             <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--pay-text)' }}>Total Deductions</span>
-            <span style={{ fontWeight: 800, fontSize: 14, color: 'var(--pay-red)', fontVariantNumeric: 'tabular-nums' }}>-{INR(totalDeductions)}</span>
+            <span style={{ fontWeight: 800, fontSize: 14, color: 'var(--pay-red)', fontVariantNumeric: 'tabular-nums' }}>-{INR(ctcData.total_deductions)}</span>
           </div>
         </div>
 
         <div className="pay-ctc-net">
           <div className="pay-ctc-net__label">Net Take-Home</div>
-          <div className="pay-ctc-net__amount">{INR(netTakeHome)}</div>
+          <div className="pay-ctc-net__amount">{INR(ctcData.net_take_home)}</div>
           <div className="pay-ctc-net__sub">per month</div>
         </div>
       </div>
@@ -240,13 +244,16 @@ function CtcBreakdownTab() {
 // ─── TDS Declaration Tab ──────────────────────────────────────────────────────
 
 function TdsDeclarationTab({ employeeId }) {
-  const [currentDeclaration, setCurrentDeclaration] = useState(null);
-
-  useEffect(() => {
-    // TODO: fetch tds declarations from API
-    // Setting null for now to just show the form
-    setCurrentDeclaration(null);
-  }, []);
+  const { data: declData, mutate: mutateDecl } = useSWR('/api/employee-portal/payroll/tds-declarations', fetcher);
+  
+  const currentDeclaration = (declData && declData.length > 0) ? {
+    status: declData[0].status,
+    submitted_at: new Date().toISOString(),
+    sec80c: declData.find(d => d.declaration_type === '80C')?.declared_amount || 0,
+    hra_rent: declData.find(d => d.declaration_type === 'HRA')?.declared_amount || 0,
+    sec80d: 0,
+    verified_by: declData[0].verified_by
+  } : null;
 
   const [form, setForm] = useState({ sec80c: '', hra_rent: '', hra_city: 'metro', sec80d: '' });
 
@@ -279,7 +286,24 @@ function TdsDeclarationTab({ employeeId }) {
   }
 
   async function handleSubmit() {
-    alert('Investment declaration successfully submitted to HR for verification!');
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/employee-portal/payroll/tds-declarations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          sec80c: parseFloat(form.sec80c) || 0,
+          hra_rent: parseFloat(form.hra_rent) || 0,
+          hra_city: form.hra_city,
+          sec80d: parseFloat(form.sec80d) || 0
+        })
+      });
+      if (res.ok) {
+        mutateDecl();
+      } else {
+        alert('Failed to submit TDS declaration.');
+      }
+    } catch(e) { console.error(e); }
   }
 
   if (currentDeclaration) {
@@ -324,7 +348,8 @@ function TdsDeclarationTab({ employeeId }) {
             </div>
             <button 
               onClick={() => {
-                setCurrentDeclaration(null);
+                // Not ideal, but mutating data to empty locally forces form visibility
+                mutateDecl([], false);
               }} 
               style={{ marginLeft: 'auto', background: 'var(--pay-red)', border: 'none', color: '#fff', padding: '4px 8px', borderRadius: 4, fontSize: 11, cursor: 'pointer' }}
             >
@@ -598,7 +623,7 @@ function TaxCalculatorTab() {
 // ─── Root Payroll ─────────────────────────────────────────────────────────────
 
 export default function Payroll({ currentUser }) {
-  const employeeId = currentUser?.id || 102;
+  const employeeId = currentUser?.id;
   const [activeTab, setActiveTab] = useState('payslips');
 
   return (

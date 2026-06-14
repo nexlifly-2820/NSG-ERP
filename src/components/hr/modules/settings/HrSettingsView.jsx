@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, RefreshCw, MapPin, Loader, CheckCircle2, Building2, Save, Plus, Trash2, Sliders } from 'lucide-react';
-import { HOLIDAYS as MOCK_HOLIDAYS, LEAVE_POLICIES as MOCK_LEAVE_POLICIES } from '../../mockData';
 
-export function HrSettingsView({ db, onUpdateDb }) {
-  const [geofence, setGeofence] = useState(() => db.geofenceSettings || {
+export function HrSettingsView() {
+  const [geofence, setGeofence] = useState({
     enabled: true,
     latitude: 12.9716,
     longitude: 77.5946,
     radius: 100
   });
 
-  const [leavePolicies, setLeavePolicies] = useState(() => db.leavePolicies || MOCK_LEAVE_POLICIES);
-  const [holidays, setHolidays] = useState(() => db.holidays || MOCK_HOLIDAYS);
+  const [leavePolicies, setLeavePolicies] = useState([]);
+  const [holidays, setHolidays] = useState([]);
   const [newHoliday, setNewHoliday] = useState({ name: '', date: '' });
 
   const [gpsLoading, setGpsLoading] = useState(false);
@@ -21,27 +20,53 @@ export function HrSettingsView({ db, onUpdateDb }) {
     setLeavePolicies(prev => prev.map(p => p.id === id ? { ...p, max_balance: Number(newMax) } : p));
   };
 
-  const handleSavePolicies = () => {
-    onUpdateDb({ ...db, leavePolicies });
-    if (window.toast) window.toast.success("Leave policies saved successfully!");
-    else alert("Leave policies saved successfully!");
+  const handleSavePolicies = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      await Promise.all(leavePolicies.map(p =>
+        fetch(`/api/hr-portal/leave/policies/${p.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ max_balance: p.max_balance, carryover_days: p.carryover_days })
+        })
+      ));
+      if (window.toast) window.toast.success('Leave policies saved successfully!');
+      else alert('Leave policies saved successfully!');
+    } catch (err) { console.error(err); }
   };
 
-  const handleAddHoliday = () => {
+  const handleAddHoliday = async () => {
     if (!newHoliday.name || !newHoliday.date) return;
-    const newH = { ...newHoliday, id: Date.now() };
-    setHolidays(prev => [...prev, newH]);
-    setNewHoliday({ name: '', date: '' });
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/hr-portal/holidays', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ name: newHoliday.name, date: newHoliday.date, type: 'national' })
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setHolidays(prev => [...prev, saved]);
+        setNewHoliday({ name: '', date: '' });
+      }
+    } catch (err) { console.error(err); }
   };
 
-  const handleDeleteHoliday = (id) => {
-    setHolidays(prev => prev.filter(h => h.id !== id));
+  const handleDeleteHoliday = async (id) => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      await fetch(`/api/hr-portal/holidays/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      setHolidays(prev => prev.filter(h => h.id !== id));
+    } catch (err) { console.error(err); }
   };
 
   const handleSaveHolidays = () => {
-    onUpdateDb({ ...db, holidays });
-    if (window.toast) window.toast.success("Holiday calendar saved successfully!");
-    else alert("Holiday calendar saved successfully!");
+    // Holidays are saved individually via handleAddHoliday — this is now a no-op UI confirmation
+    if (window.toast) window.toast.success('Holiday calendar is up to date!');
+    else alert('Holiday calendar is up to date!');
   };
 
   // --- SCHEMA BUILDER ---
@@ -54,7 +79,31 @@ export function HrSettingsView({ db, onUpdateDb }) {
 
   useEffect(() => {
     fetchSchemas();
+    fetchLeavePolicies();
+    fetchHolidays();
   }, []);
+
+  const fetchLeavePolicies = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/hr-portal/leave/policies', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) setLeavePolicies(await res.json());
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchHolidays = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/hr-portal/holidays', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) setHolidays(await res.json());
+    } catch (err) { console.error(err); }
+  };
+
+
 
   const fetchSchemas = async () => {
     try {
@@ -124,7 +173,6 @@ export function HrSettingsView({ db, onUpdateDb }) {
   useEffect(() => {
     const fetchGeofenceSettings = async () => {
       const token = localStorage.getItem('nsg_jwt_token');
-      if (!token) return;
       try {
         const res = await fetch('/api/attendance/geofence-settings', {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -170,11 +218,10 @@ export function HrSettingsView({ db, onUpdateDb }) {
         console.error("Failed to save geofence settings to backend", err);
         success = false;
       }
+    } else {
+      success = false;
     }
-    onUpdateDb({
-      ...db,
-      geofenceSettings: geofence
-    });
+
     if (success) {
       if (window.toast) {
         window.toast.success("Geofence settings saved successfully!");

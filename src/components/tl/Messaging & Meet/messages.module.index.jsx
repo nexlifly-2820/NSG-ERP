@@ -1,88 +1,28 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import styles from './messages.module.css';
-import { Hash, Send, Plus, Search, Sparkles, X, PhoneCall, ChevronDown, ChevronUp, Video, Mic, VideoOff, MicOff, Monitor, Volume2, Trash2, PhoneOff, Users, Smile, Hand, MoreVertical, MessageSquare, Paperclip, Clock, Pizza, Building, Lightbulb, Trophy, LayoutGrid, Maximize, PictureInPicture, AlertOctagon, AlertCircle, Activity, Settings, ArrowLeft, Subtitles, Languages } from 'lucide-react';
+// Crash fix applied
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { 
+  Hash, Send, Plus, Search, Sparkles, X, PhoneCall, ChevronDown, ChevronUp, 
+  Video, Mic, VideoOff, MicOff, Monitor, Volume2, Trash2, PhoneOff, Users, 
+  Smile, Hand, MoreVertical, MessageSquare, Paperclip, Clock, PictureInPicture,
+  Maximize, Activity, Settings, AlertOctagon, Heart, ThumbsUp, Check, CheckCheck, Camera,
+  Pin, Image
+} from 'lucide-react';
 import HuddleModal from '../../employee/HuddleModal';
+import '../../ceo/CEO.css';
+import EmojiPicker from 'emoji-picker-react';
+import { Download, Copy } from 'lucide-react';
 
-export const getAvatarUrl = (avatar, name) => {
-  if (avatar && avatar !== 'null' && avatar !== 'undefined' && String(avatar).trim() !== '' && String(avatar).startsWith('http')) {
-    return avatar;
-  }
-  const initial = (name || 'U').charAt(0).toUpperCase();
-  const colors = ['#f56565', '#ed8936', '#ecc94b', '#48bb78', '#38b2ac', '#4299e1', '#667eea', '#9f7aea', '#ed64a6'];
-  const color = colors[(name || '').length % colors.length || 0];
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"><rect width="100" height="100" fill="${color}"/><text x="50" y="50" dominant-baseline="central" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="50" font-weight="bold">${initial}</text></svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-};
+const DEFAULT_CHAT_CHANNELS = [];
 
-const DEFAULT_CHAT_CHANNELS = [
-  {
-    id: 'general-channel',
-    name: '#general-channel',
-    label: 'Company General Room',
-    type: 'staff',
-    members: ['101', '102', '103', '104', '105', 'hr', 'ceo'],
-    messages: [
-      { id: 1, sender: 'CEO (John Doe)', text: 'Welcome to the unified NSG-ERP communications channel!', time: 'Yesterday' }
-    ]
-  },
-  {
-    id: 'team-room',
-    name: '#team-room',
-    label: 'Engineering Team Room',
-    type: 'staff',
-    members: ['101', '102', '103', '105', 'hr'],
-    messages: [
-      { id: 1, sender: 'Marcus Vance', text: 'Hey team, morning! Please drop your standup items here. Also, let\'s aim to deploy the new build by 4 PM.', time: '9:15 AM' },
-      { id: 2, sender: 'Alex Wong', text: 'Morning! Working on the payment gate validation fixes. PR is ready for review: #412.', time: '9:30 AM' },
-      { id: 3, sender: 'Sarah Jenkins', text: 'Morning! I\'m wrapping up the Asset Requests validation and mobile tab changes. I\'ll review your PR, Alex, right after.', time: '9:35 AM' }
-    ]
-  },
-  {
-    id: 'grievance-room',
-    name: '#grievance-room',
-    label: 'HR Grievance (Private)',
-    type: 'grievance',
-    members: ['102', 'hr'],
-    messages: [
-      { id: 1, sender: 'Sophia Reed (HR Officer)', text: 'Hello Sarah, welcome to your secure grievance portal. Anything shared here remains private. How can I assist you today?', time: 'Yesterday' }
-    ]
-  },
-  {
-    id: 'ceo-channel',
-    name: '#ceo-channel',
-    label: 'CEO Suite Room',
-    type: 'management',
-    members: ['hr', 'ceo'],
-    messages: [
-      { id: 1, sender: 'CEO (John Doe)', text: "Sarah, let's audit the monthly payroll maker file before release.", time: '11:15 AM' }
-    ]
-  },
-  {
-    id: 'tl-channel',
-    name: '#tl-channel',
-    label: 'Team Lead Forum',
-    type: 'management',
-    members: ['hr', '101'],
-    messages: [
-      { id: 1, sender: 'TL (Michael Vance)', text: 'Are the Shift A attendance exceptions fully resolved?', time: '09:30 AM' }
-    ]
-  }
-];
-
-const Messages = ({ initialSelectedChannel, db, onUpdateDb, currentUser }) => {
+export default function Messages({ initialSelectedChannel, currentUser }) {
   const tlName = currentUser?.name || 'Michael Vance';
+  const [huddlePeer, setHuddlePeer] = useState(null);
   const [dbChannels, setDbChannels] = useState([]);
-  useEffect(() => {
-    if (db?.chatChannels) {
-      setDbChannels(db.chatChannels);
-    }
-  }, [db?.chatChannels]);
 
   const socketRef = useRef(null);
 
   const fetchChannelsAndMessages = async () => {
     const token = localStorage.getItem('nsg_jwt_token');
-    if (!token) return;
     try {
       const res = await fetch('/api/employee-portal/chat/channels', {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -102,17 +42,23 @@ const Messages = ({ initialSelectedChannel, db, onUpdateDb, currentUser }) => {
                 label: c.label,
                 type: c.type,
                 members: c.members && c.members.length > 0 ? c.members : (c.type === 'grievance' ? ['102', 'hr'] : ['101', '102', '103', '104', '105', 'hr', 'ceo']),
-                messages: msgs.map(m => ({
-                  id: m.id,
-                  sender: m.sender,
-                  avatar: m.sender && (m.sender.includes('Michael Vance') || m.sender.includes('Vance'))
-                    ? 'https://ui-avatars.com/api/?name=Michael+Vance&background=3b82f6&color=fff'
-                    : (m.sender && (m.sender.includes('Sarah Jenkins') || m.sender.includes('Jenkins'))
-                      ? 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100'
-                      : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(m.sender)),
-                  text: m.text,
-                  timestamp: new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                }))
+                messages: msgs.map(m => {
+                  const tzFixed = m.timestamp.endsWith('Z') ? m.timestamp : m.timestamp + 'Z';
+                  return {
+                    id: m.id,
+                    sender: m.sender,
+                    text: m.text,
+                    timestamp: new Date(tzFixed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    isMe: m.sender === tlName || m.sender === tlName + ' (TL)' || m.sender === 'John Doe (TL)' || m.sender === 'John Doe',
+                    is_edited: m.is_edited,
+                    deleted_at: m.deleted_at,
+                    reactions: m.reactions,
+                    seen_by: m.seen_by,
+                    delivered_to: m.delivered_to,
+                    attachment_url: m.attachment_url,
+                    attachment_type: m.attachment_type
+                  };
+                })
               };
             }
           } catch (e) {
@@ -128,12 +74,6 @@ const Messages = ({ initialSelectedChannel, db, onUpdateDb, currentUser }) => {
           };
         }));
         setDbChannels(loadedChannels);
-        if (onUpdateDb) {
-          onUpdateDb({
-            ...db,
-            chatChannels: loadedChannels
-          });
-        }
       }
     } catch (e) {
       console.error("Failed to load channels", e);
@@ -143,617 +83,365 @@ const Messages = ({ initialSelectedChannel, db, onUpdateDb, currentUser }) => {
   useEffect(() => {
     fetchChannelsAndMessages();
   }, []);
+  
+  const chatChannels = dbChannels;
+  const myChannels = chatChannels.filter(c => c.id === "general-channel" || (c.members && c.members.includes(String(currentUser?.id || 'tl'))));
 
-  const chatChannels = dbChannels.length > 0 ? dbChannels : (db?.chatChannels && db.chatChannels.length > 0 ? db.chatChannels : DEFAULT_CHAT_CHANNELS);
-  const myChannels = chatChannels.filter(c => c.id === "general-channel" || (c.members && c.members.includes(String(currentUser?.id || '101'))));
-
-  // Selected channel state
   const [selectedChannel, setSelectedChannel] = useState(() => {
     if (initialSelectedChannel) return initialSelectedChannel;
-    return myChannels.length > 0 ? myChannels[0].id : 'team-room';
+    return myChannels.length > 0 ? myChannels[0].id : '';
   });
-
-  const [huddlePeer, setHuddlePeer] = useState(null);
 
   const [employees, setEmployees] = useState([]);
-  
+  const [typingUsers, setTypingUsers] = useState({});
+  const typingTimeoutRef = useRef(null);
+
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   useEffect(() => {
-    if (db?.employees && db.employees.length > 0) {
-      setEmployees(db.employees);
-    }
-  }, [db?.employees]);
-
-  const globalDirectory = db?.employees || [];
-  
-  // Initialize WebSocket connection for real-time messaging
-  useEffect(() => {
-    let socket;
-    const connectTimer = setTimeout(() => {
-      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${wsProtocol}//127.0.0.1:8000/employee-portal/ws/${encodeURIComponent(tlName)}`;
-      socket = new WebSocket(wsUrl);
-      socketRef.current = socket;
-
-      socket.onmessage = (event) => {
-        try {
-          const newMsg = JSON.parse(event.data);
-          const isCorporateChannel = chatChannels.some(c => c.id === newMsg.channel_id);
-
-          if (isCorporateChannel) {
-            fetchChannelsAndMessages();
-          } else {
-            // Update DM/custom rooms
-            setLocalDmMessages(prevRooms => {
-              const roomMsgs = prevRooms[newMsg.channel_id] || [];
-              const alreadyExists = roomMsgs.some(m => m.id === newMsg.id);
-              if (alreadyExists) return prevRooms;
-              
-              return {
-                ...prevRooms,
-                [newMsg.channel_id]: [
-                  ...roomMsgs,
-                  {
-                    id: newMsg.id,
-                    sender: newMsg.sender,
-                    avatar: employees.find(e => e.name === newMsg.sender || `dm-${e.id}` === newMsg.channel_id)?.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(newMsg.sender),
-                    text: newMsg.text,
-                    timestamp: new Date(newMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                  }
-                ]
-              };
-            });
+    const handleOnline = () => {
+      setIsOnline(true);
+      const queue = JSON.parse(localStorage.getItem('nsg_chat_queue') || '[]');
+      if (queue.length > 0) {
+        queue.forEach(msg => {
+          if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+             socketRef.current.send(JSON.stringify(msg));
           }
-        } catch (e) {
-          console.error("Failed to parse incoming WebSocket message:", e);
-        }
-      };
-
-      socket.onerror = (e) => {
-        console.warn("WebSocket connection error. Operating in offline simulation mode:", e);
-      };
-    }, 100);
-
+        });
+        localStorage.removeItem('nsg_chat_queue');
+      }
+    };
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
     return () => {
-      clearTimeout(connectTimer);
-      if (socket) {
-        socket.close();
-      }
-    };
-  }, [db, onUpdateDb, chatChannels, employees]);
-
-  // Update selected channel if it changes from parent (e.g. clicking an avatar in dashboard)
-  useEffect(() => {
-    if (initialSelectedChannel) {
-      setSelectedChannel(initialSelectedChannel);
-    }
-  }, [initialSelectedChannel]);
-
-  const [channelDescriptions, setChannelDescriptions] = useState({
-    'general-channel': 'Company-wide general announcement and conversation room.',
-    'team-room': 'General engineering sprint updates, PR reviews, and deploy logs.',
-    'grievance-room': 'Confidential private channel with HR department.',
-    'ceo-channel': 'Restricted CEO and Executive Suite forum.',
-    'tl-channel': 'Team Lead Forum'
-  });
-
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newChannelName, setNewChannelName] = useState('');
-  const [newChannelDesc, setNewChannelDesc] = useState('');
-  const [channelError, setChannelError] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showAllMembers, setShowAllMembers] = useState(false);
-  const [isInCall, setIsInCall] = useState(false);
-  const [callDuration, setCallDuration] = useState(0);
-  const [callScreenMic, setCallScreenMic] = useState(true);
-  const [callScreenCamera, setCallScreenCamera] = useState(true);
-  const [callScreenShare, setCallScreenShare] = useState(false);
-  const [callRaiseHand, setCallRaiseHand] = useState(false);
-  const [callReactionsOpen, setCallReactionsOpen] = useState(false);
-  const [floatingReactions, setFloatingReactions] = useState([]);
-  const [skinToneIndex, setSkinToneIndex] = useState(0);
-  const [callChatOpen, setCallChatOpen] = useState(false);
-  const [callMembersOpen, setCallMembersOpen] = useState(false);
-  const [liveCaption, setLiveCaption] = useState(false);
-  const [liveTranslate, setLiveTranslate] = useState(false);
-  const [translateLanguage, setTranslateLanguage] = useState('Spanish');
-  const [callChatMessages, setCallChatMessages] = useState([
-    { id: 1, sender: 'Sarah Jenkins', text: 'Hey, can everyone see my screen?', time: '10:01 AM', self: false },
-    { id: 2, sender: 'You', text: 'Yes, all good!', time: '10:01 AM', self: true },
-  ]);
-  const [callChatInput, setCallChatInput] = useState('');
-  const [chatPosition, setChatPosition] = useState({ x: 0, y: 0 });
-  const [isDraggingChat, setIsDraggingChat] = useState(false);
-  const chatDragStart = useRef({ x: 0, y: 0 });
-  const [membersPosition, setMembersPosition] = useState({ x: -340, y: 0 });
-  const [isDraggingMembers, setIsDraggingMembers] = useState(false);
-  const membersDragStart = useRef({ x: 0, y: 0 });
-  const callTimerRef = useRef(null);
-  const mainInputRef = useRef(null);
-  const callInputRef = useRef(null);
-  const mediaRecorderRef = useRef(null);
-  const recordingChunksRef = useRef([]);
-  const previewVideoRef = useRef(null);
-  const callCameraVideoRef = useRef(null);
-  const cameraStreamRef = useRef(null);
-  const [modalSearchQuery, setModalSearchQuery] = useState('');
-  const [emojiPickerTarget, setEmojiPickerTarget] = useState(null); // 'main' | 'call' | null
-  const [pickerSearch, setPickerSearch] = useState('');
-  const [pickerCategory, setPickerCategory] = useState('smileys');
-  const [isMoreOptionsOpen, setIsMoreOptionsOpen] = useState(false);
-  const [cameraBackground, setCameraBackground] = useState('none'); // 'none' | 'blur' | 'office' | 'neon'
-  const [callLayout, setCallLayout] = useState('grid'); // 'grid' | 'spotlight'
-  const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
-  const [toastMessage, setToastMessage] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
-  const [mainMentionQuery, setMainMentionQuery] = useState(null);
-  const [callMentionQuery, setCallMentionQuery] = useState(null);
-  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
-  const [recentEmojis, setRecentEmojis] = useState(['😮', '😢', '😡', '😍', '😎', '👏', '👊', '🔥', '🎉', '👀', '💯', '💡', '✔', '➕', '❌', '➡️', '🚢', '🤔', '🥺', '😭', '🥰', '😌', '😰', '📎', '🙃', '😋', '😱', '😐', '🙄', '🤩', '🤪', '😑', '🥳', '🤣', '👋', '🤘']);
-  // { [msgId]: { [emoji]: { count, reacted: bool } } }
-  const [messageReactions, setMessageReactions] = useState({});
-  const [hoveredMessageId, setHoveredMessageId] = useState(null);
-  const [reactionPickerMsgId, setReactionPickerMsgId] = useState(null);
-  const [callMessageReactions, setCallMessageReactions] = useState({});
-  const [hoveredCallMessageId, setHoveredCallMessageId] = useState(null);
-  const [reactionPickerCallMsgId, setReactionPickerCallMsgId] = useState(null);
-
-  const [channelMembers, setChannelMembers] = useState({
-    'announcements': [
-      { id: 2, name: 'Sarah Jenkins', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100', initial: 'S' }
-    ],
-    'general': [
-      { id: 2, name: 'Sarah Jenkins', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100', initial: 'S' },
-      { id: 3, name: 'Michael Chang', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=100', initial: 'M' },
-      { id: 4, name: 'Emily Rodriguez', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=100', initial: 'E' },
-      { id: 5, name: 'David Miller', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=100', initial: 'D' }
-    ],
-    'dev-team': [
-      { id: 3, name: 'Michael Chang', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=100', initial: 'M' },
-      { id: 5, name: 'David Miller', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=100', initial: 'D' }
-    ],
-    'hr-room': [
-      { id: 2, name: 'Sarah Jenkins', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100', initial: 'S' },
-      { id: 4, name: 'Emily Rodriguez', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=100', initial: 'E' }
-    ]
-  });
-
-  const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
-  const [selectedAddMemberIds, setSelectedAddMemberIds] = useState([]);
-  const [isCallDropdownOpen, setIsCallDropdownOpen] = useState(false);
-
-  const [isCallPreviewOpen, setIsCallPreviewOpen] = useState(false);
-  const [callType, setCallType] = useState('video'); // 'video' or 'audio'
-  const [activeCallType, setActiveCallType] = useState('video'); // 'video' or 'audio'
-  const [callPreviewCamera, setCallPreviewCamera] = useState(true);
-  const [callPreviewMic, setCallPreviewMic] = useState(true);
-  const [alwaysShowPreview, setAlwaysShowPreview] = useState(true);
-
-  // ── Callback Refs for Videos to ensure auto-play on dynamic mount ─────────
-  const handlePreviewVideoRef = useCallback((el) => {
-    previewVideoRef.current = el;
-    if (el && cameraStreamRef.current) {
-      if (el.srcObject !== cameraStreamRef.current) {
-        el.srcObject = cameraStreamRef.current;
-        el.play().catch(() => {});
-      }
-    }
-  }, []);
-
-  const handleCallCameraVideoRef = useCallback((el) => {
-    callCameraVideoRef.current = el;
-    if (el && cameraStreamRef.current) {
-      if (el.srcObject !== cameraStreamRef.current) {
-        el.srcObject = cameraStreamRef.current;
-        el.play().catch(() => {});
-      }
-    }
-  }, []);
-
-  // ── Real webcam feed ──────────────────────────────────────────────────────
-  useEffect(() => {
-    const wantCamera = (isCallPreviewOpen && callPreviewCamera) || (isInCall && callScreenCamera && !callScreenShare);
-
-    if (wantCamera) {
-      // Start or reuse existing stream
-      if (!cameraStreamRef.current) {
-        navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-          .then(stream => {
-            cameraStreamRef.current = stream;
-            if (previewVideoRef.current && previewVideoRef.current.srcObject !== stream) {
-              previewVideoRef.current.srcObject = stream;
-              previewVideoRef.current.play().catch(() => {});
-            }
-            if (callCameraVideoRef.current && callCameraVideoRef.current.srcObject !== stream) {
-              callCameraVideoRef.current.srcObject = stream;
-              callCameraVideoRef.current.play().catch(() => {});
-            }
-          })
-          .catch((err) => {
-            console.error("Camera access error:", err);
-          });
-      } else {
-        // Stream exists — just (re-)attach if not already attached to prevent re-decoding blinking
-        if (previewVideoRef.current && previewVideoRef.current.srcObject !== cameraStreamRef.current) {
-          previewVideoRef.current.srcObject = cameraStreamRef.current;
-          previewVideoRef.current.play().catch(() => {});
-        }
-        if (callCameraVideoRef.current && callCameraVideoRef.current.srcObject !== cameraStreamRef.current) {
-          callCameraVideoRef.current.srcObject = cameraStreamRef.current;
-          callCameraVideoRef.current.play().catch(() => {});
-        }
-      }
-    } else {
-      // Stop and release stream when camera is disabled or call inactive
-      if (cameraStreamRef.current) {
-        cameraStreamRef.current.getTracks().forEach(t => t.stop());
-        cameraStreamRef.current = null;
-      }
-    }
-  }, [isCallPreviewOpen, callPreviewCamera, isInCall, callScreenCamera, callScreenShare]);
-
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
   }, []);
-
-
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const startOffset = useRef({ x: 0, y: 0 });
-  
-
-
-
-
-  const currentChannel = chatChannels.find(c => c.id === selectedChannel);
-
-  const [localDmMessages, setLocalDmMessages] = useState({
-    'dm-12': [
-      { id: 1, sender: 'Sarah Jenkins', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100', text: 'Hi Michael, did you get a chance to look at the onboarding tasks?', timestamp: 'Yesterday' },
-      { id: 2, sender: 'Michael Chang', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=100', text: 'Yes Sarah! Finished the database structures and directory mappings.', timestamp: 'Yesterday' }
-    ]
-  });
-
-  const messages = currentChannel 
-    ? { [selectedChannel]: (currentChannel.messages || []) }
-    : localDmMessages;
-
-  const [inputVal, setInputVal] = useState('');
-  const chatEndRef = useRef(null);
-  const screenStreamRef = useRef(null);
-  const screenVideoRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const mainFileInputRef = useRef(null);
-
-  const isDM = selectedChannel.startsWith('dm-');
-  const dmEmpId = isDM ? parseInt(selectedChannel.replace('dm-', ''), 10) : null;
-  const dmEmployee = isDM ? employees.find(e => e.id === dmEmpId) : null;
-
-  // Auto-scroll chat to bottom
-  const scrollToBottom = () => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const handleDPUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const token = localStorage.getItem('nsg_jwt_token');
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch('/api/employee-portal/profile/upload-dp', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      if (res.ok) {
+        window.location.reload();
+      }
+    } catch(e) {}
   };
 
   useEffect(() => {
-    scrollToBottom();
+    const fetchEmployees = async () => {
+      const token = localStorage.getItem('nsg_jwt_token');
+      try {
+        const res = await fetch('/api/employee-portal/chat/users', { headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.ok) setEmployees(await res.json());
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchEmployees();
+  }, []);
+
+  const [localDmMessages, setLocalDmMessages] = useState({});
+
+  const currentChannel = chatChannels.find(c => c.id === selectedChannel);
+
+  const messages = useMemo(() => {
+    if (currentChannel) {
+      return { [selectedChannel]: (currentChannel.messages || []) };
+    }
+    return localDmMessages;
+  }, [currentChannel, selectedChannel, localDmMessages]);
+
+  const [inputVal, setInputVal] = useState('');
+  const [activeThreadMessage, setActiveThreadMessage] = useState(null);
+  const [showMentionsPopup, setShowMentionsPopup] = useState(false);
+  const [mentionsFilter, setMentionsFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  const chatEndRef = useRef(null);
+
+  // === CHANNEL MANAGEMENT ===
+  const [isCreateChannelOpen, setIsCreateChannelOpen] = useState(false);
+  const [newChannelName, setNewChannelName] = useState('');
+  const [selectedMembers, setSelectedMembers] = useState([]);
+  const [channelMembers, setChannelMembers] = useState({});
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [newGuestName, setNewGuestName] = useState('');
+  const [newGuestPhone, setNewGuestPhone] = useState('');
+  const [showGroupMembersModal, setShowGroupMembersModal] = useState(false);
+
+  const [isChannelMenuOpen, setIsChannelMenuOpen] = useState(false);
+  const [isEditChannelOpen, setIsEditChannelOpen] = useState(false);
+  const [editChannelName, setEditChannelName] = useState('');
+
+  // === CALL STATE ===
+  const [isInCall, setIsInCall] = useState(false);
+  const [isCallExpanded, setIsCallExpanded] = useState(false);
+  const [activeCallParticipants, setActiveCallParticipants] = useState([]);
+  const [offlineCallParticipants, setOfflineCallParticipants] = useState([]);
+
+  const [callDuration, setCallDuration] = useState(0);
+  const callTimerRef = useRef(null);
+  
+  const [callScreenMic, setCallScreenMic] = useState(true);
+  const [callScreenCamera, setCallScreenCamera] = useState(true);
+  const [callScreenShare, setCallScreenShare] = useState(false);
+  
+  // Dragging the PIP modal
+  const [callPosition, setCallPosition] = useState({ x: 0, y: 0 });
+  const [isDraggingCall, setIsDraggingCall] = useState(false);
+  const callDragStart = useRef({ x: 0, y: 0 });
+
+  const cameraStreamRef = useRef(null);
+  const screenStreamRef = useRef(null);
+  const callCameraVideoRef = useRef(null);
+  const screenVideoRef = useRef(null);
+
+  const [userPresence, setUserPresence] = useState({});
+
+  // Initialize WebSocket connection for real-time messaging
+  useEffect(() => {
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//127.0.0.1:8000/employee-portal/ws/${encodeURIComponent(tlName)}`;
+    const socket = new WebSocket(wsUrl);
+    socketRef.current = socket;
+
+    socket.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        const eventType = payload.event_type;
+
+        if (eventType === 'presence_update') {
+          setUserPresence(prev => ({
+            ...prev,
+            [payload.user]: { online: payload.online, last_active: payload.last_active }
+          }));
+          return;
+        }
+
+        if (eventType === 'typing_start') {
+           setTypingUsers(prev => ({ ...prev, [payload.channel_id]: [...new Set([...(prev[payload.channel_id] || []), payload.user])] }));
+           return;
+        }
+        if (eventType === 'typing_stop') {
+           setTypingUsers(prev => ({ ...prev, [payload.channel_id]: (prev[payload.channel_id] || []).filter(u => u !== payload.user) }));
+           return;
+        }
+
+        if (eventType === 'message_pinned') {
+          fetchChannelsAndMessages();
+          return;
+        }
+
+        if (eventType === 'message_delivered' || eventType === 'message_read' || eventType === 'update_message') {
+          fetchChannelsAndMessages();
+          return;
+        }
+
+        const newMsg = payload;
+        
+        // Auto-send delivered receipt
+        if (newMsg.id && socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+          socketRef.current.send(JSON.stringify({ type: 'delivered', msg_id: newMsg.id }));
+        }
+
+        const isCorporateChannel = chatChannels.some(c => c.id === newMsg.channel_id);
+
+        if (isCorporateChannel) {
+          fetchChannelsAndMessages();
+        } else {
+          // Update DM/custom rooms
+          setLocalDmMessages(prevRooms => {
+            const roomMsgs = prevRooms[newMsg.channel_id] || [];
+            const alreadyExists = roomMsgs.some(m => m.id === newMsg.id);
+            if (alreadyExists) return prevRooms;
+            
+            return {
+              ...prevRooms,
+              [newMsg.channel_id]: [
+                ...roomMsgs,
+                {
+                  id: newMsg.id,
+                  sender: newMsg.sender,
+                  avatar: employees.find(e => e.name === newMsg.sender || `dm-${e.id}` === newMsg.channel_id)?.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(newMsg.sender),
+                  text: newMsg.text,
+                  timestamp: newMsg.timestamp ? new Date(newMsg.timestamp.endsWith('Z') ? newMsg.timestamp : newMsg.timestamp + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+                  isMe: newMsg.sender === tlName || newMsg.sender === tlName + ' (TL)' || newMsg.sender === 'TL (TL)' || newMsg.sender === 'TL',
+                  is_edited: newMsg.is_edited,
+                  deleted_at: newMsg.deleted_at,
+                  reactions: newMsg.reactions,
+                  seen_by: newMsg.seen_by,
+                  delivered_to: newMsg.delivered_to,
+                  attachment_url: newMsg.attachment_url,
+                  attachment_type: newMsg.attachment_type
+                }
+              ]
+            };
+          });
+        }
+      } catch (e) {
+        console.error("Failed to parse incoming WebSocket message:", e);
+      }
+    };
+
+    socket.onerror = (e) => {
+      console.warn("WebSocket connection error. Operating in offline simulation mode:", e);
+    };
+
+    return () => {
+      socket.close();
+    };
+  }, [chatChannels, employees]);
+
+  // Auto-scroll chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, selectedChannel]);
 
   // Call duration timer
   useEffect(() => {
     if (isInCall) {
       setCallDuration(0);
-      callTimerRef.current = setInterval(() => {
-        setCallDuration(prev => prev + 1);
-      }, 1000);
+      callTimerRef.current = setInterval(() => setCallDuration(prev => prev + 1), 1000);
     } else {
       clearInterval(callTimerRef.current);
     }
     return () => clearInterval(callTimerRef.current);
   }, [isInCall]);
 
-  const formatCallDuration = (secs) => {
+  const formatDuration = (secs) => {
     const m = String(Math.floor(secs / 60)).padStart(2, '0');
     const s = String(secs % 60).padStart(2, '0');
     return `${m}:${s}`;
   };
 
-  const sendReaction = (emoji) => {
-    const id = Date.now() + Math.random();
-    setFloatingReactions(prev => [...prev, { id, emoji }]);
-    setTimeout(() => {
-      setFloatingReactions(prev => prev.filter(r => r.id !== id));
-    }, 2000);
+  const [lightboxMedia, setLightboxMedia] = useState(null);
+
+  const [attachmentFile, setAttachmentFile] = useState(null);
+  const [attachmentPreview, setAttachmentPreview] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setAttachmentFile(file);
+    if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+      setAttachmentPreview(URL.createObjectURL(file));
+    } else {
+      setAttachmentPreview('document');
+    }
   };
 
-  // Reactively bind the screen stream to the <video> element after React commits
-  useEffect(() => {
-    if (screenVideoRef.current) {
-      screenVideoRef.current.srcObject = screenStreamRef.current || null;
-      if (screenStreamRef.current) {
-        screenVideoRef.current.play().catch(() => {});
+  const clearAttachment = () => {
+    setAttachmentFile(null);
+    setAttachmentPreview(null);
+  };
+
+  const handleSearch = async (e) => {
+    if (e.key === 'Enter') {
+      if (!searchQuery.trim()) {
+        setSearchResults(null);
+        return;
       }
-    }
-  }, [callScreenShare]);
-
-  const startScreenShare = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { cursor: 'always' },
-        audio: false,
-      });
-      screenStreamRef.current = stream;
-      setCallScreenShare(true); // triggers the useEffect above after commit
-      // Auto-stop when user clicks browser's native "Stop sharing"
-      stream.getVideoTracks()[0].addEventListener('ended', stopScreenShare);
-    } catch (err) {
-      console.warn('Screen share cancelled or denied:', err);
-    }
-  };
-
-  const stopScreenShare = () => {
-    if (screenStreamRef.current) {
-      screenStreamRef.current.getTracks().forEach(t => t.stop());
-      screenStreamRef.current = null;
-    }
-    setCallScreenShare(false); // triggers the useEffect to clear srcObject
-  };
-
-  // Reset position on channel switch
-  useEffect(() => {
-    setPosition({ x: 0, y: 0 });
-  }, [selectedChannel]);
-
-  // Handle document level mouse events when dragging is active
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (!isDragging) return;
-      const newX = e.clientX - startOffset.current.x;
-      const newY = e.clientY - startOffset.current.y;
-      setPosition({ x: newX, y: newY });
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
-    if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-    }
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging]);
-
-  // Handle click outside to close call dropdown
-  useEffect(() => {
-    const handleOutsideClick = (e) => {
-      if (isCallDropdownOpen && !e.target.closest(`.${styles.headerActions}`)) {
-        setIsCallDropdownOpen(false);
-      }
-    };
-    document.addEventListener('click', handleOutsideClick);
-    return () => document.removeEventListener('click', handleOutsideClick);
-  }, [isCallDropdownOpen]);
-
-  const handleMouseDown = (e) => {
-    if (e.target.closest('button') || e.target.closest('input') || e.target.closest('img')) return;
-    setIsDragging(true);
-    startOffset.current = {
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
-    };
-    e.preventDefault();
-  };
-
-  // Handle document level mouse events when dragging the in-call chat is active
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (!isDraggingChat) return;
-      const newX = e.clientX - chatDragStart.current.x;
-      const newY = e.clientY - chatDragStart.current.y;
-      setChatPosition({ x: newX, y: newY });
-    };
-
-    const handleMouseUp = () => {
-      setIsDraggingChat(false);
-    };
-
-    if (isDraggingChat) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-    }
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDraggingChat]);
-
-  const handleChatMouseDown = (e) => {
-    if (e.target.closest('button') || e.target.closest('input')) return;
-    setIsDraggingChat(true);
-    chatDragStart.current = {
-      x: e.clientX - chatPosition.x,
-      y: e.clientY - chatPosition.y
-    };
-    e.preventDefault();
-  };
-
-  // Handle document level mouse events when dragging the members panel is active
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (!isDraggingMembers) return;
-      const newX = e.clientX - membersDragStart.current.x;
-      const newY = e.clientY - membersDragStart.current.y;
-      setMembersPosition({ x: newX, y: newY });
-    };
-
-    const handleMouseUp = () => {
-      setIsDraggingMembers(false);
-    };
-
-    if (isDraggingMembers) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-    }
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDraggingMembers]);
-
-  const handleMembersMouseDown = (e) => {
-    if (e.target.closest('button') || e.target.closest('input')) return;
-    setIsDraggingMembers(true);
-    membersDragStart.current = {
-      x: e.clientX - membersPosition.x,
-      y: e.clientY - membersPosition.y
-    };
-    e.preventDefault();
-  };
-
-  const handleCreateChannel = (e) => {
-    e.preventDefault();
-    if (!newChannelName.trim()) {
-      setChannelError('Channel name is required.');
-      return;
-    }
-    
-    const rawName = newChannelName.trim().replace(/^#+/, '');
-    const formattedName = `#${rawName}`;
-    const baseId = rawName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'channel';
-    const newId = `${baseId}-${Date.now()}`;
-    
-    const newChan = {
-      id: newId,
-      name: formattedName,
-      label: newChannelDesc.trim() || `${rawName} Channel`,
-      type: 'staff',
-      members: ['101', '102', '103', '105', 'hr'],
-      messages: [
-        {
-          id: Date.now(),
-          sender: 'System',
-          text: `Channel ${formattedName} created by TL Michael Vance.`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      setIsSearching(true);
+      try {
+        const token = localStorage.getItem('nsg_jwt_token');
+        const res = await fetch(`/api/employee-portal/chat/search?query=${encodeURIComponent(searchQuery)}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(data);
         }
-      ]
-    };
-    
-    const currentChannels = db?.chatChannels && db.chatChannels.length > 0 ? db.chatChannels : DEFAULT_CHAT_CHANNELS;
-    const updated = [...currentChannels, newChan];
-    if (onUpdateDb) setDbChannels(updated); onUpdateDb({ ...db, chatChannels: updated });
-    
-    setNewChannelName('');
-    setNewChannelDesc('');
-    setIsModalOpen(false);
-    setSelectedChannel(newId);
+      } catch (err) { console.error(err); }
+      setIsSearching(false);
+    }
   };
 
-  const handleDeleteChannel = (channelName) => {
-    if (!window.confirm(`Are you sure you want to delete the channel #${channelName}?`)) {
-      return;
-    }
-    
-    const updatedChannels = channels.filter(c => c !== channelName);
-    const myRemainingChannels = updatedChannels.filter(chan => (channelMembers[chan] || []).some(m => m.id === 2));
-
-    setChannels(updatedChannels);
-    
-    if (selectedChannel === channelName) {
-      if (myRemainingChannels.length > 0) {
-        setSelectedChannel(myRemainingChannels[0]);
-      } else {
-        setSelectedChannel('');
-      }
-    }
-
-    setChannelDescriptions(prev => {
-      const next = { ...prev };
-      delete next[channelName];
-      return next;
-    });
-
-    setMessages(prev => {
-      const next = { ...prev };
-      delete next[channelName];
-      return next;
-    });
-  };
-
-  const handleAddMembers = (e) => {
+  // Chat Send
+  const handleSend = async (e) => {
     e.preventDefault();
-    if (selectedAddMemberIds.length === 0) {
-      setIsAddMemberModalOpen(false);
-      return;
+    if (!inputVal.trim() && !attachmentFile) return;
+
+    let attachUrl = null;
+    let attachType = null;
+
+    if (attachmentFile) {
+      if (!isOnline) {
+         alert("Cannot upload attachments while offline.");
+         return;
+      }
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append("file", attachmentFile);
+      try {
+        const token = localStorage.getItem('nsg_jwt_token');
+        const res = await fetch('/api/employee-portal/chat/upload', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        });
+        if (res.ok) {
+          const data = await res.json();
+          attachUrl = data.url;
+          attachType = data.type;
+        }
+      } catch (err) { console.error("Upload failed", err); }
+      setIsUploading(false);
+      clearAttachment();
     }
 
-    // Merge employees and globalDirectory to search from all available users
-    const allAvailableUsers = [...employees];
-    globalDirectory.forEach(item => {
-      if (!allAvailableUsers.some(u => u.id === item.id)) {
-        allAvailableUsers.push(item);
-      }
-    });
+    const mentionsMatch = inputVal.match(/@(\w+)/g);
+    const mentions = mentionsMatch ? JSON.stringify(mentionsMatch.map(m => m.substring(1))) : null;
 
-    const membersToAdd = allAvailableUsers.filter(emp => selectedAddMemberIds.includes(emp.id));
-    
-    const mappedAdditions = membersToAdd.map(m => ({
-      ...m,
-      initial: m.name.charAt(0).toLowerCase()
-    }));
+    const msgPayload = {
+      channel_id: selectedChannel,
+      text: inputVal.trim(),
+      sender: tlName,
+      attachment_url: attachUrl,
+      attachment_type: attachType,
+      parent_id: activeThreadMessage ? activeThreadMessage.id : null,
+      mentions: mentions
+    };
 
-    setChannelMembers(prev => {
-      const currentList = prev[selectedChannel] || [];
-      const cleanList = currentList.filter(m => !m.isPlaceholder);
-      return {
-        ...prev,
-        [selectedChannel]: [...cleanList, ...mappedAdditions]
+    if (!isOnline) {
+      const queue = JSON.parse(localStorage.getItem('nsg_chat_queue') || '[]');
+      queue.push(msgPayload);
+      localStorage.setItem('nsg_chat_queue', JSON.stringify(queue));
+      
+      const offlineMsg = {
+        id: Date.now(),
+        sender: tlName,
+        avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=1e293b&color=fff',
+        text: inputVal.trim(),
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isMe: true,
+        is_offline_queued: true
       };
-    });
-
-    // Also add to active employees list if they are a newly added candidate
-    setEmployees(prev => {
-      const updated = [...prev];
-      membersToAdd.forEach(m => {
-        if (!updated.some(u => u.id === m.id)) {
-          updated.push(m);
-        }
-      });
-      return updated;
-    });
-
-    setIsAddMemberModalOpen(false);
-    setSelectedAddMemberIds([]);
-  };
-
-  // Handle chat submission and simulated reply
-  const handleSend = (e) => {
-    e.preventDefault();
-    if (!inputVal.trim()) return;
+      
+      const isCorporateChannel = chatChannels.some(c => c.id === selectedChannel);
+      if (isCorporateChannel) {
+        setDbChannels(prev => prev.map(c => c.id === selectedChannel ? { ...c, messages: [...(c.messages || []), offlineMsg] } : c));
+      } else {
+        setLocalDmMessages(prev => ({ ...prev, [selectedChannel]: [...(prev[selectedChannel] || []), offlineMsg] }));
+      }
+      setInputVal('');
+      return;
+    }
 
     // Send via WebSocket if connection is active
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({
-        channel_id: selectedChannel,
-        text: inputVal.trim(),
-        sender: tlName
-      }));
+      socketRef.current.send(JSON.stringify(msgPayload));
       setInputVal('');
       return;
     }
@@ -763,9 +451,10 @@ const Messages = ({ initialSelectedChannel, db, onUpdateDb, currentUser }) => {
     const newMsg = {
       id: Date.now(),
       sender: tlName,
-      avatar: 'https://ui-avatars.com/api/?name=Michael+Vance&background=3b82f6&color=fff',
+      avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=1e293b&color=fff',
       text: inputVal,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isMe: true
     };
 
     if (isCorporateChannel) {
@@ -778,7 +467,7 @@ const Messages = ({ initialSelectedChannel, db, onUpdateDb, currentUser }) => {
         }
         return c;
       });
-      setDbChannels(updatedChannels); onUpdateDb({ ...db, chatChannels: updatedChannels });
+      setDbChannels(updatedChannels);
     } else {
       setLocalDmMessages(prev => ({
         ...prev,
@@ -787,102 +476,54 @@ const Messages = ({ initialSelectedChannel, db, onUpdateDb, currentUser }) => {
     }
     setInputVal('');
 
-    // Trigger simulated chat response from a random colleague or the DM recipient
+    // Simulated reply
     setTimeout(() => {
+      const isDM = selectedChannel.startsWith('dm-');
       if (isDM) {
-        if (dmEmpId === 101) return; // No auto-reply for notes to self
-        
-        const dmReplies = [
-          "Awesome, thanks for the update!",
-          "I'll look into this right away.",
-          "Sounds good to me, let's sync up later.",
-          "Can you share the file or link for that?",
-          "Got it, thanks Michael!"
-        ];
-        const randomDMReply = dmReplies[Math.floor(Math.random() * dmReplies.length)];
-        
-        const colleagueMsg = {
+        const senderName = employees.find(e => `dm-${e.id}` === selectedChannel)?.name || 'Colleague';
+        const senderAvatar = employees.find(e => `dm-${e.id}` === selectedChannel)?.avatar;
+
+        const autoReply = {
           id: Date.now() + 1,
-          sender: dmEmployee?.name || 'Colleague',
-          avatar: dmEmployee?.avatar || 'https://ui-avatars.com/api/?name=Colleague',
-          text: randomDMReply,
+          sender: senderName,
+          avatar: senderAvatar,
+          text: 'Got it! I will check that out shortly.',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
         
         setLocalDmMessages(prev => ({
           ...prev,
-          [selectedChannel]: [...(prev[selectedChannel] || []), colleagueMsg]
+          [selectedChannel]: [...(prev[selectedChannel] || []), autoReply]
         }));
-        return;
       }
-
-      if (selectedChannel === 'team-room') {
-        const replies = [
-          "Vite project hot module replacement is lightning fast!",
-          "Agreed. Scoped CSS modules solved all our visual overlap issues.",
-          "Pushing my branch updates now. All clean!",
-          "Working on the task Kanban columns today."
-        ];
-        const randomReply = replies[Math.floor(Math.random() * replies.length)];
-        
-        const colleagueMsg = {
-          id: Date.now() + 1,
-          sender: 'Jane Smith',
-          avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100',
-          text: randomReply,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-
-        const updatedChannels = chatChannels.map(c => {
-          if (c.id === 'team-room') {
-            return {
-              ...c,
-              messages: [...(c.messages || []), colleagueMsg]
-            };
-          }
-          return c;
-        });
-        setDbChannels(updatedChannels); onUpdateDb({ ...db, chatChannels: updatedChannels });
-      }
-    }, 1500);
+    }, 2000);
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setCallChatMessages(prev => [...prev, {
-      id: Date.now(),
-      sender: 'You',
-      text: `📎 Shared file: ${file.name}`,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      self: true,
-    }]);
-    e.target.value = '';
-  };
 
-  const handleMainFileChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
 
-    // Send via WebSocket if connection is active
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({
-        channel_id: selectedChannel,
-        text: `📎 Shared file: ${file.name}`,
-        sender: tlName
-      }));
-      e.target.value = '';
+  // Start Call WebRTC
+  const handleStartCall = () => {
+    if (!isOnline) {
+      alert("You are offline. Cannot start video call without an internet connection.");
       return;
     }
+    setIsInCall(true);
+    setHuddlePeer({
+      channelId: selectedChannel,
+      roomName: isDM ? `DM-${employees.find(e => `dm-${e.id}` === selectedChannel)?.name}` : selectedChannel,
+      name: selectedChannel,
+      displayName: 'TL (TL)'
+    });
 
     const isCorporateChannel = chatChannels.some(c => c.id === selectedChannel);
-
-    const newMsg = {
-      id: Date.now(),
-      sender: tlName,
-      avatar: 'https://ui-avatars.com/api/?name=Michael+Vance&background=3b82f6&color=fff',
-      text: `📎 Shared file: ${file.name}`,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    const callMsg = {
+      displayName: 'TL (TL)',
+      sender: 'TL (TL)',
+      avatar: 'https://ui-avatars.com/api/?name=John+Doe&background=1e293b&color=fff',
+      text: `Started a video call`,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isCallStatus: true,
+      isMe: true
     };
 
     if (isCorporateChannel) {
@@ -890,2357 +531,1383 @@ const Messages = ({ initialSelectedChannel, db, onUpdateDb, currentUser }) => {
         if (c.id === selectedChannel) {
           return {
             ...c,
-            messages: [...(c.messages || []), newMsg]
+            messages: [...(c.messages || []), callMsg]
           };
         }
         return c;
       });
-      setDbChannels(updatedChannels); onUpdateDb({ ...db, chatChannels: updatedChannels });
+      setDbChannels(updatedChannels);
     } else {
       setLocalDmMessages(prev => ({
         ...prev,
-        [selectedChannel]: [...(prev[selectedChannel] || []), newMsg]
+        [selectedChannel]: [...(prev[selectedChannel] || []), callMsg]
       }));
     }
-    e.target.value = '';
   };
 
-  const emojiCategories = {
-    smileys: {
-      name: 'Smileys & Emotion',
-      emojis: ['😊', '😂', '🤣', '🥰', '😍', '🤩', '😎', '😜', '🤪', '🤔', '🤨', '😐', '😑', '🙄', '😬', '😌', '😔', '😪', '😴', '😷', '🥵', '🥶', '😵', '🤯', '😭', '🥺', '😡', '😱']
-    },
-    gestures: {
-      name: 'Gestures & Body',
-      emojis: ['👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '💪']
-    },
-    people: {
-      name: 'People',
-      emojis: ['👶', '👧', '🧒', '👦', '👩', '🧑', '👨', '👩‍🦱', '🧑‍🦱', '👨‍🦱', '👱‍♀️', '👱', '👱‍♂️', '👩‍🦳', '🧑‍🦳', '👨‍🦳', '🦸‍♀️', '🦸', '🦸‍♂️', '🦹‍♀️', '🦹', '🦹‍♂️', '🧙‍♀️', '🧙‍♂️']
-    },
-    animals: {
-      name: 'Animals & Nature',
-      emojis: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', '🐤', '🦆', '🦅', '🦉', '🦇', '🐺', '🐝', '🐛']
-    },
-    food: {
-      name: 'Food & Drink',
-      emojis: ['🍏', '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🍆', '🥑', '🥦', '🥬', '🥒', '🌶️', '🫑', '🌽', '🍕', '🍔', '🍟', '🌭', '🥪']
-    },
-    places: {
-      name: 'Travel & Places',
-      emojis: ['🏔️', '⛰️', '🌋', '🗻', '🏕️', '🏖️', '🏜️', '🏝️', '🏞️', '🏟️', '🏛️', '🏘️', '🏠', '🏡', '🏢', '🏣', '🏤', '🏥', '🏦', '🏨', '🏪', '🏫', '🏬', '🏭', '🏰', '🗼']
-    },
-    objects: {
-      name: 'Objects',
-      emojis: ['⌚', '📱', '💻', '⌨️', '🖱️', '🕯️', '💡', '🔦', '🏮', '📔', '📕', '📖', '📗', '📘', '📚', '✉️', '📧', '📨', '📩', '📦', '✏️', '✒️', '📝', '📁', '📂', '📅', '📎']
-    },
-    activities: {
-      name: 'Activities',
-      emojis: ['⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🎱', '🏓', '🏸', '🏒', '🏏', '🥅', '⛳', '🏹', '🎣', '🥊', '🥋', '🛹', '🛼', '⛸️', '🎿', '🏂']
-    },
-    symbols: {
-      name: 'Symbols & Hearts',
-      emojis: ['💘', '💝', '💖', '💗', '💓', '💞', '💕', '💟', '❣️', '💔', '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💤', '⚠️', '⛔', '🚫', '⬆️', '➡️', '⬇️', '⬅️', '🔜', '🔝']
-    }
-  };
-
+  // Re-attach video stream if component re-renders
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (
-        emojiPickerTarget &&
-        !e.target.closest(`.${styles.emojiPickerPopup}`) &&
-        !e.target.closest(`.${styles.callEmojiPickerPopup}`) &&
-        !e.target.closest(`.${styles.chatActionBtn}`) &&
-        !e.target.closest(`.${styles.callChatActionBtn}`)
-      ) {
-        setEmojiPickerTarget(null);
-      }
-      if (
-        isMoreOptionsOpen &&
-        !e.target.closest(`.${styles.moreOptionsContainer}`)
-      ) {
-        setIsMoreOptionsOpen(false);
-      }
-      if (
-        mainMentionQuery !== null &&
-        !e.target.closest(`.${styles.mentionDropdown}`) &&
-        !e.target.closest(`.${styles.chatInput}`)
-      ) {
-        setMainMentionQuery(null);
-      }
-      if (
-        callMentionQuery !== null &&
-        !e.target.closest(`.${styles.mentionDropdown}`) &&
-        !e.target.closest(`.${styles.callChatInput}`)
-      ) {
-        setCallMentionQuery(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [emojiPickerTarget, isMoreOptionsOpen, mainMentionQuery, callMentionQuery]);
-
-  const toggleFullScreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch((err) => {
-        console.warn("Fullscreen request failed:", err);
-      });
-    } else {
-      try {
-        document.exitFullscreen().catch((err) => {
-          console.warn("Fullscreen exit failed:", err);
-        });
-      } catch (err) {
-        console.warn("Fullscreen exit error:", err);
+    if (isInCall && callCameraVideoRef.current && cameraStreamRef.current) {
+      if (callCameraVideoRef.current.srcObject !== cameraStreamRef.current) {
+        callCameraVideoRef.current.srcObject = cameraStreamRef.current;
+        callCameraVideoRef.current.play().catch(() => {});
       }
     }
-    setIsMoreOptionsOpen(false);
-  };
-
-  const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(prev => prev === msg ? '' : prev);
-    }, 3500);
-  };
-
-  const handleAdjustView = () => {
-    const nextLayout = callLayout === 'grid' ? 'spotlight' : 'grid';
-    setCallLayout(nextLayout);
-    showToast(`Layout adjusted to ${nextLayout === 'grid' ? 'Grid View' : 'Spotlight View'}.`);
-    setIsMoreOptionsOpen(false);
-  };
-
-  const handleFullScreen = () => {
-    const isEntering = !document.fullscreenElement;
-    toggleFullScreen();
-    showToast(isEntering ? "Entered fullscreen mode" : "Exited fullscreen mode");
-  };
-
-  const handlePictureInPicture = async () => {
-    try {
-      if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture();
-        showToast("Exited picture-in-picture mode.");
-      } else {
-        const videoEl = callScreenShare ? screenVideoRef.current : (callScreenCamera ? callCameraVideoRef.current : null);
-        if (videoEl) {
-          await videoEl.requestPictureInPicture();
-          showToast("Entered picture-in-picture mode.");
-        } else {
-          showToast("Picture-in-picture requires active camera or screen share.");
-        }
+    if (isInCall && screenVideoRef.current && screenStreamRef.current) {
+      if (screenVideoRef.current.srcObject !== screenStreamRef.current) {
+        screenVideoRef.current.srcObject = screenStreamRef.current;
+        screenVideoRef.current.play().catch(() => {});
       }
-    } catch (err) {
-      console.error("Picture-in-picture error:", err);
-      showToast("Picture-in-picture is not supported or failed.");
     }
-    setIsMoreOptionsOpen(false);
-  };
+  }, [isInCall, callScreenCamera, callScreenShare]);
 
-  const handleBackgrounds = () => {
-    const bgTypes = ['none', 'blur', 'office', 'neon'];
-    const nextIdx = (bgTypes.indexOf(cameraBackground) + 1) % bgTypes.length;
-    const nextBg = bgTypes[nextIdx];
-    setCameraBackground(nextBg);
-    
-    let bgLabel = "Normal Camera";
-    if (nextBg === 'blur') bgLabel = "Blurred Background";
-    if (nextBg === 'office') bgLabel = "Virtual Office Room";
-    if (nextBg === 'neon') bgLabel = "Cyberpunk Neon Party";
-    
-    showToast(`Background applied: ${bgLabel}`);
-    setIsMoreOptionsOpen(false);
-  };
-
-  const handleReportProblem = () => {
-    showToast("Thank you. Feedback report has been sent to ERP Support.");
-    setIsMoreOptionsOpen(false);
-  };
-
-  const handleReportAbuse = () => {
-    showToast("Safety report submitted successfully.");
-    setIsMoreOptionsOpen(false);
-  };
-
-  const handleTroubleshoot = () => {
-    showToast("Diagnostics: Latency: 12ms | Loss: 0% | FPS: 30 | Audio: OK");
-    setIsMoreOptionsOpen(false);
-  };
-
-  const handleSettings = () => {
-    showToast("SyncUp device settings are fully optimized.");
-    setIsMoreOptionsOpen(false);
-  };
-
-  const handleEndCall = async () => {
-    playRelevantSound('endcall');
-    
-    // 1. Stop screen share stream if active
-    stopScreenShare();
-    
-    // 2. Stop camera stream
+  const handleEndCall = () => {
     if (cameraStreamRef.current) {
       cameraStreamRef.current.getTracks().forEach(t => t.stop());
       cameraStreamRef.current = null;
     }
-    
-    // 3. Stop recording if recording is active
-    if (isRecording && mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach(t => t.stop());
+      screenStreamRef.current = null;
     }
-    
-    // 4. Exit picture-in-picture if active
-    if (document.pictureInPictureElement) {
-      try {
-        await document.exitPictureInPicture();
-      } catch (err) {
-        console.warn("Exit PiP failed:", err);
-      }
-    }
-    
-    // 5. Exit fullscreen if active
-    if (document.fullscreenElement) {
-      try {
-        await document.exitFullscreen();
-      } catch (err) {
-        console.warn("Exit fullscreen failed:", err);
-      }
-    }
-    
-    // 6. Reset layouts and panels
-    setCallLayout('grid');
-    setCallChatOpen(false);
-    setCallReactionsOpen(false);
-    setIsMoreOptionsOpen(false);
-    setCallScreenMic(true);
-    setCallScreenCamera(true);
-    setChatPosition({ x: 0, y: 0 });
-    
-    // 7. Finally, exit call overlay
     setIsInCall(false);
+    setIsCallExpanded(false);
+    setCallScreenShare(false);
   };
 
-  const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
-
-  const handleQuickReact = (msgId, emoji) => {
-    setMessageReactions(prev => {
-      const msgReacts = prev[msgId] || {};
-      const existing = msgReacts[emoji] || { count: 0, reacted: false };
-      const nowReacted = !existing.reacted;
-      const newCount = nowReacted ? existing.count + 1 : existing.count - 1;
-      if (newCount <= 0) {
-        const { [emoji]: _removed, ...rest } = msgReacts;
-        return { ...prev, [msgId]: rest };
+  const toggleScreenShare = async () => {
+    if (callScreenShare) {
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach(t => t.stop());
       }
-      return {
-        ...prev,
-        [msgId]: { ...msgReacts, [emoji]: { count: newCount, reacted: nowReacted } }
-      };
-    });
-    setReactionPickerMsgId(null);
-  };
-
-  const handleCallQuickReact = (msgId, emoji) => {
-    setCallMessageReactions(prev => {
-      const msgReacts = prev[msgId] || {};
-      const existing = msgReacts[emoji] || { count: 0, reacted: false };
-      const nowReacted = !existing.reacted;
-      const newCount = nowReacted ? existing.count + 1 : existing.count - 1;
-      if (newCount <= 0) {
-        const { [emoji]: _removed, ...rest } = msgReacts;
-        return { ...prev, [msgId]: rest };
-      }
-      return {
-        ...prev,
-        [msgId]: { ...msgReacts, [emoji]: { count: newCount, reacted: nowReacted } }
-      };
-    });
-    setReactionPickerCallMsgId(null);
-  };
-
-  const handleToggleRecording = async () => {
-    if (isRecording) {
-      // Stop recording → triggers ondataavailable → save file
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.stop();
-      }
-      setIsRecording(false);
-      setIsMoreOptionsOpen(false);
+      screenStreamRef.current = null;
+      setCallScreenShare(false);
     } else {
-      // Start recording
       try {
-        const displayStream = await navigator.mediaDevices.getDisplayMedia({
-          video: { frameRate: 30 },
-          audio: true
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+        screenStreamRef.current = stream;
+        setCallScreenShare(true);
+        stream.getVideoTracks()[0].addEventListener('ended', () => {
+          setCallScreenShare(false);
+          screenStreamRef.current = null;
         });
-        let combinedStream = displayStream;
-        try {
-          const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-          const dest = audioCtx.createMediaStreamDestination();
-          [displayStream, micStream].forEach(s => {
-            if (s.getAudioTracks().length > 0) {
-              audioCtx.createMediaStreamSource(s).connect(dest);
-            }
-          });
-          combinedStream = new MediaStream([
-            ...displayStream.getVideoTracks(),
-            ...dest.stream.getAudioTracks()
-          ]);
-        } catch (_) {
-          // mic permission denied — record display only
-        }
-
-        recordingChunksRef.current = [];
-        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
-          ? 'video/webm;codecs=vp9,opus'
-          : 'video/webm';
-        const recorder = new MediaRecorder(combinedStream, { mimeType });
-        mediaRecorderRef.current = recorder;
-
-        recorder.ondataavailable = (e) => {
-          if (e.data && e.data.size > 0) recordingChunksRef.current.push(e.data);
-        };
-
-        recorder.onstop = () => {
-          const blob = new Blob(recordingChunksRef.current, { type: mimeType });
-          const now = new Date();
-          const pad = n => String(n).padStart(2, '0');
-          const filename = `SyncUp-Recording-${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.webm`;
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          showToast(`✅ Saved to Downloads: ${filename}`);
-          combinedStream.getTracks().forEach(t => t.stop());
-        };
-
-        // Stop recording if user ends the screen-share natively
-        displayStream.getVideoTracks()[0].onended = () => {
-          if (recorder.state !== 'inactive') recorder.stop();
-          setIsRecording(false);
-        };
-
-        recorder.start(1000); // collect chunks every 1 s
-        setIsRecording(true);
-        showToast('🔴 Recording started — file will download when stopped');
-        setIsMoreOptionsOpen(false);
       } catch (err) {
-        if (err.name !== 'AbortError' && err.name !== 'NotAllowedError') {
-          showToast('⚠️ Could not start recording: ' + err.message);
-        }
-        setIsMoreOptionsOpen(false);
+        console.warn('Screen share denied', err);
       }
     }
   };
 
-  const playRelevantSound = (type, stateBeforeClick) => {
-    try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return;
-      const ctx = new AudioContext();
-      
-      if (ctx.state === 'suspended') {
-        ctx.resume();
-      }
-      
-      const playTone = (freq, time, duration, gainVal = 1.0, typeOsc = 'triangle') => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = typeOsc;
-        osc.frequency.setValueAtTime(freq, time);
-        gain.gain.setValueAtTime(gainVal, time);
-        gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(time);
-        osc.stop(time + duration);
-      };
-      
-      const now = ctx.currentTime;
-      
-      if (type === 'mic' || type === 'camera' || type === 'screenshare') {
-        // stateBeforeClick: true = turning OFF, false = turning ON
-        if (stateBeforeClick) {
-          // Turning OFF (descending chime)
-          playTone(900, now, 0.08, 0.8, 'sine');
-          playTone(600, now + 0.06, 0.12, 0.8, 'sine');
-        } else {
-          // Turning ON (ascending chime)
-          playTone(600, now, 0.08, 0.8, 'sine');
-          playTone(900, now + 0.06, 0.12, 0.8, 'sine');
-        }
-      } else if (type === 'panel') {
-        // stateBeforeClick: true = closing panel, false = opening panel
-        if (stateBeforeClick) {
-          // Closing (descending slide/pop)
-          playTone(1000, now, 0.06, 0.6, 'triangle');
-          playTone(700, now + 0.04, 0.1, 0.6, 'triangle');
-        } else {
-          // Opening (ascending slide/pop)
-          playTone(700, now, 0.06, 0.6, 'triangle');
-          playTone(1000, now + 0.04, 0.1, 0.6, 'triangle');
-        }
-      } else if (type === 'hand') {
-        // stateBeforeClick: true = lowering hand, false = raising hand
-        if (stateBeforeClick) {
-          // Lowering hand (descending slip)
-          playTone(1200, now, 0.06, 0.8, 'sine');
-          playTone(800, now + 0.05, 0.12, 0.8, 'sine');
-        } else {
-          // Raising hand (pleasant bright bell notify)
-          playTone(880, now, 0.05, 0.8, 'triangle');
-          playTone(1760, now + 0.03, 0.25, 0.8, 'triangle');
-        }
-      } else if (type === 'endcall') {
-        // End call chime (descending disconnect tone chord)
-        playTone(600, now, 0.1, 1.0, 'sine');
-        playTone(450, now + 0.08, 0.15, 1.0, 'sine');
-        playTone(300, now + 0.16, 0.22, 1.0, 'sine');
-      } else if (type === 'cancel') {
-        // Cancel — soft quiet descending double pop (dismissive)
-        playTone(500, now, 0.07, 0.5, 'sine');
-        playTone(350, now + 0.05, 0.1, 0.4, 'sine');
-      } else if (type === 'startcall') {
-        // Start SyncUp — bright triumphant ascending triple chime
-        playTone(660, now, 0.07, 0.9, 'triangle');
-        playTone(880, now + 0.06, 0.07, 0.9, 'triangle');
-        playTone(1320, now + 0.12, 0.18, 0.9, 'triangle');
-      }
-
-      // Close the AudioContext after 800ms to allow all tones to finish and release browser media resources
-      setTimeout(() => {
-        if (ctx && ctx.state !== 'closed') {
-          ctx.close().catch(() => {});
-        }
-      }, 800);
-    } catch (error) {
-      console.warn("Failed to play relevant sound:", error);
-    }
-  };
-
-  const getMentionQuery = (text, selectionStart) => {
-    if (selectionStart === undefined) return null;
-    const textBeforeCursor = text.slice(0, selectionStart);
-    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
-    if (lastAtIndex === -1) return null;
-    
-    const textAfterAt = textBeforeCursor.slice(lastAtIndex + 1);
-    if (textAfterAt.includes(' ')) return null; 
-    
-    if (lastAtIndex > 0 && textBeforeCursor[lastAtIndex - 1] !== ' ') {
-      return null;
-    }
-    
-    return textAfterAt.toLowerCase();
-  };
-
-  const getMentionSuggestions = (query) => {
-    if (query === null) return [];
-    
-    let allUsers = [];
-    if (isDM) {
-      allUsers = [];
-      if (dmEmployee && dmEmployee.id !== 2 && String(dmEmployee.id) !== '2' && dmEmployee.name !== 'Sarah Jenkins') {
-        allUsers.push({
-          id: dmEmployee.id,
-          name: dmEmployee.name,
-          avatar: dmEmployee.avatar,
-          role: dmEmployee.role,
-          status: dmEmployee.status
-        });
-      }
-    } else {
-      allUsers = (channelMembers[selectedChannel] || [])
-        .filter(member => member.id !== 2 && String(member.id) !== '2' && member.name !== 'Sarah Jenkins')
-        .map(member => {
-          const details = employees.find(e => e.id === member.id) || 
-                          globalDirectory.find(e => e.id === member.id);
-          return {
-            id: member.id,
-            name: member.name,
-            avatar: member.avatar,
-            role: details?.role,
-            status: details?.status
-          };
-        });
-      
-      // Prepend @All option
-      allUsers.unshift({
-        id: 'all',
-        name: 'All',
-        avatar: '', // blank to trigger Group icon fallback
-        role: 'Mention everyone in this group',
-        status: 'Group'
+  // Call dragging logic
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDraggingCall) return;
+      setCallPosition({
+        x: e.clientX - callDragStart.current.x,
+        y: e.clientY - callDragStart.current.y
       });
-    }
+    };
+    const handleMouseUp = () => setIsDraggingCall(false);
 
-    if (query === '') return allUsers;
-    
-    return allUsers.filter(user => 
-      user.name.toLowerCase().includes(query) || 
-      (user.role && user.role.toLowerCase().includes(query))
-    );
+    if (isDraggingCall) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDraggingCall]);
+
+  const handleCallMouseDown = (e) => {
+    if (e.target.closest('button')) return; // don't drag if clicking buttons
+    setIsDraggingCall(true);
+    callDragStart.current = {
+      x: e.clientX - callPosition.x,
+      y: e.clientY - callPosition.y
+    };
   };
 
-  const insertMention = (target, employeeName) => {
-    if (target === 'main') {
-      const text = inputVal;
-      const inputEl = mainInputRef.current;
-      if (!inputEl) return;
-      const selStart = inputEl.selectionStart;
-      const textBeforeCursor = text.slice(0, selStart);
-      const lastAtIndex = textBeforeCursor.lastIndexOf('@');
-      
-      const newText = text.slice(0, lastAtIndex) + `@${employeeName} ` + text.slice(selStart);
-      setInputVal(newText);
-      setMainMentionQuery(null);
-      
-      setTimeout(() => {
-        inputEl.focus();
-        const cursorPosition = lastAtIndex + employeeName.length + 2;
-        inputEl.setSelectionRange(cursorPosition, cursorPosition);
-      }, 0);
+  // Create Channel logic
+  const handleCreateChannel = async (e) => {
+    e.preventDefault();
+    if (!newChannelName.trim()) return;
+    
+    const rawName = newChannelName.trim().replace(/^#+/, '');
+    const formattedName = `#${rawName}`;
+    const baseId = rawName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'channel';
+    const newId = `${baseId}-${Date.now()}`;
+    
+    const channelMembers = selectedMembers.length > 0 ? selectedMembers : ['ceo'];
+    if (!channelMembers.includes('ceo')) channelMembers.push('ceo');
+
+    const newChan = {
+      id: newId,
+      name: formattedName,
+      label: `${rawName} Channel`,
+      type: 'staff',
+      members: channelMembers,
+      messages: [
+        {
+          id: Date.now(),
+          sender: 'System',
+          text: `Channel ${formattedName} created by TL.`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]
+    };
+    
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      await fetch('/api/employee-portal/chat/channels', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          id: newChan.id,
+          name: newChan.name,
+          label: newChan.label,
+          type: newChan.type,
+          members: newChan.members
+        })
+      });
+    } catch (err) {
+      console.error("Failed to save channel to backend:", err);
+    }
+
+    const currentChannels = dbChannels;
+    const updated = [...currentChannels, newChan];
+    setDbChannels(updated);
+    
+    setNewChannelName('');
+    setIsCreateChannelOpen(false);
+    setSelectedChannel(newId);
+  };
+
+  // Add Member logic
+  const toggleMemberInChannel = (empId) => {
+    setChannelMembers(prev => {
+      const currentMembers = prev[selectedChannel] || [];
+      if (currentMembers.includes(empId)) {
+        return { ...prev, [selectedChannel]: currentMembers.filter(id => id !== empId) };
+      } else {
+        return { ...prev, [selectedChannel]: [...currentMembers, empId] };
+      }
+    });
+  };
+
+  const handleEditChannel = async (e) => {
+    e.preventDefault();
+    const formattedName = editChannelName.replace(/\s+/g, '-').toLowerCase();
+    
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/employee-portal/chat/channels/${selectedChannel}`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: '#' + formattedName.replace(/^#+/, ''), label: formattedName })
+      });
+      if (res.ok) {
+        fetchChannelsAndMessages();
+        setSelectedChannel(selectedChannel); // keeps same id, just name changed
+        setIsEditChannelOpen(false);
+      } else {
+        alert("Failed to edit channel.");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteChannel = async () => {
+    if (dbChannels.length <= 1) {
+      alert("You cannot delete the last channel.");
+      return;
+    }
+    if (window.confirm(`Are you sure you want to delete #${selectedChannel}?`)) {
+      try {
+        const token = localStorage.getItem('nsg_jwt_token');
+        const res = await fetch(`/api/employee-portal/chat/channels/${selectedChannel}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          await fetchChannelsAndMessages();
+          setSelectedChannel('general-channel');
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    setIsChannelMenuOpen(false);
+  };
+
+  const [contextMenu, setContextMenu] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(null);
+  const [showChatEmojiPicker, setShowChatEmojiPicker] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editingText, setEditingText] = useState('');
+
+  const handleMessageDoubleClick = (e, msg) => {
+    e.preventDefault();
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      msg: msg
+    });
+    setShowEmojiPicker(null);
+  };
+
+  const closeContextMenu = () => {
+    setContextMenu(null);
+    setShowEmojiPicker(null);
+  };
+
+  const submitEditMessage = async (msgId, newText) => {
+    if(!newText.trim()) return;
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      await fetch(`/api/employee-portal/chat/messages/${msgId}`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: newText.trim() })
+      });
+      setEditingMessageId(null);
+      setEditingText('');
+      // WebSocket will trigger state update
+    } catch (err) { console.error(err); }
+  };
+
+  const handleDeleteMessage = async (msgId) => {
+    if(!window.confirm("Delete this message?")) return;
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      await fetch(`/api/employee-portal/chat/messages/${msgId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+    } catch (err) { console.error(err); }
+  };
+
+  const handleReactMessage = async (msgId, currentReactions, emoji) => {
+    let reactionsObj = {};
+    try {
+      reactionsObj = currentReactions ? JSON.parse(currentReactions) : {};
+    } catch(e){}
+    
+    if(!reactionsObj[emoji]) reactionsObj[emoji] = [];
+    if(reactionsObj[emoji].includes(tlName)) {
+      reactionsObj[emoji] = reactionsObj[emoji].filter(n => n !== tlName);
+      if(reactionsObj[emoji].length === 0) delete reactionsObj[emoji];
     } else {
-      const text = callChatInput;
-      const inputEl = callInputRef.current;
-      if (!inputEl) return;
-      const selStart = inputEl.selectionStart;
-      const textBeforeCursor = text.slice(0, selStart);
-      const lastAtIndex = textBeforeCursor.lastIndexOf('@');
-      
-      const newText = text.slice(0, lastAtIndex) + `@${employeeName} ` + text.slice(selStart);
-      setCallChatInput(newText);
-      setCallMentionQuery(null);
-      
-      setTimeout(() => {
-        inputEl.focus();
-        const cursorPosition = lastAtIndex + employeeName.length + 2;
-        inputEl.setSelectionRange(cursorPosition, cursorPosition);
-      }, 0);
+      reactionsObj[emoji].push(tlName);
     }
-  };
-
-  const handleMainInputChange = (e) => {
-    const val = e.target.value;
-    setInputVal(val);
-    const query = getMentionQuery(val, e.target.selectionStart);
-    setMainMentionQuery(query);
-    setActiveSuggestionIndex(0);
-  };
-  
-  const handleMainInputKeyDown = (e) => {
-    if (mainMentionQuery !== null) {
-      const suggestions = getMentionSuggestions(mainMentionQuery);
-      if (suggestions.length > 0) {
-        if (e.key === 'ArrowDown') {
-          e.preventDefault();
-          setActiveSuggestionIndex(prev => (prev + 1) % suggestions.length);
-        } else if (e.key === 'ArrowUp') {
-          e.preventDefault();
-          setActiveSuggestionIndex(prev => (prev - 1 + suggestions.length) % suggestions.length);
-        } else if (e.key === 'Enter' || e.key === 'Tab') {
-          e.preventDefault();
-          insertMention('main', suggestions[activeSuggestionIndex].name);
-        } else if (e.key === 'Escape') {
-          e.preventDefault();
-          setMainMentionQuery(null);
-        }
-      }
-    }
-  };
-
-  const handleCallInputChange = (e) => {
-    const val = e.target.value;
-    setCallChatInput(val);
-    const query = getMentionQuery(val, e.target.selectionStart);
-    setCallMentionQuery(query);
-    setActiveSuggestionIndex(0);
-  };
-  
-  const handleCallInputKeyDown = (e) => {
-    if (callMentionQuery !== null) {
-      const suggestions = getMentionSuggestions(callMentionQuery);
-      if (suggestions.length > 0) {
-        if (e.key === 'ArrowDown') {
-          e.preventDefault();
-          setActiveSuggestionIndex(prev => (prev + 1) % suggestions.length);
-        } else if (e.key === 'ArrowUp') {
-          e.preventDefault();
-          setActiveSuggestionIndex(prev => (prev - 1 + suggestions.length) % suggestions.length);
-        } else if (e.key === 'Enter' || e.key === 'Tab') {
-          e.preventDefault();
-          insertMention('call', suggestions[activeSuggestionIndex].name);
-        } else if (e.key === 'Escape') {
-          e.preventDefault();
-          setCallMentionQuery(null);
-        }
-      }
-    }
-  };
-
-  const renderMentionDropdown = (target) => {
-    const query = target === 'main' ? mainMentionQuery : callMentionQuery;
-    const suggestions = getMentionSuggestions(query);
-    if (suggestions.length === 0) return null;
     
-    const isDark = target === 'call';
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      await fetch(`/api/employee-portal/chat/messages/${msgId}`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reactions: JSON.stringify(reactionsObj) })
+      });
+    } catch (err) { console.error(err); }
+  };
+
+  // Add Guest logic
+  const handleAddGuest = (e) => {
+    e.preventDefault();
+    if(!newGuestName.trim() || !newGuestPhone.trim()) return;
     
-    return (
-      <div className={`${styles.mentionDropdown} ${isDark ? styles.mentionDropdownDark : styles.mentionDropdownLight}`}>
-        {suggestions.map((user, index) => {
-          const isActive = index === activeSuggestionIndex;
-          return (
-            <div 
-              key={user.id} 
-              className={`${styles.mentionItem} ${isActive ? styles.mentionItemActive : ''}`}
-              onClick={() => insertMention(target, user.name)}
-              onMouseEnter={() => setActiveSuggestionIndex(index)}
-            >
-              {user.avatar ? (
-                <img src={getAvatarUrl(user.avatar, user.name)} onError={(e) => { e.target.onerror = null; e.target.src = getAvatarUrl(null, user.name); }} alt={user.name} className={styles.mentionAvatar} />
-              ) : (
-                <div className={`${styles.mentionAvatar} ${styles.mentionAvatarGroup}`}>
-                  <Users size={14} style={{ color: isDark ? '#94a3b8' : 'var(--text-secondary)' }} />
+    const newGuestId = Date.now();
+    const guestObj = {
+      id: newGuestId,
+      name: newGuestName.trim() + ' (Guest)',
+      phone: newGuestPhone.trim(),
+      avatar: `https://ui-avatars.com/api/?name=${newGuestName.replace(/\s+/g, '+')}&background=F59E0B&color=fff`,
+      status: 'Active'
+    };
+    
+    setEmployees(prev => [...prev, guestObj]);
+    setChannelMembers(prev => ({
+      ...prev,
+      [selectedChannel]: [...(prev[selectedChannel] || []), newGuestId]
+    }));
+    
+    setNewGuestName('');
+    setNewGuestPhone('');
+  };
+
+  // Get current members for header
+  const isDM = selectedChannel.startsWith('dm-');
+  const currentMembersCount = isDM ? 2 : (channelMembers[selectedChannel]?.length || 1);
+
+  const getUnreadCount = (channelId) => {
+    const msgs = messages[channelId] || [];
+    return msgs.filter(m => {
+       if (m.isMe || (m.sender && m.sender.includes('TL'))) return false;
+       try {
+         const seenArr = m.seen_by ? JSON.parse(m.seen_by) : [];
+         return !seenArr.includes(tlName);
+       } catch(e) { return true; }
+    }).length;
+  };
+
+  const renderMessageText = (text) => {
+    if (!text) return null;
+    const parts = text.split(/(@\w+)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('@')) {
+        return <span key={i} style={{ color: '#3B82F6', fontWeight: 800, background: 'rgba(59,130,246,0.1)', padding: '0 4px', borderRadius: '4px' }}>{part}</span>;
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+
+  return (
+    <div style={{ display: 'flex', height: '100%', overflow: 'hidden', background: '#F8FAFC', borderRadius: '12px', border: '1px solid var(--ceo-border)' }}>
+      
+      {/* === LEFT SIDEBAR === */}
+      <div style={{ width: '280px', background: '#FFFFFF', borderRight: '1px solid var(--ceo-border)', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '24px 20px', borderBottom: '1px solid var(--ceo-border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: 'var(--ceo-text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <MessageSquare size={20} color="var(--ceo-primary)" /> Team Chat
+            </h2>
+            <label style={{ cursor: 'pointer', position: 'relative' }} title="Change Profile Picture">
+              <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={currentUser?.photo ? `http://localhost:8000${currentUser.photo}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(tlName)}`} alt="You" style={{ width: '36px', height: '36px', borderRadius: '18px', objectFit: 'cover', border: '2px solid var(--ceo-border)' }}  />
+              <div style={{ position: 'absolute', bottom: -2, right: -2, background: 'var(--ceo-primary)', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #FFF' }}>
+                <Camera size={10} color="#FFF" />
+              </div>
+              <input type="file" style={{ display: 'none' }} accept="image/*" onChange={handleDPUpload} />
+            </label>
+          </div>
+          <div style={{ position: 'relative' }}>
+            <Search size={14} color="var(--ceo-text-muted)" style={{ position: 'absolute', left: '12px', top: '10px' }} />
+            <input 
+              type="text" 
+              placeholder={isSearching ? "Searching..." : "Search messages..."} 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearch}
+              className="ceo-form-input" 
+              style={{ width: '100%', paddingLeft: '32px', height: '34px', fontSize: '13px' }} 
+              disabled={isSearching}
+            />
+          </div>
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', paddingLeft: '8px', paddingRight: '8px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ceo-text-muted)', letterSpacing: '0.5px' }}>CHANNELS</div>
+            <button onClick={() => setIsCreateChannelOpen(true)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--ceo-text-secondary)' }}><Plus size={14} /></button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '24px' }}>
+            {myChannels.map(chan => (
+              <div 
+                key={chan.id} 
+                onClick={() => setSelectedChannel(chan.id)}
+                style={{ 
+                  display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer',
+                  background: selectedChannel === chan.id ? '#EFF6FF' : 'transparent',
+                  color: selectedChannel === chan.id ? 'var(--ceo-primary)' : 'var(--ceo-text-secondary)',
+                  fontWeight: selectedChannel === chan.id ? 700 : 600,
+                  fontSize: '14px', transition: 'all 0.2s'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><Hash size={16} /> {chan.name}</div>
+                {getUnreadCount(chan.id) > 0 && <span style={{ background: 'var(--ceo-danger)', color: '#FFF', fontSize: '11px', fontWeight: 800, padding: '2px 6px', borderRadius: '10px' }}>{getUnreadCount(chan.id)}</span>}
+              </div>
+            ))}
+          </div>
+
+          <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ceo-text-muted)', marginBottom: '8px', paddingLeft: '8px', letterSpacing: '0.5px' }}>DIRECT MESSAGES</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {employees.filter(e => !e.isMe).map(emp => {
+              const dmId = `dm-${emp.id}`;
+              const isSelected = selectedChannel === dmId;
+              return (
+                <div 
+                  key={dmId} 
+                  onClick={() => setSelectedChannel(dmId)}
+                  style={{ 
+                    display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer',
+                    background: isSelected ? '#EFF6FF' : 'transparent',
+                    color: isSelected ? 'var(--ceo-primary)' : 'var(--ceo-text-secondary)',
+                    fontWeight: isSelected ? 700 : 600,
+                    fontSize: '14px', transition: 'all 0.2s'
+                  }}
+                >
+                  <div style={{ position: 'relative' }}>
+                    <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}`)} alt={emp.name} style={{ width: '24px', height: '24px', borderRadius: '12px', objectFit: 'cover' }}  />
+                    <div style={{ position: 'absolute', bottom: -2, right: -2, width: '8px', height: '8px', borderRadius: '4px', background: emp.status === 'Active' ? 'var(--ceo-success)' : 'var(--ceo-warning)', border: '2px solid #FFF' }}></div>
+                  </div>
+                  <div style={{ flex: 1 }}>{emp.name}</div>
+                  {getUnreadCount(dmId) > 0 && <span style={{ background: 'var(--ceo-danger)', color: '#FFF', fontSize: '11px', fontWeight: 800, padding: '2px 6px', borderRadius: '10px' }}>{getUnreadCount(dmId)}</span>}
                 </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* === MAIN CHAT AREA === */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#FFF' }}>
+        
+        {/* Chat Header */}
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FFF' }}>
+          <div>
+            <div 
+              style={{ fontSize: '18px', fontWeight: 800, color: 'var(--ceo-text-primary)', display: 'flex', alignItems: 'center', gap: '8px', cursor: isDM ? 'default' : 'pointer' }}
+              onClick={() => !isDM && setShowGroupMembersModal(true)}
+            >
+              {isDM ? <span style={{ color: 'var(--ceo-primary)' }}>@</span> : <Hash size={20} color="var(--ceo-text-muted)" />}
+              {isDM ? employees.find(e => `dm-${e.id}` === selectedChannel)?.name : selectedChannel}
+            </div>
+            <div 
+              style={{ fontSize: '12px', color: 'var(--ceo-text-secondary)', fontWeight: 500, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px', cursor: isDM ? 'default' : 'pointer' }}
+              onClick={() => !isDM && setShowGroupMembersModal(true)}
+            >
+              {isDM ? (
+                (() => {
+                  const dmUser = employees.find(e => `dm-${e.id}` === selectedChannel);
+                  const presence = dmUser ? userPresence[dmUser.name] : null;
+                  if (presence?.online) return <span style={{ color: 'var(--ceo-success)' }}>Online</span>;
+                  if (presence?.last_active) return <span>Last seen at {new Date(presence.last_active + (presence.last_active.endsWith('Z') ? '' : 'Z')).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>;
+                  return <span>Offline</span>;
+                })()
+              ) : (
+                <><Users size={12} /> {currentMembersCount} members (Click to view)</>
               )}
-              <div className={styles.mentionUserInfo}>
-                <span className={styles.mentionName}>{user.name}</span>
-                <span className={styles.mentionRole}>{user.role || (user.status === 'Active' ? 'Active' : 'On Leave')}</span>
+            </div>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '12px', position: 'relative' }}>
+            {!isDM && (
+              <button onClick={() => setShowGroupMembersModal(true)} className="ceo-btn" style={{ padding: '8px 16px', background: '#F8FAFC', border: '1px solid var(--ceo-border)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Users size={16} color="var(--ceo-primary)" /> Members
+              </button>
+            )}
+            <button onClick={() => setIsGalleryOpen(!isGalleryOpen)} className="ceo-btn" style={{ padding: '8px 16px', background: '#F8FAFC', border: '1px solid var(--ceo-border)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Image size={16} color="var(--ceo-primary)" /> Files & Media
+            </button>
+            <button onClick={handleStartCall} className="ceo-btn" style={{ padding: '8px 16px', background: '#F8FAFC', border: '1px solid var(--ceo-border)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Video size={16} color="var(--ceo-primary)" /> Video Call
+            </button>
+            {!isDM && (
+              <div style={{ position: 'relative' }}>
+                <button onClick={() => setIsChannelMenuOpen(!isChannelMenuOpen)} className="ceo-btn" style={{ padding: '8px', background: '#F8FAFC', border: '1px solid var(--ceo-border)' }}><MoreVertical size={16} /></button>
+                {isChannelMenuOpen && (
+                  <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', background: '#FFF', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: '1px solid var(--ceo-border)', zIndex: 100, width: '150px', overflow: 'hidden' }}>
+                    <button 
+                      onClick={() => { setEditChannelName(selectedChannel); setIsEditChannelOpen(true); setIsChannelMenuOpen(false); }} 
+                      style={{ width: '100%', padding: '12px 16px', textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}
+                    >Edit Channel Name</button>
+                    <button 
+                      onClick={handleDeleteChannel}
+                      style={{ width: '100%', padding: '12px 16px', textAlign: 'left', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: 'var(--ceo-danger)', borderTop: '1px solid var(--ceo-divider)' }}
+                    >Delete Channel</button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Pinned Messages Banner */}
+        {(() => {
+          const pinnedMsgs = (messages[selectedChannel] || []).filter(m => m.is_pinned);
+          if (pinnedMsgs.length === 0) return null;
+          return (
+            <div style={{ background: '#FEF3C7', borderBottom: '1px solid #FDE68A', padding: '10px 24px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+              <Pin size={16} color="#D97706" style={{ marginTop: '2px' }} />
+              <div style={{ flex: 1 }}>
+                 <div style={{ fontSize: '11px', fontWeight: 800, color: '#D97706', textTransform: 'uppercase', marginBottom: '2px' }}>Pinned Messages ({pinnedMsgs.length})</div>
+                 <div style={{ fontSize: '13px', color: '#92400E', maxHeight: '40px', overflowY: 'auto' }}>
+                    {pinnedMsgs.map(pm => (
+                       <div key={pm.id} style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
+                          <strong>{pm.sender}:</strong>
+                          <span>{renderMessageText(pm.text)}</span>
+                       </div>
+                    ))}
+                 </div>
               </div>
             </div>
           );
-        })}
-      </div>
-    );
-  };
+        })()}
 
-  const toggleEmojiPicker = (target) => {
-    if (emojiPickerTarget === target) {
-      setEmojiPickerTarget(null);
-    } else {
-      setEmojiPickerTarget(target);
-      setPickerSearch('');
-      setPickerCategory('smileys');
-    }
-  };
-
-  const renderEmojiPicker = (theme) => {
-    const isDark = theme === 'dark';
-    const categoriesList = [
-      { id: 'recent', icon: <Clock size={16} />, title: 'Recent' },
-      { id: 'smileys', icon: <Smile size={16} />, title: 'Smileys & Emotion' },
-      { id: 'gestures', icon: <Hand size={16} />, title: 'Gestures & Body' },
-      { id: 'people', icon: <Users size={16} />, title: 'People' },
-      { id: 'animals', icon: <Sparkles size={16} />, title: 'Animals & Nature' },
-      { id: 'food', icon: <Pizza size={16} />, title: 'Food & Drink' },
-      { id: 'places', icon: <Building size={16} />, title: 'Travel & Places' },
-      { id: 'objects', icon: <Lightbulb size={16} />, title: 'Objects' },
-      { id: 'activities', icon: <Trophy size={16} />, title: 'Activities' },
-      { id: 'symbols', icon: <Hash size={16} />, title: 'Symbols' }
-    ];
-
-    const handleEmojiClick = (emoji) => {
-      if (emojiPickerTarget === 'main') {
-        setInputVal(prev => prev + emoji);
-      } else {
-        setCallChatInput(prev => prev + emoji);
-      }
-      setRecentEmojis(prev => {
-        const filtered = prev.filter(e => e !== emoji);
-        return [emoji, ...filtered].slice(0, 36);
-      });
-    };
-
-    const getFilteredEmojis = () => {
-      if (!pickerSearch.trim()) {
-        if (pickerCategory === 'recent') return recentEmojis;
-        return emojiCategories[pickerCategory]?.emojis || [];
-      }
-      const query = pickerSearch.toLowerCase();
-      let matches = [];
-      Object.values(emojiCategories).forEach(cat => {
-        cat.emojis.forEach(e => {
-          if (e.includes(query) || cat.name.toLowerCase().includes(query)) {
-            if (!matches.includes(e)) matches.push(e);
-          }
-        });
-      });
-      return matches;
-    };
-
-    return (
-      <div className={isDark ? styles.callEmojiPickerPopup : styles.emojiPickerPopup}>
-        <div className={styles.pickerSearchRow}>
-          <div className={styles.pickerSearchWrapper}>
-            <input 
-              type="text" 
-              placeholder="Find something fun" 
-              value={pickerSearch}
-              onChange={(e) => setPickerSearch(e.target.value)}
-            />
-            <Search size={14} className={styles.pickerSearchIcon} />
-          </div>
-          <button type="button" className={styles.pickerSmileBrushBtn} title="Customize">
-            <Smile size={16} />
-            <span className={styles.brushDot} />
-          </button>
-        </div>
-
-        <div className={styles.pickerContentBody}>
-          <div className={styles.emojiGridContainer}>
-            <div className={styles.categoryTitleHeader}>
-              {pickerSearch ? 'Search Results' : categoriesList.find(c => c.id === pickerCategory)?.title}
-            </div>
-            <div className={styles.emojiGrid}>
-              {getFilteredEmojis().map((emoji, index) => (
-                <button 
-                  key={index} 
-                  type="button" 
-                  className={styles.emojiGridCell}
-                  onClick={() => handleEmojiClick(emoji)}
-                >
-                  {emoji}
-                </button>
-              ))}
-              {getFilteredEmojis().length === 0 && (
-                <div className={styles.noPickerResults}>No emojis found</div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {!pickerSearch && (
-          <div className={styles.pickerCategoriesBar}>
-            {categoriesList.map(cat => (
-              <button 
-                key={cat.id} 
-                type="button" 
-                className={`${styles.pickerCategoryBtn} ${pickerCategory === cat.id ? styles.activeCategory : ''}`}
-                onClick={() => setPickerCategory(cat.id)}
-                title={cat.title}
-              >
-                {cat.icon}
-              </button>
-            ))}
+        {/* Offline Banner */}
+        {!isOnline && (
+          <div style={{ background: '#FEE2E2', color: '#B91C1C', padding: '8px 24px', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertOctagon size={16} />
+            You are currently offline. Messaging and calls are disabled until network is restored.
           </div>
         )}
-      </div>
-    );
-  };
 
-  const getCallParticipants = () => {
-    if (isDM) {
-      return [
-        { id: 101, name: 'Michael Vance (Team Lead)', avatar: 'https://ui-avatars.com/api/?name=Michael+Vance&background=3b82f6&color=fff', initial: 'M', isMe: true },
-        ...(dmEmployee ? [{ id: dmEmployee.id, name: dmEmployee.name, avatar: dmEmployee.avatar, initial: dmEmployee.name[0], isMe: false }] : [])
-      ];
-    } else {
-      const members = channelMembers[selectedChannel] || [];
-      const hasMe = members.some(m => m.id === 101);
-      const list = hasMe ? [...members] : [...members, { id: 101, name: 'Michael Vance (Team Lead)', avatar: 'https://ui-avatars.com/api/?name=Michael+Vance&background=3b82f6&color=fff', initial: 'M' }];
-      return list
-        .filter(m => {
-          const emp = employees.find(e => e.id === m.id);
-          return emp?.status !== 'On Leave';
-        })
-        .map(m => ({
-          ...m,
-          isMe: m.id === 101
-        }));
-    }
-  };
-
-  const channelMessages = messages[selectedChannel] || [];
-
-  return (
-    <>
-      <div className={`fade-in ${styles.chatContainer} ${selectedChannel ? styles.channelActive : ''}`}>
-      {/* Channels Sidebar */}
-      <div className={styles.channelsSidebar}>
-        <div className={styles.sidebarHeader}>
-          <h3>Colleagues Chat</h3>
-        </div>
-
-        <div className={styles.searchBox}>
-          <Search size={14} className={styles.searchIcon} />
-          <input 
-            type="text" 
-            placeholder="search a candidate" 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {searchQuery && (
-            <button 
-              type="button" 
-              className={styles.clearSearchBtn} 
-              onClick={() => setSearchQuery('')}
-              title="Clear search"
-            >
-              <X size={12} />
-            </button>
-          )}
-        </div>
-
-        <div className={styles.sectionTitle}>Channels</div>
-        <div className={styles.list}>
-          {myChannels
-            .filter(chan => chan.name.toLowerCase().includes(searchQuery.toLowerCase()))
-            .map(chan => {
-              const isActive = selectedChannel === chan.id;
-              return (
-                <div
-                  key={chan.id}
-                  className={`${styles.channelItemWrapper} ${isActive ? styles.active : ''}`}
-                >
-                  <button
-                    className={styles.channelItemBtn}
-                    onClick={() => setSelectedChannel(chan.id)}
-                  >
-                    <Hash size={16} />
-                    <span>{chan.name}</span>
-                  </button>
-                </div>
-              );
-            })}
-          {myChannels.filter(chan => chan.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
-            <div className={styles.noResultsText}>No channels found</div>
-          )}
-        </div>
-
-        <div className={styles.sectionTitle}>Direct Messages</div>
-        <div className={styles.list}>
-          {employees
-            .filter(emp => emp.name.toLowerCase().includes(searchQuery.toLowerCase()))
-            .map(emp => {
-              const isSelected = selectedChannel === `dm-${emp.id}`;
-              return (
-                <button
-                  key={emp.id}
-                  className={`${styles.directItem} ${isSelected ? styles.active : ''}`}
-                  onClick={() => setSelectedChannel(`dm-${emp.id}`)}
-                >
-                  <div className={styles.avatarWrapper}>
-                      <img 
-                        src={getAvatarUrl(emp.avatar, emp.name)} 
-                        alt={emp.name} 
-                        onError={(e) => { e.target.onerror = null; e.target.src = getAvatarUrl(null, emp.name); }}
-                      />
-                    <span className={`${styles.statusDot} ${emp.status === 'On Leave' ? styles.onleave : styles.active}`} />
-                  </div>
-                  <span>{emp.name}</span>
-                </button>
-              );
-            })}
-          {employees
-            .filter(emp => emp.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
-              <div className={styles.noResultsText}>No colleagues found</div>
-            )}
-        </div>
-
-        {searchQuery && (
-          <>
-            <div className={styles.sectionTitle}>Candidates & Other Colleagues</div>
-            <div className={styles.list}>
-              {globalDirectory
-                .filter(item => !employees.some(e => e.id === item.id))
-                .filter(item => 
-                  item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                  (item.role && item.role.toLowerCase().includes(searchQuery.toLowerCase()))
-                )
-                .map(item => (
-                  <button
-                    key={item.id}
-                    className={styles.directItem}
-                    onClick={() => {
-                      setEmployees(prev => [...prev, item]);
-                      setSelectedChannel(`dm-${item.id}`);
-                      setSearchQuery('');
-                    }}
-                    title={`Start chat with ${item.name}`}
-                  >
-                    <div className={styles.avatarWrapper}>
-                      <img 
-                        src={getAvatarUrl(item.avatar, item.name)} 
-                        alt={item.name} 
-                        onError={(e) => { e.target.onerror = null; e.target.src = getAvatarUrl(null, item.name); }}
-                      />
-                      <span className={`${styles.statusDot} ${item.status === 'On Leave' ? styles.onleave : styles.active}`} />
+        {/* Messages Feed */}
+        {searchResults ? (
+           <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', background: '#FFF' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--ceo-border)', paddingBottom: '16px' }}>
+                 <h2 style={{ fontSize: '18px', fontWeight: 800 }}>Search Results for "{searchQuery}"</h2>
+                 <button onClick={() => { setSearchResults(null); setSearchQuery(''); setIsSearching(false); }} className="ceo-btn" style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 700 }}>Close Search</button>
+              </div>
+              {searchResults.length === 0 ? (
+                 <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--ceo-text-muted)' }}>No messages found.</div>
+              ) : (
+                 searchResults.map(res => (
+                    <div key={res.id} onClick={() => { setSelectedChannel(res.channel_id); setSearchResults(null); setSearchQuery(''); setIsSearching(false); }} style={{ padding: '16px', border: '1px solid var(--ceo-border)', borderRadius: '12px', cursor: 'pointer', background: '#F8FAFC' }}>
+                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <strong style={{ fontSize: '14px', color: 'var(--ceo-primary)' }}>{res.sender} <span style={{ color: 'var(--ceo-text-muted)' }}>in {res.channel_id}</span></strong>
+                          <span style={{ fontSize: '12px', color: 'var(--ceo-text-muted)' }}>{new Date(res.timestamp + (res.timestamp.endsWith('Z') ? '' : 'Z')).toLocaleString()}</span>
+                       </div>
+                       <div style={{ fontSize: '14px' }}>{renderMessageText(res.text)}</div>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontWeight: '600' }}>{item.name}</span>
-                      <span style={{ fontSize: '10px', color: 'var(--text-light)', marginTop: '2px' }}>
-                        {item.role || 'Candidate'}
+                 ))
+              )}
+           </div>
+        ) : (
+          <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', background: '#F8FAFC' }}>
+          {(messages[selectedChannel] || []).filter(m => !m.parent_id).length === 0 ? (
+            <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--ceo-text-muted)' }}>
+              <MessageSquare size={48} style={{ opacity: 0.2, margin: '0 auto 16px auto' }} />
+              <div style={{ fontSize: '16px', fontWeight: 600 }}>No messages yet</div>
+              <div style={{ fontSize: '13px' }}>Start the conversation!</div>
+            </div>
+          ) : (
+            (messages[selectedChannel] || []).filter(m => !m.parent_id).map((msg, idx) => {
+              const isMsgMe = msg.isMe || (msg.sender && (msg.sender.includes('TL')));
+              const isDeleted = !!msg.deleted_at;
+              
+              let parsedReactions = {};
+              try { parsedReactions = msg.reactions ? JSON.parse(msg.reactions) : {}; } catch(e){}
+              const hasReactions = Object.keys(parsedReactions).length > 0;
+
+              return (
+                <div key={msg.id || idx} style={{ display: 'flex', gap: '16px', flexDirection: isMsgMe ? 'row-reverse' : 'row', position: 'relative' }} className="message-row"
+                     onDoubleClick={(e) => !isDeleted && handleMessageDoubleClick(e, msg)}
+                     onContextMenu={(e) => { e.preventDefault(); if(!isDeleted) handleMessageDoubleClick(e, msg); }}
+                >
+                  {(() => {
+                    const senderEmp = employees.find(e => e.name === msg.sender);
+                    const senderAvatar = senderEmp?.photo ? `http://localhost:8000${senderEmp.photo}` : (msg.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender)}`);
+                    return <img src={senderAvatar} alt={msg.sender} style={{ width: '36px', height: '36px', borderRadius: '18px', border: '1px solid var(--tl-border)', flexShrink: 0, objectFit: 'cover' }} onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender || 'User')}`; }} />;
+                  })()}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMsgMe ? 'flex-end' : 'flex-start', maxWidth: '70%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexDirection: isMsgMe ? 'row-reverse' : 'row' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--tl-text-primary)' }}>{isMsgMe ? 'You' : msg.sender}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--tl-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        {msg.timestamp || msg.time} {msg.is_edited && !isDeleted && '(Edited)'}
+                        {isMsgMe && !isDeleted && (() => {
+                          let isRead = false;
+                          let isDelivered = false;
+                          const isCorporateChannel = chatChannels.some(c => c.id === selectedChannel);
+                          try {
+                            const seenArr = msg.seen_by ? JSON.parse(msg.seen_by) : [];
+                            const deliveredArr = msg.delivered_to ? JSON.parse(msg.delivered_to) : [];
+                            isRead = isCorporateChannel ? seenArr.length >= currentMembersCount - 1 : seenArr.length > 0;
+                            isDelivered = isCorporateChannel ? deliveredArr.length >= currentMembersCount - 1 : deliveredArr.length > 0;
+                          } catch(e) {}
+                          if (isRead) return <CheckCheck size={14} color="#3B82F6" />;
+                          if (isDelivered) return <CheckCheck size={14} color="#94A3B8" />;
+                          return <Check size={14} color="#94A3B8" />;
+                        })()}
                       </span>
                     </div>
-                  </button>
-                ))
-              }
-              {globalDirectory
-                .filter(item => !employees.some(e => e.id === item.id))
-                .filter(item => 
-                  item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                  (item.role && item.role.toLowerCase().includes(searchQuery.toLowerCase()))
-                ).length === 0 && (
-                  <div className={styles.noResultsText}>No candidates found</div>
-                )
-              }
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Main Chat Area */}
-      <div className={styles.chatArea}>
-        {!selectedChannel ? (
-          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center', alignItems: 'center', padding: '40px', background: '#ffffff', color: 'var(--text-primary)' }}>
-            <Hash size={48} style={{ color: 'var(--text-light)', marginBottom: '16px' }} />
-            <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>No active conversation</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '13px', maxWidth: '280px', textAlign: 'center', lineHeight: '1.5' }}>
-              Select a channel or colleague from the sidebar, or create a new channel to get started.
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className={styles.chatHeader}>
-              <div className={styles.channelName}>
-                <button 
-                  type="button" 
-                  className={styles.mobileBackBtn}
-                  onClick={() => setSelectedChannel('')}
-                  title="Back to channels"
-                >
-                  <ArrowLeft size={20} />
-                </button>
-                {isDM ? (
-              <div className={styles.avatarWrapper} style={{ width: '28px', height: '28px', position: 'relative' }}>
-                <img src={getAvatarUrl(dmEmployee?.avatar, dmEmployee?.name)} onError={(e) => { e.target.onerror = null; e.target.src = getAvatarUrl(null, dmEmployee?.name); }} alt={dmEmployee?.name} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
-                <span className={`${styles.statusDot} ${dmEmployee?.status === 'On Leave' ? styles.onleave : styles.active}`} style={{ border: '2px solid #ffffff' }} />
-              </div>
-            ) : (
-              <Hash size={20} className={styles.hashIcon} />
-            )}
-            <h2 style={{ marginLeft: isDM ? '8px' : '0' }}>{isDM ? dmEmployee?.name : selectedChannel}</h2>
-            <span className={styles.channelDesc}>
-              {isDM 
-                ? (dmEmployee?.status === 'On Leave' ? 'On Leave' : 'Active') 
-                : (channelDescriptions[selectedChannel] || 'Custom team discussion channel.')}
-            </span>
-          </div>
-          <div className={styles.headerActions}>
-            <div className={`${styles.splitBtnContainer} ${isCallDropdownOpen ? styles.active : ''}`}>
-              <button 
-                type="button" 
-                className={styles.splitBtnAction}
-                onClick={() => {
-                  if (activeCallType === 'video') {
-                    setCallType('video');
-                    setCallPreviewCamera(true);
-                    setCallPreviewMic(true);
-                  } else {
-                    setCallType('audio');
-                    setCallPreviewCamera(false);
-                    setCallPreviewMic(true);
-                  }
-                  setIsCallPreviewOpen(true);
-                  setIsCallDropdownOpen(false);
-                }}
-                title={activeCallType === 'video' ? "Start Video Call" : "Start Voice Call"}
-              >
-                {activeCallType === 'video' ? <Video size={16} /> : <PhoneCall size={16} />}
-              </button>
-              <div className={styles.splitBtnSeparator} />
-              <button 
-                type="button"
-                className={styles.splitBtnTrigger}
-                onClick={() => setIsCallDropdownOpen(!isCallDropdownOpen)}
-                title="Call Options"
-              >
-                <ChevronDown size={12} />
-              </button>
-            </div>
-
-            {isCallDropdownOpen && (
-              <div className={styles.callDropdownMenu}>
-                <button 
-                  type="button" 
-                  className={`${styles.dropdownItem} ${activeCallType === 'video' ? styles.activeDropdownItem : ''}`}
-                  onClick={() => {
-                    setActiveCallType('video');
-                    setIsCallDropdownOpen(false);
-                  }}
-                >
-                  <Video size={14} />
-                  <span>Video Call</span>
-                </button>
-                <button 
-                  type="button" 
-                  className={`${styles.dropdownItem} ${activeCallType === 'audio' ? styles.activeDropdownItem : ''}`}
-                  onClick={() => {
-                    setActiveCallType('audio');
-                    setIsCallDropdownOpen(false);
-                  }}
-                >
-                  <PhoneCall size={14} />
-                  <span>Voice Call</span>
-                </button>
-                <div style={{ height: '1px', backgroundColor: 'var(--border-color)', margin: '4px 0' }} />
-                <button 
-                  type="button" 
-                  className={styles.dropdownItem}
-                  onClick={() => {
-                    setIsCallDropdownOpen(false);
-                    const members = channelMembers[selectedChannel] || [];
-                    const colleagues = members.filter(m => m.id !== 2);
-                    if (colleagues.length > 0) {
-                      const randomColleague = colleagues[Math.floor(Math.random() * colleagues.length)];
-                      const callMsg = {
-                        id: (messages[selectedChannel]?.length || 0) + 1,
-                        sender: randomColleague.name,
-                        avatar: randomColleague.avatar,
-                        text: `Started a video call`,
-                        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                        isCallStatus: true
-                      };
-                      setMessages(prev => ({
-                        ...prev,
-                        [selectedChannel]: [...(prev[selectedChannel] || []), callMsg]
-                      }));
-                    }
-                  }}
-                >
-                  <PhoneCall size={14} />
-                  <span>Simulate Colleague Call</span>
-                </button>
-              </div>
-            )}
-            
-            {!isDM && (
-              <button
-                type="button"
-                className={styles.headerAddMemberBtn}
-                onClick={() => {
-                  setIsAddMemberModalOpen(true);
-                  setSelectedAddMemberIds([]);
-                  setModalSearchQuery('');
-                }}
-              >
-                Add member
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className={styles.messagesTimeline}>
-          {channelMessages.map((msg, index) => {
-            const isMe = msg.sender && (msg.sender.includes('Michael Vance') || msg.sender.includes('Vance'));
-            const msgId = msg.id || index;
-            const reactions = messageReactions[msgId] || {};
-            const isHovered = hoveredMessageId === msgId;
-            const showPicker = reactionPickerMsgId === msgId;
-            return (
-              <div
-                key={msgId}
-                className={`${styles.messageWrapper} ${isMe ? styles.myMessage : ''}`}
-                onMouseEnter={() => setHoveredMessageId(msgId)}
-                onMouseLeave={() => { setHoveredMessageId(null); if (reactionPickerMsgId === msgId) setReactionPickerMsgId(null); }}
-              >
-                <img src={getAvatarUrl(msg.avatar, msg.sender)} onError={(e) => { e.target.onerror = null; e.target.src = getAvatarUrl(null, msg.sender); }} alt={msg.sender} className={styles.senderAvatar} />
-                <div className={styles.messageContent}>
-                  <div className={styles.messageMeta}>
-                    <span className={styles.senderName}>{msg.sender}</span>
-                    <span className={styles.messageTime}>{msg.timestamp}</span>
-                  </div>
-
-                  <div className={styles.messageBubbleWrapper}>
-                    <div className={msg.isCallStatus ? '' : styles.messageBubble} style={msg.isCallStatus ? { padding: '12px 16px', backgroundColor: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: '8px', display: 'inline-block' } : {}}>
-                      {msg.text.startsWith('http') && msg.text.includes('.gif') ? (
-                        <img src={msg.text} alt="gif" className={styles.chatGifImage} />
-                      ) : msg.isCallStatus ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontWeight: '600' }}>
-                          {msg.text.includes('audio') ? <PhoneCall size={16} /> : <Video size={16} />}
-                          <span>{msg.text}</span>
-                          <button 
-                            type="button" 
-                            style={{ marginLeft: '12px', padding: '6px 16px', borderRadius: '6px', backgroundColor: 'var(--primary)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}
-                            onClick={() => {
-                              setHuddlePeer({
-                                channelId: selectedChannel,
-                                roomName: selectedChannel,
-                                name: selectedChannel,
-                                displayName: 'Michael Vance (Team Lead)'
-                              });
-                            }}
-                          >
-                            Join
-                          </button>
-                        </div>
-                      ) : (
-                        <p>{msg.text}</p>
-                      )}
-                    </div>
-
-                    {/* Hover reaction toolbar */}
-                    {isHovered && (
-                      <div className={styles.messageReactionToolbar}>
-                        {QUICK_REACTIONS.map(emoji => (
-                          <button
-                            key={emoji}
-                            type="button"
-                            className={`${styles.reactionToolbarBtn} ${reactions[emoji]?.reacted ? styles.reactionToolbarBtnActive : ''}`}
-                            onClick={() => handleQuickReact(msgId, emoji)}
-                            title={`React with ${emoji}`}
-                          >
-                            {emoji}
-                          </button>
-                        ))}
-                        <button
-                          type="button"
-                          className={styles.reactionToolbarMore}
-                          onClick={(e) => { e.stopPropagation(); setReactionPickerMsgId(showPicker ? null : msgId); }}
-                          title="More reactions"
-                        >
-                          ➕
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Full emoji picker for this message */}
-                    {showPicker && (
-                      <div className={styles.messageEmojiPicker} onClick={e => e.stopPropagation()}>
-                        <div className={styles.messageEmojiGrid}>
-                          {['😊','😂','🤣','🥰','😍','🤩','😎','😜','🤔','😮','😢','😡','👍','👎','👏','🙌','🔥','🎉','💯','❤️','💙','💚','🌟','✨','🚀','🎯','💡','🤝','🙏','😱','😴','🥺','😭','🥳','😋','😅','🤦','🤷','💪','👀'].map(e => (
-                            <button
-                              key={e}
-                              type="button"
-                              className={styles.messageEmojiBtn}
-                              onClick={() => handleQuickReact(msgId, e)}
-                            >{e}</button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Reaction pills below bubble */}
-                  {Object.keys(reactions).length > 0 && (
-                    <div className={styles.reactionPillsRow}>
-                      {Object.entries(reactions).map(([emoji, data]) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          className={`${styles.reactionPill} ${data.reacted ? styles.reactionPillActive : ''}`}
-                          onClick={() => handleQuickReact(msgId, emoji)}
-                          title={`${emoji} · ${data.count}`}
-                        >
-                          <span>{emoji}</span>
-                          <span className={styles.reactionPillCount}>{data.count}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-          <div ref={chatEndRef} />
-        </div>
-
-        {/* Floating Members Card */}
-        {!isDM && (
-          <div 
-            className={`${styles.membersCard} ${isDragging ? styles.dragging : ''}`}
-            style={{ transform: `translate(calc(-50% + ${position.x}px), ${position.y}px)` }}
-            onMouseDown={handleMouseDown}
-          >
-          <div className={styles.membersCardHeader}>
-            <h3 className={styles.membersTitle}>Members</h3>
-            <button
-              type="button"
-              className={styles.seeAllBtn}
-              onClick={(e) => { e.stopPropagation(); setShowAllMembers(prev => !prev); }}
-            >
-              {showAllMembers ? 'See less' : 'See all'}
-            </button>
-          </div>
-          
-          <div className={styles.membersList}>
-            {(() => {
-              const statusOrder = (member) => {
-                const emp = employees.find(e => e.id === member.id);
-                const status = emp?.status || 'Active';
-                if (status === 'Active') return 0;
-                if (status === 'On Leave') return 2;
-                return 1; // Offline or anything else
-              };
-              const allMembers = [...(channelMembers[selectedChannel] || [])].sort(
-                (a, b) => statusOrder(a) - statusOrder(b)
-              );
-              const visibleMembers = showAllMembers ? allMembers : allMembers.slice(0, 4);
-              const hiddenCount = allMembers.length - 4;
-              return (
-                <>
-                  {visibleMembers.map((member) => {
-                    const memberEmp = employees.find(e => e.id === member.id);
-                    const isOnLeave = memberEmp?.status === 'On Leave';
-                    return (
-                      <div key={member.id} className={styles.memberAvatarWrapper} title={member.name}>
-                        {member.avatar ? (
-                          <img src={getAvatarUrl(member.avatar, member.name)} onError={(e) => { e.target.onerror = null; e.target.src = getAvatarUrl(null, member.name); }} alt={member.name} className={styles.memberAvatarImg} />
-                        ) : (
-                          <div className={styles.memberAvatarPlaceholder}>
-                            {member.initial}
-                          </div>
-                        )}
-                        <span className={`${styles.memberStatusDot} ${isOnLeave ? styles.onleave : styles.active}`} />
-                      </div>
-                    );
-                  })}
-                  {!showAllMembers && hiddenCount > 0 && (
-                    <button
-                      type="button"
-                      className={styles.overflowCountBtn}
-                      onClick={(e) => { e.stopPropagation(); setShowAllMembers(true); }}
-                      title={`${hiddenCount} more members`}
-                    >
-                      +{hiddenCount}
-                    </button>
-                  )}
-                </>
-              );
-            })()}
-            
-            <button 
-              type="button" 
-              className={styles.quickAddMemberBtn}
-              onClick={() => {
-                setIsAddMemberModalOpen(true);
-                setSelectedAddMemberIds([]);
-                setModalSearchQuery('');
-              }}
-              title="Add Member"
-            >
-              <Plus size={16} />
-            </button>
-          </div>
-        </div>
-      )}
-
-        <form onSubmit={handleSend} className={styles.chatForm}>
-          <div className={styles.chatInputWrapper}>
-            {emojiPickerTarget === 'main' && renderEmojiPicker('light')}
-            <button
-              type="button"
-              className={styles.chatActionBtn}
-              onClick={() => toggleEmojiPicker('main')}
-              title="Insert emoji"
-            >
-              <Smile size={18} />
-            </button>
-            <button
-              type="button"
-              className={styles.chatActionBtn}
-              onClick={() => mainFileInputRef.current?.click()}
-              title="Attach file"
-            >
-              <Paperclip size={18} />
-            </button>
-            {mainMentionQuery !== null && renderMentionDropdown('main')}
-            <input
-              type="text"
-              ref={mainInputRef}
-              className={styles.chatInput}
-              value={inputVal}
-              onChange={handleMainInputChange}
-              onKeyDown={handleMainInputKeyDown}
-              placeholder={isDM ? `Message ${dmEmployee?.name}...` : `Message #${selectedChannel} (Type message & get simulated feedback...)`}
-            />
-            <input
-              type="file"
-              ref={mainFileInputRef}
-              style={{ display: 'none' }}
-              onChange={handleMainFileChange}
-            />
-          </div>
-          <button type="submit" className={styles.sendBtn} disabled={!inputVal.trim()}>
-            <Send size={16} />
-            <span>Send</span>
-          </button>
-        </form>
-          </>
-        )}
-      </div>
-    </div>
-
-      {/* Create Channel Modal */}
-      {isModalOpen && (
-        <div className={styles.modalOverlay} onClick={() => setIsModalOpen(false)}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h3>Create a Channel</h3>
-              <button className={styles.closeBtn} onClick={() => setIsModalOpen(false)}>
-                <X size={18} />
-              </button>
-            </div>
-            <form onSubmit={handleCreateChannel}>
-              <div className={styles.modalBody}>
-                <p className={styles.modalSub}>
-                  Channels are where your team communicates. They’re best when organized around a topic (e.g. marketing-campaign).
-                </p>
-                
-                <div className={styles.formGroup}>
-                  <label htmlFor="channel-name">Name</label>
-                  <div className={styles.inputWrapper}>
-                    <Hash size={16} className={styles.inputHashIcon} />
-                    <input
-                      id="channel-name"
-                      type="text"
-                      placeholder="e.g. plan-launch"
-                      value={newChannelName}
-                      onChange={(e) => {
-                        setNewChannelName(e.target.value);
-                        if (channelError) setChannelError('');
-                      }}
-                      autoFocus
-                    />
-                  </div>
-                  {channelError && <span className={styles.errorText}>{channelError}</span>}
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label htmlFor="channel-desc">Description <span className={styles.optional}>(optional)</span></label>
-                  <input
-                    id="channel-desc"
-                    type="text"
-                    placeholder="What is this channel about?"
-                    value={newChannelDesc}
-                    onChange={(e) => setNewChannelDesc(e.target.value)}
-                  />
-                </div>
-              </div>
-              
-              <div className={styles.modalFooter}>
-                <button type="button" className={styles.cancelBtn} onClick={() => setIsModalOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className={styles.submitBtn}>
-                  Create Channel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Add Member Modal */}
-      {isAddMemberModalOpen && (
-        <div className={styles.modalOverlay} onClick={() => setIsAddMemberModalOpen(false)}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h3>Add Members to #{selectedChannel}</h3>
-              <button className={styles.closeBtn} onClick={() => setIsAddMemberModalOpen(false)}>
-                <X size={18} />
-              </button>
-            </div>
-            <form onSubmit={handleAddMembers}>
-              <div className={styles.modalBody}>
-                <p className={styles.modalSub}>
-                  Select team members to add them to this channel.
-                </p>
-
-                <div className={styles.modalSearchBox}>
-                  <Search size={14} className={styles.modalSearchIcon} />
-                  <input
-                    type="text"
-                    placeholder="search a candidate"
-                    value={modalSearchQuery}
-                    onChange={(e) => setModalSearchQuery(e.target.value)}
-                  />
-                  {modalSearchQuery && (
-                    <button
-                      type="button"
-                      className={styles.modalClearSearchBtn}
-                      onClick={() => setModalSearchQuery('')}
-                      title="Clear search"
-                    >
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
-                
-                <div className={styles.addMemberList}>
-                  {(() => {
-                    const allAvailableUsers = [...employees];
-                    globalDirectory.forEach(item => {
-                      if (!allAvailableUsers.some(u => u.id === item.id)) {
-                        allAvailableUsers.push(item);
-                      }
-                    });
-
-                    const filteredAvailable = allAvailableUsers
-                      .filter(emp => !(channelMembers[selectedChannel] || []).some(m => m.id === emp.id))
-                      .filter(emp => 
-                        emp.name.toLowerCase().includes(modalSearchQuery.toLowerCase()) ||
-                        (emp.role && emp.role.toLowerCase().includes(modalSearchQuery.toLowerCase()))
-                      );
-
-                    if (filteredAvailable.length === 0) {
-                      return (
-                        <p className={styles.noMembersText}>
-                          {modalSearchQuery ? 'No matching candidates or team members found.' : 'All employees and candidates are already members of this channel.'}
-                        </p>
-                      );
-                    }
-
-                    return filteredAvailable.map(emp => {
-                      const isSelected = selectedAddMemberIds.includes(emp.id);
-                      return (
-                        <div 
-                          key={emp.id} 
-                          className={`${styles.addMemberRow} ${isSelected ? styles.selectedRow : ''}`}
-                          onClick={() => {
-                            if (isSelected) {
-                              setSelectedAddMemberIds(prev => prev.filter(id => id !== emp.id));
-                            } else {
-                              setSelectedAddMemberIds(prev => [...prev, emp.id]);
-                            }
-                          }}
-                        >
-                          <img src={getAvatarUrl(emp.avatar, emp.name)} onError={(e) => { e.target.onerror = null; e.target.src = getAvatarUrl(null, emp.name); }} alt={emp.name} className={styles.addMemberAvatar} />
-                          <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-                            <span className={styles.addMemberName}>{emp.name}</span>
-                            {emp.role && (
-                              <span style={{ fontSize: '11px', color: 'var(--text-light)', marginTop: '2px' }}>
-                                {emp.role}
-                              </span>
-                            )}
-                          </div>
-                          <input 
-                            type="checkbox" 
-                            checked={isSelected}
-                            onChange={() => {}} // handled by row click
-                            className={styles.addMemberCheckbox}
-                          />
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
-              </div>
-              
-              <div className={styles.modalFooter}>
-                <button type="button" className={styles.cancelBtn} onClick={() => setIsAddMemberModalOpen(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className={styles.submitBtn}>
-                  Add Selected
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Call Preview Modal (Dark Theme as shown in mockup) */}
-      {isCallPreviewOpen && (
-        <div className={styles.callModalOverlay} onClick={() => setIsCallPreviewOpen(false)}>
-          <div className={styles.callModalContent} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.callModalHeader}>
-              <h3>SyncUp with {isDM ? dmEmployee?.name : `#${selectedChannel}`}</h3>
-            </div>
-            
-            <div className={styles.callPreviewContainer}>
-              {/* Preview Box */}
-              <div className={styles.callPreviewBox}>
-                <div className={styles.callerTag}>
-                  YOU
-                </div>
-                {callPreviewCamera ? (
-                  <div className={styles.previewCameraActive}>
-                    <video
-                      ref={handlePreviewVideoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      className={styles.cameraStreamImg}
-                      style={{ transform: 'scaleX(-1)' }}
-                    />
-                  </div>
-                ) : (
-                  <div className={styles.previewCameraMuted}>
-                    <div className={styles.largeAvatarPlaceholder}>
-                      Y
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Toggle controls */}
-              <div className={styles.callControlsRow}>
-                <button 
-                  type="button" 
-                  className={`${styles.callCtrlCircle} ${callPreviewCamera ? styles.ctrlActive : styles.ctrlMuted}`}
-                  onClick={() => {
-                    playRelevantSound('camera', callPreviewCamera);
-                    setCallPreviewCamera(!callPreviewCamera);
-                  }}
-                >
-                  {callPreviewCamera ? <Video size={20} /> : <VideoOff size={20} />}
-                </button>
-                <button 
-                  type="button" 
-                  className={`${styles.callCtrlCircle} ${callPreviewMic ? styles.ctrlActive : styles.ctrlMuted}`}
-                  onClick={() => {
-                    playRelevantSound('mic', callPreviewMic);
-                    setCallPreviewMic(!callPreviewMic);
-                  }}
-                >
-                  {callPreviewMic ? <Mic size={20} /> : <MicOff size={20} />}
-                </button>
-              </div>
-
-              {/* Selection Dropdowns */}
-              <div className={styles.deviceSettingsList}>
-                <div className={styles.deviceSelectGroup}>
-                  <Video size={16} className={styles.deviceIcon} />
-                  <select 
-                    value={callPreviewCamera ? "allow" : "block"}
-                    onChange={(e) => setCallPreviewCamera(e.target.value === "allow")}
-                  >
-                    <option value="allow">Allow camera access</option>
-                    <option value="block">Block camera access</option>
-                  </select>
-                  <ChevronDown size={14} className={styles.selectChevron} />
-                </div>
-
-                <div className={styles.deviceSelectGroup}>
-                  <Mic size={16} className={styles.deviceIcon} />
-                  <select defaultValue="microphone">
-                    <option value="microphone">Microphone Array (Intel® Smart Sound Technology...)</option>
-                    <option value="external">Default External Microphone</option>
-                  </select>
-                  <ChevronDown size={14} className={styles.selectChevron} />
-                </div>
-              </div>
-
-              {/* Checkbox */}
-              <label className={styles.alwaysShowCheckboxRow}>
-                <input 
-                  type="checkbox" 
-                  checked={alwaysShowPreview} 
-                  onChange={(e) => setAlwaysShowPreview(e.target.checked)}
-                />
-                <span>Always show preview before joining</span>
-              </label>
-            </div>
-
-            {/* Footer Buttons */}
-            <div className={styles.callModalFooter}>
-              <button 
-                type="button" 
-                className={styles.callCancelBtn} 
-                onClick={() => {
-                  playRelevantSound('cancel');
-                  setIsCallPreviewOpen(false);
-                }}
-              >
-                Cancel
-              </button>
-              <button 
-                type="button" 
-                className={styles.callStartBtn}
-                onClick={() => {
-                  playRelevantSound('startcall');
-                  setIsCallPreviewOpen(false);
-                  
-                  setHuddlePeer({
-                    channelId: selectedChannel,
-                    roomName: isDM ? `DM-${dmEmployee?.name}` : selectedChannel,
-                    name: selectedChannel,
-                    displayName: 'Michael Vance (Team Lead)'
-                  });
-
-                  const isCorporateChannel = chatChannels.some(c => c.id === selectedChannel);
-                  const callMsg = {
-                    id: Date.now(),
-                    sender: 'Michael Vance (Team Lead)',
-                    avatar: 'https://ui-avatars.com/api/?name=Michael+Vance&background=3b82f6&color=fff',
-                    text: `Started ${activeCallType === 'audio' ? 'an audio' : 'a video'} call`,
-                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    isCallStatus: true
-                  };
-
-                  if (isCorporateChannel) {
-                    const updatedChannels = chatChannels.map(c => {
-                      if (c.id === selectedChannel) {
-                        return {
-                          ...c,
-                          messages: [...(c.messages || []), callMsg]
-                        };
-                      }
-                      return c;
-                    });
-                    setDbChannels(updatedChannels); onUpdateDb({ ...db, chatChannels: updatedChannels });
-                  } else {
-                    setLocalDmMessages(prev => ({
-                      ...prev,
-                      [selectedChannel]: [...(prev[selectedChannel] || []), callMsg]
-                    }));
-                  }
-                }}
-              >
-                Start SyncUp
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Active Full-Screen Call UI */}
-      {isInCall && (
-        <div className={styles.activeCallOverlay}>
-          {/* Top bar */}
-          <div className={styles.activeCallTopBar}>
-            <div className={styles.activeCallInfo}>
-              <span className={styles.activeCallLiveDot} />
-              <span className={styles.activeCallTitle}>
-                SyncUp — {isDM ? dmEmployee?.name : `#${selectedChannel}`}
-              </span>
-              {isRecording && (
-                <span className={styles.huddleRecPill}>
-                  <span className={styles.huddleRecDot} />
-                  <span>REC</span>
-                </span>
-              )}
-            </div>
-            <span className={styles.activeCallTimer}>{formatCallDuration(callDuration)}</span>
-          </div>
-
-          {/* Main video area */}
-          <div className={styles.activeCallVideoArea}>
-            {callScreenShare || callLayout === 'spotlight' ? (
-              <div className={styles.screenShareContainer}>
-                {callScreenShare ? (
-                  <video
-                    ref={screenVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className={styles.screenShareVideo}
-                  />
-                ) : (
-                  (() => {
-                    const participants = getCallParticipants();
-                    const spotlight = participants.find(p => !p.isMe) || participants[0];
-                    if (!spotlight) return null;
-                    return (
-                      <div className={`${styles.participantCard} ${cameraBackground === 'neon' ? styles.neonCard : cameraBackground === 'office' ? styles.officeCard : ''}`} style={{ width: '100%', height: '100%' }}>
-                        {spotlight.isMe ? (
-                          callScreenCamera ? (
-                            <video
-                              ref={handleCallCameraVideoRef}
-                              autoPlay
-                              playsInline
-                              muted
-                              className={styles.participantVideo}
-                              style={{
-                                transform: 'scaleX(-1)',
-                                filter: cameraBackground === 'blur' ? 'blur(12px) brightness(0.85)' :
-                                        cameraBackground === 'office' ? 'sepia(0.2) saturate(1.1) contrast(1.05) brightness(1.04) hue-rotate(-10deg)' :
-                                        cameraBackground === 'neon' ? 'hue-rotate(140deg) saturate(1.8) brightness(0.9) contrast(1.15)' : 'none',
-                                transition: 'filter 0.4s ease'
-                              }}
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexDirection: isMsgMe ? 'row-reverse' : 'row' }}>
+                      <div style={{ 
+                        background: isDeleted ? '#F1F5F9' : (isMsgMe ? 'var(--ceo-primary)' : '#FFF'), 
+                        color: isDeleted ? 'var(--ceo-text-muted)' : (isMsgMe ? '#FFF' : 'var(--ceo-text-primary)'),
+                        padding: '12px 16px', borderRadius: '12px', border: (isMsgMe && !isDeleted) ? 'none' : '1px solid var(--ceo-border)',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)', fontSize: '14px', lineHeight: '1.5', fontStyle: isDeleted ? 'italic' : 'normal'
+                      }}>
+                        {isDeleted ? (
+                          <span>This message was deleted.</span>
+                        ) : editingMessageId === msg.id ? (
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <input 
+                              type="text" autoFocus 
+                              value={editingText} onChange={e=>setEditingText(e.target.value)}
+                              onKeyDown={e => { if(e.key === 'Enter') submitEditMessage(msg.id, editingText); if(e.key === 'Escape') setEditingMessageId(null); }}
+                              style={{ border: 'none', background: 'rgba(255,255,255,0.2)', color: isMsgMe ? '#FFF' : '#000', outline: 'none', minWidth: '200px' }} 
                             />
-                          ) : (
-                            <div className={styles.participantAvatarFallback}>
-                              <div className={styles.participantAvatarInitial}>M</div>
-                            </div>
-                          )
+                            <button onClick={()=>submitEditMessage(msg.id, editingText)} style={{ background: 'transparent', border: 'none', color: isMsgMe ? '#FFF' : 'var(--ceo-primary)', cursor: 'pointer', fontWeight: 'bold' }}>Save</button>
+                            <button onClick={()=>setEditingMessageId(null)} style={{ background: 'transparent', border: 'none', color: isMsgMe ? 'rgba(255,255,255,0.7)' : 'var(--ceo-text-muted)', cursor: 'pointer' }}>Cancel</button>
+                          </div>
+                        ) : msg.isCallStatus ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: isMsgMe ? '#FFF' : 'var(--ceo-primary)', fontWeight: '600' }}>
+                            <Video size={16} />
+                            <span>{renderMessageText(msg.text)}</span>
+                            <button 
+                              type="button" 
+                              style={{ marginLeft: '12px', padding: '6px 16px', borderRadius: '6px', backgroundColor: isMsgMe ? '#FFF' : 'var(--ceo-primary)', color: isMsgMe ? 'var(--ceo-primary)' : 'white', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '700' }}
+                              onClick={() => {
+                                setHuddlePeer({ channelId: selectedChannel, roomName: selectedChannel, name: selectedChannel, displayName: 'TL (TL)' });
+                              }}
+                            >
+                              Join
+                            </button>
+                          </div>
                         ) : (
-                          <div className={styles.participantAvatarFallback}>
-                            {spotlight.avatar ? (
-                              <img src={getAvatarUrl(spotlight.avatar, spotlight.name)} onError={(e) => { e.target.onerror = null; e.target.src = getAvatarUrl(null, spotlight.name); }} alt={spotlight.name} className={styles.participantAvatarImg} style={{ width: '140px', height: '140px' }} />
-                            ) : (
-                              <div className={styles.participantAvatarInitial} style={{ width: '140px', height: '140px', fontSize: '54px' }}>{spotlight.initial}</div>
-                            )}
-                            {spotlight.id % 2 === 0 && (
-                              <div className={styles.audioWaveformIndicator} style={{ bottom: '20px', right: '20px' }}>
-                                <span className={styles.waveBar} />
-                                <span className={styles.waveBar} />
-                                <span className={styles.waveBar} />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {msg.attachment_url && (
+                              <div style={{ marginBottom: '4px' }}>
+                                {msg.attachment_type === 'image' ? (
+                                  <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={`http://localhost:8000${msg.attachment_url}`} alt="attachment" style={{ maxWidth: '250px', maxHeight: '250px', borderRadius: '8px', objectFit: 'cover', cursor: 'pointer' }} onClick={() => setLightboxMedia({ url: `http://localhost:8000${msg.attachment_url}`, type: msg.attachment_type })} />
+                                ) : msg.attachment_type === 'video' ? (
+                                  <video src={`http://localhost:8000${msg.attachment_url}`} style={{ maxWidth: '250px', maxHeight: '250px', borderRadius: '8px', cursor: 'pointer' }} controls={false} onClick={() => setLightboxMedia({ url: `http://localhost:8000${msg.attachment_url}`, type: msg.attachment_type })} />
+                                ) : (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: isMsgMe ? 'rgba(255,255,255,0.2)' : '#F1F5F9', borderRadius: '8px', textDecoration: 'none', color: 'inherit' }}>
+                                    <Paperclip size={16} />
+                                    <a href={`http://localhost:8000${msg.attachment_url}`} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }} onClick={(e) => e.stopPropagation()}>Download File</a>
+                                  </div>
+                                )}
                               </div>
                             )}
+                            {msg.text && <span>{renderMessageText(msg.text)}</span>}
                           </div>
                         )}
-                        <div className={styles.participantNameTag} style={{ bottom: '20px', left: '20px' }}>
-                          {spotlight.name} {spotlight.isMe ? '(You)' : ''} (Spotlight)
-                        </div>
                       </div>
-                    );
-                  })()
-                )}
 
-                {/* Overlay small floating list/row of other participants */}
-                <div className={styles.floatingParticipantsRow}>
-                  {getCallParticipants().map((p) => (
-                    <div key={p.id} className={styles.floatingParticipantThumb} title={p.name}>
-                      {p.isMe ? (
-                        callScreenCamera ? (
-                          <video
-                            ref={handleCallCameraVideoRef}
-                            autoPlay
-                            playsInline
-                            muted
-                            className={styles.floatingParticipantVideo}
-                            style={{ transform: 'scaleX(-1)' }}
-                          />
-                        ) : (
-                          <div className={styles.floatingParticipantAvatarPlaceholder}>M</div>
-                        )
-                      ) : (
-                        p.avatar ? (
-                          <img src={getAvatarUrl(p.avatar, p.name)} onError={(e) => { e.target.onerror = null; e.target.src = getAvatarUrl(null, p.name); }} alt={p.name} className={styles.floatingParticipantAvatar} />
-                        ) : (
-                          <div className={styles.floatingParticipantAvatarPlaceholder}>{p.initial}</div>
-                        )
-                      )}
-                      <span className={styles.floatingParticipantName}>{p.name.split(' ')[0]}</span>
+                      </div>
+                    
+                    {/* Reactions Strip */}
+                    {hasReactions && !isDeleted && (
+                      <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexDirection: isMsgMe ? 'row-reverse' : 'row' }}>
+                        {Object.entries(parsedReactions).map(([emoji, users]) => (
+                          <div key={emoji} onClick={()=>handleReactMessage(msg.id, msg.reactions, emoji)} style={{ background: '#F1F5F9', border: '1px solid var(--ceo-border)', borderRadius: '12px', padding: '2px 6px', fontSize: '12px', cursor: 'pointer', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                            <span>{emoji}</span>
+                            <span style={{ fontWeight: 600, color: 'var(--ceo-text-secondary)' }}>{users.length}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+          <div ref={chatEndRef} />
+        </div>
+        )}
+
+        {/* Message Input */}
+        <div style={{ padding: '20px 24px', background: '#FFF', borderTop: '1px solid var(--ceo-border)', position: 'relative' }}>
+          
+          {/* Typing Indicator */}
+          {typingUsers[selectedChannel] && typingUsers[selectedChannel].length > 0 && (
+            <div style={{ position: 'absolute', top: '-24px', left: '24px', fontSize: '12px', color: 'var(--ceo-text-muted)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <div style={{ display: 'flex', gap: '2px' }}>
+                 <span style={{ animation: 'pulse 1.5s infinite' }}>.</span><span style={{ animation: 'pulse 1.5s infinite 0.2s' }}>.</span><span style={{ animation: 'pulse 1.5s infinite 0.4s' }}>.</span>
+              </div>
+              {typingUsers[selectedChannel].join(', ')} {typingUsers[selectedChannel].length > 1 ? 'are' : 'is'} typing...
+            </div>
+          )}
+          
+          {/* Attachment Preview */}
+          {attachmentFile && (
+            <div style={{ position: 'absolute', bottom: '100%', left: '24px', background: '#FFF', border: '1px solid var(--ceo-border)', padding: '8px', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 -4px 6px -1px rgba(0,0,0,0.05)' }}>
+              {attachmentPreview === 'document' ? <div style={{width:'40px', height:'40px', background:'#F1F5F9', borderRadius:'4px', display:'flex', alignItems:'center', justifyContent:'center'}}><Paperclip size={20}/></div> : <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={attachmentPreview} alt="preview" style={{width:'40px', height:'40px', objectFit:'cover', borderRadius:'4px'}}  />}
+              <div style={{fontSize:'12px', maxWidth:'200px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{attachmentFile.name}</div>
+              <button onClick={clearAttachment} style={{background:'transparent', border:'none', cursor:'pointer'}}><X size={14} color="var(--ceo-danger)"/></button>
+            </div>
+          )}
+
+          <form onSubmit={handleSend} style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#F8FAFC', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--ceo-border)' }}>
+            <label style={{ cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center' }}>
+              <input type="file" style={{ display: 'none' }} onChange={handleFileUpload} />
+              <Paperclip size={18} color="var(--ceo-text-muted)" />
+            </label>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <input 
+                type="text" 
+                value={inputVal} 
+                onChange={e => {
+                  const val = e.target.value;
+                  setInputVal(val);
+                  const atMatch = val.match(/@(\w*)$/);
+                  if (atMatch && !selectedChannel.startsWith('dm-')) {
+                    setShowMentionsPopup(true);
+                    setMentionsFilter(atMatch[1].toLowerCase());
+                  } else {
+                    setShowMentionsPopup(false);
+                  }
+                  if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+                    socketRef.current.send(JSON.stringify({ type: 'typing_start', channel_id: selectedChannel, sender: tlName }));
+                    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+                    typingTimeoutRef.current = setTimeout(() => {
+                      if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+                        socketRef.current.send(JSON.stringify({ type: 'typing_stop', channel_id: selectedChannel, sender: tlName }));
+                      }
+                    }, 2000);
+                  }
+                }} 
+                placeholder={`Message ${selectedChannel.startsWith('dm-') ? '@' + employees.find(e => `dm-${e.id}` === selectedChannel)?.name : '#' + selectedChannel}`}
+                style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', fontSize: '14px', padding: '8px 0', color: 'var(--ceo-text-primary)' }} 
+                disabled={isUploading}
+              />
+              {showMentionsPopup && (
+                <div style={{ position: 'absolute', bottom: '100%', left: 0, background: '#FFF', borderRadius: '8px', border: '1px solid var(--ceo-border)', boxShadow: '0 -4px 10px rgba(0,0,0,0.1)', zIndex: 3000, width: '250px', maxHeight: '150px', overflowY: 'auto' }}>
+                  {employees.filter(e => e.name.toLowerCase().includes(mentionsFilter)).map(emp => (
+                    <div key={emp.id} onClick={() => {
+                       setInputVal(prev => prev.replace(/@\w*$/, `@${emp.name.replace(/\s+/g, '')} `));
+                       setShowMentionsPopup(false);
+                    }} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--ceo-divider)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}`)} alt="" style={{ width: '20px', height: '20px', borderRadius: '10px' }}  />
+                      <span style={{ fontSize: '13px', fontWeight: 600 }}>{emp.name}</span>
                     </div>
                   ))}
                 </div>
-              </div>
-            ) : (
-              <div className={`${styles.participantsGrid} ${styles[`grid${getCallParticipants().length}`] || styles.gridMore}`}>
-                {getCallParticipants().map((p) => {
-                  if (p.isMe) {
-                    return (
-                      <div key={p.id} className={`${styles.participantCard} ${cameraBackground === 'neon' ? styles.neonCard : cameraBackground === 'office' ? styles.officeCard : ''}`}>
-                        {callScreenCamera ? (
-                          <video
-                            ref={handleCallCameraVideoRef}
-                            autoPlay
-                            playsInline
-                            muted
-                            className={styles.participantVideo}
-                            style={{
-                              transform: 'scaleX(-1)',
-                              filter: cameraBackground === 'blur' ? 'blur(12px) brightness(0.85)' :
-                                      cameraBackground === 'office' ? 'sepia(0.2) saturate(1.1) contrast(1.05) brightness(1.04) hue-rotate(-10deg)' :
-                                      cameraBackground === 'neon' ? 'hue-rotate(140deg) saturate(1.8) brightness(0.9) contrast(1.15)' : 'none',
-                              transition: 'filter 0.4s ease'
-                            }}
-                          />
-                        ) : (
-                          <div className={styles.participantAvatarFallback}>
-                            <div className={styles.participantAvatarInitial}>M</div>
-                          </div>
-                        )}
-                        <div className={styles.participantNameTag}>
-                          {p.name} (You)
-                        </div>
-                        <div className={styles.participantMicTag}>
-                          {callScreenMic ? <Mic size={14} className={styles.micActiveIcon} /> : <MicOff size={14} className={styles.micMutedIcon} />}
-                        </div>
-                      </div>
-                    );
-                  } else {
-                    return (
-                      <div key={p.id} className={styles.participantCard}>
-                        <div className={styles.participantAvatarFallback}>
-                          {p.avatar ? (
-                            <img src={getAvatarUrl(p.avatar, p.name)} onError={(e) => { e.target.onerror = null; e.target.src = getAvatarUrl(null, p.name); }} alt={p.name} className={styles.participantAvatarImg} />
-                          ) : (
-                            <div className={styles.participantAvatarInitial}>{p.initial}</div>
-                          )}
-                          {/* Audio speaking animation indicator for active participants */}
-                          {p.id % 2 === 0 && (
-                            <div className={styles.audioWaveformIndicator}>
-                              <span className={styles.waveBar} />
-                              <span className={styles.waveBar} />
-                              <span className={styles.waveBar} />
-                            </div>
-                          )}
-                        </div>
-                        <div className={styles.participantNameTag}>{p.name}</div>
-                        <div className={styles.participantMicTag}>
-                          {p.id % 2 === 0 ? <Mic size={14} className={styles.micActiveIcon} /> : <MicOff size={14} className={styles.micMutedIcon} />}
-                        </div>
-                      </div>
-                    );
-                  }
-                })}
+              )}
+            </div>
+            <button type="button" onClick={() => setShowChatEmojiPicker(!showChatEmojiPicker)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '8px' }}><Smile size={18} color="var(--ceo-text-muted)" /></button>
+            
+            {showChatEmojiPicker && (
+              <div style={{ position: 'absolute', bottom: '100%', right: '80px', marginBottom: '10px', zIndex: 3001 }}>
+                <EmojiPicker 
+                  onEmojiClick={(emojiData) => {
+                    setInputVal(prev => prev + emojiData.emoji);
+                    setShowChatEmojiPicker(false);
+                  }} 
+                />
               </div>
             )}
 
-            {/* Floating Reactions Container */}
-            <div className={styles.floatingReactionsContainer}>
-              {floatingReactions.map(r => (
-                <div key={r.id} className={styles.floatingReaction}>
-                  {r.emoji}
-                </div>
+            <button type="submit" disabled={(!inputVal.trim() && !attachmentFile) || isUploading} style={{ background: (inputVal.trim() || attachmentFile) && !isUploading ? 'var(--ceo-primary)' : '#E2E8F0', border: 'none', borderRadius: '8px', padding: '8px 16px', cursor: (inputVal.trim() || attachmentFile) && !isUploading ? 'pointer' : 'not-allowed', color: '#FFF', fontWeight: 600, transition: 'all 0.2s' }}>
+              {isUploading ? 'Sending...' : 'Send'}
+            </button>
+          </form>
+        </div>
+      </div>
+      
+      {/* Right Thread Panel */}
+      {activeThreadMessage && (
+        <div style={{ width: '320px', background: '#FFF', borderLeft: '1px solid var(--ceo-border)', display: 'flex', flexDirection: 'column' }}>
+           <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC' }}>
+             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Thread</h3>
+             <button onClick={() => setActiveThreadMessage(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={18} color="var(--ceo-text-muted)" /></button>
+           </div>
+           <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+              <div style={{ paddingBottom: '20px', borderBottom: '1px solid var(--ceo-divider)', marginBottom: '20px' }}>
+                 <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>{activeThreadMessage.sender}</div>
+                 <div style={{ fontSize: '14px', lineHeight: 1.5 }}>{renderMessageText(activeThreadMessage.text)}</div>
+              </div>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-muted)', marginBottom: '16px' }}>REPLIES</div>
+              {(messages[selectedChannel] || []).filter(m => m.parent_id === activeThreadMessage.id).map(msg => (
+                 <div key={msg.id} style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '16px', background: 'var(--ceo-primary)', color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold' }}>{msg.sender.charAt(0)}</div>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 700, marginBottom: '2px' }}>{msg.sender} <span style={{ fontSize: '11px', color: 'var(--ceo-text-muted)', fontWeight: 'normal' }}>{msg.timestamp || msg.time}</span></div>
+                      <div style={{ fontSize: '14px', lineHeight: 1.5 }}>{renderMessageText(msg.text)}</div>
+                    </div>
+                 </div>
               ))}
-            </div>
-          </div>
+           </div>
+           <div style={{ padding: '16px', borderTop: '1px solid var(--ceo-border)' }}>
+             <input type="text" placeholder="Reply..." onKeyDown={e => {
+                if (e.key === 'Enter' && e.target.value.trim()) {
+                   const payload = { type: 'new_message', channel_id: selectedChannel, sender: tlName, text: e.target.value.trim(), parent_id: activeThreadMessage.id };
+                   if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+                      socketRef.current.send(JSON.stringify(payload));
+                   }
+                   e.target.value = '';
+                }
+             }} style={{ width: '100%', padding: '12px', border: '1px solid var(--ceo-border)', borderRadius: '8px', outline: 'none', fontSize: '13px' }} />
+           </div>
+        </div>
+      )}
 
-          {/* Call Members Panel */}
-          {callMembersOpen && (
-            <div 
-              className={styles.callChatPanel}
-              style={{ transform: `translate(${membersPosition.x}px, ${membersPosition.y}px)` }}
-            >
-              <div 
-                className={styles.callChatHeader}
-                onMouseDown={handleMembersMouseDown}
-              >
-                <span>Participants</span>
-                <button type="button" className={styles.callChatCloseBtn} onClick={() => setCallMembersOpen(false)}>
-                  <X size={16} />
-                </button>
-              </div>
-              <div className={styles.callChatMessages} style={{ padding: '0', display: 'block' }}>
-                {(() => {
-                  const participants = getCallParticipants();
-                  const allMembers = channelMembers[selectedChannel] || [];
-                  const joinedIds = new Set(participants.map(p => p.id));
-                  const notJoined = allMembers.filter(m => !joinedIds.has(m.id));
-                  
-                  return (
-                    <div style={{ padding: '20px' }}>
-                      <div style={{ marginBottom: '24px' }}>
-                        <h4 style={{ color: '#94a3b8', fontSize: '11px', fontWeight: '700', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                          In Call — {participants.length}
-                        </h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                          {participants.map(p => (
-                            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                              <div className={styles.memberAvatarWrapper} style={{ width: '36px', height: '36px' }}>
-                                {p.avatar ? (
-                                  <img src={getAvatarUrl(p.avatar, p.name)} onError={(e) => { e.target.onerror = null; e.target.src = getAvatarUrl(null, p.name); }} alt={p.name} className={styles.memberAvatarImg} />
-                                ) : (
-                                  <div className={styles.memberAvatarPlaceholder} style={{ fontSize: '14px', width: '100%', height: '100%' }}>{p.initial}</div>
-                                )}
-                                <span className={styles.memberStatusDot} style={{ background: '#10b981', bottom: '-2px', right: '-2px', width: '12px', height: '12px', border: '2px solid #1e212b' }} />
-                              </div>
-                              <span style={{ color: '#f8fafc', fontSize: '14px', fontWeight: '500' }}>{p.name} {p.isMe ? <span style={{ color: '#94a3b8', fontSize: '12px', fontWeight: '400' }}>(You)</span> : ''}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {notJoined.length > 0 && (
-                        <div>
-                          <h4 style={{ color: '#94a3b8', fontSize: '11px', fontWeight: '700', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                            Not Joined — {notJoined.length}
-                          </h4>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            {notJoined.map(p => {
-                              const emp = employees.find(e => e.id === p.id);
-                              const isOnLeave = emp?.status === 'On Leave';
-                              
-                              return (
-                                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', opacity: 0.6 }}>
-                                  <div className={styles.memberAvatarWrapper} style={{ width: '36px', height: '36px' }}>
-                                    {p.avatar ? (
-                                      <img src={getAvatarUrl(p.avatar, p.name)} onError={(e) => { e.target.onerror = null; e.target.src = getAvatarUrl(null, p.name); }} alt={p.name} className={styles.memberAvatarImg} />
-                                    ) : (
-                                      <div className={styles.memberAvatarPlaceholder} style={{ fontSize: '14px', width: '100%', height: '100%' }}>{p.initial}</div>
-                                    )}
-                                    <span className={styles.memberStatusDot} style={{ background: isOnLeave ? '#f59e0b' : '#64748b', bottom: '-2px', right: '-2px', width: '12px', height: '12px', border: '2px solid #1e212b' }} />
-                                  </div>
-                                  <span style={{ color: '#f8fafc', fontSize: '14px', fontWeight: '500' }}>{p.name}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
-          )}
-
-          {/* In-call chat panel */}
-          {callChatOpen && (
-            <div 
-              className={styles.callChatPanel}
-              style={{ transform: `translate(${chatPosition.x}px, ${chatPosition.y}px)` }}
-            >
-              <div 
-                className={styles.callChatHeader}
-                onMouseDown={handleChatMouseDown}
-              >
-                <span>In-call messages</span>
-                <button type="button" className={styles.callChatCloseBtn} onClick={() => setCallChatOpen(false)}>
-                  <X size={16} />
-                </button>
-              </div>
-              <div className={styles.callChatMessages}>
-                {callChatMessages.map(msg => {
-                  const msgId = msg.id;
-                  const reactions = callMessageReactions[msgId] || {};
-                  const isHovered = hoveredCallMessageId === msgId;
-                  const showPicker = reactionPickerCallMsgId === msgId;
-                  return (
-                    <div
-                      key={msgId}
-                      className={`${styles.callChatMsg} ${msg.self ? styles.callChatMsgSelf : ''}`}
-                      onMouseEnter={() => setHoveredCallMessageId(msgId)}
-                      onMouseLeave={() => {
-                        setHoveredCallMessageId(null);
-                        if (reactionPickerCallMsgId === msgId) setReactionPickerCallMsgId(null);
-                      }}
-                    >
-                      {!msg.self && <span className={styles.callChatSender}>{msg.sender}</span>}
-                      <div className={styles.callChatBubbleWrapper}>
-                        <div className={styles.callChatBubble}>
-                          {msg.text.startsWith('http') && msg.text.includes('.gif') ? (
-                            <img src={msg.text} alt="gif" className={styles.chatGifImage} />
-                          ) : (
-                            msg.text
-                          )}
-                        </div>
-
-                        {/* Hover reaction toolbar */}
-                        {isHovered && (
-                          <div className={styles.callChatReactionToolbar}>
-                            {QUICK_REACTIONS.map(emoji => (
-                              <button
-                                key={emoji}
-                                type="button"
-                                className={`${styles.callChatReactionToolbarBtn} ${reactions[emoji]?.reacted ? styles.callChatReactionToolbarBtnActive : ''}`}
-                                onClick={() => handleCallQuickReact(msgId, emoji)}
-                                title={`React with ${emoji}`}
-                              >
-                                {emoji}
-                              </button>
-                            ))}
-                            <button
-                              type="button"
-                              className={styles.callChatReactionToolbarMore}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setReactionPickerCallMsgId(showPicker ? null : msgId);
-                              }}
-                              title="More reactions"
-                            >
-                              ➕
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Full emoji picker for call messages */}
-                        {showPicker && (
-                          <div className={styles.callChatEmojiPicker} onClick={e => e.stopPropagation()}>
-                            <div className={styles.callChatEmojiGrid}>
-                              {['😊','😂','🤣','🥰','😍','🤩','😎','😜','🤔','😮','😢','😡','👍','👎','👏','🙌','🔥','🎉','💯','❤️','💙','💚','🌟','✨','🚀','🎯','💡','🤝','🙏','😱','😴','🥺','😭','🥳','😋','😅','🤦','🤷','💪','👀'].map(e => (
-                                <button
-                                  key={e}
-                                  type="button"
-                                  className={styles.callChatEmojiBtn}
-                                  onClick={() => handleCallQuickReact(msgId, e)}
-                                >{e}</button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Reaction pills below bubble */}
-                      {Object.keys(reactions).length > 0 && (
-                        <div className={styles.callChatReactionPillsRow}>
-                          {Object.entries(reactions).map(([emoji, data]) => (
-                            <button
-                              key={emoji}
-                              type="button"
-                              className={`${styles.callChatReactionPill} ${data.reacted ? styles.callChatReactionPillActive : ''}`}
-                              onClick={() => handleCallQuickReact(msgId, emoji)}
-                              title={`${emoji} · ${data.count}`}
-                            >
-                              <span>{emoji}</span>
-                              <span className={styles.callChatReactionPillCount}>{data.count}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-
-                      <span className={styles.callChatTime}>{msg.time}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              <form
-                className={styles.callChatForm}
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const text = callChatInput.trim();
-                  if (!text) return;
-                  setCallChatMessages(prev => [...prev, {
-                    id: Date.now(),
-                    sender: 'You',
-                    text,
-                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    self: true,
-                  }]);
-                  setCallChatInput('');
-                }}
-              >
-                <div className={styles.callChatInputWrapper}>
-                  {emojiPickerTarget === 'call' && renderEmojiPicker('dark')}
-                  <button
-                    type="button"
-                    className={styles.callChatActionBtn}
-                    onClick={() => toggleEmojiPicker('call')}
-                    title="Insert emoji"
-                  >
-                    <Smile size={18} />
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.callChatActionBtn}
-                    onClick={() => fileInputRef.current?.click()}
-                    title="Attach file"
-                  >
-                    <Paperclip size={18} />
-                  </button>
-                  {callMentionQuery !== null && renderMentionDropdown('call')}
-                  <input
-                    type="text"
-                    ref={callInputRef}
-                    className={styles.callChatInput}
-                    placeholder="Send a message..."
-                    value={callChatInput}
-                    onChange={handleCallInputChange}
-                    onKeyDown={handleCallInputKeyDown}
-                  />
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    style={{ display: 'none' }}
-                    onChange={handleFileChange}
-                  />
-                </div>
-                <button type="submit" className={styles.callChatSendBtn}>
-                  <Send size={16} />
-                </button>
-              </form>
-            </div>
-          )}
-
-          {/* Reactions Floating Bar */}
-          {callReactionsOpen && (
-            <div className={styles.callReactionsBar}>
+      {/* Right Media Gallery Panel */}
+      {isGalleryOpen && (
+        <div style={{ width: '320px', background: '#FFF', borderLeft: '1px solid var(--ceo-border)', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
+           <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC' }}>
+             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}><Image size={18} color="var(--ceo-primary)" /> Files & Media</h3>
+             <button onClick={() => setIsGalleryOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={18} color="var(--ceo-text-muted)" /></button>
+           </div>
+           <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
               {(() => {
-                const skinTones = ['', '🏻', '🏼', '🏽', '🏾', '🏿'];
-                const skinToneColors = ['#ffc107', '#fadcac', '#e0b892', '#b58150', '#8a5a36', '#5c3826'];
-                const getEmoji = (base) => base + skinTones[skinToneIndex];
+                const mediaMsgs = (messages[selectedChannel] || []).filter(m => m.attachment_url);
+                if (mediaMsgs.length === 0) return <div style={{ textAlign: 'center', color: 'var(--ceo-text-muted)', marginTop: '40px' }}>No files shared yet.</div>;
+                
+                const images = mediaMsgs.filter(m => m.attachment_type === 'image');
+                const others = mediaMsgs.filter(m => m.attachment_type !== 'image');
+
                 return (
-                  <>
-                    <button type="button" className={styles.reactionEmoji} onClick={() => sendReaction('💖')}>💖</button>
-                    <button type="button" className={styles.reactionEmoji} onClick={() => sendReaction(getEmoji('👍'))}>{getEmoji('👍')}</button>
-                    <button type="button" className={styles.reactionEmoji} onClick={() => sendReaction('🎉')}>🎉</button>
-                    <button type="button" className={styles.reactionEmoji} onClick={() => sendReaction(getEmoji('👏'))}>{getEmoji('👏')}</button>
-                    <button type="button" className={styles.reactionEmoji} onClick={() => sendReaction('😂')}>😂</button>
-                    <button type="button" className={styles.reactionEmoji} onClick={() => sendReaction('😮')}>😮</button>
-                    <button type="button" className={styles.reactionEmoji} onClick={() => sendReaction('😢')}>😢</button>
-                    <button type="button" className={styles.reactionEmoji} onClick={() => sendReaction('🤔')}>🤔</button>
-                    <button type="button" className={styles.reactionEmoji} onClick={() => sendReaction(getEmoji('👎'))}>{getEmoji('👎')}</button>
-                    <div className={styles.reactionDivider} />
-                    <button 
-                      type="button" 
-                      className={styles.skinToneBtn} 
-                      onClick={() => setSkinToneIndex(prev => (prev + 1) % skinTones.length)}
-                      style={{ backgroundColor: skinToneColors[skinToneIndex] }}
-                      title="Change emoji skin tone"
-                    />
-                  </>
+                  <div>
+                    {images.length > 0 && (
+                      <div style={{ marginBottom: '24px' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-muted)', marginBottom: '12px' }}>IMAGES</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                          {images.map(m => (
+                             <img key={m.id} onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={`http://localhost:8000${m.attachment_url}`} alt="media" style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '8px', cursor: 'pointer' }} onClick={() => setLightboxMedia({ url: `http://localhost:8000${m.attachment_url}`, type: 'image' })} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {others.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-muted)', marginBottom: '12px' }}>DOCUMENTS</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {others.map(m => (
+                             <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: '#F8FAFC', border: '1px solid var(--ceo-border)', borderRadius: '8px' }}>
+                                <Paperclip size={16} color="var(--ceo-text-muted)" />
+                                <a href={`http://localhost:8000${m.attachment_url}`} target="_blank" rel="noreferrer" style={{ fontSize: '13px', color: 'var(--ceo-primary)', textDecoration: 'none', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.attachment_url.split('/').pop()}</a>
+                             </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 );
               })()}
-            </div>
-          )}
+           </div>
+        </div>
+      )}
 
-          {/* Live Captions */}
-          {liveCaption && (
-            <div className={styles.liveCaptionBox}>
-              <div className={styles.liveCaptionText}>
-                <span style={{ fontWeight: 'bold', color: '#93c5fd' }}>Sarah Jenkins: </span>
-                {liveTranslate 
-                  ? `[Translated to ${translateLanguage}] Repasemos las nuevas especificaciones de diseño del panel.` 
-                  : `Let's go over the new design specs for the dashboard. I think we need more contrast on these active buttons.`
-                }
+      {/* === FLOATING CALL OVERLAY / PIP === */}
+      {isInCall && !isCallExpanded && (
+        <div 
+          onMouseDown={handleCallMouseDown}
+          style={{ 
+            position: 'absolute', top: 20 + callPosition.y, right: 20 - callPosition.x, zIndex: 1000,
+            width: '380px', background: '#0F172A', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', 
+            border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden', display: 'flex', flexDirection: 'column',
+            cursor: isDraggingCall ? 'grabbing' : 'grab', transition: isDraggingCall ? 'none' : 'box-shadow 0.2s'
+          }}
+        >
+          {/* Call Header */}
+          <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '4px', background: 'var(--ceo-danger)', animation: 'pulse 2s infinite' }}></div>
+              <span style={{ color: '#FFF', fontSize: '12px', fontWeight: 700 }}>{formatDuration(callDuration)}</span>
+            </div>
+            <div style={{ color: '#FFF', fontSize: '13px', fontWeight: 700 }}>Meeting: {selectedChannel}</div>
+            <button onClick={() => setIsCallExpanded(true)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
+              <Maximize size={16} color="#94A3B8" />
+            </button>
+          </div>
+
+          {/* Video Area */}
+          <div style={{ position: 'relative', width: '100%', height: '220px', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {/* Screen Share takes priority if active */}
+            {callScreenShare ? (
+              <video ref={screenVideoRef} style={{ width: '100%', height: '100%', objectFit: 'contain' }} muted />
+            ) : (
+              callScreenCamera ? (
+                <video ref={callCameraVideoRef} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} muted />
+              ) : (
+                <div style={{ width: '80px', height: '80px', borderRadius: '40px', background: 'var(--ceo-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', color: '#FFF', fontWeight: 700 }}>SJ</div>
+              )
+            )}
+
+            {/* Small floating PIP of yourself if screen sharing */}
+            {callScreenShare && callScreenCamera && (
+               <div style={{ position: 'absolute', bottom: '12px', right: '12px', width: '80px', height: '60px', borderRadius: '8px', overflow: 'hidden', border: '2px solid #FFF', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
+                 <video ref={callCameraVideoRef} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} muted />
+               </div>
+            )}
+
+            {/* Mic muted indicator on video */}
+            {!callScreenMic && (
+              <div style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(0,0,0,0.6)', padding: '6px', borderRadius: '20px' }}>
+                <MicOff size={14} color="#EF4444" />
               </div>
+            )}
+          </div>
+
+          {/* Call Controls */}
+          <div style={{ padding: '16px', display: 'flex', justifyContent: 'center', gap: '16px', background: '#1E293B' }}>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setCallScreenMic(!callScreenMic); }} 
+              style={{ width: '44px', height: '44px', borderRadius: '22px', border: 'none', cursor: 'pointer', background: callScreenMic ? '#334155' : 'var(--ceo-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+            >
+              {callScreenMic ? <Mic size={20} color="#FFF" /> : <MicOff size={20} color="#FFF" />}
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setCallScreenCamera(!callScreenCamera); }} 
+              style={{ width: '44px', height: '44px', borderRadius: '22px', border: 'none', cursor: 'pointer', background: callScreenCamera ? '#334155' : 'var(--ceo-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+            >
+              {callScreenCamera ? <Video size={20} color="#FFF" /> : <VideoOff size={20} color="#FFF" />}
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); toggleScreenShare(); }} 
+              style={{ width: '44px', height: '44px', borderRadius: '22px', border: 'none', cursor: 'pointer', background: callScreenShare ? 'var(--ceo-success)' : '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+            >
+              <Monitor size={20} color="#FFF" />
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleEndCall(); }} 
+              style={{ width: '56px', height: '44px', borderRadius: '22px', border: 'none', cursor: 'pointer', background: 'var(--ceo-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+            >
+              <PhoneOff size={20} color="#FFF" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* === FULL SCREEN CALL MODE === */}
+      {isInCall && isCallExpanded && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#0F172A', zIndex: 3000, display: 'flex', flexDirection: 'column' }}>
+          
+          {/* Header */}
+          <div style={{ padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '10px', height: '10px', borderRadius: '5px', background: 'var(--ceo-danger)', animation: 'pulse 2s infinite' }}></div>
+              <span style={{ color: '#FFF', fontSize: '14px', fontWeight: 700 }}>{formatDuration(callDuration)}</span>
+              <div style={{ width: '1px', height: '16px', background: 'rgba(255,255,255,0.2)' }}></div>
+              <span style={{ color: '#E2E8F0', fontSize: '16px', fontWeight: 600 }}>Meeting: {selectedChannel}</span>
             </div>
-          )}
-
-          {/* Bottom control bar */}
-          <div className={styles.activeCallControlBar}>
-
-            {/* Mic */}
-            <button
-              type="button"
-              className={`${styles.activeCallCtrl} ${!callScreenMic ? styles.activeCallCtrlMuted : ''}`}
-              onClick={() => {
-                playRelevantSound('mic', callScreenMic);
-                setCallScreenMic(prev => !prev);
-              }}
-              title={callScreenMic ? 'Mute mic' : 'Unmute mic'}
-            >
-              {callScreenMic ? <Mic size={20} /> : <MicOff size={20} />}
+            <button onClick={() => setIsCallExpanded(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', color: '#94A3B8' }}>
+              <ChevronDown size={20} /> <span style={{ fontWeight: 600 }}>Minimize</span>
             </button>
+          </div>
 
-            {/* Camera */}
-            <button
-              type="button"
-              className={`${styles.activeCallCtrl} ${!callScreenCamera ? styles.activeCallCtrlMuted : ''}`}
-              onClick={() => {
-                playRelevantSound('camera', callScreenCamera);
-                setCallScreenCamera(prev => !prev);
-              }}
-              title={callScreenCamera ? 'Stop camera' : 'Start camera'}
-            >
-              {callScreenCamera ? <Video size={20} /> : <VideoOff size={20} />}
-            </button>
-
-            {/* Screen share */}
-            <button
-              type="button"
-              className={`${styles.activeCallCtrl} ${callScreenShare ? styles.activeCallCtrlActive : ''}`}
-              onClick={() => {
-                playRelevantSound('screenshare', callScreenShare);
-                callScreenShare ? stopScreenShare() : startScreenShare();
-              }}
-              title={callScreenShare ? 'Stop presenting' : 'Present now'}
-            >
-              <Monitor size={20} />
-            </button>
-
-            {/* Reactions */}
-            <button
-              type="button"
-              className={`${styles.activeCallCtrl} ${callReactionsOpen ? styles.activeCallCtrlActive : ''}`}
-              onClick={() => {
-                playRelevantSound('panel', callReactionsOpen);
-                setCallReactionsOpen(prev => !prev);
-              }}
-              title="Reactions"
-            >
-              <Smile size={20} />
-            </button>
-
-            {/* Chat */}
-            <button
-              type="button"
-              className={`${styles.activeCallCtrl} ${callChatOpen ? styles.activeCallCtrlActive : ''}`}
-              onClick={() => {
-                playRelevantSound('panel', callChatOpen);
-                setCallChatOpen(prev => !prev);
-              }}
-              title="In-call chat"
-            >
-              <MessageSquare size={20} />
-            </button>
-
-            {/* Participants */}
-            <button
-              type="button"
-              className={`${styles.activeCallCtrl} ${callMembersOpen ? styles.activeCallCtrlActive : ''}`}
-              onClick={() => {
-                playRelevantSound('panel', callMembersOpen);
-                setCallMembersOpen(prev => !prev);
-              }}
-              title="Participants"
-            >
-              <Users size={20} />
-            </button>
-
-            {/* Record Meeting */}
-            <button
-              type="button"
-              className={`${styles.activeCallCtrl} ${isRecording ? styles.activeCallCtrlActive : ''}`}
-              onClick={handleToggleRecording}
-              title={isRecording ? "Stop recording : Stop and save this recording" : "Record meeting : Start recording"}
-            >
-              <svg 
-                width="20" 
-                height="20" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                className={isRecording ? styles.recordingActiveDot : ''}
-                style={{ color: isRecording ? '#ef4444' : 'currentColor' }}
-              >
-                <circle cx="12" cy="12" r="10" />
-                <circle cx="12" cy="12" r="4" fill="currentColor" />
-              </svg>
-            </button>
-
-            {/* Raise hand */}
-            <button
-              type="button"
-              className={`${styles.activeCallCtrl} ${callRaiseHand ? styles.activeCallCtrlActive : ''}`}
-              onClick={() => {
-                playRelevantSound('hand', callRaiseHand);
-                setCallRaiseHand(prev => !prev);
-              }}
-              title="Raise hand"
-            >
-              <Hand size={20} />
-            </button>
-
-            {/* More options */}
-            <div className={styles.moreOptionsContainer}>
-              {isMoreOptionsOpen && (
-                <div className={styles.moreOptionsDropdown}>
-                  {/* Recording moved to main toolbar */}
-                  
-                  <button type="button" className={styles.moreOptionsItem} onClick={handleAdjustView}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="7" height="7" />
-                      <rect x="14" y="3" width="7" height="7" />
-                      <rect x="14" y="14" width="7" height="7" />
-                      <rect x="3" y="14" width="7" height="7" />
-                    </svg>
-                    <span>Adjust view</span>
-                  </button>
-                  
-                  <button type="button" className={styles.moreOptionsItem} onClick={handleFullScreen}>
-                    {isFullscreen ? (
+          {/* Main Content Area (Video Grid + Sidebar) */}
+          <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+            
+            {/* Video Grid */}
+            <div style={{ flex: 1, padding: '24px', display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'center', alignItems: 'center', alignContent: 'center', overflowY: 'auto' }}>
+              {activeCallParticipants.map(id => {
+                const emp = employees.find(e => e.id === id);
+                if (!emp) return null;
+                
+                const isMe = emp.isMe;
+                return (
+                  <div key={id} style={{ 
+                    position: 'relative', width: activeCallParticipants.length > 2 ? '45%' : '80%', height: activeCallParticipants.length > 2 ? '45%' : '60%', 
+                    background: '#1E293B', borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.3)'
+                  }}>
+                    {isMe ? (
                       <>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M4 14h3v3" />
-                          <path d="M20 14h-3v3" />
-                          <path d="M20 10h-3V7" />
-                          <path d="M4 10h3V7" />
-                        </svg>
-                        <span>Exit full screen</span>
+                        {callScreenShare ? (
+                           <video ref={screenVideoRef} style={{ width: '100%', height: '100%', objectFit: 'contain' }} muted />
+                        ) : (
+                          callScreenCamera ? (
+                            <video ref={callCameraVideoRef} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} muted />
+                          ) : (
+                            <div style={{ width: '120px', height: '120px', borderRadius: '60px', background: 'var(--ceo-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '40px', color: '#FFF', fontWeight: 700 }}>SJ</div>
+                          )
+                        )}
+                        {!callScreenMic && (
+                          <div style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(0,0,0,0.6)', padding: '8px', borderRadius: '20px' }}>
+                            <MicOff size={16} color="#EF4444" />
+                          </div>
+                        )}
                       </>
                     ) : (
                       <>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M3 7V5a2 2 0 0 1 2-2h2" />
-                          <path d="M17 3h2a2 2 0 0 1 2 2v2" />
-                          <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
-                          <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
-                        </svg>
-                        <span>Full screen</span>
+                        <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }}  />
+                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 40%)' }}></div>
                       </>
                     )}
-                  </button>
-                  
-                  <button type="button" className={styles.moreOptionsItem} onClick={handlePictureInPicture}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                      <rect x="13" y="11" width="7" height="5" rx="1" ry="1" fill="currentColor" />
-                    </svg>
-                    <span>Open picture-in-picture</span>
-                  </button>
-                  
-                  <button type="button" className={styles.moreOptionsItem} onClick={handleBackgrounds}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="14" height="14" rx="2" />
-                      <circle cx="10" cy="8" r="2.5" />
-                      <path d="M5 15a5 5 0 0 1 10 0" />
-                      <path d="M20 16l1.5-1.5L20 13l-1.5 1.5zm-3-7l1-1-1-1-1 1zm4 1l1-1-1-1-1 1z" fill="currentColor" stroke="none" />
-                    </svg>
-                    <span>Backgrounds and effects</span>
-                  </button>
-                  
-                  <div className={styles.moreOptionsDivider} />
-                  
-                  <div className={styles.moreOptionsItem} style={{ padding: '8px 12px' }}>
-                    <Subtitles size={18} strokeWidth={2} />
-                    <span>Live Caption</span>
-                    <label className={styles.switchLabel}>
-                      <div className={styles.switch}>
-                        <input type="checkbox" checked={liveCaption} onChange={() => setLiveCaption(!liveCaption)} />
-                        <span className={styles.slider}></span>
-                      </div>
-                    </label>
-                  </div>
-                  
-                  <div className={styles.moreOptionsItem} style={{ padding: '8px 12px' }}>
-                    <Languages size={18} strokeWidth={2} />
-                    <span>Live Translate</span>
-                    <label className={styles.switchLabel}>
-                      <div className={styles.switch}>
-                        <input type="checkbox" checked={liveTranslate} onChange={() => setLiveTranslate(!liveTranslate)} />
-                        <span className={styles.slider}></span>
-                      </div>
-                    </label>
-                  </div>
-                  
-                  {liveTranslate && (
-                    <div style={{ padding: '0 12px 12px 42px' }}>
-                      <select 
-                        value={translateLanguage} 
-                        onChange={(e) => setTranslateLanguage(e.target.value)}
-                        className={styles.languageSelect}
-                      >
-                        <option value="Spanish">Spanish</option>
-                        <option value="French">French</option>
-                        <option value="German">German</option>
-                        <option value="Japanese">Japanese</option>
-                        <option value="Hindi">Hindi</option>
-                      </select>
+                    
+                    {/* Participant Name Tag */}
+                    <div style={{ position: 'absolute', bottom: '16px', left: '16px', background: 'rgba(0,0,0,0.6)', padding: '6px 12px', borderRadius: '8px', color: '#FFF', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {emp.name} {isMe && '(You)'}
+                      {!isMe && <Mic size={14} color="#10B981" />} {/* Fake active mic for others */}
                     </div>
-                  )}
-                  
-                  <div className={styles.moreOptionsDivider} />
-                  
-                  <button type="button" className={styles.moreOptionsItem} onClick={handleTroubleshoot}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="10" cy="10" r="6" />
-                      <path d="M7 10h1.5l1-2.5 1.5 5 1-2.5h1.5" />
-                      <line x1="21" y1="21" x2="15" y2="15" />
-                    </svg>
-                    <span>Troubleshooting & help</span>
-                  </button>
-                  
-
-                </div>
-              )}
-              <button
-                type="button"
-                className={`${styles.moreOptionsBtn} ${isMoreOptionsOpen ? styles.moreOptionsBtnActive : ''}`}
-                onClick={() => {
-                  playRelevantSound('panel', isMoreOptionsOpen);
-                  setIsMoreOptionsOpen(prev => !prev);
-                }}
-                title="More options"
-              >
-                <MoreVertical size={20} />
-              </button>
+                  </div>
+                );
+              })}
             </div>
 
-            <div className={styles.activeCallCtrlDivider} />
+            {/* Participants Sidebar */}
+            <div style={{ width: '320px', background: '#1E293B', borderLeft: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                <h3 style={{ color: '#FFF', fontSize: '16px', fontWeight: 700, margin: 0 }}>Participants ({currentMembersCount})</h3>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+                
+                {/* Active in Call */}
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#94A3B8', marginBottom: '12px', letterSpacing: '0.5px' }}>IN CALL ({activeCallParticipants.length})</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+                  {activeCallParticipants.map(id => {
+                    const emp = employees.find(e => e.id === id);
+                    if(!emp) return null;
+                    return (
+                      <div key={id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '36px', height: '36px', borderRadius: '18px' }}  />
+                          <div style={{ color: '#F8FAFC', fontSize: '14px', fontWeight: 600 }}>{emp.name} {emp.isMe && '(You)'}</div>
+                        </div>
+                        {emp.isMe ? (callScreenMic ? <Mic size={16} color="#10B981" /> : <MicOff size={16} color="#EF4444" />) : <Mic size={16} color="#10B981" />}
+                      </div>
+                    );
+                  })}
+                </div>
 
-            {/* End call */}
-            <button
-              type="button"
-              className={styles.activeCallEndBtn}
-              onClick={handleEndCall}
-              title="End call"
-            >
-              <PhoneOff size={20} />
-            </button>
+                {/* Offline / Not Joined */}
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#94A3B8', marginBottom: '12px', letterSpacing: '0.5px' }}>OFFLINE / NOT JOINED ({offlineCallParticipants.length})</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {offlineCallParticipants.map(id => {
+                    const emp = employees.find(e => e.id === id);
+                    if(!emp) return null;
+                    return (
+                      <div key={id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', opacity: 0.5 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '36px', height: '36px', borderRadius: '18px', filter: 'grayscale(100%)' }}  />
+                          <div style={{ color: '#F8FAFC', fontSize: '14px', fontWeight: 600 }}>{emp.name}</div>
+                        </div>
+                        <div style={{ color: '#94A3B8', fontSize: '12px', fontWeight: 600 }}>Offline</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+              </div>
+            </div>
+
           </div>
 
-          {/* Toast Notification for Huddle actions */}
-          {toastMessage && (
-            <div className={styles.huddleToast}>
-              {toastMessage}
+          {/* Bottom Controls */}
+          <div style={{ padding: '24px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '20px', background: '#0F172A', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setCallScreenMic(!callScreenMic); }} 
+              style={{ width: '56px', height: '56px', borderRadius: '28px', border: 'none', cursor: 'pointer', background: callScreenMic ? '#334155' : 'var(--ceo-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+            >
+              {callScreenMic ? <Mic size={24} color="#FFF" /> : <MicOff size={24} color="#FFF" />}
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setCallScreenCamera(!callScreenCamera); }} 
+              style={{ width: '56px', height: '56px', borderRadius: '28px', border: 'none', cursor: 'pointer', background: callScreenCamera ? '#334155' : 'var(--ceo-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+            >
+              {callScreenCamera ? <Video size={24} color="#FFF" /> : <VideoOff size={24} color="#FFF" />}
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); toggleScreenShare(); }} 
+              style={{ width: '56px', height: '56px', borderRadius: '28px', border: 'none', cursor: 'pointer', background: callScreenShare ? 'var(--ceo-success)' : '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+            >
+              <Monitor size={24} color="#FFF" />
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleEndCall(); }} 
+              style={{ width: '80px', height: '56px', borderRadius: '28px', border: 'none', cursor: 'pointer', background: 'var(--ceo-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+            >
+              <PhoneOff size={24} color="#FFF" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* === MODALS === */}
+      {/* Create Channel Modal */}
+      {isCreateChannelOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+          <div style={{ background: '#FFF', width: '400px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <div style={{ padding: '20px', borderBottom: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--ceo-text-primary)' }}>Create New Channel</h3>
+              <button onClick={() => setIsCreateChannelOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={18} color="var(--ceo-text-muted)" /></button>
+            </div>
+            <form onSubmit={handleCreateChannel} style={{ padding: '20px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>CHANNEL NAME</label>
+              <div style={{ display: 'flex', alignItems: 'center', background: '#F8FAFC', border: '1px solid var(--ceo-border)', borderRadius: '8px', padding: '0 12px' }}>
+                <Hash size={16} color="var(--ceo-text-muted)" />
+                <input 
+                  autoFocus
+                  required
+                  value={newChannelName}
+                  onChange={(e) => setNewChannelName(e.target.value)}
+                  placeholder="e.g. marketing-campaign" 
+                  style={{ width: '100%', border: 'none', background: 'transparent', padding: '12px', fontSize: '14px', outline: 'none' }} 
+                />
+              </div>
+              <div style={{ marginTop: '16px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>SELECT MEMBERS</label>
+                <div style={{ maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--ceo-border)', borderRadius: '8px', padding: '8px', background: '#F8FAFC' }}>
+                  {employees.filter(e => String(e.id) !== 'ceo').map(emp => (
+                    <label key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', cursor: 'pointer', borderRadius: '4px', ':hover': { background: '#FFF' } }}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedMembers.includes(String(emp.id))}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedMembers([...selectedMembers, String(emp.id)]);
+                          } else {
+                            setSelectedMembers(selectedMembers.filter(id => id !== String(emp.id)));
+                          }
+                        }}
+                      />
+                      <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '24px', height: '24px', borderRadius: '12px' }}  />
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}>{emp.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button type="button" onClick={() => { setIsCreateChannelOpen(false); setSelectedMembers([]); setNewChannelName(''); }} className="ceo-btn" style={{ fontWeight: 700 }}>Cancel</button>
+                <button type="submit" className="ceo-btn ceo-btn-primary" style={{ fontWeight: 700 }}>Create Channel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Channel Modal */}
+      {isEditChannelOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+          <div style={{ background: '#FFF', width: '400px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <div style={{ padding: '20px', borderBottom: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--ceo-text-primary)' }}>Edit Channel Name</h3>
+              <button onClick={() => setIsEditChannelOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={18} color="var(--ceo-text-muted)" /></button>
+            </div>
+            <form onSubmit={handleEditChannel} style={{ padding: '20px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>NEW CHANNEL NAME</label>
+              <div style={{ display: 'flex', alignItems: 'center', background: '#F8FAFC', border: '1px solid var(--ceo-border)', borderRadius: '8px', padding: '0 12px' }}>
+                <Hash size={16} color="var(--ceo-text-muted)" />
+                <input 
+                  autoFocus
+                  required
+                  value={editChannelName}
+                  onChange={(e) => setEditChannelName(e.target.value)}
+                  placeholder="e.g. marketing-campaign" 
+                  style={{ width: '100%', border: 'none', background: 'transparent', padding: '12px', fontSize: '14px', outline: 'none' }} 
+                />
+              </div>
+              <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button type="button" onClick={() => setIsEditChannelOpen(false)} className="ceo-btn" style={{ fontWeight: 700 }}>Cancel</button>
+                <button type="submit" className="ceo-btn ceo-btn-primary" style={{ fontWeight: 700 }}>Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Manage Members Modal */}
+      {isAddMemberOpen && !isDM && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+          <div style={{ background: '#FFF', width: '500px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', maxHeight: '85vh' }}>
+            <div style={{ padding: '20px', borderBottom: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--ceo-text-primary)' }}>Manage Members</h3>
+                <div style={{ fontSize: '12px', color: 'var(--ceo-text-secondary)' }}>#{selectedChannel}</div>
+              </div>
+              <button onClick={() => setIsAddMemberOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={18} color="var(--ceo-text-muted)" /></button>
+            </div>
+            
+            <form onSubmit={handleAddGuest} style={{ padding: '16px', borderBottom: '1px solid var(--ceo-divider)', background: '#F8FAFC' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ceo-text-muted)', marginBottom: '12px', letterSpacing: '0.5px' }}>INVITE GUEST BY PHONE</div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input required value={newGuestName} onChange={e=>setNewGuestName(e.target.value)} type="text" placeholder="Guest Name" className="ceo-form-input" style={{ flex: 1, height: '36px', fontSize: '13px' }} />
+                <input required value={newGuestPhone} onChange={e=>setNewGuestPhone(e.target.value)} type="text" placeholder="+91 Phone Number" className="ceo-form-input" style={{ flex: 1, height: '36px', fontSize: '13px' }} />
+                <button type="submit" className="ceo-btn ceo-btn-primary" style={{ padding: '0 16px', fontWeight: 700 }}>Invite</button>
+              </div>
+            </form>
+
+            <div style={{ overflowY: 'auto', flex: 1, padding: '8px 0', background: '#FFF' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ceo-text-muted)', margin: '8px 16px', letterSpacing: '0.5px' }}>EXISTING EMPLOYEES</div>
+              {employees.map(emp => {
+                const isMember = (channelMembers[selectedChannel] || []).includes(emp.id);
+                return (
+                  <div key={emp.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid var(--ceo-border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '32px', height: '32px', borderRadius: '16px' }}  />
+                      <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}>{emp.name} {emp.isMe && '(You)'}</div>
+                    </div>
+                    <button 
+                      onClick={() => toggleMemberInChannel(emp.id)}
+                      disabled={emp.isMe}
+                      className="ceo-btn" 
+                      style={{ 
+                        padding: '6px 12px', fontSize: '12px', fontWeight: 700, 
+                        background: isMember ? 'transparent' : 'var(--ceo-primary)', 
+                        color: isMember ? 'var(--ceo-text-secondary)' : '#FFF',
+                        border: isMember ? '1px solid var(--ceo-border)' : 'none',
+                        opacity: emp.isMe ? 0.5 : 1,
+                        cursor: emp.isMe ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      {isMember ? 'Remove' : 'Add'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Basic inline styling for pulse animation */}
+      <style>{`
+        @keyframes pulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.4; }
+          100% { opacity: 1; }
+        }
+        .message-row .msg-actions {
+          opacity: 0 !important;
+        }
+        .message-row:hover .msg-actions {
+          opacity: 1 !important;
+        }
+      `}</style>
+
+      {/* Context Menu (Double Tap / Right Click) */}
+      {contextMenu && (
+        <div 
+          style={{ position: 'fixed', inset: 0, zIndex: 3000 }} 
+          onClick={closeContextMenu}
+          onContextMenu={(e) => { e.preventDefault(); closeContextMenu(); }}
+        >
+          <div 
+            style={{ 
+              position: 'absolute', 
+              top: contextMenu.y, 
+              left: Math.min(contextMenu.x, window.innerWidth - 200), // prevent going off-screen
+              background: '#FFF', 
+              borderRadius: '12px', 
+              boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)', 
+              border: '1px solid var(--ceo-border)',
+              width: '180px',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--ceo-divider)', background: '#F8FAFC', fontSize: '11px', fontWeight: 700, color: 'var(--ceo-text-muted)' }}>
+              MESSAGE ACTIONS
+            </div>
+            
+            <button 
+              onClick={() => { 
+                navigator.clipboard.writeText(contextMenu.msg.text || '');
+                closeContextMenu();
+              }} 
+              style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '12px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--ceo-divider)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}
+            >
+              <Copy size={16} /> Copy Message
+            </button>
+
+            <button 
+              onClick={() => { setActiveThreadMessage(contextMenu.msg); closeContextMenu(); }} 
+              style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '12px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--ceo-divider)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}
+            >
+              <MessageSquare size={16} /> Reply in Thread
+            </button>
+
+            <button 
+              onClick={() => {
+                if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+                  socketRef.current.send(JSON.stringify({ type: 'pin_message', msg_id: contextMenu.msg.id, channel_id: selectedChannel, is_pinned: !contextMenu.msg.is_pinned }));
+                }
+                closeContextMenu();
+              }} 
+              style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '12px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--ceo-divider)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}
+            >
+              <Pin size={16} /> {contextMenu.msg.is_pinned ? 'Unpin Message' : 'Pin Message'}
+            </button>
+
+            <button 
+              onClick={() => { setShowEmojiPicker(contextMenu.msg.id); }} 
+              style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '12px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--ceo-divider)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}
+            >
+              <Smile size={16} /> React
+            </button>
+
+            <button 
+              onClick={() => { 
+                let fwdText = `[Forwarded]: ${contextMenu.msg.text || ''}`;
+                if (contextMenu.msg.attachment_url) fwdText += ` (Attachment: http://localhost:8000${contextMenu.msg.attachment_url})`;
+                setInputVal(fwdText.trim());
+                closeContextMenu();
+              }} 
+              style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '12px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--ceo-divider)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}
+            >
+              <Send size={16} /> Forward Message
+            </button>
+
+            {/* If it's my message, I can edit/delete */}
+            {(contextMenu.msg.isMe || (contextMenu.msg.sender && contextMenu.msg.sender.includes('TL'))) && (
+              <>
+                <button 
+                  onClick={() => { setEditingMessageId(contextMenu.msg.id); setEditingText(contextMenu.msg.text); closeContextMenu(); }} 
+                  style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '12px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--ceo-divider)', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}
+                >
+                  <MessageSquare size={16} /> Edit Message
+                </button>
+                <button 
+                  onClick={() => { handleDeleteMessage(contextMenu.msg.id); closeContextMenu(); }} 
+                  style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '12px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600, color: 'var(--ceo-danger)' }}
+                >
+                  <Trash2 size={16} /> Delete Message
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Emoji Picker Overlay */}
+          {showEmojiPicker && (
+            <div 
+              style={{ position: 'absolute', top: contextMenu.y + 10, left: Math.min(contextMenu.x + 190, window.innerWidth - 350), zIndex: 3001 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <EmojiPicker 
+                onEmojiClick={(emojiData) => {
+                  handleReactMessage(showEmojiPicker, contextMenu.msg.reactions, emojiData.emoji);
+                  closeContextMenu();
+                }} 
+              />
             </div>
           )}
         </div>
       )}
+
+      {/* Lightbox Modal */}
+      {lightboxMedia && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button onClick={() => setLightboxMedia(null)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#FFF' }}>
+            <X size={32} />
+          </button>
+          <a href={lightboxMedia.url} download target="_blank" rel="noreferrer" style={{ position: 'absolute', top: '20px', right: '80px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#FFF', textDecoration: 'none' }}>
+            <Download size={32} />
+          </a>
+          {lightboxMedia.type === 'image' ? (
+            <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={lightboxMedia.url} alt="fullscreen" style={{ maxWidth: '90%', maxHeight: '90%', objectFit: 'contain' }}  />
+          ) : (
+            <video src={lightboxMedia.url} style={{ maxWidth: '90%', maxHeight: '90%' }} controls autoPlay />
+          )}
+        </div>
+      )}
+
+      {/* Group Members Modal */}
+      {showGroupMembersModal && currentChannel && !isDM && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#FFF', borderRadius: '16px', width: '400px', maxWidth: '90%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--ceo-text-primary)' }}>Group Members</h3>
+              <button onClick={() => setShowGroupMembersModal(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={20} color="var(--ceo-text-muted)" /></button>
+            </div>
+            <div style={{ padding: '24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {(currentChannel.members || []).map(empId => {
+                const emp = employees.find(e => String(e.id) === String(empId) || e.id === empId);
+                const name = emp ? emp.name : (empId === 'ceo' ? 'TL' : (empId === 'hr' ? 'HR Manager' : `Emp #${empId}`));
+                const avatar = emp?.photo ? `http://localhost:8000${emp.photo}` : (emp?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`);
+                return (
+                  <div key={empId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={avatar} alt={name} style={{ width: '40px', height: '40px', borderRadius: '20px', objectFit: 'cover', border: '1px solid var(--ceo-border)' }}  />
+                      <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--ceo-text-primary)' }}>{name}</div>
+                    </div>
+                    {empId !== 'ceo' && (
+                      <button 
+                        onClick={() => {
+                          setSelectedChannel(`dm-${empId}`);
+                          setShowGroupMembersModal(false);
+                        }}
+                        style={{ padding: '6px 12px', background: '#F1F5F9', border: '1px solid var(--ceo-border)', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', color: 'var(--ceo-text-primary)', display: 'flex', gap: '6px', alignItems: 'center' }}
+                      >
+                        <MessageSquare size={14} /> Message
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {huddlePeer && (
         <HuddleModal 
           peer={huddlePeer} 
@@ -3248,38 +1915,7 @@ const Messages = ({ initialSelectedChannel, db, onUpdateDb, currentUser }) => {
         />
       )}
 
-      {/* ── View Members Modal ──────────────────────────────────────────────── */}
-      {showMembersModal && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100 }}>
-          <div style={{ width: "400px", maxHeight: "70vh", backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderLeft: "4px solid var(--accent-pink)", padding: "24px", borderRadius: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "12px" }}>
-              <h3 style={{ margin: 0, color: "var(--accent-pink)" }}>Channel Members</h3>
-              <button type="button" style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer" }} onClick={() => setShowMembersModal(false)}>✕</button>
-            </div>
-            <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
-              {(() => {
-                const membersList = chatChannels.find(c => c.id === activeRoomId)?.members || [];
-                const memberDetails = [];
-                if (membersList.includes("ceo")) memberDetails.push("John Doe (CEO)");
-                if (membersList.includes("hr")) memberDetails.push("Sarah Jenkins (HR)");
-                membersList.forEach(mId => {
-                  if (mId !== "ceo" && mId !== "hr") {
-                    const emp = db.employees?.find(e => String(e.id) === String(mId));
-                    if (emp) memberDetails.push(`${emp.name} (${emp.designation})`);
-                  }
-                });
-                if (memberDetails.length === 0) return <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>No members added yet.</div>;
-                return memberDetails.map((name, i) => (
-                  <div key={i} style={{ padding: "8px 12px", backgroundColor: "var(--bg-primary)", borderRadius: "8px", fontSize: "13px", color: "var(--text-primary)" }}>{name}</div>
-                ));
-              })()}
-            </div>
-          </div>
-        </div>
-      )}
-
-    </>
+    </div>
 );
-};
+}
 
-export default Messages;

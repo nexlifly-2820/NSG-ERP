@@ -1,41 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Target, Users, TrendingUp, TrendingDown, CheckCircle2, Link as LinkIcon, Edit2, X, Filter, BarChart2, AlertCircle } from 'lucide-react';
+import { Target, Users, TrendingUp, TrendingDown, CheckCircle2, Link as LinkIcon, Edit2, X, Filter, BarChart2, AlertCircle, Plus, Trash2 } from 'lucide-react';
 import '../CEO.css';
-
-const MOCK_DATA = [
-  { 
-    id: 1, title: 'Achieve Market Leadership in Enterprise Segment', 
-    status: 'On Track', progress: 75, owner: 'Sales & Marketing', quarter: 'Q2', year: '2026',
-    krs: [
-      { id: 11, title: 'Increase Enterprise ARR by 40%', target: 40, current: 32, unit: '%', sprintLink: 'Sprint 24: Enterprise Expansion' },
-      { id: 12, title: 'Onboard 5 Fortune 500 clients', target: 5, current: 4, unit: 'clients' }
-    ]
-  },
-  { 
-    id: 2, title: 'Transform Digital Operational Excellence', 
-    status: 'At Risk', progress: 42, owner: 'IT Dept', quarter: 'Q2', year: '2026',
-    krs: [
-      { id: 21, title: 'Migrate legacy on-prem to Cloud', target: 100, current: 40, unit: '%', sprintLink: 'Sprint 22: AWS Migration' },
-      { id: 22, title: 'Reduce infra costs by 25%', target: 25, current: 10, unit: '%' }
-    ]
-  },
-  { 
-    id: 3, title: 'Global Talent Acquisition Drive', 
-    status: 'Off Track', progress: 20, owner: 'HR Dept', quarter: 'Q3', year: '2026',
-    krs: [
-      { id: 31, title: 'Hire 50 Senior Engineers', target: 50, current: 10, unit: 'hires', sprintLink: 'Sprint 28: EU Hiring' },
-      { id: 32, title: 'Launch Employer Branding Campaign', target: 100, current: 20, unit: '%' }
-    ]
-  },
-  { 
-    id: 4, title: 'Launch AI-Powered Core Product', 
-    status: 'On Track', progress: 60, owner: 'Product', quarter: 'Q2', year: '2026',
-    krs: [
-      { id: 41, title: 'Complete AI Beta Testing', target: 100, current: 80, unit: '%' },
-      { id: 42, title: 'Train 500 users on new features', target: 500, current: 300, unit: 'users' }
-    ]
-  }
-];
 
 const ProgressRing = ({ progress, color, size = 48, strokeWidth = 4 }) => {
   const radius = (size - strokeWidth) / 2;
@@ -60,9 +25,12 @@ export default function StrategyOKRs() {
   const [quarter, setQuarter] = useState('Q2');
   const [year, setYear] = useState('2026');
 
+  // Add/Edit State
+  const [isAdding, setIsAdding] = useState(false);
+  const [newOkr, setNewOkr] = useState({ title: '', owner: 'CEO Office', quarter: 'Q2', year: '2026', krs: [{ title: '', target: 100, unit: '%' }] });
+
   const fetchOkrs = async () => {
     const token = localStorage.getItem('nsg_jwt_token');
-    if (!token) return;
     try {
       const res = await fetch('/api/ceo-portal/okrs', {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -71,11 +39,11 @@ export default function StrategyOKRs() {
         const data = await res.json();
         setOkrs(data);
       } else {
-        setOkrs(MOCK_DATA);
+        setOkrs([]);
       }
     } catch (e) {
       console.error("Failed to fetch OKRs", e);
-      setOkrs(MOCK_DATA);
+      setOkrs([]);
     } finally {
       setLoading(false);
     }
@@ -90,10 +58,8 @@ export default function StrategyOKRs() {
     return okrs.filter(o => o.quarter === quarter && o.year === year);
   }, [okrs, quarter, year]);
 
-  // Make sure selected ID exists in the filtered list
   const [selectedOkrId, setSelectedOkrId] = useState(null);
   
-  // Auto-select first item when filters change
   useEffect(() => {
     if (filteredOkrs.length > 0 && !filteredOkrs.find(o => o.id === selectedOkrId)) {
       setSelectedOkrId(filteredOkrs[0].id);
@@ -104,17 +70,21 @@ export default function StrategyOKRs() {
 
   const selectedOkr = filteredOkrs.find(o => o.id === selectedOkrId);
 
-  // Dynamic KPI Stats based on filters
+  // Dynamic KPI Stats based on real filters
   const totalObjs = filteredOkrs.length;
   const atRiskObjs = filteredOkrs.filter(o => o.status !== 'On Track').length;
   const totalKrs = filteredOkrs.reduce((acc, o) => acc + o.krs.length, 0);
   const avgCompletion = totalObjs > 0 ? Math.round(filteredOkrs.reduce((acc, o) => acc + o.progress, 0) / totalObjs) : 0;
   
+  const cascadedKrs = filteredOkrs.reduce((acc, o) => acc + o.krs.filter(k => k.sprintLink).length, 0);
+  const alignmentPct = totalKrs > 0 ? Math.round((cascadedKrs / totalKrs) * 100) : 100;
+  const riskSub = atRiskObjs > 0 ? 'Multiple At Risk' : 'Stable';
+
   const kpiStats = [
     { label: 'Strategic Objectives', val: totalObjs.toString(), sub: `${atRiskObjs} At Risk/Off Track`, status: atRiskObjs > 0 ? 'warning' : 'success' },
     { label: 'Active Key Results', val: totalKrs.toString(), sub: `${avgCompletion}% Avg Completion`, status: 'primary' },
-    { label: 'Organization Alignment', val: '92%', sub: 'Target: 95%', status: 'success' },
-    { label: 'Strategic Risk Index', val: atRiskObjs > totalObjs/2 ? 'High' : 'Low', sub: 'Resource Constraints', status: atRiskObjs > totalObjs/2 ? 'danger' : 'success' },
+    { label: 'Organization Alignment', val: `${alignmentPct}%`, sub: 'Target: 95%', status: alignmentPct >= 95 ? 'success' : 'warning' },
+    { label: 'Strategic Risk Index', val: atRiskObjs > totalObjs/2 ? 'High' : 'Low', sub: riskSub, status: atRiskObjs > totalObjs/2 ? 'danger' : 'success' },
   ];
 
   // Inline edit state
@@ -129,7 +99,6 @@ export default function StrategyOKRs() {
 
   const saveKrProgress = async (krId) => {
     const token = localStorage.getItem('nsg_jwt_token');
-    if (!token) return;
     try {
       const res = await fetch(`/api/ceo-portal/okrs/key-results/${krId}/progress`, {
         method: 'POST',
@@ -141,27 +110,56 @@ export default function StrategyOKRs() {
       });
       if (res.ok) {
         await fetchOkrs();
-        if (window.toast) {
-          window.toast.success('Key Result progress successfully updated!');
-        } else {
-          alert('Key Result progress successfully updated!');
-        }
+        if (window.toast) window.toast.success('Key Result progress successfully updated!');
       } else {
-        if (window.toast) {
-          window.toast.error('Failed to update Key Result progress.');
-        } else {
-          alert('Failed to update Key Result progress.');
-        }
+        if (window.toast) window.toast.error('Failed to update Key Result progress.');
       }
     } catch (e) {
       console.error("Error updating progress", e);
-      if (window.toast) {
-        window.toast.error('Network error updating progress.');
-      } else {
-        alert('Network error updating progress.');
-      }
     } finally {
       setEditingKrId(null);
+    }
+  };
+
+  const handleCreateOkr = async () => {
+    const token = localStorage.getItem('nsg_jwt_token');
+    try {
+      const res = await fetch('/api/ceo-portal/okrs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(newOkr)
+      });
+      if (res.ok) {
+        await fetchOkrs();
+        setIsAdding(false);
+        setNewOkr({ title: '', owner: 'CEO Office', quarter: 'Q2', year: '2026', krs: [{ title: '', target: 100, unit: '%' }] });
+        if (window.toast) window.toast.success('Strategy OKR successfully created!');
+      } else {
+        if (window.toast) window.toast.error('Failed to create OKR.');
+      }
+    } catch (e) {
+      console.error("Error creating OKR", e);
+    }
+  };
+
+  const handleDeleteOkr = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this OKR?")) return;
+    const token = localStorage.getItem('nsg_jwt_token');
+    try {
+      const res = await fetch(`/api/ceo-portal/okrs/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        if (selectedOkrId === id) setSelectedOkrId(null);
+        await fetchOkrs();
+        if (window.toast) window.toast.success('Strategy OKR deleted.');
+      }
+    } catch (e) {
+      console.error("Error deleting OKR", e);
     }
   };
 
@@ -173,19 +171,24 @@ export default function StrategyOKRs() {
           <h1 className="ceo-typography-page-title">Strategy & OKRs</h1>
           <p className="ceo-typography-body" style={{ marginTop: '4px' }}>Monitor top-level objectives, manage key results, and track global execution.</p>
         </div>
-        <div style={{ display: 'flex', gap: '12px', background: '#FFF', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--ceo-border)', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-          <Filter size={16} color="var(--ceo-text-muted)" />
-          <select value={quarter} onChange={(e) => setQuarter(e.target.value)} className="ceo-form-input" style={{ border: 'none', fontWeight: 700, fontSize: '14px', outline: 'none', background: 'transparent', cursor: 'pointer', padding: '0 8px', height: 'auto' }}>
-            <option value="Q1">Q1</option>
-            <option value="Q2">Q2</option>
-            <option value="Q3">Q3</option>
-            <option value="Q4">Q4</option>
-          </select>
-          <div style={{ width: '1px', height: '20px', background: 'var(--ceo-divider)' }}></div>
-          <select value={year} onChange={(e) => setYear(e.target.value)} className="ceo-form-input" style={{ border: 'none', fontWeight: 700, fontSize: '14px', outline: 'none', background: 'transparent', cursor: 'pointer', padding: '0 8px', height: 'auto' }}>
-            <option value="2026">2026</option>
-            <option value="2027">2027</option>
-          </select>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '12px', background: '#FFF', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--ceo-border)', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <Filter size={16} color="var(--ceo-text-muted)" />
+            <select value={quarter} onChange={(e) => setQuarter(e.target.value)} className="ceo-form-input" style={{ border: 'none', fontWeight: 700, fontSize: '14px', outline: 'none', background: 'transparent', cursor: 'pointer', padding: '0 8px', height: 'auto' }}>
+              <option value="Q1">Q1</option>
+              <option value="Q2">Q2</option>
+              <option value="Q3">Q3</option>
+              <option value="Q4">Q4</option>
+            </select>
+            <div style={{ width: '1px', height: '20px', background: 'var(--ceo-divider)' }}></div>
+            <select value={year} onChange={(e) => setYear(e.target.value)} className="ceo-form-input" style={{ border: 'none', fontWeight: 700, fontSize: '14px', outline: 'none', background: 'transparent', cursor: 'pointer', padding: '0 8px', height: 'auto' }}>
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+            </select>
+          </div>
+          <button className="ceo-btn" onClick={() => setIsAdding(true)}>
+            <Plus size={16} style={{ marginRight: '6px' }} /> New OKR
+          </button>
         </div>
       </div>
 
@@ -232,7 +235,7 @@ export default function StrategyOKRs() {
             <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--ceo-text-muted)', background: '#FFF', borderRadius: '12px', border: '1px dashed var(--ceo-border)' }}>
               <Target size={48} style={{ opacity: 0.2, margin: '0 auto 16px auto' }} />
               <div style={{ fontSize: '15px', fontWeight: 600 }}>No OKRs found</div>
-              <div style={{ fontSize: '13px', marginTop: '4px' }}>Try selecting a different quarter or year.</div>
+              <div style={{ fontSize: '13px', marginTop: '4px' }}>Try selecting a different quarter or year, or create a new one.</div>
             </div>
           )}
         </div>
@@ -242,13 +245,20 @@ export default function StrategyOKRs() {
           {selectedOkr ? (
             <>
               <div className="ceo-command-header" style={{ padding: '24px', borderBottom: '1px solid var(--ceo-divider)', background: '#F8FAFC' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                  <span className={`ceo-badge ${selectedOkr.status === 'On Track' ? 'success' : selectedOkr.status === 'At Risk' ? 'warning' : 'danger'}`} style={{ fontSize: '11px', fontWeight: 700 }}>{selectedOkr.status.toUpperCase()}</span>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ceo-text-muted)' }}>{selectedOkr.quarter} {selectedOkr.year}</span>
-                </div>
-                <div style={{ fontSize: '20px', fontWeight: 700, marginBottom: '8px', color: 'var(--ceo-text-primary)' }}>{selectedOkr.title}</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--ceo-text-secondary)', fontWeight: 500 }}>
-                  <Users size={14} color="var(--ceo-text-muted)" /> Owner: {selectedOkr.owner}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                      <span className={`ceo-badge ${selectedOkr.status === 'On Track' ? 'success' : selectedOkr.status === 'At Risk' ? 'warning' : 'danger'}`} style={{ fontSize: '11px', fontWeight: 700 }}>{selectedOkr.status.toUpperCase()}</span>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ceo-text-muted)' }}>{selectedOkr.quarter} {selectedOkr.year}</span>
+                    </div>
+                    <div style={{ fontSize: '20px', fontWeight: 700, marginBottom: '8px', color: 'var(--ceo-text-primary)' }}>{selectedOkr.title}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--ceo-text-secondary)', fontWeight: 500 }}>
+                      <Users size={14} color="var(--ceo-text-muted)" /> Owner: {selectedOkr.owner}
+                    </div>
+                  </div>
+                  <button onClick={() => handleDeleteOkr(selectedOkr.id)} style={{ background: '#FEF2F2', color: '#EF4444', border: '1px solid #FECACA', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                    <Trash2 size={14} /> Delete
+                  </button>
                 </div>
               </div>
 
@@ -325,6 +335,88 @@ export default function StrategyOKRs() {
         </div>
 
       </div>
+
+      {isAdding && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#FFF', borderRadius: '12px', width: '600px', maxHeight: '90vh', overflowY: 'auto', padding: '24px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px' }}>Create New Objective</h2>
+            
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--ceo-text-secondary)', marginBottom: '6px' }}>Objective Title</label>
+              <input 
+                type="text" 
+                value={newOkr.title} 
+                onChange={e => setNewOkr({...newOkr, title: e.target.value})} 
+                className="ceo-form-input" 
+                placeholder="e.g. Dominate Enterprise Market"
+              />
+            </div>
+            
+            <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--ceo-text-secondary)', marginBottom: '6px' }}>Owner</label>
+                <input type="text" value={newOkr.owner} onChange={e => setNewOkr({...newOkr, owner: e.target.value})} className="ceo-form-input" />
+              </div>
+              <div style={{ width: '100px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--ceo-text-secondary)', marginBottom: '6px' }}>Quarter</label>
+                <select value={newOkr.quarter} onChange={e => setNewOkr({...newOkr, quarter: e.target.value})} className="ceo-form-input">
+                  <option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option>
+                </select>
+              </div>
+              <div style={{ width: '100px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--ceo-text-secondary)', marginBottom: '6px' }}>Year</label>
+                <select value={newOkr.year} onChange={e => setNewOkr({...newOkr, year: e.target.value})} className="ceo-form-input">
+                  <option value="2026">2026</option><option value="2027">2027</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '16px', fontWeight: 700, fontSize: '14px' }}>Key Results</div>
+            
+            {newOkr.krs.map((kr, idx) => (
+              <div key={idx} style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'center' }}>
+                <div style={{ flex: 1 }}>
+                  <input type="text" placeholder="KR Title" value={kr.title} onChange={e => {
+                    const updated = [...newOkr.krs];
+                    updated[idx].title = e.target.value;
+                    setNewOkr({...newOkr, krs: updated});
+                  }} className="ceo-form-input" />
+                </div>
+                <div style={{ width: '80px' }}>
+                  <input type="number" placeholder="Target" value={kr.target} onChange={e => {
+                    const updated = [...newOkr.krs];
+                    updated[idx].target = Number(e.target.value);
+                    setNewOkr({...newOkr, krs: updated});
+                  }} className="ceo-form-input" />
+                </div>
+                <div style={{ width: '80px' }}>
+                  <input type="text" placeholder="Unit" value={kr.unit} onChange={e => {
+                    const updated = [...newOkr.krs];
+                    updated[idx].unit = e.target.value;
+                    setNewOkr({...newOkr, krs: updated});
+                  }} className="ceo-form-input" />
+                </div>
+                <button onClick={() => {
+                  const updated = newOkr.krs.filter((_, i) => i !== idx);
+                  setNewOkr({...newOkr, krs: updated});
+                }} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer' }}><X size={16} /></button>
+              </div>
+            ))}
+            
+            <button onClick={() => {
+              setNewOkr({...newOkr, krs: [...newOkr.krs, { title: '', target: 100, unit: '%' }]});
+            }} style={{ background: '#F1F5F9', border: '1px dashed #CBD5E1', width: '100%', padding: '8px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, color: '#475569', cursor: 'pointer', marginBottom: '24px' }}>
+              + Add Key Result
+            </button>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button onClick={() => setIsAdding(false)} style={{ background: '#FFF', border: '1px solid #CBD5E1', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
+              <button onClick={handleCreateOkr} className="ceo-btn" style={{ padding: '8px 16px', borderRadius: '6px', fontWeight: 600 }}>Save Objective</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

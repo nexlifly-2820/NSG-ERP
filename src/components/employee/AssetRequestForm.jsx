@@ -6,8 +6,9 @@ export default function AssetRequestForm({ onRequestSubmit, requests }) {
   const [reason, setReason] = useState('');
   const [urgency, setUrgency] = useState('Medium');
   const [validationError, setValidationError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (reason.trim().length < 10) {
@@ -16,14 +17,20 @@ export default function AssetRequestForm({ onRequestSubmit, requests }) {
     }
     
     setValidationError('');
-    onRequestSubmit({
-      assetType,
-      reason: reason.trim(),
-      urgency
-    });
+    setIsSubmitting(true);
+    
+    try {
+      await onRequestSubmit({
+        assetType,
+        reason: reason.trim(),
+        urgency
+      });
 
-    setReason('');
-    setUrgency('Medium');
+      setReason('');
+      setUrgency('Medium');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleReasonChange = (val) => {
@@ -193,15 +200,16 @@ export default function AssetRequestForm({ onRequestSubmit, requests }) {
           {/* Submit Button */}
           <button
             type="submit"
+            disabled={isSubmitting}
             style={{
-              backgroundColor: 'var(--text-primary)',
+              backgroundColor: isSubmitting ? '#9ca3af' : 'var(--text-primary)',
               color: 'var(--bg-secondary)',
               border: 'none',
               borderRadius: '6px',
               padding: '12px',
               fontSize: '12px',
               fontWeight: '700',
-              cursor: 'pointer',
+              cursor: isSubmitting ? 'not-allowed' : 'pointer',
               transition: 'background-color 0.2s ease',
               display: 'flex',
               justifyContent: 'center',
@@ -209,7 +217,7 @@ export default function AssetRequestForm({ onRequestSubmit, requests }) {
               height: '40px'
             }}
           >
-            Submit for TL Approval
+            {isSubmitting ? 'Submitting...' : 'Submit for TL Approval'}
           </button>
         </form>
       </div>
