@@ -425,6 +425,10 @@ class PayslipResponse(BaseModel):
     month: int
     year: int
     lop: Optional[float] = 0.0
+    worked_days: Optional[float] = None
+    arrear_days: Optional[float] = 0.0
+    lop_days: Optional[float] = 0.0
+    lop_days_reversed: Optional[float] = 0.0
     status: Optional[str] = "pending"
     payment_method: Optional[str] = None
     transaction_ref: Optional[str] = None
@@ -444,12 +448,55 @@ class LoanResponse(BaseModel):
     class Config:
         from_attributes = True
 
-@router.get("/payroll/my-payslips", response_model=PaginatedResponse[PayslipResponse])
+class EmployeeStaticDetails(BaseModel):
+    name: str
+    designation: Optional[str] = None
+    department: Optional[str] = None
+    location: Optional[str] = None
+    doj: Optional[date] = None
+    bank_name: Optional[str] = None
+    account_number: Optional[str] = None
+    pan_number: Optional[str] = None
+    pf_number: Optional[str] = None
+    uan: Optional[str] = None
+    esi_number: Optional[str] = None
+
+class PayslipListResponse(BaseModel):
+    items: List[PayslipResponse]
+    total: int
+    skip: int
+    limit: int
+    employee_details: EmployeeStaticDetails
+
+@router.get("/payroll/my-payslips", response_model=PayslipListResponse)
 def get_my_payslips(skip: int = 0, limit: int = 50, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     query = db.query(models.Payslip).filter(models.Payslip.user_id == current_user.id)
     total = query.count()
     items = query.order_by(models.Payslip.year.desc(), models.Payslip.month.desc()).offset(skip).limit(limit).all()
-    return {"items": items, "total": total, "skip": skip, "limit": limit}
+    
+    # We might not have 'doj' natively mapped in models.User, so try to get it if it exists.
+    doj = getattr(current_user, 'doj', None)
+    if isinstance(doj, str):
+        try:
+            doj = date.fromisoformat(doj)
+        except:
+            doj = None
+            
+    emp_details = {
+        "name": current_user.name,
+        "designation": current_user.role,
+        "department": current_user.department,
+        "location": getattr(current_user, "location", None),
+        "doj": doj,
+        "bank_name": current_user.bank_name,
+        "account_number": current_user.account_number,
+        "pan_number": getattr(current_user, "pan_number", None),
+        "pf_number": getattr(current_user, "pf_number", None),
+        "uan": getattr(current_user, "uan", None),
+        "esi_number": getattr(current_user, "esi_number", None)
+    }
+    
+    return {"items": items, "total": total, "skip": skip, "limit": limit, "employee_details": emp_details}
 
 @router.get("/payroll/my-loans", response_model=List[LoanResponse])
 def get_my_loans(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
