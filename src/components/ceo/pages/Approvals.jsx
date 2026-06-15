@@ -22,7 +22,7 @@ const THEME = {
   warning: '#F59E0B'       
 };
 
-const TABS = ['All', 'Payroll', 'Budget', 'Resignation', 'Policy', 'Promotions'];
+const TABS = ['All', 'Payroll', 'Budget', 'Resignation', 'Policy', 'Promotions', 'History'];
 
 // ==========================================
 // COMPONENTS ARCHITECTURE (AS PER SPEC)
@@ -193,7 +193,43 @@ const ApprovalRow = ({ item, isSelected, isChecked, onSelect, onToggleCheck }) =
 };
 
 const ApprovalTable = ({ data, activeTab, selectedIds, onToggleCheck, onToggleAll, selectedApproval, onSelect }) => {
-  const filtered = data.filter(a => activeTab === 'All' || a.type === activeTab);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterState, setFilterState] = useState({
+    type: 'All',
+    submittedBy: 'All',
+    id: ''
+  });
+
+  let filtered = data.filter(a => {
+    const isPending = !['Approved', 'Denied'].includes(a.status);
+    
+    // Status Check
+    if (activeTab !== 'History' && !isPending) return false;
+    if (activeTab === 'History' && isPending) return false;
+    
+    // Tab Type Check
+    if (activeTab !== 'All' && activeTab !== 'History') {
+       if (a.type !== activeTab) return false;
+    }
+
+    // Dropdown Filters Check
+    if (filterState.type !== 'All' && a.type !== filterState.type) return false;
+    if (filterState.submittedBy !== 'All' && a.requestedBy !== filterState.submittedBy) return false;
+    if (filterState.id && !a.id.toLowerCase().includes(filterState.id.toLowerCase())) return false;
+    
+    return true;
+  });
+
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase();
+    filtered = filtered.filter(a => 
+      a.id.toLowerCase().includes(q) || 
+      a.type.toLowerCase().includes(q) || 
+      a.requestedBy.toLowerCase().includes(q)
+    );
+  }
+
   const isAllChecked = filtered.length > 0 && selectedIds.size === filtered.length;
 
   return (
@@ -203,12 +239,77 @@ const ApprovalTable = ({ data, activeTab, selectedIds, onToggleCheck, onToggleAl
       <div style={{ padding: '16px 24px', borderBottom: `1px solid ${THEME.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: THEME.bgBase }}>
         <div style={{ position: 'relative', width: '300px' }}>
           <Search size={16} color={THEME.textMuted} style={{ position: 'absolute', left: '12px', top: '10px' }} />
-          <input type="text" placeholder="Search approvals..." style={{ width: '100%', background: THEME.bgSurface, border: `1px solid ${THEME.borderLight}`, padding: '8px 12px 8px 36px', borderRadius: '6px', color: THEME.textMain, outline: 'none' }} />
+          <input 
+            type="text" 
+            placeholder="Search approvals..." 
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{ width: '100%', background: THEME.bgSurface, border: `1px solid ${THEME.borderLight}`, padding: '8px 12px 8px 36px', borderRadius: '6px', color: THEME.textMain, outline: 'none' }} 
+          />
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: THEME.bgSurface, border: `1px solid ${THEME.borderLight}`, color: THEME.textMain, borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
-            <Filter size={16}/> Filters
-          </button>
+          {(activeTab === 'All' || activeTab === 'History') && (
+            <div style={{ position: 'relative' }}>
+              <button 
+                onClick={() => setShowFilters(!showFilters)}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: (filterState.type !== 'All' || filterState.submittedBy !== 'All' || filterState.id !== '') ? THEME.bgHover : THEME.bgSurface, border: `1px solid ${(filterState.type !== 'All' || filterState.submittedBy !== 'All' || filterState.id !== '') ? THEME.primary : THEME.borderLight}`, color: (filterState.type !== 'All' || filterState.submittedBy !== 'All' || filterState.id !== '') ? THEME.primary : THEME.textMain, borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}
+              >
+                <Filter size={16}/> Filters
+              </button>
+              {showFilters && (
+                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', background: THEME.bgSurface, border: `1px solid ${THEME.border}`, borderRadius: '8px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', zIndex: 50, width: '250px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Type</div>
+                    <select 
+                      value={filterState.type}
+                      onChange={e => setFilterState({...filterState, type: e.target.value})}
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${THEME.borderLight}`, outline: 'none' }}
+                    >
+                      <option value="All">All Types</option>
+                      <option value="Payroll">Payroll</option>
+                      <option value="Budget">Budget</option>
+                      <option value="Resignation">Resignation</option>
+                      <option value="Policy">Policy</option>
+                      <option value="Promotions">Promotions</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Submitted By</div>
+                    <select 
+                      value={filterState.submittedBy}
+                      onChange={e => setFilterState({...filterState, submittedBy: e.target.value})}
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${THEME.borderLight}`, outline: 'none' }}
+                    >
+                      <option value="All">All Users</option>
+                      {Array.from(new Set(data.map(a => a.requestedBy))).filter(Boolean).map(u => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: THEME.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Request ID</div>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. PAY-123"
+                      value={filterState.id}
+                      onChange={e => setFilterState({...filterState, id: e.target.value})}
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${THEME.borderLight}`, outline: 'none' }}
+                    />
+                  </div>
+
+                  <button 
+                    onClick={() => { setFilterState({ type: 'All', submittedBy: 'All', id: '' }); setShowFilters(false); }}
+                    style={{ width: '100%', padding: '8px', background: THEME.bgHover, border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, color: THEME.textMain }}
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           {selectedIds.size > 0 && (
             <button style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: THEME.primary, border: 'none', color: '#FFF', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
               Bulk Approve ({selectedIds.size})
@@ -246,7 +347,9 @@ const ApprovalTable = ({ data, activeTab, selectedIds, onToggleCheck, onToggleAl
           </tbody>
         </table>
         {filtered.length === 0 && (
-          <div style={{ padding: '48px', textAlign: 'center', color: THEME.textMuted }}>No pending approvals found.</div>
+          <div style={{ padding: '48px', textAlign: 'center', color: THEME.textMuted }}>
+            {activeTab === 'History' ? 'No approval history found.' : 'No pending approvals found.'}
+          </div>
         )}
       </div>
     </div>
@@ -393,6 +496,15 @@ export default function ApprovalsPage() {
         });
         if (!res.ok) throw new Error(`Failed to ${action} policy.`);
         alert(`Company policy ${isApprove ? 'approved' : 'rejected'} successfully.`);
+      } else if (item.type === 'Promotions') {
+        const decision = isApprove ? 'approved_by_ceo' : 'rejected_by_ceo';
+        const res = await fetch(`/api/hr-portal/promotions/${item.id}/decide`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ decision })
+        });
+        if (!res.ok) throw new Error(`Failed to ${action} promotion.`);
+        alert(isApprove ? '✅ Promotion approved! Employee notified.' : '❌ Promotion rejected. Employee notified.');
       }
 
       await fetchApprovals();
@@ -494,9 +606,21 @@ export default function ApprovalsPage() {
         </div>
 
         {/* TABLE COMPONENT */}
-        {activeTab !== 'Promotions' ? (
         <ApprovalTable 
-          data={approvals}
+          data={[
+            ...approvals,
+            ...promotions.map(pr => ({
+              id: pr.id,
+              type: 'Promotions',
+              requestedBy: pr.name,
+              dept: 'HR',
+              amount: `${pr.current} ➔ ${pr.proposed}`,
+              submittedAt: 'Recent',
+              status: pr.status === 'pending_ceo' ? 'Pending' : pr.status === 'approved_by_ceo' ? 'Approved' : 'Denied',
+              urgency: 'Normal',
+              auditTrail: [{ action: "Promotion Proposed", time: "Recent", user: "HR" }]
+            }))
+          ]}
           activeTab={activeTab}
           selectedIds={selectedIds}
           onToggleCheck={toggleSelection}
@@ -504,62 +628,6 @@ export default function ApprovalsPage() {
           selectedApproval={selectedApproval}
           onSelect={setSelectedApproval}
         />
-        ) : (
-          <div style={{ background: THEME.bgSurface, borderRadius: '12px', border: `1px solid ${THEME.border}`, overflow: 'hidden' }}>
-            <div style={{ padding: '20px 24px', borderBottom: `1px solid ${THEME.border}`, background: THEME.bgBase, display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <TrendingUp size={20} color={THEME.primary} />
-              <div>
-                <div style={{ fontWeight: 700, fontSize: '16px', color: THEME.textMain }}>Pending Promotion Proposals</div>
-                <div style={{ fontSize: '12px', color: THEME.textMuted, marginTop: '2px' }}>Review and approve or reject employee promotions proposed by HR</div>
-              </div>
-            </div>
-            {promotions.length === 0 ? (
-              <div style={{ padding: '48px', textAlign: 'center', color: THEME.textMuted }}>No promotion proposals pending. HR will submit them here.</div>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: THEME.bgBase, borderBottom: `1px solid ${THEME.border}` }}>
-                    {['Employee', 'Current Title', 'Proposed Title', 'Status', 'Action'].map(h => (
-                      <th key={h} style={{ padding: '14px 24px', textAlign: 'left', color: THEME.textMuted, fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {promotions.map(pr => {
-                    const isPending = pr.status === 'pending_ceo';
-                    const isApproved = pr.status === 'approved_by_ceo';
-                    const badgeColor = isPending ? THEME.warning : isApproved ? '#16a34a' : THEME.danger;
-                    const badgeLabel = isPending ? '⏳ Pending' : isApproved ? '✅ Approved' : '❌ Rejected';
-                    return (
-                      <tr key={pr.id} style={{ borderBottom: `1px solid ${THEME.border}` }}>
-                        <td style={{ padding: '16px 24px', fontWeight: 600, color: THEME.textMain }}>{pr.name}</td>
-                        <td style={{ padding: '16px 24px', color: THEME.textMuted }}>{pr.current}</td>
-                        <td style={{ padding: '16px 24px', color: THEME.primary, fontWeight: 600 }}>{pr.proposed}</td>
-                        <td style={{ padding: '16px 24px' }}>
-                          <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 700, background: `${badgeColor}20`, color: badgeColor, border: `1px solid ${badgeColor}` }}>{badgeLabel}</span>
-                        </td>
-                        <td style={{ padding: '16px 24px' }}>
-                          {isPending ? (
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <button disabled={promoLoading} onClick={() => handlePromoDecision(pr.id, 'approved_by_ceo')} style={{ padding: '6px 14px', background: THEME.primary, color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <Check size={13} /> Approve
-                              </button>
-                              <button disabled={promoLoading} onClick={() => handlePromoDecision(pr.id, 'rejected_by_ceo')} style={{ padding: '6px 14px', background: 'transparent', color: THEME.danger, border: `1px solid ${THEME.danger}`, borderRadius: '6px', fontWeight: 600, cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <X size={13} /> Reject
-                              </button>
-                            </div>
-                          ) : (
-                            <span style={{ color: THEME.textMuted, fontSize: '13px' }}>Decision recorded</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
-        )}
 
         {/* DRAWER COMPONENT */}
         <ApprovalDetailDrawer 
