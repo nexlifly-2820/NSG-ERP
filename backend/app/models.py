@@ -621,6 +621,7 @@ class Project(Base):
     used = Column(Float, default=0.0)
     status = Column(String, default="Active")  # Active, At Risk, Completed, On Hold
     deadline = Column(String, nullable=True)  # stored as string e.g. "Dec 31, 2025"
+    checklist = Column(Text, nullable=True)   # JSON-serialized array of checklist items
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

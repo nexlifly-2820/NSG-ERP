@@ -101,6 +101,7 @@ class ProjectCreate(BaseModel):
     used: Optional[float] = 0.0
     status: Optional[str] = "Active"
     deadline: str
+    checklist: Optional[str] = None
 
 class ProjectUpdate(BaseModel):
     name: Optional[str] = None
@@ -109,6 +110,7 @@ class ProjectUpdate(BaseModel):
     used: Optional[float] = None
     status: Optional[str] = None
     deadline: Optional[str] = None
+    checklist: Optional[str] = None
 
 class VendorCreate(BaseModel):
     vendor_id: str
@@ -154,6 +156,7 @@ class ProjectResponse(BaseModel):
     used: float
     status: str
     deadline: Optional[str]
+    checklist: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -525,7 +528,8 @@ def create_project(req: ProjectCreate, current_user: models.User = Depends(secur
         budget=req.budget,
         used=req.used,
         status=req.status,
-        deadline=req.deadline
+        deadline=req.deadline,
+        checklist=req.checklist
     )
     db.add(proj)
     db.commit()
@@ -545,6 +549,7 @@ def update_project(project_id: int, req: ProjectUpdate, current_user: models.Use
     if req.used is not None: proj.used = req.used
     if req.status is not None: proj.status = req.status
     if req.deadline is not None: proj.deadline = req.deadline
+    if req.checklist is not None: proj.checklist = req.checklist
         
     db.commit()
     db.refresh(proj)
