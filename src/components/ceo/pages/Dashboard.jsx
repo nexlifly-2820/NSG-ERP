@@ -375,8 +375,18 @@ export default function Dashboard() {
 
         {/* ZONE: PENDING APPROVALS */}
         <div className="ceo-command-panel" style={{ gridArea: 'appr', display: 'flex', flexDirection: 'column' }}>
-          <div className="ceo-command-header" style={{ padding: '16px 24px' }}>
-            <div className="ceo-typography-card-title">Pending Approvals ({approvalsList.length})</div>
+          <div className="ceo-command-header" style={{ padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div className="ceo-typography-card-title">Pending Approvals ({approvalsList.length})</div>
+              <button 
+                style={{ padding: '4px 10px', fontSize: '12px', background: 'transparent', border: '1px solid var(--ceo-border)', borderRadius: '6px', cursor: 'pointer', color: 'var(--ceo-primary)', fontWeight: 600, transition: 'all 0.2s' }} 
+                onMouseOver={(e) => e.target.style.background = 'var(--ceo-hover)'}
+                onMouseOut={(e) => e.target.style.background = 'transparent'}
+                onClick={() => window.location.hash = '#/CEO/approvals'}
+              >
+                View All
+              </button>
+            </div>
             {selectedApprovals.size > 0 && (
               <button className="ceo-btn ceo-btn-primary" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={handleBulkApprove}>
                 Bulk Approve ({selectedApprovals.size})
@@ -433,8 +443,18 @@ export default function Dashboard() {
 
         {/* ZONE: ESCALATION PANEL */}
         <div className="ceo-command-panel" style={{ gridArea: 'esc', display: 'flex', flexDirection: 'column' }}>
-          <div className="ceo-command-header" style={{ padding: '16px 24px' }}>
-            <div className="ceo-typography-card-title">Executive Escalations</div>
+          <div className="ceo-command-header" style={{ padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div className="ceo-typography-card-title">Executive Escalations</div>
+              <button 
+                style={{ padding: '4px 10px', fontSize: '12px', background: 'transparent', border: '1px solid var(--ceo-border)', borderRadius: '6px', cursor: 'pointer', color: 'var(--ceo-primary)', fontWeight: 600, transition: 'all 0.2s' }} 
+                onMouseOver={(e) => e.target.style.background = 'var(--ceo-hover)'}
+                onMouseOut={(e) => e.target.style.background = 'transparent'}
+                onClick={() => window.location.hash = '#/CEO/projects'}
+              >
+                View All
+              </button>
+            </div>
           </div>
           <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
             {escalationsList.length === 0 ? (

@@ -750,6 +750,7 @@ class ProjectResponse(BaseModel):
     used: float
     status: str
     deadline: Optional[str] = None
+    checklist: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -762,6 +763,7 @@ class ProjectCreateRequest(BaseModel):
     used: float = 0.0
     status: str = "Active"
     deadline: Optional[str] = None
+    checklist: Optional[str] = None
 
 
 class ProjectUpdateRequest(BaseModel):
@@ -771,6 +773,7 @@ class ProjectUpdateRequest(BaseModel):
     used: Optional[float] = None
     status: Optional[str] = None
     deadline: Optional[str] = None
+    checklist: Optional[str] = None
 
 
 @router.get("/projects", response_model=List[ProjectResponse])
@@ -788,7 +791,8 @@ def create_project(req: ProjectCreateRequest, current_user: models.User = Depend
         budget=req.budget,
         used=req.used,
         status=req.status,
-        deadline=req.deadline
+        deadline=req.deadline,
+        checklist=req.checklist
     )
     db.add(project)
     db.commit()
@@ -814,6 +818,8 @@ def update_project(id: int, req: ProjectUpdateRequest, current_user: models.User
         project.status = req.status
     if req.deadline is not None:
         project.deadline = req.deadline
+    if req.checklist is not None:
+        project.checklist = req.checklist
     db.commit()
     db.refresh(project)
     return project

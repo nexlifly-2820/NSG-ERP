@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader, CheckCircle, Search, AlertCircle, FileText, IndianRupee, History, DollarSign } from 'lucide-react';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { generatePayslipPDF } from '../../../../utils/pdfGenerator';
 import './CeoPayroll.css';
 
 export default function CeoPayroll() {
@@ -19,6 +19,12 @@ export default function CeoPayroll() {
   const [paymentMethod, setPaymentMethod] = useState('Bank Transfer');
   const [transactionRef, setTransactionRef] = useState('');
   
+  // PDF Fields State
+  const [workedDays, setWorkedDays] = useState('');
+  const [arrearDays, setArrearDays] = useState('');
+  const [lopDays, setLopDays] = useState('');
+  const [lopDaysReversed, setLopDaysReversed] = useState('');
+  
   // Notification State
   const [notification, setNotification] = useState(null);
 
@@ -32,7 +38,7 @@ export default function CeoPayroll() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const fetchPending = async () => {
+  async function fetchPending() {
     setLoading(true);
     try {
       const token = localStorage.getItem('nsg_jwt_token');
@@ -49,9 +55,9 @@ export default function CeoPayroll() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const fetchHistory = async () => {
+  async function fetchHistory() {
     setLoading(true);
     try {
       const token = localStorage.getItem('nsg_jwt_token');
@@ -68,7 +74,7 @@ export default function CeoPayroll() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   // Handle inline edit
   const handleEdit = (userId, field, value) => {
@@ -90,6 +96,10 @@ export default function CeoPayroll() {
     setSelectedUser(user);
     setTransactionRef('');
     setPaymentMethod('Bank Transfer');
+    setWorkedDays('');
+    setArrearDays('');
+    setLopDays('');
+    setLopDaysReversed('');
     setShowModal(true);
   };
 
@@ -119,7 +129,11 @@ export default function CeoPayroll() {
           tds: selectedUser.tds,
           lop: selectedUser.lop,
           payment_method: paymentMethod,
-          transaction_ref: transactionRef
+          transaction_ref: transactionRef,
+          worked_days: parseFloat(workedDays) || null,
+          arrear_days: parseFloat(arrearDays) || 0,
+          lop_days: parseFloat(lopDays) || 0,
+          lop_days_reversed: parseFloat(lopDaysReversed) || 0
         })
       });
 
@@ -163,7 +177,11 @@ export default function CeoPayroll() {
             tds: user.tds,
             lop: user.lop,
             payment_method: 'Bank Transfer',
-            transaction_ref: 'BULK-PROCESS-' + new Date().getTime()
+            transaction_ref: 'BULK-PROCESS-' + new Date().getTime(),
+            worked_days: null,
+            arrear_days: 0,
+            lop_days: 0,
+            lop_days_reversed: 0
           })
         });
         if (res.ok) successCount++;
@@ -178,39 +196,14 @@ export default function CeoPayroll() {
     }
   };
 
-  const downloadPDF = (record) => {
-    const doc = new jsPDF();
-    
-    // Header
-    doc.setFontSize(20);
-    doc.text('NSG ERP Systems', 105, 20, null, null, 'center');
-    doc.setFontSize(12);
-    doc.text('Payslip', 105, 28, null, null, 'center');
-    
-    // Employee Details
-    doc.setFontSize(10);
-    doc.text(`Employee Name: ${record.employee_name}`, 14, 40);
-    doc.text(`Month/Year: ${record.month}/${record.year}`, 14, 46);
-    doc.text(`Transaction Ref: ${record.transaction_ref || 'N/A'}`, 14, 52);
-    doc.text(`Payment Method: ${record.payment_method}`, 14, 58);
-    
-    // Earnings & Deductions
-    doc.autoTable({
-      startY: 65,
-      head: [['Description', 'Amount (INR)']],
-      body: [
-        ['Net Salary Paid', `Rs. ${Math.round(record.net).toLocaleString()}`]
-      ],
-      theme: 'grid',
-      headStyles: { fillColor: [59, 130, 246] }
-    });
-    
-    // Footer
-    doc.setFontSize(10);
-    doc.text('This is a computer generated payslip and does not require a signature.', 105, 100, null, null, 'center');
-    
-    doc.save(`Payslip_${record.employee_name}_${record.month}_${record.year}.pdf`);
-    showNotification(`Downloaded PDF for ${record.employee_name}`, 'success');
+  const downloadPDF = async (record) => {
+    try {
+      await generatePayslipPDF(record);
+      showNotification(`Downloaded PDF for ${record.employee_name}`, 'success');
+    } catch(err) {
+      console.error("PDF ERROR:", err);
+      showNotification(`Failed to generate PDF: ${err.message}`, 'error');
+    }
   };
 
   return (
@@ -291,7 +284,7 @@ export default function CeoPayroll() {
                         <input 
                           type="number" 
                           className="edit-input bonus" 
-                          value={r.bonus}
+                          value={r.bonus === 0 ? '' : r.bonus}
                           onChange={(e) => handleEdit(r.employee_id, 'bonus', e.target.value)}
                         />
                       </td>
@@ -299,7 +292,7 @@ export default function CeoPayroll() {
                         <input 
                           type="number" 
                           className="edit-input lop" 
-                          value={r.lop}
+                          value={r.lop === 0 ? '' : r.lop}
                           onChange={(e) => handleEdit(r.employee_id, 'lop', e.target.value)}
                         />
                       </td>
@@ -390,6 +383,45 @@ export default function CeoPayroll() {
                   value={transactionRef}
                   onChange={e => setTransactionRef(e.target.value)}
                 />
+              </div>
+
+              <hr style={{ margin: '15px 0', border: '1px solid #eee' }} />
+              <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#555' }}>Payslip Details (For PDF)</h4>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div className="form-group">
+                  <label>Worked Days</label>
+                  <input 
+                    type="number" 
+                    placeholder="e.g. 22" 
+                    value={workedDays}
+                    onChange={e => setWorkedDays(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Arrear Days</label>
+                  <input 
+                    type="number" 
+                    value={arrearDays}
+                    onChange={e => setArrearDays(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>LOP Days</label>
+                  <input 
+                    type="number" 
+                    value={lopDays}
+                    onChange={e => setLopDays(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>LOP Days Reversed</label>
+                  <input 
+                    type="number" 
+                    value={lopDaysReversed}
+                    onChange={e => setLopDaysReversed(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
             <div className="ceo-modal-footer">
