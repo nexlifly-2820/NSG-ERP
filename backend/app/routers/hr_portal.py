@@ -1263,7 +1263,7 @@ def approve_leave_hr(id: int, current_user: models.User = Depends(security.get_c
     if not req:
         raise HTTPException(status_code=404, detail="Leave request not found.")
         
-    req.status = "hr_approved"
+    req.status = "approved"
     req.hr_approved_at = datetime.now()
     
     bal = db.query(models.LeaveBalance).filter(
@@ -1292,7 +1292,7 @@ def reject_leave_hr(id: int, current_user: models.User = Depends(security.get_cu
     if not req:
         raise HTTPException(status_code=404, detail="Leave request not found.")
         
-    req.status = "denied"
+    req.status = "rejected"
     
     db_notify = models.Notification(
         user_id=req.user_id,

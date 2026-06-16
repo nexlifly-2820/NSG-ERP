@@ -80,6 +80,7 @@ def check_rbac_permission(db: Session, user: models.User, action: str):
         "hr": "HR Manager",
         "finance": "Finance Manager",
         "manager": "Team Lead",
+        "tl": "Team Lead",
         "employee": "Employee"
     }
     ui_role = role_map.get(user.role, "Employee")

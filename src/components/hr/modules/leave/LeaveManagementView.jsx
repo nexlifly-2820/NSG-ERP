@@ -157,11 +157,11 @@ export function LeaveManagementView() {
     } catch(e) { console.error(e); alert('Error'); }
   };
 
-  const pendingRequests = leaveRequests.filter(r => r.status === 'tl_approved' || r.status === 'pending');
+  const pendingRequests = leaveRequests.filter(r => r.status === 'pending');
   const displayedRequests = leaveRequests.filter(r => {
-    if (requestFilter === 'pending') return r.status === 'tl_approved' || r.status === 'pending';
-    if (requestFilter === 'approved') return r.status === 'hr_approved';
-    if (requestFilter === 'denied') return r.status === 'denied';
+    if (requestFilter === 'pending') return r.status === 'pending';
+    if (requestFilter === 'approved') return r.status === 'approved';
+    if (requestFilter === 'denied') return r.status === 'rejected';
     return true; // 'all'
   });
 
@@ -640,19 +640,16 @@ export function LeaveManagementView() {
                           borderRadius: '12px', 
                           fontWeight: 'bold', 
                           backgroundColor: 
-                            r.status === 'hr_approved' ? 'rgba(16,185,129,0.1)' : 
-                            r.status === 'tl_approved' ? 'rgba(16,185,129,0.1)' : 
-                            r.status === 'denied' ? 'rgba(239,68,68,0.1)' : 
+                            r.status === 'approved' ? 'rgba(16,185,129,0.1)' : 
+                            r.status === 'rejected' ? 'rgba(239,68,68,0.1)' : 
                             'rgba(245,158,11,0.1)', 
                           color: 
-                            r.status === 'hr_approved' ? 'var(--accent-green)' : 
-                            r.status === 'tl_approved' ? 'var(--accent-green)' : 
-                            r.status === 'denied' ? '#ef4444' : 
+                            r.status === 'approved' ? 'var(--accent-green)' : 
+                            r.status === 'rejected' ? '#ef4444' : 
                             'var(--accent-gold)' 
                         }}>
-                          {r.status === 'hr_approved' ? '✅ HR Approved' : 
-                           r.status === 'tl_approved' ? '✓ TL Approved' : 
-                           r.status === 'denied' ? '❌ Denied' : '⏳ Pending'}
+                          {r.status === 'approved' ? '✅ Approved' : 
+                           r.status === 'rejected' ? '❌ Rejected' : '⏳ Pending'}
                         </span>
                       </div>
                     </div>
@@ -711,12 +708,12 @@ export function LeaveManagementView() {
                               style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '4px' }}
                               title="Void/Delete Request"
                             >
-                              🗑️ {r.status === 'hr_approved' ? 'Void' : 'Delete'}
+                              🗑️ {r.status === 'approved' ? 'Void' : 'Delete'}
                             </button>
                           </div>
 
-                          {/* Right-side action: Approve/Deny (only for pending/tl_approved) */}
-                          {(r.status === 'pending' || r.status === 'tl_approved') && (
+                          {/* Right-side action: Approve/Deny (only for pending) */}
+                          {(r.status === 'pending') && (
                             <div style={{ display: 'flex', gap: '8px' }}>
                               <button 
                                 className="print-btn"

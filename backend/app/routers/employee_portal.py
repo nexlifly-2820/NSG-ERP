@@ -293,8 +293,11 @@ class LeaveRequestResponse(BaseModel):
 def get_my_leave_balances(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     bal = db.query(models.LeaveBalance).filter(models.LeaveBalance.user_id == current_user.id).first()
     if not bal:
-        # Return 0 balances instead of mocking, as HR should provision this.
-        return models.LeaveBalance(id=0, user_id=current_user.id, CL=0.0, SL=0.0, EL=0.0, Maternity=0.0, Paternity=0.0, year=date.today().year)
+        # Initialize default balances for the user
+        bal = models.LeaveBalance(user_id=current_user.id, CL=12.0, SL=8.0, EL=15.0, Maternity=26.0, Paternity=5.0, year=date.today().year)
+        db.add(bal)
+        db.commit()
+        db.refresh(bal)
     return bal
 
 @router.get("/leave/my-requests", response_model=PaginatedResponse[LeaveRequestResponse])
@@ -309,7 +312,7 @@ def request_leave(req: LeaveRequestCreate, current_user: models.User = Depends(s
     # Check for overlapping leave requests
     overlap = db.query(models.LeaveRequest).filter(
         models.LeaveRequest.user_id == current_user.id,
-        models.LeaveRequest.status.in_(["pending", "tl_approved", "hr_approved"]),
+        models.LeaveRequest.status.in_(["pending", "approved"]),
         models.LeaveRequest.from_date <= req.to_date,
         models.LeaveRequest.to_date >= req.from_date
     ).first()
@@ -330,9 +333,9 @@ def request_leave(req: LeaveRequestCreate, current_user: models.User = Depends(s
     # Create System Notification for the employee
     notif = models.Notification(
         user_id=current_user.id,
-        title="Leave Request Submitted",
         message=f"Your {req.leave_type} request for {req.days} days ({req.from_date} to {req.to_date}) has been successfully submitted and is pending approval.",
-        type="leave"
+        type="info",
+        read=False
     )
     db.add(notif)
     
@@ -346,22 +349,11 @@ def cancel_leave(id: int, current_user: models.User = Depends(security.get_curre
     if not req:
         raise HTTPException(status_code=404, detail="Leave request not found.")
     
-    if req.status not in ["pending", "tl_approved", "hr_approved"]:
-        raise HTTPException(status_code=400, detail="Cannot cancel a leave request in its current state.")
+    if req.status != "pending":
+        raise HTTPException(status_code=400, detail="Only pending leave requests can be cancelled.")
         
-    was_hr_approved = (req.status == "hr_approved")
     req.status = "cancelled"
     
-    # Revert leave balance if it was already HR approved
-    if was_hr_approved:
-        bal = db.query(models.LeaveBalance).filter(models.LeaveBalance.user_id == current_user.id).first()
-        if bal:
-            if req.leave_type == "CL": bal.CL += req.days
-            elif req.leave_type == "SL": bal.SL += req.days
-            elif req.leave_type == "EL": bal.EL += req.days
-            elif req.leave_type == "Maternity": bal.Maternity += req.days
-            elif req.leave_type == "Paternity": bal.Paternity += req.days
-            
     db.commit()
     db.refresh(req)
     return req
