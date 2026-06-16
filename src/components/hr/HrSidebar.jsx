@@ -14,7 +14,7 @@ export default function HrSidebar({ activeTab, setActiveTab }) {
     { id: 'attendance', label: 'Attendance', icon: Clock },
     { id: 'timesheets', label: 'Timesheet Exceptions', icon: FileWarning },
     { id: 'leave', label: 'Leave Management', icon: Calendar },
-    { id: 'payroll', label: 'Payroll Builder', icon: CreditCard },
+
     { id: 'appraisals', label: 'Appraisals', icon: TrendingUp },
     { id: 'exits', label: 'Exits & FnF', icon: LogOut },
     { id: 'reports', label: 'Reports Engine', icon: BarChart3 },

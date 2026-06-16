@@ -879,7 +879,6 @@ def approve_leave_ceo(id: int, current_user: models.User = Depends(security.get_
         elif req.leave_type == "SL": bal.SL -= req.days
         elif req.leave_type == "EL": bal.EL -= req.days
         elif req.leave_type == "Maternity": bal.Maternity -= req.days
-        elif req.leave_type == "Paternity": bal.Paternity -= req.days
         
     db_notify = models.Notification(
         user_id=req.user_id,

@@ -5,8 +5,8 @@ const faqQuestions = [
   {
     id: 1,
     category: 'Leave',
-    q: 'How is maternity/paternity leave calculated?',
-    a: 'Maternity leave offers 26 weeks of paid time off, and paternity leave offers 2 weeks, both requiring 8 weeks prior manager notice.'
+    q: 'How is maternity leave calculated?',
+    a: 'Maternity leave offers 26 weeks of paid time off, requiring 8 weeks prior manager notice.'
   },
   {
     id: 2,

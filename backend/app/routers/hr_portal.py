@@ -199,7 +199,6 @@ class LeaveBalanceResponse(BaseModel):
     SL: float
     EL: float
     Maternity: float
-    Paternity: float
     year: int
 
     class Config:
@@ -210,7 +209,6 @@ class LeaveBalanceAdjustment(BaseModel):
     SL: float
     EL: float
     Maternity: float
-    Paternity: float
 
 class LeaveRequestOnBehalf(BaseModel):
     employee_id: int
@@ -731,7 +729,7 @@ def create_job_offer(req: JobOfferCreate, current_user: models.User = Depends(se
 @router.get("/employees", response_model=List[EmployeeResponse])
 def get_employees(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.User).filter(models.User.role.in_(["employee", "tl"])).offset(skip).limit(limit).all()
+    return db.query(models.User).filter(models.User.role.in_(["employee", "tl", "hr"])).offset(skip).limit(limit).all()
 
 @router.get("/team-leads", response_model=List[EmployeeResponse])
 def get_team_leads(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
@@ -1171,7 +1169,6 @@ def adjust_leave_balance(id: int, req: LeaveBalanceAdjustment, current_user: mod
     bal.SL = req.SL
     bal.EL = req.EL
     bal.Maternity = req.Maternity
-    bal.Paternity = req.Paternity
     db.commit()
     db.refresh(bal)
     return bal
@@ -1652,7 +1649,6 @@ def apply_leave_on_behalf(req: LeaveRequestOnBehalf, current_user: models.User =
         elif req.leave_type == "SL": bal.SL = max(0, bal.SL - req.days)
         elif req.leave_type == "EL": bal.EL = max(0, bal.EL - req.days)
         elif req.leave_type == "Maternity": bal.Maternity = max(0, bal.Maternity - req.days)
-        elif req.leave_type == "Paternity": bal.Paternity = max(0, bal.Paternity - req.days)
         
     db.add(models.Notification(
         user_id=req.employee_id,
@@ -1675,7 +1671,6 @@ def update_leave_balance(id: int, req: LeaveBalanceAdjustment, current_user: mod
     bal.SL = req.SL
     bal.EL = req.EL
     bal.Maternity = req.Maternity
-    bal.Paternity = req.Paternity
     db.commit()
     db.refresh(bal)
     return bal
@@ -1697,19 +1692,16 @@ def edit_leave_request(id: int, req: LeaveRequestEdit, current_user: models.User
                 elif leave_req.leave_type == "SL": bal.SL += leave_req.days
                 elif leave_req.leave_type == "EL": bal.EL += leave_req.days
                 elif leave_req.leave_type == "Maternity": bal.Maternity += leave_req.days
-                elif leave_req.leave_type == "Paternity": bal.Paternity += leave_req.days
                 
                 if req.leave_type == "CL": bal.CL = max(0, bal.CL - req.days)
                 elif req.leave_type == "SL": bal.SL = max(0, bal.SL - req.days)
                 elif req.leave_type == "EL": bal.EL = max(0, bal.EL - req.days)
                 elif req.leave_type == "Maternity": bal.Maternity = max(0, bal.Maternity - req.days)
-                elif req.leave_type == "Paternity": bal.Paternity = max(0, bal.Paternity - req.days)
             else:
                 if leave_req.leave_type == "CL": bal.CL = max(0, bal.CL - days_diff)
                 elif leave_req.leave_type == "SL": bal.SL = max(0, bal.SL - days_diff)
                 elif leave_req.leave_type == "EL": bal.EL = max(0, bal.EL - days_diff)
                 elif leave_req.leave_type == "Maternity": bal.Maternity = max(0, bal.Maternity - days_diff)
-                elif leave_req.leave_type == "Paternity": bal.Paternity = max(0, bal.Paternity - days_diff)
                 
     leave_req.leave_type = req.leave_type
     leave_req.from_date = req.from_date
@@ -1735,7 +1727,6 @@ def delete_leave_request(id: int, current_user: models.User = Depends(security.g
             elif leave_req.leave_type == "SL": bal.SL += leave_req.days
             elif leave_req.leave_type == "EL": bal.EL += leave_req.days
             elif leave_req.leave_type == "Maternity": bal.Maternity += leave_req.days
-            elif leave_req.leave_type == "Paternity": bal.Paternity += leave_req.days
             
     db.delete(leave_req)
     db.commit()
@@ -1764,7 +1755,6 @@ def approve_leave_request(id: int, current_user: models.User = Depends(security.
         elif leave_req.leave_type == "SL": bal.SL = max(0, bal.SL - leave_req.days)
         elif leave_req.leave_type == "EL": bal.EL = max(0, bal.EL - leave_req.days)
         elif leave_req.leave_type == "Maternity": bal.Maternity = max(0, bal.Maternity - leave_req.days)
-        elif leave_req.leave_type == "Paternity": bal.Paternity = max(0, bal.Paternity - leave_req.days)
         
     db.add(models.Notification(
         user_id=leave_req.user_id,
@@ -1793,7 +1783,6 @@ def deny_leave_request(id: int, req: LeaveDenyRequest, current_user: models.User
             elif leave_req.leave_type == "SL": bal.SL += leave_req.days
             elif leave_req.leave_type == "EL": bal.EL += leave_req.days
             elif leave_req.leave_type == "Maternity": bal.Maternity += leave_req.days
-            elif leave_req.leave_type == "Paternity": bal.Paternity += leave_req.days
             
     db.add(models.Notification(
         user_id=leave_req.user_id,
@@ -2992,7 +2981,6 @@ def list_leave_policies(
             models.LeavePolicy(type="SL",        accrual_rule="monthly",  max_balance=15,  carryover_days=5,  is_active=True),
             models.LeavePolicy(type="EL",        accrual_rule="monthly",  max_balance=30,  carryover_days=15, is_active=True),
             models.LeavePolicy(type="Maternity", accrual_rule="onetime",  max_balance=180, carryover_days=0,  is_active=True),
-            models.LeavePolicy(type="Paternity", accrual_rule="onetime",  max_balance=15,  carryover_days=0,  is_active=True),
         ]
         db.add_all(seeds)
         db.commit()
@@ -3064,7 +3052,6 @@ def adjust_leave_balance(id: int, req: LeaveBalanceAdjustment, current_user: mod
     bal.SL = req.SL
     bal.EL = req.EL
     bal.Maternity = req.Maternity
-    bal.Paternity = req.Paternity
     db.commit()
     db.refresh(bal)
     return bal

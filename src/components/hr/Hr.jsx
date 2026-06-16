@@ -8,7 +8,7 @@ const OnboardingView = lazy(() => import('./modules/onboarding/OnboardingView').
 const AttendanceRegisterView = lazy(() => import('./modules/attendance/AttendanceRegisterView').then(m => ({ default: m.AttendanceRegisterView })));
 const TimesheetExceptionsView = lazy(() => import('./modules/timesheets/TimesheetExceptionsView').then(m => ({ default: m.TimesheetExceptionsView })));
 const LeaveManagementView = lazy(() => import('./modules/leave/LeaveManagementView').then(m => ({ default: m.LeaveManagementView })));
-const PayrollBuilderView = lazy(() => import('./modules/payroll/PayrollBuilderView').then(m => ({ default: m.PayrollBuilderView })));
+
 const AppraisalsView = lazy(() => import('./modules/appraisals/AppraisalsView').then(m => ({ default: m.AppraisalsView })));
 const ExitFnFView = lazy(() => import('./modules/exits/ExitFnFView').then(m => ({ default: m.ExitFnFView })));
 const LearningLndView = lazy(() => import('./modules/lnd/LearningLndView').then(m => ({ default: m.LearningLndView })));
@@ -42,8 +42,7 @@ export default function Hr({ activeTab, queryParams, setQueryParams, currentUser
         return <ErrorBoundary><TimesheetExceptionsView {...props} /></ErrorBoundary>;
       case 'leave':
         return <ErrorBoundary><LeaveManagementView {...props} /></ErrorBoundary>;
-      case 'payroll':
-        return <ErrorBoundary><PayrollBuilderView {...props} userRole="HR" /></ErrorBoundary>;
+
       case 'appraisals':
         return <ErrorBoundary><AppraisalsView {...props} /></ErrorBoundary>;
       case 'exits':

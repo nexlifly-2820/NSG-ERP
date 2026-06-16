@@ -182,7 +182,7 @@ function ApplyLeaveForm({ prefillType, balances, onSuccess, onRefreshData }) {
     }
   }
 
-  const LEAVE_TYPES = ['Casual Leave', 'Sick Leave', 'Earned Leave', 'Comp Off', 'Maternity/Paternity'];
+  const LEAVE_TYPES = ['Casual Leave', 'Sick Leave', 'Earned Leave', 'Comp Off', 'Maternity Leave'];
 
   return (
     <div className="lv-apply-form">
@@ -279,6 +279,11 @@ function CancelModal({ leave, onConfirm, onClose }) {
 
 // ─── LeaveHistoryTable ────────────────────────────────────────────────────────
 function LeaveHistoryTable({ history, onCancelRequest }) {
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const itemsPerPage = 6;
+  const totalPages = Math.ceil(history.length / itemsPerPage);
+  const paginatedHistory = history.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   const statusClass = { Approved: 'lv-status-approved', Pending: 'lv-status-pending', Rejected: 'lv-status-rejected', Cancelled: 'lv-status-cancelled' };
 
   return (
@@ -302,7 +307,7 @@ function LeaveHistoryTable({ history, onCancelRequest }) {
             </tr>
           </thead>
           <tbody>
-            {history.map(row => (
+            {paginatedHistory.map(row => (
               <tr key={row.id} className="lv-table-row">
                 <td className="lv-td-muted">{fmtDate(row.applied)}</td>
                 <td><span className="lv-type-pill">{row.type}</span></td>
@@ -318,9 +323,37 @@ function LeaveHistoryTable({ history, onCancelRequest }) {
                 </td>
               </tr>
             ))}
+            {paginatedHistory.length === 0 && (
+              <tr>
+                <td colSpan="8" style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>No leave history found.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
+      
+      {/* Pagination Controls */}
+      {totalPages > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', padding: '16px', borderTop: '1px solid #f1f5f9' }}>
+          <button 
+            disabled={currentPage === 1} 
+            onClick={() => setCurrentPage(currentPage - 1)} 
+            style={{ width: '32px', height: '32px', borderRadius: '6px', border: '1px solid #e2e8f0', backgroundColor: '#ffffff', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: currentPage === 1 ? '#94a3b8' : '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold' }}
+          >
+            &lt;
+          </button>
+          <span style={{ fontSize: '13px', fontWeight: '500', color: '#64748b' }}>
+            Page {currentPage} of {totalPages}
+          </span>
+          <button 
+            disabled={currentPage === totalPages} 
+            onClick={() => setCurrentPage(currentPage + 1)} 
+            style={{ width: '32px', height: '32px', borderRadius: '6px', border: '1px solid #e2e8f0', backgroundColor: '#ffffff', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', color: currentPage === totalPages ? '#94a3b8' : '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold' }}
+          >
+            &gt;
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -351,7 +384,7 @@ export default function Leave() {
       mutateReq();
   };
 
-  const dbBal = myDbBalance || { CL: 12, SL: 8, EL: 15, Maternity: 26, Paternity: 0 };
+  const dbBal = myDbBalance || { CL: 12, SL: 8, EL: 15, Maternity: 26 };
   const balances = [
     { type: 'CL',      label: 'Casual Leave',       used: myDbBalance ? 12 - (dbBal.CL || 0) : 0,  total: myDbBalance ? 12 : 0, color: 'var(--cl-color)'      },
     { type: 'SL',      label: 'Sick Leave',          used: myDbBalance ? 8 - (dbBal.SL || 0) : 0,   total: myDbBalance ? 8 : 0,  color: 'var(--sl-color)'      },

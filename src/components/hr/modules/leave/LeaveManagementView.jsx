@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export function LeaveManagementView() {
   const [employees, setEmployees] = useState([]);
@@ -24,6 +26,17 @@ export function LeaveManagementView() {
   const [isRequestOpen, setIsRequestOpen] = useState(false);
   const [denyingId, setDenyingId] = useState(null);
   const [denyComment, setDenyComment] = useState('');
+
+  // History & Tabs State
+  const [activeTab, setActiveTab] = useState('balances'); // 'balances' | 'history'
+  const today = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
+  const [selectedYear, setSelectedYear] = useState(today.getFullYear());
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
+  
+  const [balancesPage, setBalancesPage] = useState(1);
+  const balancesPerPage = 6;
 
   // CRUD States
   const [isApplyOnBehalfOpen, setIsApplyOnBehalfOpen] = useState(false);
@@ -79,8 +92,7 @@ export function LeaveManagementView() {
           CL: parseFloat(editingBalance.CL) || 0,
           SL: parseFloat(editingBalance.SL) || 0,
           EL: parseFloat(editingBalance.EL) || 0,
-          Maternity: parseFloat(editingBalance.Maternity) || 0,
-          Paternity: parseFloat(editingBalance.Paternity) || 0
+          Maternity: parseFloat(editingBalance.Maternity) || 0
         })
       });
       if(!res.ok) throw new Error("Failed");
@@ -165,6 +177,102 @@ export function LeaveManagementView() {
     return true; // 'all'
   });
 
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const years = Array.from({ length: 5 }, (_, i) => today.getFullYear() - i);
+
+  // History Filtering & Pagination
+  const filteredHistory = leaveRequests.filter(r => {
+    const from = new Date(r.from_date);
+    const to = new Date(r.to_date);
+    const filterStart = new Date(selectedYear, selectedMonth, 1);
+    const filterEnd = new Date(selectedYear, selectedMonth + 1, 0);
+    // Include if leave date range overlaps with the selected month
+    return (from <= filterEnd && to >= filterStart);
+  });
+
+  const totalHistoryPages = Math.ceil(filteredHistory.length / itemsPerPage);
+  const currentHistoryLogs = filteredHistory.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const totalBalancesPages = Math.ceil(leaveBalances.length / balancesPerPage);
+  const currentBalances = leaveBalances.slice((balancesPage - 1) * balancesPerPage, balancesPage * balancesPerPage);
+
+  const handleDownloadPDF = () => {
+    alert('Generating Leave History PDF report...');
+    
+    const doc = new jsPDF('landscape', 'pt', 'a4');
+    const monthName = new Date(selectedYear, selectedMonth).toLocaleString('default', { month: 'long' });
+    
+    const img = new Image();
+    img.src = '/hmns-logo.png';
+    
+    img.onload = () => {
+      // Premium White Header
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, doc.internal.pageSize.getWidth(), 100, 'F');
+      
+      const imgRatio = img.width / img.height;
+      const logoHeight = 45;
+      const logoWidth = logoHeight * imgRatio;
+      doc.addImage(img, 'PNG', 40, 25, logoWidth, logoHeight);
+      
+      doc.setDrawColor(226, 232, 240); // slate-200
+      doc.setLineWidth(1);
+      doc.line(40, 90, doc.internal.pageSize.getWidth() - 40, 90);
+      
+      doc.setFontSize(22);
+      doc.setTextColor(15, 23, 42); // slate-900
+      doc.setFont('helvetica', 'bold');
+      doc.text('LEAVE HISTORY REPORT', doc.internal.pageSize.getWidth() - 40, 45, { align: 'right' });
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139); // slate-500
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Period: ${monthName} ${selectedYear}`, doc.internal.pageSize.getWidth() - 40, 65, { align: 'right' });
+      doc.text(`Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, doc.internal.pageSize.getWidth() - 40, 80, { align: 'right' });
+
+      const tableHeaders = ['Employee Name', 'Leave Type', 'Duration', 'Days', 'Reason', 'Status'];
+      const tableBody = filteredHistory.map(log => {
+        const emp = employees.find(e => String(e.id) === String(log.user_id)) || { name: 'Unknown' };
+        const durationStr = `${new Date(log.from_date).toLocaleDateString('en-GB')} - ${new Date(log.to_date).toLocaleDateString('en-GB')}`;
+        const statusStr = log.status === 'approved' ? 'Approved' : log.status === 'rejected' ? 'Rejected' : 'Pending';
+        return [emp.name, log.leave_type, durationStr, log.days, log.reason, statusStr];
+      });
+
+      autoTable(doc, {
+        startY: 110,
+        head: [tableHeaders],
+        body: tableBody,
+        theme: 'plain',
+        styles: { font: 'helvetica', cellPadding: { top: 8, bottom: 8, left: 6, right: 6 }, lineColor: [226, 232, 240], lineWidth: { bottom: 0.5 }, minCellHeight: 25 },
+        headStyles: { fillColor: [248, 250, 252], textColor: [15, 23, 42], fontSize: 9, fontStyle: 'bold', halign: 'left', valign: 'middle', lineWidth: { top: 0.5, bottom: 0.5 }, lineColor: [203, 213, 225] },
+        bodyStyles: { fontSize: 9, halign: 'left', valign: 'middle', textColor: [71, 85, 105] },
+        columnStyles: { 0: { fontStyle: 'bold', textColor: [15, 23, 42] } },
+        didParseCell: function (data) {
+          if (data.section === 'body') {
+            const val = data.cell.raw;
+            if (val === 'Approved') { data.cell.styles.textColor = [22, 163, 74]; data.cell.styles.fontStyle = 'bold'; }
+            else if (val === 'Rejected') { data.cell.styles.textColor = [220, 38, 38]; data.cell.styles.fontStyle = 'bold'; }
+            else if (val === 'Pending') { data.cell.styles.textColor = [217, 119, 6]; data.cell.styles.fontStyle = 'bold'; }
+          }
+        },
+        margin: { top: 110, left: 40, right: 40 }
+      });
+
+      const finalY = doc.lastAutoTable?.finalY || 110;
+      doc.setFontSize(9);
+      doc.setTextColor(148, 163, 184);
+      doc.setFont('helvetica', 'normal');
+      
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.getWidth() - 40, doc.internal.pageSize.getHeight() - 20, { align: 'right' });
+      }
+
+      doc.save(`Leave_History_${monthName}_${selectedYear}.pdf`);
+    };
+  };
+
   return (
     <div className="component-container">
       <div className="component-header">
@@ -173,6 +281,43 @@ export function LeaveManagementView() {
           <p>Oversee company leave accruals policies, check team calendar overlapping alerts, and approve leaves.</p>
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          {activeTab === 'history' && (
+            <button 
+              onClick={handleDownloadPDF}
+              style={{
+                backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '8px',
+                fontWeight: '600', padding: '12px 24px', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+              }}
+            >
+              📥 Download PDF
+            </button>
+          )}
+
+          <div style={{ display: 'flex', backgroundColor: 'var(--bg-secondary)', borderRadius: '12px', padding: '4px', border: '1px solid var(--border-color)' }}>
+            <button 
+              onClick={() => setActiveTab('balances')}
+              style={{
+                backgroundColor: activeTab === 'balances' ? 'var(--bg-primary)' : 'transparent',
+                color: activeTab === 'balances' ? 'var(--text-primary)' : 'var(--text-muted)',
+                border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '13px',
+                boxShadow: activeTab === 'balances' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
+              }}
+            >
+              Balances
+            </button>
+            <button 
+              onClick={() => { setActiveTab('history'); setCurrentPage(1); }}
+              style={{
+                backgroundColor: activeTab === 'history' ? 'var(--bg-primary)' : 'transparent',
+                color: activeTab === 'history' ? 'var(--text-primary)' : 'var(--text-muted)',
+                border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '13px',
+                boxShadow: activeTab === 'history' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
+              }}
+            >
+              Leave History
+            </button>
+          </div>
+
           <button 
             className="print-btn" 
             onClick={() => setIsApplyOnBehalfOpen(true)}
@@ -233,55 +378,156 @@ export function LeaveManagementView() {
 
       <div style={{ width: '100%' }}>
         {/* Balances grid */}
-        <div className="table-container" style={{ margin: 0, overflowX: 'auto', width: '100%' }}>
-          <div className="pipeline-title" style={{ padding: '16px 40px 0 40px' }}>Staff Active Leave Balances</div>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th style={{ padding: '16px 40px', textAlign: 'left' }}>Employee Name</th>
-                <th style={{ padding: '16px 40px', textAlign: 'left' }}>CL Balance</th>
-                <th style={{ padding: '16px 40px', textAlign: 'left' }}>SL Balance</th>
-                <th style={{ padding: '16px 40px', textAlign: 'left' }}>EL Balance</th>
-                <th style={{ padding: '16px 40px', textAlign: 'left' }}>Maternity</th>
-                <th style={{ padding: '16px 40px', textAlign: 'left' }}>Paternity</th>
-                <th style={{ padding: '16px 40px', textAlign: 'left' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {leaveBalances.map(b => {
-                const emp = employees.find(e => e.id === b.user_id) || { name: 'Unknown' };
-                return (
-                  <tr key={b.id}>
-                    <td style={{ padding: '16px 40px' }}><strong>{emp.name}</strong></td>
-                    <td style={{ padding: '16px 40px' }}>{b.CL}</td>
-                    <td style={{ padding: '16px 40px' }}>{b.SL}</td>
-                    <td style={{ padding: '16px 40px' }}>{b.EL}</td>
-                    <td style={{ padding: '16px 40px' }}>{b.Maternity}</td>
-                    <td style={{ padding: '16px 40px' }}>{b.Paternity}</td>
-                    <td style={{ padding: '16px 40px' }}>
-                      <button
-                        onClick={() => setEditingBalance({ ...b })}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--accent-pink)',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          fontSize: '12px',
-                          fontWeight: '600'
-                        }}
-                      >
-                        ✏️ Edit Balances
-                      </button>
-                    </td>
+        {activeTab === 'balances' ? (
+          <div className="table-container" style={{ margin: 0, overflowX: 'auto', width: '100%', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '12px' }}>
+            <div className="pipeline-title" style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-color)' }}>Staff Active Leave Balances</div>
+            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={{ padding: '16px 24px', textAlign: 'left', backgroundColor: 'var(--bg-primary)', color: '#64748b', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)' }}>Employee Name</th>
+                  <th style={{ padding: '16px 24px', textAlign: 'left', backgroundColor: 'var(--bg-primary)', color: '#64748b', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)' }}>CL Balance</th>
+                  <th style={{ padding: '16px 24px', textAlign: 'left', backgroundColor: 'var(--bg-primary)', color: '#64748b', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)' }}>SL Balance</th>
+                  <th style={{ padding: '16px 24px', textAlign: 'left', backgroundColor: 'var(--bg-primary)', color: '#64748b', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)' }}>EL Balance</th>
+                  <th style={{ padding: '16px 24px', textAlign: 'left', backgroundColor: 'var(--bg-primary)', color: '#64748b', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)' }}>Maternity</th>
+                                    <th style={{ padding: '16px 24px', textAlign: 'left', backgroundColor: 'var(--bg-primary)', color: '#64748b', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentBalances.map((b, idx) => {
+                  const emp = employees.find(e => e.id === b.user_id) || { name: 'Unknown' };
+                  return (
+                    <tr key={b.id} style={{ transition: 'background-color 0.2s', backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f8fafc' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = idx % 2 === 0 ? '#ffffff' : '#f8fafc'}>
+                      <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=random`} alt={emp.name} style={{ width: '36px', height: '36px', borderRadius: '50%', border: '2px solid #fff', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', objectFit: 'cover' }} />
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontWeight: '600', fontSize: '14px', color: '#1e293b' }}>{emp.name}</span>
+                            <span style={{ fontSize: '11px', color: '#94a3b8' }}>{emp.emp_id || 'NSG-EMP'}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9', color: '#475569', fontSize: '14px', fontWeight: '500' }}>{b.CL}</td>
+                      <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9', color: '#475569', fontSize: '14px', fontWeight: '500' }}>{b.SL}</td>
+                      <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9', color: '#475569', fontSize: '14px', fontWeight: '500' }}>{b.EL}</td>
+                      <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9', color: '#475569', fontSize: '14px', fontWeight: '500' }}>{b.Maternity}</td>
+                          <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9' }}>
+                        <button
+                          onClick={() => setEditingBalance({ ...b })}
+                          style={{
+                            background: '#f8fafc', border: '1px solid #e2e8f0', color: 'var(--accent-pink)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '600', transition: 'all 0.2s'
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--accent-pink)'; e.currentTarget.style.color = '#fff'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.color = 'var(--accent-pink)'; }}
+                        >
+                          ✏️ Edit
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            
+            {/* Pagination Controls for Balances */}
+            {totalBalancesPages > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', padding: '16px', borderTop: '1px solid var(--border-color)', backgroundColor: '#f8fafc' }}>
+                <button disabled={balancesPage === 1} onClick={() => setBalancesPage(balancesPage - 1)} style={{ padding: '8px', borderRadius: '50%', border: '1px solid #e2e8f0', backgroundColor: '#ffffff', cursor: balancesPage === 1 ? 'not-allowed' : 'pointer', color: balancesPage === 1 ? '#94a3b8' : '#0f172a', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                  <ChevronLeft size={18} />
+                </button>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: '#475569' }}>Page {balancesPage} of {totalBalancesPages}</span>
+                <button disabled={balancesPage === totalBalancesPages} onClick={() => setBalancesPage(balancesPage + 1)} style={{ padding: '8px', borderRadius: '50%', border: '1px solid #e2e8f0', backgroundColor: '#ffffff', cursor: balancesPage === totalBalancesPages ? 'not-allowed' : 'pointer', color: balancesPage === totalBalancesPages ? '#94a3b8' : '#0f172a', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="table-container" style={{ margin: 0, overflowX: 'auto', width: '100%', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ffffff', borderTopLeftRadius: '12px', borderTopRightRadius: '12px' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>{new Date(selectedYear, selectedMonth).toLocaleString('default', { month: 'long', year: 'numeric' })} Leave History</h3>
+              <div style={{ display: 'flex', gap: '16px', fontSize: '12px' }}>
+                <select value={selectedMonth} onChange={(e) => { setSelectedMonth(Number(e.target.value)); setCurrentPage(1); }} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', cursor: 'pointer', outline: 'none' }}>
+                  {months.map((m, i) => <option key={m} value={i}>{m}</option>)}
+                </select>
+                <select value={selectedYear} onChange={(e) => { setSelectedYear(Number(e.target.value)); setCurrentPage(1); }} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', cursor: 'pointer', outline: 'none' }}>
+                  {years.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                  <th style={{ padding: '16px 24px', textAlign: 'left', color: '#64748b', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Employee Name</th>
+                  <th style={{ padding: '16px 24px', textAlign: 'left', color: '#64748b', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Leave Type</th>
+                  <th style={{ padding: '16px 24px', textAlign: 'left', color: '#64748b', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Duration</th>
+                  <th style={{ padding: '16px 24px', textAlign: 'left', color: '#64748b', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Days</th>
+                  <th style={{ padding: '16px 24px', textAlign: 'left', color: '#64748b', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reason</th>
+                  <th style={{ padding: '16px 24px', textAlign: 'left', color: '#64748b', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentHistoryLogs.length > 0 ? currentHistoryLogs.map((log, idx) => {
+                  const emp = employees.find(e => String(e.id) === String(log.user_id)) || { name: 'Unknown' };
+                  return (
+                    <tr key={log.id} style={{ transition: 'all 0.2s', backgroundColor: '#ffffff', borderBottom: '1px solid #f1f5f9' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.05)'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#ffffff'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
+                      <td style={{ padding: '20px 24px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                          <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=random`} alt={emp.name} style={{ width: '40px', height: '40px', borderRadius: '50%', border: '2px solid #fff', boxShadow: '0 2px 4px rgba(0,0,0,0.08)', objectFit: 'cover' }} />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <span style={{ fontWeight: '700', fontSize: '14px', color: '#0f172a' }}>{emp.name}</span>
+                            <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>{emp.emp_id || 'NSG-EMP'}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: '20px 24px' }}>
+                        <span style={{ padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #e2e8f0', letterSpacing: '0.02em', display: 'inline-block' }}>
+                          {log.leave_type}
+                        </span>
+                      </td>
+                      <td style={{ padding: '20px 24px', color: '#334155', fontSize: '13px', fontWeight: '500', lineHeight: '1.5' }}>
+                        <div><span style={{color: '#94a3b8', fontSize: '11px', textTransform: 'uppercase', fontWeight: '600'}}>From</span><br/>{new Date(log.from_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                        <div style={{marginTop: '4px'}}><span style={{color: '#94a3b8', fontSize: '11px', textTransform: 'uppercase', fontWeight: '600'}}>To</span><br/>{new Date(log.to_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                      </td>
+                      <td style={{ padding: '20px 24px' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', color: '#0f172a', fontSize: '13px', fontWeight: '700' }}>
+                           {log.days}
+                        </div>
+                      </td>
+                      <td style={{ padding: '20px 24px', color: '#475569', fontSize: '13px', maxWidth: '220px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: '500' }} title={log.reason}>{log.reason}</td>
+                      <td style={{ padding: '20px 24px' }}>
+                        <span style={{ padding: '6px 14px', borderRadius: '999px', fontSize: '12px', fontWeight: '700', letterSpacing: '0.03em', display: 'inline-flex', alignItems: 'center', gap: '6px',
+                           backgroundColor: log.status === 'approved' ? '#ecfdf5' : log.status === 'rejected' ? '#fef2f2' : '#fffbeb', 
+                           color: log.status === 'approved' ? '#059669' : log.status === 'rejected' ? '#dc2626' : '#d97706', 
+                           border: `1px solid ${log.status === 'approved' ? '#a7f3d0' : log.status === 'rejected' ? '#fecaca' : '#fde68a'}` }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: log.status === 'approved' ? '#10b981' : log.status === 'rejected' ? '#ef4444' : '#f59e0b' }}></span>
+                          {log.status === 'approved' ? 'Approved' : log.status === 'rejected' ? 'Rejected' : 'Pending'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                }) : (
+                  <tr>
+                    <td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>No leave requests found for this month.</td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                )}
+              </tbody>
+            </table>
+
+            {/* Pagination Controls */}
+            {totalHistoryPages > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', padding: '16px', borderTop: '1px solid var(--border-color)', backgroundColor: '#f8fafc' }}>
+                <button disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)} style={{ padding: '8px', borderRadius: '50%', border: '1px solid #e2e8f0', backgroundColor: '#ffffff', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', color: currentPage === 1 ? '#94a3b8' : '#0f172a', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                  <ChevronLeft size={18} />
+                </button>
+                <span style={{ fontSize: '13px', fontWeight: '600', color: '#475569' }}>Page {currentPage} of {totalHistoryPages}</span>
+                <button disabled={currentPage === totalHistoryPages} onClick={() => setCurrentPage(currentPage + 1)} style={{ padding: '8px', borderRadius: '50%', border: '1px solid #e2e8f0', backgroundColor: '#ffffff', cursor: currentPage === totalHistoryPages ? 'not-allowed' : 'pointer', color: currentPage === totalHistoryPages ? '#94a3b8' : '#0f172a', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ➕ APPLY LEAVE ON BEHALF MODAL */}
@@ -327,7 +573,6 @@ export function LeaveManagementView() {
                     <option value="SL">Sick Leave (SL)</option>
                     <option value="EL">Earned Leave (EL)</option>
                     <option value="Maternity">Maternity Leave</option>
-                    <option value="Paternity">Paternity Leave</option>
                   </select>
                 </div>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -401,87 +646,64 @@ export function LeaveManagementView() {
             <form 
               onSubmit={handleSaveBalanceAdjustment} 
               className="card" 
-              style={{ width: '420px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', padding: '24px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px', borderLeft: '4px solid var(--accent-pink)' }}
+              style={{ width: '460px', backgroundColor: '#ffffff', border: 'none', padding: '0', borderRadius: '16px', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)', overflow: 'hidden' }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-                <h3 style={{ margin: 0, border: 'none', padding: 0, color: 'var(--accent-pink)' }}>
-                  ✏️ Adjust Leave Balances
+              <div style={{ padding: '24px 24px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc' }}>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '20px' }}>✏️</span> Adjust Leave Balances
                 </h3>
-                <button type="button" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px' }} onClick={() => setEditingBalance(null)}>✕</button>
+                <button type="button" style={{ background: '#e2e8f0', border: 'none', color: '#64748b', cursor: 'pointer', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', transition: 'background 0.2s' }} onMouseEnter={(e) => e.target.style.background = '#cbd5e1'} onMouseLeave={(e) => e.target.style.background = '#e2e8f0'} onClick={() => setEditingBalance(null)}>✕</button>
               </div>
 
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                Adjusting balances for: <strong>{emp.name}</strong>
-              </div>
+              <div style={{ padding: '24px' }}>
+                <div style={{ fontSize: '14px', color: '#475569', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--accent-pink)' }}></div>
+                  Adjusting balances for: <strong style={{ color: '#0f172a' }}>{emp.name}</strong>
+                </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '10.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Casual Leave (CL)</label>
-                  <input 
-                    type="number" 
-                    step="0.5" 
-                    min="0"
-                    value={editingBalance.CL} 
-                    onChange={(e) => setEditingBalance({ ...editingBalance, CL: e.target.value })} 
-                    required 
-                    style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px 10px', borderRadius: '6px', outline: 'none' }} 
-                  />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '10.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Sick Leave (SL)</label>
-                  <input 
-                    type="number" 
-                    step="0.5" 
-                    min="0"
-                    value={editingBalance.SL} 
-                    onChange={(e) => setEditingBalance({ ...editingBalance, SL: e.target.value })} 
-                    required 
-                    style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px 10px', borderRadius: '6px', outline: 'none' }} 
-                  />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '10.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Earned Leave (EL)</label>
-                  <input 
-                    type="number" 
-                    step="0.5" 
-                    min="0"
-                    value={editingBalance.EL} 
-                    onChange={(e) => setEditingBalance({ ...editingBalance, EL: e.target.value })} 
-                    required 
-                    style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px 10px', borderRadius: '6px', outline: 'none' }} 
-                  />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '10.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Maternity</label>
-                  <input 
-                    type="number" 
-                    step="1" 
-                    min="0"
-                    value={editingBalance.Maternity} 
-                    onChange={(e) => setEditingBalance({ ...editingBalance, Maternity: e.target.value })} 
-                    required 
-                    style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px 10px', borderRadius: '6px', outline: 'none' }} 
-                  />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', gridColumn: 'span 2' }}>
-                  <label style={{ fontSize: '10.5px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Paternity</label>
-                  <input 
-                    type="number" 
-                    step="1" 
-                    min="0"
-                    value={editingBalance.Paternity} 
-                    onChange={(e) => setEditingBalance({ ...editingBalance, Paternity: e.target.value })} 
-                    required 
-                    style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px 10px', borderRadius: '6px', outline: 'none' }} 
-                  />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Casual Leave (CL)</label>
+                    <input 
+                      type="number" step="0.5" min="0" value={editingBalance.CL} 
+                      onChange={(e) => setEditingBalance({ ...editingBalance, CL: e.target.value })} required 
+                      style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', padding: '10px 14px', borderRadius: '8px', outline: 'none', fontSize: '14px', transition: 'border-color 0.2s' }} 
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Sick Leave (SL)</label>
+                    <input 
+                      type="number" step="0.5" min="0" value={editingBalance.SL} 
+                      onChange={(e) => setEditingBalance({ ...editingBalance, SL: e.target.value })} required 
+                      style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', padding: '10px 14px', borderRadius: '8px', outline: 'none', fontSize: '14px', transition: 'border-color 0.2s' }} 
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Earned Leave (EL)</label>
+                    <input 
+                      type="number" step="0.5" min="0" value={editingBalance.EL} 
+                      onChange={(e) => setEditingBalance({ ...editingBalance, EL: e.target.value })} required 
+                      style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', padding: '10px 14px', borderRadius: '8px', outline: 'none', fontSize: '14px', transition: 'border-color 0.2s' }} 
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Maternity</label>
+                    <input 
+                      type="number" step="1" min="0" value={editingBalance.Maternity} 
+                      onChange={(e) => setEditingBalance({ ...editingBalance, Maternity: e.target.value })} required 
+                      style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', padding: '10px 14px', borderRadius: '8px', outline: 'none', fontSize: '14px', transition: 'border-color 0.2s' }} 
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '14px', marginTop: '4px' }}>
-                <button type="button" style={{ background: 'none', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }} onClick={() => setEditingBalance(null)}>Cancel</button>
+              <div style={{ padding: '16px 24px', backgroundColor: '#f8fafc', borderTop: '1px solid #f1f5f9', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                <button type="button" style={{ background: '#ffffff', border: '1px solid #cbd5e1', color: '#475569', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600', transition: 'all 0.2s' }} onMouseEnter={(e) => e.target.style.backgroundColor = '#f1f5f9'} onMouseLeave={(e) => e.target.style.backgroundColor = '#ffffff'} onClick={() => setEditingBalance(null)}>Cancel</button>
                 <button 
                   type="submit"
-                  style={{ backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}
+                  style={{ backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600', boxShadow: '0 4px 6px -1px rgba(236, 72, 153, 0.2)', transition: 'all 0.2s' }}
+                  onMouseEnter={(e) => { e.target.style.transform = 'translateY(-1px)'; e.target.style.boxShadow = '0 6px 8px -1px rgba(236, 72, 153, 0.3)'; }}
+                  onMouseLeave={(e) => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 4px 6px -1px rgba(236, 72, 153, 0.2)'; }}
                 >
                   Save Corrections
                 </button>
@@ -519,7 +741,6 @@ export function LeaveManagementView() {
                     <option value="SL">SL</option>
                     <option value="EL">EL</option>
                     <option value="Maternity">Maternity</option>
-                    <option value="Paternity">Paternity</option>
                   </select>
                 </div>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>

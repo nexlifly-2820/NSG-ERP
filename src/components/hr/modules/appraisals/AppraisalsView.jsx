@@ -192,7 +192,6 @@ export function AppraisalsView() {
         <div style={{ display: 'flex', gap: '16px' }}>
           {[
             { id: 'proposals', label: 'Proposals Calibration' },
-            { id: 'cycles', label: 'Review Cycle Manager' },
             { id: 'scorecards', label: 'TL Scorecards Inbox' },
             { id: 'promotions', label: 'Promotion Flow Tracker' }
           ].map(tab => (
@@ -215,15 +214,7 @@ export function AppraisalsView() {
           ))}
         </div>
 
-        {appraisalTab === 'cycles' && (
-          <button
-            onClick={() => setIsCreateCycleOpen(true)}
-            className="print-btn"
-            style={{ backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: 'var(--shadow-sm)' }}
-          >
-            🚀 Launch Review Cycle
-          </button>
-        )}
+
         {appraisalTab === 'promotions' && (
           <button
             onClick={() => setIsProposePromoOpen(true)}
@@ -313,44 +304,7 @@ export function AppraisalsView() {
         </div>
       )}
 
-      {appraisalTab === 'cycles' && (
-        <div style={{ width: '100%' }}>
-          {/* Active cycles tree */}
-          <div className="table-container" style={{ margin: 0, overflowX: 'auto', width: '100%' }}>
-            <div className="pipeline-title" style={{ padding: '16px 40px 0 40px' }}>System Appraisal Calibration Cycles</div>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th style={{ padding: '16px 40px', textAlign: 'left' }}>Cycle Name</th>
-                  <th style={{ padding: '16px 40px', textAlign: 'left' }}>Review Period</th>
-                  <th style={{ padding: '16px 40px', textAlign: 'left' }}>Start Date</th>
-                  <th style={{ padding: '16px 40px', textAlign: 'left' }}>Self-Assessment Deadline</th>
-                  <th style={{ padding: '16px 40px', textAlign: 'left' }}>TL Approval Deadline</th>
-                  <th style={{ padding: '16px 40px', textAlign: 'left' }}>End Date</th>
-                  <th style={{ padding: '16px 40px', textAlign: 'left' }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {appraisalCycles?.map((cy, idx) => (
-                  <tr key={idx}>
-                    <td style={{ padding: '16px 40px' }}><strong>{cy.name}</strong></td>
-                    <td style={{ padding: '16px 40px' }}><span className="badge-pill bg-blue">{cy.period.toUpperCase()}</span></td>
-                    <td style={{ padding: '16px 40px' }}>{cy.start_date}</td>
-                    <td style={{ padding: '16px 40px' }}>{cy.self_deadline}</td>
-                    <td style={{ padding: '16px 40px' }}>{cy.tl_review_deadline}</td>
-                    <td style={{ padding: '16px 40px' }}>{cy.end_date}</td>
-                    <td style={{ padding: '16px 40px' }}><span className="badge-pill bg-green">{cy.status}</span></td>
-                  </tr>
-                )) || (
-                  <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '16px 40px', color: 'var(--text-muted)' }}>No cycles configured. Click "Launch Review Cycle" above to create one.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+
 
       {appraisalTab === 'scorecards' && (
         <div className="table-container" style={{ margin: 0, overflowX: 'auto', width: '100%' }}>
@@ -484,78 +438,7 @@ export function AppraisalsView() {
         </div>
       )}
 
-      {/* 🚀 LAUNCH REVIEW CYCLE MODAL OVERLAY */}
-      {isCreateCycleOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
-          <form 
-            onSubmit={handleCreateCycle} 
-            className="card" 
-            style={{ width: '460px', maxHeight: 'calc(100vh - 80px)', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', padding: '24px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px', borderLeft: '4px solid var(--accent-pink)' }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', flexShrink: 0 }}>
-              <h3 style={{ margin: 0, border: 'none', padding: 0, color: 'var(--accent-pink)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                🚀 Launch Performance Review Cycle
-              </h3>
-              <button type="button" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px' }} onClick={() => setIsCreateCycleOpen(false)}>✕</button>
-            </div>
 
-            <div className="custom-scroll" style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px', overflowY: 'auto', flex: 1, paddingRight: '4px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Cycle Name</label>
-                <input type="text" value={cycleName} onChange={(e) => setCycleName(e.target.value)} required placeholder="Q1 2026 Appraisal Calibration" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Review Period</label>
-                <select value={reviewPeriod} onChange={(e) => setReviewPeriod(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }}>
-                  <option value="annual">Annual Calibration</option>
-                  <option value="bi_annual">Bi-Annual Calibration</option>
-                  <option value="quarterly">Quarterly Review</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Start Date</label>
-                <input type="date" value={startDate} onChange={(e) => handleStartDateChange(e.target.value)} required style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Self-Assessment Deadline</label>
-                <input type="date" value={selfDeadline} onChange={(e) => setSelfDeadline(e.target.value)} required style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>TL Approval Deadline</label>
-                <input type="date" value={tlDeadline} onChange={(e) => setTlDeadline(e.target.value)} required style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>End Date</label>
-                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} required style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Status</label>
-                <select value={cycleStatus} onChange={(e) => setCycleStatus(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }}>
-                  <option value="active">active</option>
-                  <option value="paused">paused</option>
-                  <option value="completed">completed</option>
-                </select>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '14px', marginTop: '4px', flexShrink: 0 }}>
-              <button type="button" style={{ background: 'none', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }} onClick={() => setIsCreateCycleOpen(false)}>Cancel</button>
-              <button 
-                type="submit"
-                style={{ backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}
-              >
-                Launch Cycle Globally
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
     </div>
   );
 }

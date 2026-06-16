@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, UserPlus, LogOut, Briefcase } from 'lucide-react';
+import { AlertTriangle, UserPlus, LogOut, Briefcase, CheckCircle } from 'lucide-react';
+import styles from './HrDashboard.module.css';
 
 export function HrDashboardView() {
   const [metrics, setMetrics] = useState({
@@ -20,24 +21,15 @@ export function HrDashboardView() {
 
         // Fetch metrics
         const metricsRes = await fetch('/api/hr-portal/dashboard/metrics', { headers });
-        if (metricsRes.ok) {
-          const m = await metricsRes.json();
-          setMetrics(m);
-        }
+        if (metricsRes.ok) setMetrics(await metricsRes.json());
 
         // Fetch employees for probation list
         const empRes = await fetch('/api/hr-portal/dashboard/onboarding-progress', { headers });
-        if (empRes.ok) {
-          const emps = await empRes.json();
-          setProbationList(emps);
-        }
+        if (empRes.ok) setProbationList(await empRes.json());
 
         // Fetch tickets for alerts list
         const alertsRes = await fetch('/api/hr-portal/dashboard/sla-watchdog', { headers });
-        if (alertsRes.ok) {
-          const alerts = await alertsRes.json();
-          setCriticalAlerts(alerts);
-        }
+        if (alertsRes.ok) setCriticalAlerts(await alertsRes.json());
 
         // Fetch announcements
         const annRes = await fetch('/api/hr-portal/announcements', { headers });
@@ -54,7 +46,7 @@ export function HrDashboardView() {
   }, []);
 
   return (
-    <div className="component-container">
+    <div className={styles.dashboardContainer}>
       <div className="component-header">
         <div>
           <h1>HR Management Command Center</h1>
@@ -62,152 +54,165 @@ export function HrDashboardView() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 300px', gap: '24px', alignItems: 'start' }}>
-        
+      <div className={styles.mainLayoutGrid}>
         {/* Main Content Area */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-
-      {/* Metrics Row */}
-      <div className="metrics-grid">
-        <div className="metric-card" style={{ borderLeft: '4px solid var(--accent-pink)' }}>
-          <div className="card-header-flex">
-            <span className="card-title">Probation / Onboardings</span>
-            <div className="card-icon" style={{ backgroundColor: 'rgba(236, 72, 153, 0.1)', color: 'var(--accent-pink)' }}>
-              <UserPlus size={18} />
-            </div>
-          </div>
-          <span className="metric-value">{metrics.probationEmployees}</span>
-          <span className="info-txt">Active new hires in checklist</span>
-        </div>
-
-        <div className="metric-card" style={{ borderLeft: '4px solid var(--accent-blue)' }}>
-          <div className="card-header-flex">
-            <span className="card-title">Pending Exit Claims</span>
-            <div className="card-icon" style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent-blue)' }}>
-              <LogOut size={18} />
-            </div>
-          </div>
-          <span className="metric-value">{metrics.pendingExits}</span>
-          <span className="info-txt">Resignations awaiting review</span>
-        </div>
-
-        <div className="metric-card" style={{ borderLeft: '4px solid var(--accent-gold)' }}>
-          <div className="card-header-flex">
-            <span className="card-title">Open Job Pipelines</span>
-            <div className="card-icon" style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', color: 'var(--accent-gold)' }}>
-              <Briefcase size={18} />
-            </div>
-          </div>
-          <span className="metric-value">{metrics.activeCandidates}</span>
-          <span className="info-txt">Candidates in ATS screening</span>
-        </div>
-
-        <div className="metric-card" style={{ borderLeft: '4px solid #ef4444' }}>
-          <div className="card-header-flex">
-            <span className="card-title">Grievance Watchdog</span>
-            <div className="card-icon" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
-              <AlertTriangle size={18} />
-            </div>
-          </div>
-          <span className="metric-value">{metrics.unresolvedGrievances}</span>
-          <span className="info-txt">Warnings awaiting acknowledgment</span>
-        </div>
-      </div>
-
-      <div className="dashboard-row-grid">
-        {/* New Joiners Checklist */}
-        <div className="content-card flex-2">
-          <div className="card-header">
-            <h3>New Joiners Checklist Progress</h3>
-          </div>
-          <div className="card-content-list">
-            {probationList.map(joiner => (
-              <div key={joiner.employee_id} className="strategic-list-item">
-                <div className="progress-ring-mini" style={{ backgroundColor: 'var(--accent-pink)' }}></div>
-                <div className="item-text">
-                  <h5>{joiner.name}</h5>
-                  <p>{joiner.designation || 'New Hire'} — Joined {joiner.join_date}</p>
-                </div>
-                <div style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px'}}>
-                   <span className={joiner.total_tasks > 0 && joiner.completed_tasks === joiner.total_tasks ? "badge-pill success" : "badge-pill warning"}>
-                     {joiner.total_tasks > 0 ? `${joiner.completed_tasks}/${joiner.total_tasks} Tasks Done` : 'No Tasks Assigned'}
-                   </span>
-                   {joiner.total_tasks > 0 && (
-                     <div style={{ width: '100px', height: '6px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                       <div style={{ width: `${(joiner.completed_tasks/joiner.total_tasks)*100}%`, height: '100%', backgroundColor: 'var(--accent-pink)' }}></div>
-                     </div>
-                   )}
+        <div className={styles.leftColumn}>
+          
+          {/* Top Row: Metrics */}
+          <div className={styles.metricsGrid}>
+            <div className={styles.metricCard} style={{ borderLeft: '4px solid #ec4899' }}>
+              <div className={styles.metricHeader}>
+                <span className={styles.metricTitle}>Probation / Onboardings</span>
+                <div className={styles.metricIcon} style={{ backgroundColor: 'rgba(236, 72, 153, 0.1)', color: '#ec4899' }}>
+                  <UserPlus size={18} />
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
+              <span className={styles.metricValue}>{metrics.probationEmployees}</span>
+              <span className={styles.metricSub}>Active new hires in checklist</span>
+            </div>
 
-        {/* SLA Watchdog */}
-        <div className="content-card flex-1">
-          <div className="card-header">
-            <h3 style={{ color: '#ef4444' }}>⚠️ SLA Watchdog Alerts</h3>
-          </div>
-          <div className="card-content-list">
-            {criticalAlerts.map(t => {
-              const borderCol = t.severity === 'critical' ? '#ef4444' : '#f59e0b';
-              return (
-                <div key={t.id} className="strategic-list-item" style={{ borderLeft: `3px solid ${borderCol}`, paddingLeft: '8px' }}>
-                  <div className="item-text">
-                    <h5 style={{ color: 'var(--text-primary)' }}>{t.title}</h5>
-                    <p>{t.employee_name} ({t.employee_id}) — {t.description}</p>
-                    {t.due_date && <small style={{color: '#64748b', fontSize: '0.75rem'}}>Due: {new Date(t.due_date).toLocaleDateString()}</small>}
-                  </div>
-                  <span className={`badge-pill ${t.severity === 'critical' ? 'danger' : 'warning'}`}>
-                    {t.severity.toUpperCase()}
-                  </span>
+            <div className={styles.metricCard} style={{ borderLeft: '4px solid #3b82f6' }}>
+              <div className={styles.metricHeader}>
+                <span className={styles.metricTitle}>Pending Exit Claims</span>
+                <div className={styles.metricIcon} style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>
+                  <LogOut size={18} />
                 </div>
-              );
-            })}
+              </div>
+              <span className={styles.metricValue}>{metrics.pendingExits}</span>
+              <span className={styles.metricSub}>Resignations awaiting review</span>
+            </div>
+
+            <div className={styles.metricCard} style={{ borderLeft: '4px solid #f59e0b' }}>
+              <div className={styles.metricHeader}>
+                <span className={styles.metricTitle}>Open Job Pipelines</span>
+                <div className={styles.metricIcon} style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
+                  <Briefcase size={18} />
+                </div>
+              </div>
+              <span className={styles.metricValue}>{metrics.activeCandidates}</span>
+              <span className={styles.metricSub}>Candidates in ATS screening</span>
+            </div>
+
+            <div className={styles.metricCard} style={{ borderLeft: '4px solid #ef4444' }}>
+              <div className={styles.metricHeader}>
+                <span className={styles.metricTitle}>Grievance Watchdog</span>
+                <div className={styles.metricIcon} style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+                  <AlertTriangle size={18} />
+                </div>
+              </div>
+              <span className={styles.metricValue}>{metrics.unresolvedGrievances}</span>
+              <span className={styles.metricSub}>Warnings awaiting acknowledgment</span>
+            </div>
           </div>
+
+          {/* Middle Row: Progress and Alerts */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
+            
+            {/* New Joiners Checklist Progress */}
+            <div className={styles.widgetCard}>
+              <div className={styles.widgetHeader}>
+                <div className={styles.widgetTitle}>
+                  <CheckCircle size={20} className={styles.widgetIcon} />
+                  New Joiners Checklist Progress
+                </div>
+              </div>
+              <div className={styles.listContainer}>
+                {probationList.map(joiner => (
+                  <div key={joiner.employee_id} className={styles.listItem}>
+                    <div className={styles.itemIcon} style={{ backgroundColor: '#ec4899' }}>
+                      {joiner.name.charAt(0)}
+                    </div>
+                    <div className={styles.itemContent}>
+                      <span className={styles.itemName}>{joiner.name}</span>
+                      <span className={styles.itemDesc}>{joiner.designation || 'New Hire'} — Joined {joiner.join_date}</span>
+                    </div>
+                    <div className={styles.itemRight}>
+                      <span className={`${styles.badge} ${joiner.total_tasks > 0 && joiner.completed_tasks === joiner.total_tasks ? styles.badgeSuccess : styles.badgeWarning}`}>
+                        {joiner.total_tasks > 0 ? `${joiner.completed_tasks}/${joiner.total_tasks} Tasks Done` : 'No Tasks Assigned'}
+                      </span>
+                      {joiner.total_tasks > 0 && (
+                        <div style={{ width: '100px', height: '6px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{ width: `${(joiner.completed_tasks/joiner.total_tasks)*100}%`, height: '100%', backgroundColor: '#ec4899' }}></div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {probationList.length === 0 && (
+                  <div style={{ textAlign: 'center', color: '#94a3b8', padding: '20px 0', fontSize: '14px' }}>
+                    No new joiners in checklist.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* SLA Watchdog Alerts */}
+            <div className={styles.widgetCard}>
+              <div className={styles.widgetHeader}>
+                <div className={styles.widgetTitle}>
+                  <AlertTriangle size={20} style={{ color: '#ef4444' }} />
+                  SLA Watchdog Alerts
+                </div>
+              </div>
+              <div className={styles.listContainer}>
+                {criticalAlerts.map(t => {
+                  const isCritical = t.severity === 'critical';
+                  return (
+                    <div key={t.id} className={styles.listItem} style={{ borderLeft: `4px solid ${isCritical ? '#ef4444' : '#f59e0b'}` }}>
+                      <div className={styles.itemContent}>
+                        <span className={styles.itemName}>{t.title}</span>
+                        <span className={styles.itemDesc}>{t.employee_name} ({t.employee_id}) — {t.description}</span>
+                        {t.due_date && <span style={{ color: '#94a3b8', fontSize: '11px', marginTop: '2px' }}>Due: {new Date(t.due_date).toLocaleDateString()}</span>}
+                      </div>
+                      <span className={`${styles.badge} ${isCritical ? styles.badgeDanger : styles.badgeWarning}`}>
+                        {t.severity.toUpperCase()}
+                      </span>
+                    </div>
+                  );
+                })}
+                {criticalAlerts.length === 0 && (
+                  <div style={{ textAlign: 'center', color: '#94a3b8', padding: '20px 0', fontSize: '14px' }}>
+                    No critical SLA alerts.
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-      
-      {/* Right Sidebar: CEO Announcements */}
-        {announcements.length > 0 && (
-          <div className="content-card" style={{ background: '#F8FAFC', padding: '16px', height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-              <span style={{ fontSize: '16px' }}>📢</span>
-              <span style={{ fontSize: '15px', fontWeight: '700', color: '#1E293B' }}>CEO Announcements</span>
-              <span style={{ background: 'rgba(245,158,11,0.1)', color: '#fbbf24', fontSize: '10px', fontWeight: '800', padding: '2px 8px', borderRadius: '12px', marginLeft: 'auto' }}>
-                {announcements.length}
-              </span>
+
+          {/* Bottom Row: CEO Announcements */}
+          <div className={`${styles.widgetCard} ${styles.ceoAnnouncementsCard}`}>
+            <div className={styles.ceoHeader}>
+              <span style={{ fontSize: '20px' }}>📢</span>
+              <span className={styles.ceoTitle}>CEO Announcements</span>
+              <span className={styles.ceoBadge}>{announcements.length}</span>
             </div>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {announcements.slice(0, 3).map(ann => (
-                <div key={ann.id} style={{
-                  padding: '14px',
-                  background: '#FFF',
-                  border: '1px solid #E2E8F0',
-                  borderLeft: ann.priority === 'Urgent' ? '4px solid #ef4444' : '4px solid #3b82f6',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748B' }}>
-                      {ann.date || 'Today'}
-                    </span>
-                    {ann.priority === 'Urgent' && (
-                      <span style={{ background: '#FEF2F2', color: '#ef4444', border: '1px solid #FCA5A5', padding: '1px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 800 }}>URGENT</span>
-                    )}
-                  </div>
-                  <strong style={{ fontSize: '13px', color: '#0F172A' }}>{ann.title}</strong>
-                  <div dangerouslySetInnerHTML={{ __html: ann.body }} style={{ fontSize: '12px', color: '#475569', margin: 0, lineHeight: 1.4, maxHeight: '3.6em', overflow: 'hidden' }} />
-                </div>
-              ))}
-            </div>
+            {announcements.length > 0 ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                {announcements.slice(0, 3).map(ann => {
+                  const isUrgent = ann.priority === 'Urgent';
+                  return (
+                    <div key={ann.id} className={styles.announcementCard} style={{ borderLeftColor: isUrgent ? '#ef4444' : '#3b82f6', borderLeftWidth: '4px' }}>
+                      <div className={styles.annTop}>
+                        <span className={styles.annDate}>{ann.date || 'Today'}</span>
+                        {isUrgent && <span className={styles.annUrgent}>URGENT</span>}
+                      </div>
+                      <strong className={styles.annTitle}>{ann.title}</strong>
+                      <div className={styles.annBody} dangerouslySetInnerHTML={{ __html: ann.body }} />
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ padding: '24px 0', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                <div style={{ fontSize: '24px', opacity: 0.5 }}>📰</div>
+                <div style={{ fontSize: '14px', color: '#64748b', fontWeight: 500 }}>You're all caught up!</div>
+                <div style={{ fontSize: '12px', color: '#94a3b8' }}>No new announcements from leadership.</div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+        
       </div>
     </div>
   );

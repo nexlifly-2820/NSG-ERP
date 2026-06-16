@@ -262,7 +262,6 @@ class LeaveBalanceResponse(BaseModel):
     SL: float
     EL: float
     Maternity: float
-    Paternity: float
     year: int
 
     class Config:
@@ -294,7 +293,6 @@ def get_my_leave_balances(current_user: models.User = Depends(security.get_curre
     bal = db.query(models.LeaveBalance).filter(models.LeaveBalance.user_id == current_user.id).first()
     if not bal:
         # Initialize default balances for the user
-        bal = models.LeaveBalance(user_id=current_user.id, CL=12.0, SL=8.0, EL=15.0, Maternity=26.0, Paternity=5.0, year=date.today().year)
         db.add(bal)
         db.commit()
         db.refresh(bal)

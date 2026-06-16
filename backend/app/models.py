@@ -192,7 +192,6 @@ class LeaveBalance(Base):
     SL = Column(Float, default=0.0)
     EL = Column(Float, default=0.0)
     Maternity = Column(Float, default=0.0)
-    Paternity = Column(Float, default=0.0)
     year = Column(Integer, default=2026)
 
     # Relationships
@@ -706,7 +705,7 @@ class LeavePolicy(Base):
     __tablename__ = "leave_policies"
 
     id = Column(Integer, primary_key=True, index=True)
-    type = Column(String, nullable=False)         # CL, SL, EL, Maternity, Paternity
+    type = Column(String, nullable=False)         # CL, SL, EL, Maternity
     accrual_rule = Column(String, default="monthly")
     max_balance = Column(Integer, nullable=False)
     carryover_days = Column(Integer, default=0)
