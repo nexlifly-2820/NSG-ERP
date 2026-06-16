@@ -1,0 +1,4 @@
+[tool.pyrefly]
+preset = "basic"
+python-interpreter-path = "backend/.venv/Scripts/python.exe"
+search-path = ["backend"]
