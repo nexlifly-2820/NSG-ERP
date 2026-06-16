@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styles from './projects.module.css';
-import { Briefcase, Calendar, Users, ListTodo, KanbanSquare, GitCommit, Search, Plus, Play, MoreVertical, Flag, Clock, X, HelpCircle, Eye, CheckCircle, AlertCircle, ChevronRight, AlertTriangle, Menu, CheckSquare, Paperclip, MessageSquare, User, Tag, Info, Lock, ChevronDown } from 'lucide-react';
+import { Briefcase, Calendar, Users, ListTodo, KanbanSquare, GitCommit, Search, Plus, Play, MoreVertical, Flag, Clock, X, HelpCircle, Eye, CheckCircle, AlertCircle, ChevronRight, AlertTriangle, Menu, CheckSquare, Paperclip, MessageSquare, User, Tag, Info, Lock, ChevronDown, XCircle, GitPullRequest } from 'lucide-react';
 
 
 const Projects = () => {
@@ -30,9 +30,9 @@ const Projects = () => {
   const [kanbanData, setKanbanData] = useState({
     todo: [],
     inProgress: [],
-    codeReview: [],
     testing: [],
-    completed: []
+    rejected: [],
+    pr: []
   });
   const [kanbanLoading, setKanbanLoading] = useState(false);
 
@@ -75,7 +75,18 @@ const Projects = () => {
           assignee: t.user_id ? String(t.user_id) : 'Select Team Member...',
           project: t.project || '',
           labels: 'task',
-          criteria: t.acceptance ? JSON.parse(t.acceptance).join('\\n') : ''
+          criteria: Array.isArray(t.acceptance)
+            ? t.acceptance.join('\n')
+            : (typeof t.acceptance === 'string' && t.acceptance.trim() !== ''
+              ? (() => {
+                  try {
+                    const parsed = JSON.parse(t.acceptance);
+                    return Array.isArray(parsed) ? parsed.join('\n') : String(parsed);
+                  } catch (e) {
+                    return t.acceptance;
+                  }
+                })()
+              : '')
         })));
       }
     } catch (err) {
@@ -122,7 +133,7 @@ const Projects = () => {
           tasks = tasks.filter(t => t.project === activeProject.name);
         }
         // Map task status → kanban column
-        const columns = { todo: [], inProgress: [], codeReview: [], testing: [], completed: [] };
+        const columns = { todo: [], inProgress: [], testing: [], rejected: [], pr: [] };
         tasks.forEach(t => {
           const card = {
             id: String(t.id),
@@ -132,12 +143,14 @@ const Projects = () => {
             assignee: t.user_id ? String(t.user_id) : 'UN',
             blocked: t.pr_status === 'rejected',
             date: t.due || '',
-            progress: t.status === 'done' ? 100 : t.status === 'in-progress' ? 50 : 0,
+            progress: t.status === 'pr' ? 90 : t.status === 'testing' ? 70 : t.status === 'in-progress' ? 50 : 0,
             dbId: t.id
           };
-          if (t.status === 'in-progress') columns.inProgress.push(card);
-          else if (t.status === 'done') columns.completed.push(card);
-          else if (t.status === 'blocked') columns.codeReview.push(card);
+          if (t.status === 'pending')          columns.todo.push(card);
+          else if (t.status === 'in-progress') columns.inProgress.push(card);
+          else if (t.status === 'testing')     columns.testing.push(card);
+          else if (t.status === 'blocked')     columns.rejected.push(card);
+          else if (t.status === 'pr')          columns.pr.push(card);
           else columns.todo.push(card);
         });
         setKanbanData(columns);
@@ -400,6 +413,59 @@ const Projects = () => {
               onChange={(e) => setSpTarget(parseInt(e.target.value) || 0)}
             />
           </div>
+          
+          {/* Sprint Backlog Dropzone */}
+          <div 
+            onDragOver={allowDrop}
+            onDrop={(e) => handleSprintDrop(e, 'sprint')}
+            style={{
+              border: '2px dashed #3b82f6',
+              borderRadius: '8px',
+              padding: '16px',
+              minHeight: '150px',
+              background: '#f8fafc',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              marginTop: '10px',
+              marginBottom: '10px'
+            }}
+          >
+            <label style={{ fontWeight: 700, fontSize: '13px', color: '#0f172a' }}>
+              Sprint Backlog ({sprintBacklog.length} items)
+            </label>
+            {sprintBacklog.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px', padding: '30px 0', border: '1px dashed #e2e8f0', borderRadius: '6px', background: '#fff' }}>
+                Drag tasks from Product Backlog here to add them to this sprint
+              </div>
+            ) : (
+              sprintBacklog.map(item => (
+                <div 
+                  key={item.id}
+                  draggable
+                  onDragStart={(e) => handleSprintDragStart(e, item, 'sprint')}
+                  style={{
+                    background: '#fff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    padding: '12px 16px',
+                    fontSize: '13px',
+                    cursor: 'grab',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+                  }}
+                >
+                  <span style={{ fontWeight: 600, color: '#0f172a' }}>{item.title}</span>
+                  <span style={{ fontSize: '11px', background: '#eff6ff', color: '#3b82f6', padding: '3px 8px', borderRadius: '6px', fontWeight: 700 }}>
+                    {item.points} pts
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
           <button 
             className={styles.startSprintBtn}
             onClick={async () => {
@@ -477,6 +543,8 @@ const Projects = () => {
           {productBacklog.map(item => (
             <div 
               key={item.id} 
+              draggable
+              onDragStart={(e) => handleSprintDragStart(e, item, 'product')}
               className={`${styles.backlogItem} ${selectedTaskDetails?.id === item.id ? styles.activeBacklogItem : ''}`} 
               onClick={() => setSelectedTaskDetails({...item, source: 'backlog'})}
             >
@@ -523,11 +591,11 @@ const Projects = () => {
 
   const renderKanban = () => {
     const columns = [
-      { id: 'todo', title: 'TO DO', Icon: HelpCircle },
-      { id: 'inProgress', title: 'IN PROGRESS', Icon: Play },
-      { id: 'codeReview', title: 'CODE REVIEW', Icon: Eye },
-      { id: 'testing', title: 'TESTING', Icon: Search },
-      { id: 'completed', title: 'COMPLETED', Icon: CheckCircle }
+      { id: 'todo',       title: 'TODO',        Icon: HelpCircle },
+      { id: 'inProgress', title: 'IN-PROGRESS',  Icon: Play },
+      { id: 'testing',    title: 'TESTING',      Icon: Search },
+      { id: 'rejected',   title: 'REJECTED',     Icon: XCircle },
+      { id: 'pr',         title: 'PR',           Icon: GitPullRequest },
     ];
 
     return (
@@ -606,11 +674,11 @@ const Projects = () => {
               <div className={styles.milestoneIcon}><Clock size={16} /></div>
               {milestone.name}
             </div>
-            <div className={styles.tlColDate}>{milestone.dueDate}</div>
+            <div className={styles.tlColDate}>{milestone.dueDate || milestone.due_date}</div>
             <div className={styles.tlColStatus}>
               <span className={`${styles.mStatusBadge} ${styles[milestone.status]}`}>{milestone.status.replace('-', ' ')}</span>
             </div>
-            <div className={styles.tlColTasks}>{milestone.tasks} tasks</div>
+            <div className={styles.tlColTasks}>{(milestone.tasks !== undefined ? milestone.tasks : milestone.tasks_count) || 0} tasks</div>
             <div className={styles.tlColProgress}>
               <div className={styles.mProgressBar}>
                 <div className={styles.mProgressFill} style={{ width: `${milestone.progress}%`, backgroundColor: milestone.progress === 100 ? '#10b981' : 'var(--primary)' }}></div>

@@ -277,7 +277,7 @@ def create_team_task(req: TaskCreateRequest, current_user: models.User = Depends
             db_sub = models.TaskSubtask(
                 task_id=db_task.id,
                 title=st_title,
-                completed=False
+                done=False
             )
             db.add(db_sub)
     db.commit()
@@ -394,7 +394,7 @@ def update_task(id: int, req: TaskCreateRequest, current_user: models.User = Dep
             db_sub = models.TaskSubtask(
                 task_id=task.id,
                 title=st_title,
-                completed=False
+                done=False
             )
             db.add(db_sub)
             

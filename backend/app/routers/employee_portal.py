@@ -187,7 +187,7 @@ def submit_pr(id: int, req: PRSubmitRequest, current_user: models.User = Depends
         
     task.pr_status = "submitted"
     task.pr_url = req.prUrl
-    task.status = "done"  # Automatically mark task as done or keep as in-progress pending approval
+    task.status = "pr"  # Keep task visible as PR status; 'done' only set after TL approves
     db.commit()
     db.refresh(task)
     return TaskResponse(
@@ -224,6 +224,36 @@ def get_task_schema(db: Session = Depends(database.get_db), current_user: models
         schema_data = [{"name": "notes", "type": "text", "label": "Additional Notes"}]
         
     return {"department": user_dept, "schema": schema_data}
+
+class TaskStatusUpdateRequest(BaseModel):
+    status: str
+
+@router.patch("/tasks/{task_id}/status", response_model=TaskResponse)
+def update_task_status(task_id: int, req: TaskStatusUpdateRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
+    task = db.query(models.Task).filter(models.Task.id == task_id, models.Task.user_id == current_user.id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found or does not belong to you.")
+    task.status = req.status
+    db.commit()
+    db.refresh(task)
+    return TaskResponse(
+        id=task.id,
+        project=task.project,
+        sprint=task.sprint,
+        title=task.title,
+        description=task.description,
+        priority=task.priority,
+        status=task.status,
+        sp=task.sp,
+        due=task.due,
+        prStatus=task.pr_status,
+        prUrl=task.pr_url,
+        rejectedReason=task.rejected_reason,
+        customData=task.custom_data,
+        acceptance=task.acceptance,
+        subtasks=[SubtaskResponse(id=st.id, title=st.title, done=st.done) for st in task.subtasks]
+    )
+
 # ─── 2. LEAVE SCHEMAS & ROUTES ────────────────────────────────────────────────
 
 class LeaveBalanceResponse(BaseModel):

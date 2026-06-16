@@ -7,7 +7,8 @@ import { PlusSquare, List, XCircle, GitPullRequest, Edit, UserPlus, RotateCcw, C
 export default function Tasks({ currentUser }) {
   const [activeView, setActiveView] = useState('create'); // 'create', 'list', 'rejected', 'pr'
   const [subtasks, setSubtasks] = useState(['']);
-  const [groupBy, setGroupBy] = useState('None');
+  const [groupBy, setGroupBy] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('All');
   
   const token = localStorage.getItem('nsg_jwt_token');
   const fetcher = (url) => fetch(url, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.json());
@@ -21,11 +22,18 @@ export default function Tasks({ currentUser }) {
   const [taskPriority, setTaskPriority] = useState('Medium');
   const [taskAssignee, setTaskAssignee] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
-  const [taskProject, setTaskProject] = useState('NSG-ERP Core');
-  const [taskSprint, setTaskSprint] = useState('Sprint 1');
+  const [taskProject, setTaskProject] = useState('');
+  const [taskSprint, setTaskSprint] = useState('Backlog');
   const [taskAcceptance, setTaskAcceptance] = useState('');
   const [taskDue, setTaskDue] = useState('');
   const [editingTaskId, setEditingTaskId] = useState(null);
+
+  React.useEffect(() => {
+    if (projectsData && projectsData.length > 0 && !taskProject) {
+      setTaskProject(projectsData[0].name);
+    }
+  }, [projectsData, taskProject]);
+
 
   const [reassignModalOpen, setReassignModalOpen] = useState(false);
   const [reassignTaskId, setReassignTaskId] = useState(null);
@@ -110,17 +118,19 @@ export default function Tasks({ currentUser }) {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
-  const taskList = tasks.map(t => ({
-    id: t.id,
-    project: t.project || 'NSG-ERP Core',
-    title: t.title,
-    assignee: getAssigneeName(t.user_id),
-    avatar: getAssigneeAvatar(getAssigneeName(t.user_id)),
-    priority: t.priority ? t.priority.charAt(0).toUpperCase() + t.priority.slice(1) : 'Medium',
-    status: getStatusLabel(t.status),
-    points: t.sp || 1,
-    due: t.due || 'TBD'
-  }));
+  const taskList = tasks
+    .filter(t => t.status !== 'done')
+    .map(t => ({
+      id: t.id,
+      project: t.project || 'NSG-ERP Core',
+      title: t.title,
+      assignee: getAssigneeName(t.user_id),
+      avatar: getAssigneeAvatar(getAssigneeName(t.user_id)),
+      priority: t.priority ? t.priority.charAt(0).toUpperCase() + t.priority.slice(1) : 'Medium',
+      status: getStatusLabel(t.status),
+      points: t.sp || 1,
+      due: t.due || 'TBD'
+    }));
   
   const handleCreateTask = async (e) => {
     e.preventDefault();
@@ -170,8 +180,19 @@ export default function Tasks({ currentUser }) {
         if (window.toast) window.toast.success(editingTaskId ? "Task updated successfully!" : "Task created successfully!");
         else alert(editingTaskId ? "Task updated successfully!" : "Task created successfully!");
         setSubtasks(['']);
+      } else {
+        const errorData = await res.json().catch(() => ({ detail: "Unknown error occurred" }));
+        console.error("Task creation/update failed:", errorData);
+        const errorMsg = errorData.detail 
+          ? (typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail)) 
+          : "Failed to save task";
+        if (window.toast) window.toast.error(errorMsg);
+        else alert(errorMsg);
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+      console.error(e);
+      alert("An error occurred: " + e.message);
+    }
   };
 
   const handleApprovePr = async (taskId) => {
@@ -212,12 +233,18 @@ export default function Tasks({ currentUser }) {
   };
 
   const rejectedTasks = tasks
-    .filter(t => t.pr_status === 'rejected')
+    .filter(t => t.pr_status === 'rejected' || t.status === 'blocked')
     .map(t => ({
       id: t.id,
+      project: t.project || 'NSG-ERP Core',
       title: t.title,
-      reason: t.rejected_reason || 'Rework required.',
-      resubmitDue: t.due || 'TBD'
+      assignee: getAssigneeName(t.user_id),
+      avatar: getAssigneeAvatar(getAssigneeName(t.user_id)),
+      priority: t.priority ? t.priority.charAt(0).toUpperCase() + t.priority.slice(1) : 'Medium',
+      status: getStatusLabel(t.status),
+      points: t.sp || 1,
+      due: t.due || 'TBD',
+      reason: t.rejected_reason || 'Rework required.'
     }));
 
   const prReviews = tasks
@@ -231,8 +258,16 @@ export default function Tasks({ currentUser }) {
     }));
 
   const getGroupedTasks = () => {
-    if (groupBy === 'None') return { 'All Tasks': taskList };
-    return taskList.reduce((acc, task) => {
+    const filtered = statusFilter === 'All' ? taskList : taskList.filter(task => {
+      if (statusFilter === 'Todo')        return task.status === 'To Do';
+      if (statusFilter === 'In-Progress') return task.status === 'In Progress';
+      if (statusFilter === 'testing')     return task.status === 'testing';
+      if (statusFilter === 'pr')          return task.status === 'pr';
+      if (statusFilter === 'Reject')      return task.status === 'Blocked';
+      return true;
+    });
+    if (groupBy === 'None') return { 'All Tasks': filtered };
+    return filtered.reduce((acc, task) => {
       let key = 'Other';
       if (groupBy === 'Assignee') key = task.assignee;
       if (groupBy === 'Priority') key = task.priority;
@@ -252,11 +287,20 @@ export default function Tasks({ currentUser }) {
         <button className={`${styles.navTab} ${activeView === 'list' ? styles.activeTab : ''}`} onClick={() => setActiveView('list')}>
           <List size={16} /> Task List View
         </button>
+        <button className={`${styles.navTab} ${activeView === 'todo' ? styles.activeTab : ''}`} onClick={() => setActiveView('todo')}>
+          Todo
+        </button>
+        <button className={`${styles.navTab} ${activeView === 'inprogress' ? styles.activeTab : ''}`} onClick={() => setActiveView('inprogress')}>
+          In-Progress
+        </button>
+        <button className={`${styles.navTab} ${activeView === 'testing' ? styles.activeTab : ''}`} onClick={() => setActiveView('testing')}>
+          Testing
+        </button>
         <button className={`${styles.navTab} ${activeView === 'rejected' ? styles.activeTab : ''}`} onClick={() => setActiveView('rejected')}>
-          <XCircle size={16} /> Rejected Tasks Queue
+          Rejected
         </button>
         <button className={`${styles.navTab} ${activeView === 'pr' ? styles.activeTab : ''}`} onClick={() => setActiveView('pr')}>
-          <GitPullRequest size={16} /> PR Review Gates
+          PR
         </button>
       </div>
 
@@ -340,79 +384,101 @@ export default function Tasks({ currentUser }) {
           </div>
         )}
 
-        {activeView === 'list' && (
-          <div>
-            <div className={styles.sectionTitle}>
-              <span>Sprint Backlog Overview</span>
-              <div className={styles.groupControl}>
-                <label className={styles.formLabel} style={{marginBottom: 0}}>Group By:</label>
-                <select className={styles.groupSelect} value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
-                  <option value="None">None</option>
-                  <option value="Assignee">Assignee</option>
-                  <option value="Priority">Priority</option>
-                  <option value="Sprint">Sprint</option>
-                </select>
+        {(activeView === 'list' || activeView === 'todo' || activeView === 'inprogress' || activeView === 'testing') && (() => {
+          const statusTitles = { list: 'Sprint Backlog Overview', todo: 'Todo Tasks', inprogress: 'In-Progress Tasks', testing: 'Testing Tasks' };
+
+          // Apply status filter from Group By dropdown (only in list view)
+          const applyStatusFilter = (list) => {
+            if (activeView !== 'list') return list;
+            if (groupBy === 'All')         return list;
+            if (groupBy === 'Todo')        return list.filter(t => t.status === 'To Do');
+            if (groupBy === 'In-Progress') return list.filter(t => t.status === 'In Progress');
+            if (groupBy === 'Testing')     return list.filter(t => t.status === 'testing');
+            if (groupBy === 'Rejected')    return list.filter(t => t.status === 'Blocked');
+            if (groupBy === 'PR')          return list.filter(t => t.status === 'pr');
+            return list;
+          };
+
+          const baseList = activeView === 'list' ? taskList
+            : activeView === 'todo'        ? taskList.filter(t => t.status === 'To Do')
+            : activeView === 'inprogress'  ? taskList.filter(t => t.status === 'In Progress')
+            : activeView === 'testing'     ? taskList.filter(t => t.status === 'testing')
+            : taskList;
+
+          const viewFilteredList = applyStatusFilter(baseList);
+
+          return (
+            <div>
+              <div className={styles.sectionTitle}>
+                <span>{statusTitles[activeView]}</span>
+                {activeView === 'list' && (
+                  <div className={styles.groupControl}>
+                    <label className={styles.formLabel} style={{marginBottom: 0}}>Filter:</label>
+                    <select className={styles.groupSelect} value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
+                      <option value="All">All</option>
+                      <option value="Todo">Todo</option>
+                      <option value="In-Progress">In-Progress</option>
+                      <option value="Testing">Testing</option>
+                      <option value="Rejected">Rejected</option>
+                      <option value="PR">PR</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+              <div className={styles.dataTableWrapper}>
+                <table className={styles.dataTable}>
+                  <thead>
+                    <tr>
+                      <th>Project</th>
+                      <th>Task Title</th>
+                      <th>Assignee</th>
+                      <th>Priority</th>
+                      <th>Status</th>
+                      <th>Points</th>
+                      <th>Due Date</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {viewFilteredList.map(task => (
+                      <tr key={task.id}>
+                        <td style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{task.project}</td>
+                        <td className={styles.taskTitle}>{task.title}</td>
+                        <td>
+                          <div className={styles.assigneeCell}>
+                            <AvatarFallback name={task.assignee} size="24px" />
+                            {task.assignee}
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`${styles.badge} ${styles['badge' + task.priority]}`}>
+                            {task.priority}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`${styles.badge} ${task.status === 'Done' ? styles.badgeDone : task.status === 'In Progress' ? styles.badgeProgress : styles.badgeTodo}`}>
+                            {task.status}
+                          </span>
+                        </td>
+                        <td style={{ fontWeight: 600 }}>{task.points}</td>
+                        <td>{task.due}</td>
+                        <td>
+                          <div className={styles.actionGroup}>
+                            <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => handleEditTask(task)}><Edit size={12}/> Edit</button>
+                            <button className={`${styles.actionBtn}`} onClick={() => handleReassignTask(task.id)}><UserPlus size={12}/> Reassign</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {viewFilteredList.length === 0 && (
+                      <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '32px' }}>No tasks found.</td></tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
-            <div className={styles.dataTableWrapper}>
-              {Object.entries(getGroupedTasks()).map(([groupName, tasks]) => (
-                <div key={groupName} style={{ marginBottom: groupBy === 'None' ? 0 : '24px' }}>
-                  {groupBy !== 'None' && (
-                    <div className={styles.groupHeader}>
-                      {groupName} <span className={styles.groupBadge}>{tasks.length}</span>
-                    </div>
-                  )}
-                  <table className={styles.dataTable}>
-                    <thead>
-                      <tr>
-                        <th>Project</th>
-                        <th>Task Title</th>
-                        <th>Assignee</th>
-                        <th>Priority</th>
-                        <th>Status</th>
-                        <th>Points</th>
-                        <th>Due Date</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tasks.map(task => (
-                        <tr key={task.id}>
-                          <td style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{task.project}</td>
-                          <td className={styles.taskTitle}>{task.title}</td>
-                          <td>
-                            <div className={styles.assigneeCell}>
-                              <AvatarFallback name={task.assignee} size="24px" />
-                              {task.assignee}
-                            </div>
-                          </td>
-                          <td>
-                            <span className={`${styles.badge} ${styles['badge' + task.priority]}`}>
-                              {task.priority}
-                            </span>
-                          </td>
-                          <td>
-                            <span className={`${styles.badge} ${task.status === 'Done' ? styles.badgeDone : task.status === 'In Progress' ? styles.badgeProgress : styles.badgeTodo}`}>
-                              {task.status}
-                            </span>
-                          </td>
-                          <td style={{ fontWeight: 600 }}>{task.points}</td>
-                          <td>{task.due}</td>
-                          <td>
-                            <div className={styles.actionGroup}>
-                              <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => handleEditTask(task)}><Edit size={12}/> Edit</button>
-                              <button className={`${styles.actionBtn}`} onClick={() => handleReassignTask(task.id)}><UserPlus size={12}/> Reassign</button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {activeView === 'rejected' && (
           <div>
@@ -421,22 +487,44 @@ export default function Tasks({ currentUser }) {
               <table className={styles.dataTable}>
                 <thead>
                   <tr>
+                    <th>Project</th>
                     <th>Task Title</th>
-                    <th>Rejection Reason</th>
-                    <th>Resubmit Deadline</th>
-                    <th>Action</th>
+                    <th>Assignee</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Points</th>
+                    <th>Due Date</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
+                  {rejectedTasks.length === 0 && (
+                    <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '32px' }}>No rejected tasks.</td></tr>
+                  )}
                   {rejectedTasks.map(task => (
                     <tr key={task.id}>
+                      <td style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{task.project}</td>
                       <td className={styles.taskTitle}>{task.title}</td>
-                      <td style={{ color: 'var(--danger)', fontWeight: 500 }}>{task.reason}</td>
-                      <td style={{ fontWeight: 600 }}>{task.resubmitDue}</td>
                       <td>
-                        <button className={`${styles.actionBtn} ${styles.primary}`}>
-                          <RotateCcw size={12}/> Reopen & Edit
-                        </button>
+                        <div className={styles.assigneeCell}>
+                          <AvatarFallback name={task.assignee} size="24px" />
+                          {task.assignee}
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`${styles.badge} ${styles['badge' + task.priority]}`}>{task.priority}</span>
+                      </td>
+                      <td>
+                        <span className={`${styles.badge} ${styles.badgeTodo}`} style={{ background: '#fee2e2', color: '#ef4444' }}>{task.status}</span>
+                      </td>
+                      <td style={{ fontWeight: 600 }}>{task.points}</td>
+                      <td>{task.due}</td>
+                      <td>
+                        <div className={styles.actionGroup}>
+                          <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => handleEditTask(task)}>
+                            <RotateCcw size={12}/> Reopen & Edit
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

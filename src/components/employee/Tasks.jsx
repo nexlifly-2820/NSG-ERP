@@ -7,11 +7,27 @@ import './Tasks.css';
 
 
 
-const STATUS_FILTERS = ['All', 'Todo', 'In-Progress', 'Done'];
+const STATUS_FILTERS = ['All', 'Todo', 'In-Progress', 'testing', 'pr', 'Reject'];
 
 const PRIORITY_COLOR = { high: '#f87171', medium: '#fbbf24', low: '#34d399' };
-const STATUS_COLOR   = { 'in-progress': '#60a5fa', pending: '#a78bfa', done: '#34d399', blocked: '#f87171' };
-const STATUS_LABEL   = { 'in-progress': 'In Progress', pending: 'Pending', done: 'Done', blocked: 'Blocked' };
+const STATUS_COLOR   = { 
+  'in-progress': '#60a5fa', 
+  pending: '#a78bfa', 
+  done: '#34d399', 
+  blocked: '#f87171',
+  testing: '#fbbf24',
+  pr: '#8b5cf6',
+  reject: '#f87171'
+};
+const STATUS_LABEL   = { 
+  'in-progress': 'In-Progress', 
+  pending: 'Todo', 
+  done: 'Done', 
+  blocked: 'Reject',
+  testing: 'testing',
+  pr: 'pr',
+  reject: 'Reject'
+};
 
 const PR_URL_RE = /^https?:\/\/(github\.com\/[^/]+\/[^/]+\/pull\/\d+|gitlab\.com\/[^/]+\/[^/]+\/-\/merge_requests\/\d+)/;
 
@@ -208,7 +224,7 @@ function PrSubmitForm({ task, onSubmit }) {
 }
 
 // ─── DynamicCustomForm ────────────────────────────────────────────────────────
-function DynamicCustomForm({ task, schema, onUpdate }) {
+function DynamicCustomForm({ task, schema, onUpdate, onClose }) {
   const [customData, setCustomData] = useState(() => {
     try { return task.customData ? JSON.parse(task.customData) : {}; }
     catch(e) { return {}; }
@@ -221,9 +237,18 @@ function DynamicCustomForm({ task, schema, onUpdate }) {
 
   function handleSubmit() {
     setLoading(true);
+    // Auto-advance to next status on Save
+    const nextStatus = {
+      'pending':     'in-progress',
+      'todo':        'in-progress',
+      'in-progress': 'testing',
+      'testing':     'pr',
+    }[task.status] || task.status; // pr/reject stay as-is
+
     setTimeout(() => { 
       setLoading(false); 
-      onUpdate(task.id, { customData: JSON.stringify(customData), status: 'done' }); 
+      onUpdate(task.id, { customData: JSON.stringify(customData), status: nextStatus }); 
+      if (onClose) onClose();
     }, 800);
   }
 
@@ -252,7 +277,7 @@ function DynamicCustomForm({ task, schema, onUpdate }) {
         </div>
       ))}
       <button className={`tk-confirm-btn ${loading ? 'tk-confirm-btn--loading' : ''}`} onClick={handleSubmit} disabled={loading} style={{marginTop: 8}}>
-        {loading ? <><span className="tk-spin"/>Saving…</> : 'Save & Complete Task'}
+        {loading ? <><span className="tk-spin"/>Saving…</> : 'Save'}
       </button>
     </div>
   );
@@ -290,7 +315,7 @@ function TaskDetailPanel({ task, onClose, onUpdate }) {
     onUpdate(task.id, { prStatus: 'submitted', prUrl: url });
   }
 
-  const STATUSES = ['pending', 'in-progress', 'done', 'blocked'];
+  const STATUSES = ['pending', 'in-progress', 'testing', 'pr', 'blocked'];
 
   return (
     <div className="tk-detail-panel" ref={panelRef}>
@@ -333,12 +358,33 @@ function TaskDetailPanel({ task, onClose, onUpdate }) {
         {/* Acceptance criteria */}
         <AcceptanceCriteriaList criteria={task.acceptance} checkedIds={acChecked} onToggle={toggleAc} />
 
-        {/* PR Form */}
-        <PrSubmitForm task={task} onSubmit={handlePrSubmit} />
+        {/* PR Form — only show when task is in 'pr' status */}
+        {status === 'pr' && (
+          <PrSubmitForm task={task} onSubmit={handlePrSubmit} />
+        )}
 
-        {/* Dynamic Schema Fields */}
-        <DynamicCustomForm task={task} schema={task.schema} onUpdate={onUpdate} />
-      </div>
+        {/* Save / advance button */}
+        {status !== 'pr' && status !== 'blocked' && (() => {
+          const nextStatus = {
+            'pending':     'in-progress',
+            'todo':        'in-progress',
+            'in-progress': 'testing',
+            'testing':     'pr',
+          }[status];
+          if (!nextStatus) return null;
+          return (
+            <button
+              className="tk-confirm-btn"
+              style={{ marginTop: 20 }}
+              onClick={() => {
+                changeStatus(nextStatus);
+                setTimeout(() => { if (onClose) onClose(); }, 300);
+              }}
+            >
+              Save
+            </button>
+          );
+        })()}      </div>
     </div>
   );
 }
@@ -354,10 +400,12 @@ export default function Tasks() {
 
   const { data: tasksData, mutate } = useSWR('/api/employee-portal/tasks/my-tasks', fetcher);
   
-  const tasks = (tasksData?.items || []).map(t => ({
-    ...t,
-    subtasks: t.subtasks || []
-  }));
+  const tasks = (tasksData?.items || [])
+    .filter(t => t.status !== 'done')
+    .map(t => ({
+      ...t,
+      subtasks: t.subtasks || []
+    }));
 
   const selectedTask = tasks.find(t => t.id === selectedId) || null;
 
@@ -402,20 +450,42 @@ export default function Tasks() {
           },
           body: JSON.stringify({ prUrl: changes.prUrl })
         });
+        mutate(); // Revalidate — backend now sets status to 'pr'
+        return;
+      } catch (e) { console.error(e); }
+    }
+
+    // If the change is a status update
+    if (changes.status) {
+      try {
+        const token = localStorage.getItem('nsg_jwt_token');
+        await fetch(`/api/employee-portal/tasks/${id}/status`, {
+          method: 'PATCH',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` 
+          },
+          body: JSON.stringify({ status: changes.status })
+        });
+        // Revalidate from backend after status change
+        mutate();
+        return;
       } catch (e) { console.error(e); }
     }
     
-    // Optimistic UI update
-    const updatedTasks = tasks.map(t => t.id === id ? { ...t, ...changes } : t);
+    // Optimistic UI update for other changes (subtasks, customData)
+    const updatedTasks = (tasksData?.items || []).map(t => t.id === id ? { ...t, ...changes } : t);
     mutate({ ...tasksData, items: updatedTasks }, false);
   };
 
   const filtered = tasks.filter(t => {
     const sprintOk = sprint === 'All Sprints' || t.sprint === sprint;
     const statusOk = statusFilter === 'All'
-      || (statusFilter === 'Todo'        && t.status === 'pending')
+      || (statusFilter === 'Todo'        && (t.status === 'pending' || t.status === 'todo'))
       || (statusFilter === 'In-Progress' && t.status === 'in-progress')
-      || (statusFilter === 'Done'        && t.status === 'done');
+      || (statusFilter === 'testing'     && t.status === 'testing')
+      || (statusFilter === 'pr'          && t.status === 'pr')
+      || (statusFilter === 'Reject'      && (t.status === 'reject' || t.status === 'blocked'));
     return sprintOk && statusOk;
   });
 
