@@ -1,10 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import styles from './approvals.module.css';
-import { AlertTriangle, MapPin, CheckCircle, Clock, FileText, Camera, GitCommit, Calendar, DollarSign } from 'lucide-react';
+import { AlertTriangle, MapPin, CheckCircle, Clock, FileText, Camera, GitCommit, Calendar, DollarSign, Check, X } from 'lucide-react';
 
 const Approvals = () => {
   const [activeTab, setActiveTab] = useState('leave');
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
   
   const token = localStorage.getItem('nsg_jwt_token');
   const fetcher = (url) => fetch(url, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.json());
@@ -93,8 +101,11 @@ const Approvals = () => {
   const handleAction = async (id, actionType) => {
     try {
       const token = localStorage.getItem('nsg_jwt_token');
+      const actionTxt = actionType === 'approve' ? 'Approved' : 'Rejected';
+      
       if (activeTab === 'leave') {
         const action = actionType === 'approve' ? 'approve' : 'reject';
+        mutateLeaves(rawLeaves.filter(r => r.id !== id), false);
         await fetch(`/api/team-lead/leaves/${id}/${action}`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
@@ -102,6 +113,7 @@ const Approvals = () => {
         mutateLeaves();
       } else if (activeTab === 'corrections') {
         const action = actionType === 'approve' ? 'approve' : 'reject';
+        mutateCorrections(rawCorrections.filter(r => r.id !== id), false);
         await fetch(`/api/team-lead/attendance-corrections/${id}/${action}`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
@@ -109,6 +121,7 @@ const Approvals = () => {
         mutateCorrections();
       } else if (activeTab === 'expense') {
         const action = actionType === 'approve' ? 'approve' : 'reject';
+        mutateExpenses(rawExpenses.filter(r => r.id !== id), false);
         await fetch(`/api/team-lead/expenses/${id}/${action}`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
@@ -116,6 +129,7 @@ const Approvals = () => {
         mutateExpenses();
       } else if (activeTab === 'timesheet') {
         const action = actionType === 'approve' ? 'approve' : 'reject';
+        mutateTimesheets(rawTimesheets.filter(r => r.id !== id), false);
         const body = actionType === 'reject' ? JSON.stringify({ comment: 'Rejected by TL from approvals' }) : null;
         await fetch(`/api/timesheets/${id}/${action}`, {
           method: 'POST',
@@ -128,12 +142,15 @@ const Approvals = () => {
         mutateTimesheets();
       } else if (activeTab === 'wfh') {
         const action = actionType === 'approve' ? 'approve' : 'reject';
+        mutateWfhs(rawWfhs.filter(r => r.id !== id), false);
         await fetch(`/api/team-lead/wfh/${id}/${action}`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
         });
         mutateWfhs();
       }
+      
+      setToast({ message: `Request ${actionTxt} Successfully!`, type: actionType === 'approve' ? 'success' : 'error' });
       if (selectedId === id) setSelectedId(null);
     } catch (e) {
       console.error("Action failed", e);
@@ -431,6 +448,28 @@ const Approvals = () => {
         </div>
 
       </div>
+
+      {toast && (
+        <div style={{
+          position: 'fixed',
+          top: '24px',
+          right: '24px',
+          background: toast.type === 'success' ? '#10b981' : '#ef4444',
+          color: 'white',
+          padding: '12px 24px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          zIndex: 9999,
+          fontWeight: 500,
+          animation: 'slideInRight 0.3s ease-out'
+        }}>
+          {toast.type === 'success' ? <Check size={20} /> : <X size={20} />}
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 };

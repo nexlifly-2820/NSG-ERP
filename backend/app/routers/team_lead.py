@@ -436,6 +436,8 @@ def get_pending_leaves(current_user: models.User = Depends(security.get_current_
     verify_manager_role(current_user)
     if current_user.role == "tl":
         emp_ids = [u.id for u in db.query(models.User.id).filter(models.User.manager_id == current_user.id).all()]
+        if not emp_ids:
+            return []
         leaves = db.query(models.LeaveRequest).filter(
             models.LeaveRequest.status == "pending",
             models.LeaveRequest.leave_type != "WFH",
@@ -459,8 +461,17 @@ def approve_leave(id: int, current_user: models.User = Depends(security.get_curr
     if req.status != "pending":
          raise HTTPException(status_code=400, detail=f"Request is already {req.status}")
          
-    req.status = "tl_approved"
+    req.status = "approved"
     req.tl_approved_at = datetime.now()
+    
+    # Deduct leave balance upon approval
+    bal = db.query(models.LeaveBalance).filter(models.LeaveBalance.user_id == req.user_id).first()
+    if bal:
+        if req.leave_type == "CL": bal.CL -= req.days
+        elif req.leave_type == "SL": bal.SL -= req.days
+        elif req.leave_type == "EL": bal.EL -= req.days
+        elif req.leave_type == "Maternity": bal.Maternity -= req.days
+        elif req.leave_type == "Paternity": bal.Paternity -= req.days
     
     notification = models.Notification(
         user_id=req.user_id,
@@ -504,6 +515,8 @@ def get_pending_wfh(current_user: models.User = Depends(security.get_current_use
     verify_manager_role(current_user)
     if current_user.role == "tl":
         emp_ids = [u.id for u in db.query(models.User.id).filter(models.User.manager_id == current_user.id).all()]
+        if not emp_ids:
+            return []
         wfh = db.query(models.LeaveRequest).filter(
             models.LeaveRequest.status == "pending",
             models.LeaveRequest.leave_type == "WFH",
@@ -530,6 +543,8 @@ def get_pending_corrections(current_user: models.User = Depends(security.get_cur
     verify_manager_role(current_user)
     if current_user.role == "tl":
         emp_ids = [u.id for u in db.query(models.User.id).filter(models.User.manager_id == current_user.id).all()]
+        if not emp_ids:
+            return []
         corrections = db.query(models.AttendanceCorrection).filter(
             models.AttendanceCorrection.status == "pending",
             models.AttendanceCorrection.user_id.in_(emp_ids)
@@ -608,6 +623,8 @@ def get_pending_expenses(current_user: models.User = Depends(security.get_curren
     verify_manager_role(current_user)
     if current_user.role == "tl":
         emp_ids = [u.id for u in db.query(models.User.id).filter(models.User.manager_id == current_user.id).all()]
+        if not emp_ids:
+            return []
         expenses = db.query(models.ExpenseClaim).filter(
             models.ExpenseClaim.tl_approval == "pending",
             models.ExpenseClaim.user_id.in_(emp_ids)

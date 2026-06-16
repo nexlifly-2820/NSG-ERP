@@ -19,6 +19,14 @@ const Dashboard = ({ setActiveTab, setSelectedChatUser }) => {
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, listKey: '', id: null, action: '' });
   const [showAllTeam, setShowAllTeam] = useState(false);
   const [showAllWorkload, setShowAllWorkload] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   // ── Real API Data ──────────────────────────────────────────────────────────
   const [teamMembers, setTeamMembers] = useState([]);
@@ -212,12 +220,22 @@ const Dashboard = ({ setActiveTab, setSelectedChatUser }) => {
     if (endpoint) {
       try {
         const token = localStorage.getItem('nsg_jwt_token');
+        
+        // Optimistically update UI immediately so it vanishes without waiting/reloading
+        setPendingDetails(prev => ({
+          ...prev,
+          [listKey]: prev[listKey].filter(item => item.id !== id)
+        }));
+
         await fetch(endpoint, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        // Re-fetch data to reflect DB changes
+        
+        // Background re-fetch data to ensure full state sync
         fetchDashboardData();
+        const actionTxt = action === 'approve' ? 'Approved' : 'Rejected';
+        setToast({ message: `Request ${actionTxt} Successfully!`, type: action === 'approve' ? 'success' : 'error' });
       } catch (e) {
         console.error('Error executing action:', e);
       }
@@ -337,288 +355,281 @@ const Dashboard = ({ setActiveTab, setSelectedChatUser }) => {
             </div>
           </div>
         )}
+
+        {toast && (
+          <div style={{
+            position: 'fixed',
+            top: '24px',
+            right: '24px',
+            background: toast.type === 'success' ? '#10b981' : '#ef4444',
+            color: 'white',
+            padding: '12px 24px',
+            borderRadius: '8px',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            zIndex: 9999,
+            fontWeight: 500,
+            animation: 'slideInRight 0.3s ease-out'
+          }}>
+            {toast.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+            {toast.message}
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div className={styles.dashboardContainer}>
-      
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 300px', gap: '24px', alignItems: 'start' }}>
+      <div className={styles.mainLayoutGrid}>
         
-        {/* Main Content Area */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div className={styles.topGrid}>
-        {/* 1. Team Presence Grid */}
-        <div className={styles.widgetCard} style={{ alignSelf: 'start' }}>
-          <div className={styles.widgetHeader}>
-            <div className={styles.widgetTitle}>
-              <Users size={20} className={styles.widgetIcon} />
-              Team Presence
-            </div>
-            <button 
-              onClick={() => setShowAllTeam(!showAllTeam)} 
-              style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}
-            >
-              {showAllTeam ? 'Show less' : 'View all team'}
-            </button>
-          </div>
-          <div className={styles.avatarGrid}>
-            {(showAllTeam ? sortedTeamMembers : sortedTeamMembers.slice(0, 4)).map(member => {
-              let statusClass = '';
-              switch(member.status) {
-                case 'online': statusClass = styles.statusOnline; break;
-                case 'wfh': statusClass = styles.statusWfh; break;
-                case 'on_leave': statusClass = styles.statusLeave; break;
-                case 'absent': statusClass = styles.statusAbsent; break;
-                default: statusClass = styles.statusOffline;
-              }
-
-              return (
-                <div 
-                  key={member.id} 
-                  className={styles.avatarWrapper}
-                  style={{ cursor: 'pointer', transition: 'transform 0.2s ease' }}
-                  onClick={() => {
-                    if (setSelectedChatUser && setActiveTab) {
-                      // Match ID format from messaging module
-                      setSelectedChatUser(`dm-${member.id}`);
-                      setActiveTab('messaging');
-                    }
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                  onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                >
-                  <div className={styles.avatarCircle}>
-                    {member.initials}
-                    <span className={`${styles.statusIndicator} ${statusClass}`} title={member.status} />
-                  </div>
-                  <span className={styles.avatarName}>{member.name}</span>
+        {/* LEFT COLUMN: Main Workspace */}
+        <div className={styles.leftColumn}>
+          
+          {/* Top Row: Team Presence & Workload */}
+          <div className={styles.actionRowGrid}>
+            {/* Team Presence */}
+            <div className={styles.widgetCard}>
+              <div className={styles.widgetHeader}>
+                <div className={styles.widgetTitle}>
+                  <Users size={20} className={styles.widgetIcon} />
+                  Team Presence
                 </div>
-              );
-            })}
-          </div>
+                <button onClick={() => setShowAllTeam(!showAllTeam)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}>
+                  {showAllTeam ? 'Show less' : 'View all team'}
+                </button>
+              </div>
+              <div className={styles.avatarGrid}>
+                {(showAllTeam ? sortedTeamMembers : sortedTeamMembers.slice(0, 4)).map(member => {
+                  let statusClass = '';
+                  switch(member.status) {
+                    case 'online': statusClass = styles.statusOnline; break;
+                    case 'wfh': statusClass = styles.statusWfh; break;
+                    case 'on_leave': statusClass = styles.statusLeave; break;
+                    case 'absent': statusClass = styles.statusAbsent; break;
+                    default: statusClass = styles.statusOffline;
+                  }
+                  return (
+                    <div key={member.id} className={styles.avatarWrapper} style={{ cursor: 'pointer', transition: 'transform 0.2s ease' }}
+                      onClick={() => {
+                        if (setSelectedChatUser && setActiveTab) {
+                          setSelectedChatUser(`dm-${member.id}`);
+                          setActiveTab('messaging');
+                        }
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                      onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    >
+                      <div className={styles.avatarCircle}>
+                        {member.initials}
+                        <span className={`${styles.statusIndicator} ${statusClass}`} title={member.status} />
+                      </div>
+                      <span className={styles.avatarName}>{member.name}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
 
-        </div>
-
-        {/* 2. Sprint Status Widget */}
-        <div className={styles.widgetCard}>
-          <div className={styles.widgetHeader}>
-            <div className={styles.widgetTitle}>
-              <Activity size={20} className={styles.widgetIcon} />
-              Sprint Status
+            {/* Team Workload */}
+            <div className={styles.widgetCard}>
+              <div className={styles.widgetHeader}>
+                <div className={styles.widgetTitle}>
+                  <Activity size={20} className={styles.widgetIcon} />
+                  Team Workload
+                </div>
+                <button onClick={() => setShowAllWorkload(!showAllWorkload)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}>
+                  {showAllWorkload ? 'Show less' : 'View all team'}
+                </button>
+              </div>
+              <div className={styles.workloadList}>
+                {(showAllWorkload ? teamWorkload : teamWorkload.slice(0, 4)).map(member => {
+                  let loadClass = styles.low;
+                  if (member.load > 80) loadClass = styles.high;
+                  else if (member.load > 50) loadClass = styles.medium;
+                  return (
+                    <div key={member.id} className={styles.workloadItem}>
+                      <div className={styles.workloadInfo}>
+                        <span className={styles.workloadName}>{member.name}</span>
+                        <span className={styles.workloadRole}>{member.role}</span>
+                      </div>
+                      <div className={styles.workloadBarContainer}>
+                        <div className={`${styles.workloadBarFill} ${loadClass}`} style={{ width: `${member.load}%` }} />
+                      </div>
+                      <span className={styles.workloadValue}>{member.load}%</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
-          <div className={styles.sprintContent}>
-            <div className={styles.progressRingContainer}>
-              <svg className={styles.progressRingSvg} viewBox="0 0 140 140">
-                <circle
-                  className={styles.progressRingTrack}
-                  cx="70" cy="70" r={radius}
-                />
-                <circle
-                  className={styles.progressRingFill}
-                  cx="70" cy="70" r={radius}
-                  style={{ strokeDasharray: circumference, strokeDashoffset }}
-                />
-              </svg>
-              <div className={styles.progressRingCenter}>
-                <span className={styles.progressPoints}>{sprintData.pointsCompleted}</span>
-                <span className={styles.progressLabel}>/ {sprintData.pointsTotal} pts</span>
+
+          {/* Middle Row: Action Center */}
+          <div className={styles.actionRowGrid}>
+            {/* Pending Approvals */}
+            <div className={styles.widgetCard}>
+              <div className={styles.widgetHeader}>
+                <div className={styles.widgetTitle}>
+                  <CheckCircle size={20} className={styles.widgetIcon} />
+                  Pending Approvals
+                </div>
               </div>
+              <div className={styles.badgeList}>
+                <div className={styles.badgeItem} onClick={() => setCurrentView('leave')} style={{ cursor: 'pointer' }}>
+                  <div className={styles.badgeInfo}>
+                    <div className={`${styles.badgeIcon} ${styles.purple}`}>
+                      <Calendar size={18} />
+                    </div>
+                    <span className={styles.badgeLabel}>Leave Requests</span>
+                  </div>
+                  <span className={`${styles.badgeCount} ${pendingApprovals.leaveRequests === 0 ? styles.zero : ''}`}>{pendingApprovals.leaveRequests}</span>
+                </div>
+
+                <div className={styles.badgeItem} onClick={() => setCurrentView('timesheet')} style={{ cursor: 'pointer' }}>
+                  <div className={styles.badgeInfo}>
+                    <div className={`${styles.badgeIcon} ${styles.blue}`}>
+                      <Clock size={18} />
+                    </div>
+                    <span className={styles.badgeLabel}>Timesheet Corrections</span>
+                  </div>
+                  <span className={`${styles.badgeCount} ${pendingApprovals.timesheetCorrections === 0 ? styles.zero : ''}`}>{pendingApprovals.timesheetCorrections}</span>
+                </div>
+
+                <div className={styles.badgeItem} onClick={() => setCurrentView('wfh')} style={{ cursor: 'pointer' }}>
+                  <div className={styles.badgeInfo}>
+                    <div className={`${styles.badgeIcon} ${styles.orange}`}>
+                      <Laptop size={18} />
+                    </div>
+                    <span className={styles.badgeLabel}>WFH Requests</span>
+                  </div>
+                  <span className={`${styles.badgeCount} ${pendingApprovals.wfhRequests === 0 ? styles.zero : ''}`}>{pendingApprovals.wfhRequests}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Today's Absent Alert */}
+            <div className={styles.widgetCard}>
+              <div className={styles.widgetHeader}>
+                <div className={styles.widgetTitle}>
+                  <AlertCircle size={20} style={{ color: '#ef4444' }} />
+                  Today's Absent Alert
+                </div>
+              </div>
+              <div className={styles.alertList}>
+                {pendingDetails.absentAlerts.map(alert => (
+                  <div key={alert.id} className={styles.alertCard} onClick={() => { setCurrentView('absent'); setExpandedItem(alert.id); }} style={{ cursor: 'pointer' }}>
+                    <div className={styles.alertAvatar}>{alert.initials}</div>
+                    <div className={styles.alertInfo}>
+                      <h4 className={styles.alertName} style={{ margin: 0 }}>{alert.name}</h4>
+                    </div>
+                  </div>
+                ))}
+                {pendingDetails.absentAlerts.length === 0 && (
+                  <div style={{ textAlign: 'center', color: '#94a3b8', padding: '20px 0', fontSize: '14px' }}>
+                    No absentees today.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Row: CEO Announcements */}
+          <div className={`${styles.widgetCard} ${styles.ceoAnnouncementsCard}`}>
+            <div className={styles.ceoHeader}>
+              <span style={{ fontSize: '20px' }}>📢</span>
+              <span className={styles.ceoTitle}>CEO Announcements</span>
+              <span className={styles.ceoBadge}>{announcements.length}</span>
             </div>
             
-            <div className={styles.sprintDetails}>
-              <h3 className={styles.sprintName}>{sprintData.name}</h3>
-              <div className={styles.velocityTrend}>
-                <TrendingUp size={16} />
-                {sprintData.velocityTrend}
-              </div>
-              <div className={styles.taskCounters}>
-                <div className={styles.taskCountItem}>
-                  <span className={styles.taskCountNum}>{sprintData.tasks.todo}</span>
-                  <span className={styles.taskCountLabel}>To Do</span>
-                </div>
-                <div className={styles.taskCountItem}>
-                  <span className={styles.taskCountNum}>{sprintData.tasks.inProgress}</span>
-                  <span className={styles.taskCountLabel}>In Progress</span>
-                </div>
-                <div className={`${styles.taskCountItem} ${styles.blocked}`}>
-                  <span className={styles.taskCountNum}>{sprintData.tasks.blocked}</span>
-                  <span className={styles.taskCountLabel}>Blocked</span>
-                </div>
-                <div className={styles.taskCountItem}>
-                  <span className={styles.taskCountNum}>{sprintData.tasks.done}</span>
-                  <span className={styles.taskCountLabel}>Done</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className={styles.bottomGrid}>
-        {/* 3. Pending Approvals Counter */}
-        <div className={styles.widgetCard}>
-          <div className={styles.widgetHeader}>
-            <div className={styles.widgetTitle}>
-              <CheckCircle size={20} className={styles.widgetIcon} />
-              Pending Approvals
-            </div>
-          </div>
-          <div className={styles.badgeList}>
-            <div 
-              className={styles.badgeItem}
-              onClick={() => setCurrentView('leave')}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className={styles.badgeInfo}>
-                <div className={`${styles.badgeIcon} ${styles.purple}`}>
-                  <Calendar size={18} />
-                </div>
-                <span className={styles.badgeLabel}>Leave Requests</span>
-              </div>
-              <span className={styles.badgeCount}>{pendingApprovals.leaveRequests}</span>
-            </div>
-
-            <div 
-              className={styles.badgeItem}
-              onClick={() => setCurrentView('timesheet')}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className={styles.badgeInfo}>
-                <div className={`${styles.badgeIcon} ${styles.blue}`}>
-                  <Clock size={18} />
-                </div>
-                <span className={styles.badgeLabel}>Timesheet Corrections</span>
-              </div>
-              <span className={styles.badgeCount}>{pendingApprovals.timesheetCorrections}</span>
-            </div>
-
-            <div 
-              className={styles.badgeItem}
-              onClick={() => setCurrentView('wfh')}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className={styles.badgeInfo}>
-                <div className={`${styles.badgeIcon} ${styles.orange}`}>
-                  <Laptop size={18} />
-                </div>
-                <span className={styles.badgeLabel}>WFH Requests</span>
-              </div>
-              <span className={styles.badgeCount}>{pendingApprovals.wfhRequests}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* 4. Today's Absent Alert */}
-        <div className={styles.widgetCard}>
-          <div className={styles.widgetHeader}>
-            <div className={styles.widgetTitle}>
-              <AlertCircle size={20} style={{ color: '#ef4444' }} />
-              Today's Absent Alert
-            </div>
-          </div>
-          <div className={styles.alertList}>
-            {pendingDetails.absentAlerts.map(alert => (
-              <div 
-                key={alert.id} 
-                className={styles.alertCard}
-                onClick={() => {
-                  setCurrentView('absent');
-                  setExpandedItem(alert.id);
-                }}
-                style={{ cursor: 'pointer' }}
-              >
-                <div className={styles.alertAvatar}>{alert.initials}</div>
-                <div className={styles.alertInfo}>
-                  <h4 className={styles.alertName} style={{ margin: 0 }}>{alert.name}</h4>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* 5. Team Workload Bars */}
-        <div className={styles.widgetCard}>
-          <div className={styles.widgetHeader}>
-            <div className={styles.widgetTitle}>
-              <Users size={20} className={styles.widgetIcon} />
-              Team Workload
-            </div>
-            <button 
-              onClick={() => setShowAllWorkload(!showAllWorkload)} 
-              style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}
-            >
-              {showAllWorkload ? 'Show less' : 'View all team'}
-            </button>
-          </div>
-          <div className={styles.workloadList}>
-            {(showAllWorkload ? teamWorkload : teamWorkload.slice(0, 4)).map(member => {
-              let loadClass = styles.low;
-              if (member.load > 80) loadClass = styles.high;
-              else if (member.load > 50) loadClass = styles.medium;
-
-              return (
-                <div key={member.id} className={styles.workloadItem}>
-                  <div className={styles.workloadInfo}>
-                    <span className={styles.workloadName}>{member.name}</span>
-                    <span className={styles.workloadRole}>{member.role}</span>
+            {announcements.length > 0 ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                {announcements.slice(0, 3).map(ann => (
+                  <div key={ann.id} style={{
+                    padding: '16px',
+                    background: '#FFF',
+                    border: '1px solid #E2E8F0',
+                    borderLeft: ann.priority === 'Urgent' ? '4px solid #ef4444' : '4px solid #3b82f6',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748B' }}>
+                        {ann.date || 'Today'}
+                      </span>
+                      {ann.priority === 'Urgent' && (
+                        <span style={{ background: '#FEF2F2', color: '#ef4444', border: '1px solid #fecaca', padding: '2px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: 800 }}>URGENT</span>
+                      )}
+                    </div>
+                    <strong style={{ fontSize: '14px', color: '#0F172A', lineHeight: 1.3 }}>{ann.title}</strong>
+                    <div dangerouslySetInnerHTML={{ __html: ann.body }} style={{ fontSize: '13px', color: '#475569', margin: 0, lineHeight: 1.5, maxHeight: '3.8em', overflow: 'hidden' }} />
                   </div>
-                  <div className={styles.workloadBarContainer}>
-                    <div 
-                      className={`${styles.workloadBarFill} ${loadClass}`} 
-                      style={{ width: `${member.load}%` }}
-                    />
-                  </div>
-                  <span className={styles.workloadValue}>{member.load}%</span>
-                </div>
-              );
-            })}
+                ))}
+              </div>
+            ) : (
+              <div style={{ padding: '24px 0', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                <div style={{ fontSize: '24px', opacity: 0.5 }}>📰</div>
+                <div style={{ fontSize: '14px', color: '#64748b', fontWeight: 500 }}>You're all caught up!</div>
+                <div style={{ fontSize: '12px', color: '#94a3b8' }}>No new announcements from leadership.</div>
+              </div>
+            )}
           </div>
         </div>
-      </div>
-    </div>
-        
-    {/* Right Sidebar: CEO Announcements */}
-        {announcements.length > 0 && (
-          <div className={styles.widgetCard} style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '16px', height: '100%' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-              <span style={{ fontSize: '16px' }}>📢</span>
-              <span style={{ fontSize: '15px', fontWeight: '700', color: '#1E293B' }}>CEO Announcements</span>
-              <span style={{ background: 'rgba(245,158,11,0.1)', color: '#fbbf24', fontSize: '10px', fontWeight: '800', padding: '2px 8px', borderRadius: '12px', marginLeft: 'auto' }}>
-                {announcements.length}
-              </span>
+
+        {/* RIGHT COLUMN: Sidebar */}
+        <div className={styles.rightSidebar}>
+          {/* Sprint Status */}
+          <div className={styles.widgetCard}>
+            <div className={styles.widgetHeader}>
+              <div className={styles.widgetTitle}>
+                <Activity size={20} className={styles.widgetIcon} />
+                Sprint Status
+              </div>
             </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {announcements.slice(0, 3).map(ann => (
-                <div key={ann.id} style={{
-                  padding: '14px',
-                  background: '#FFF',
-                  border: '1px solid #E2E8F0',
-                  borderLeft: ann.priority === 'Urgent' ? '4px solid #f87171' : '4px solid #60a5fa',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748B' }}>
-                      {ann.date || 'Today'}
-                    </span>
-                    {ann.priority === 'Urgent' && (
-                      <span style={{ background: '#FEF2F2', color: '#f87171', border: '1px solid #FCA5A5', padding: '1px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 800 }}>URGENT</span>
-                    )}
-                  </div>
-                  <strong style={{ fontSize: '13px', color: '#0F172A' }}>{ann.title}</strong>
-                  <div dangerouslySetInnerHTML={{ __html: ann.body }} style={{ fontSize: '12px', color: '#475569', margin: 0, lineHeight: 1.4, maxHeight: '3.6em', overflow: 'hidden' }} />
+            <div className={styles.sprintContent}>
+              <div className={styles.progressRingContainer}>
+                <svg className={styles.progressRingSvg} viewBox="0 0 140 140">
+                  <circle className={styles.progressRingTrack} cx="70" cy="70" r={radius} />
+                  <circle className={styles.progressRingFill} cx="70" cy="70" r={radius} style={{ strokeDasharray: circumference, strokeDashoffset }} />
+                </svg>
+                <div className={styles.progressRingCenter}>
+                  <span className={styles.progressPoints}>{sprintData.pointsCompleted}</span>
+                  <span className={styles.progressLabel}>/ {sprintData.pointsTotal} pts</span>
                 </div>
-              ))}
+              </div>
+              <div className={styles.sprintDetails}>
+                <h3 className={styles.sprintName}>{sprintData.name}</h3>
+                <div className={styles.velocityTrend}>
+                  <TrendingUp size={16} />
+                  {sprintData.velocityTrend}
+                </div>
+                <div className={styles.taskCounters}>
+                  <div className={styles.taskCountItem}>
+                    <span className={styles.taskCountNum}>{sprintData.tasks.todo}</span>
+                    <span className={styles.taskCountLabel}>To Do</span>
+                  </div>
+                  <div className={styles.taskCountItem}>
+                    <span className={styles.taskCountNum}>{sprintData.tasks.inProgress}</span>
+                    <span className={styles.taskCountLabel}>In Progress</span>
+                  </div>
+                  <div className={`${styles.taskCountItem} ${styles.blocked}`}>
+                    <span className={styles.taskCountNum}>{sprintData.tasks.blocked}</span>
+                    <span className={styles.taskCountLabel}>Blocked</span>
+                  </div>
+                  <div className={styles.taskCountItem}>
+                    <span className={styles.taskCountNum}>{sprintData.tasks.done}</span>
+                    <span className={styles.taskCountLabel}>Done</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        )}
+        </div>
+
       </div>
     </div>
   );

@@ -177,6 +177,8 @@ def get_pending_timesheets(current_user: models.User = Depends(security.get_curr
     verify_manager_role(current_user)
     if current_user.role == "tl":
         emp_ids = [u.id for u in db.query(models.User.id).filter(models.User.manager_id == current_user.id).all()]
+        if not emp_ids:
+            return []
         timesheets = db.query(models.Timesheet).filter(
             models.Timesheet.status == "submitted",
             models.Timesheet.user_id.in_(emp_ids)

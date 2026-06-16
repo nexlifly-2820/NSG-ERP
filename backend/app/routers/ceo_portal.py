@@ -292,7 +292,7 @@ def get_dashboard_summary(current_user: models.User = Depends(security.get_curre
         pending_payroll = 0
     pending_loans = db.query(models.Loan).filter(models.Loan.status == "active", models.Loan.outstanding_balance > 0).count()
     pending_claims = db.query(models.ExpenseClaim).filter(models.ExpenseClaim.status == "pending").count()
-    pending_leaves = db.query(models.LeaveRequest).filter(models.LeaveRequest.status == "tl_approved").count()
+    pending_leaves = db.query(models.LeaveRequest).filter(models.LeaveRequest.status == "pending").count()
     
     total_approvals = pending_payroll + pending_claims + pending_leaves + pending_loans
     
@@ -650,7 +650,7 @@ def get_pending_approvals(current_user: models.User = Depends(security.get_curre
     
     payroll = db.query(models.PayrollRun).filter(models.PayrollRun.status == "maker_signed").offset(skip).limit(limit).all()
     claims = db.query(models.ExpenseClaim).filter(models.ExpenseClaim.status == "pending").offset(skip).limit(limit).all()
-    leaves = db.query(models.LeaveRequest).filter(models.LeaveRequest.status == "tl_approved").offset(skip).limit(limit).all()
+    leaves = db.query(models.LeaveRequest).filter(models.LeaveRequest.status == "pending").offset(skip).limit(limit).all()
     loans = db.query(models.Loan).filter(models.Loan.status == "active", models.Loan.outstanding_balance > 0).offset(skip).limit(limit).all()
     
     enriched_payroll = []
@@ -853,14 +853,17 @@ def approve_leave_ceo(id: int, current_user: models.User = Depends(security.get_
     if not req:
         raise HTTPException(status_code=404, detail="Leave request not found.")
         
-    req.status = "hr_approved" # Set to final approved status
+    req.status = "approved" # Set to final approved status
     req.hr_approved_at = datetime.now()
     
     # Adjust balance
     bal = db.query(models.LeaveBalance).filter(models.LeaveBalance.user_id == req.user_id).first()
-    if bal and hasattr(bal, req.leave_type):
-        current_bal = getattr(bal, req.leave_type)
-        setattr(bal, req.leave_type, max(0.0, current_bal - req.days))
+    if bal:
+        if req.leave_type == "CL": bal.CL -= req.days
+        elif req.leave_type == "SL": bal.SL -= req.days
+        elif req.leave_type == "EL": bal.EL -= req.days
+        elif req.leave_type == "Maternity": bal.Maternity -= req.days
+        elif req.leave_type == "Paternity": bal.Paternity -= req.days
         
     db_notify = models.Notification(
         user_id=req.user_id,
@@ -879,7 +882,7 @@ def reject_leave_ceo(id: int, current_user: models.User = Depends(security.get_c
     if not req:
         raise HTTPException(status_code=404, detail="Leave request not found.")
         
-    req.status = "denied"
+    req.status = "rejected"
     
     db_notify = models.Notification(
         user_id=req.user_id,

@@ -162,12 +162,15 @@ function ApplyLeaveForm({ prefillType, balances, onSuccess, onRefreshData }) {
         },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error('Failed to submit leave request');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Failed to submit leave request');
+      }
       setSuccess(true);
       if (onRefreshData) onRefreshData();
     } catch (error) {
       console.error(error);
-      alert('Error submitting leave request');
+      alert(error.message || 'Error submitting leave request');
     } finally {
       setLoading(false);
       setTimeout(() => {
@@ -309,7 +312,7 @@ function LeaveHistoryTable({ history, onCancelRequest }) {
                 <td><span className={`lv-status-chip ${statusClass[row.status]}`}>{row.status}</span></td>
                 <td className="lv-td-muted">{row.approver}</td>
                 <td>
-                  {(row.status === 'Approved' || row.status === 'Pending') && new Date(row.from) > new Date() && (
+                  {row.status === 'Pending' && new Date(row.from) > new Date() && (
                     <button className="lv-cancel-row-btn" onClick={() => onCancelRequest(row)}>Cancel</button>
                   )}
                 </td>
@@ -339,8 +342,8 @@ export default function Leave() {
       from: r.from_date,
       to: r.to_date,
       days: r.days,
-      status: r.status === 'hr_approved' ? 'Approved' : r.status === 'tl_approved' ? 'TL Approved' : r.status === 'denied' ? 'Rejected' : r.status === 'cancelled' ? 'Cancelled' : r.status.charAt(0).toUpperCase() + r.status.slice(1),
-      approver: r.status === 'hr_approved' ? 'HR Manager' : r.status === 'tl_approved' ? 'Sarah Jenkins' : '—'
+      status: r.status === 'approved' ? 'Approved' : r.status === 'rejected' ? 'Rejected' : r.status === 'cancelled' ? 'Cancelled' : r.status.charAt(0).toUpperCase() + r.status.slice(1),
+      approver: r.status === 'approved' ? 'Management' : '—'
   }));
 
   const fetchData = () => {
