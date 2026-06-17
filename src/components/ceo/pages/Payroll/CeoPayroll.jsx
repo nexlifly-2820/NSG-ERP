@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader, CheckCircle, Search, AlertCircle, FileText, IndianRupee, History, DollarSign } from 'lucide-react';
+import { Loader, CheckCircle, Search, AlertCircle, FileText, IndianRupee, History, DollarSign, X } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { generatePayslipPDF } from '../../../../utils/pdfGenerator';
 import './CeoPayroll.css';
@@ -105,11 +105,6 @@ export default function CeoPayroll() {
   };
 
   const processPayment = async () => {
-    if (!transactionRef.trim()) {
-      showNotification('Transaction Reference is required', 'error');
-      return;
-    }
-    
     setLoading(true);
     try {
       const token = localStorage.getItem('nsg_jwt_token');
@@ -410,9 +405,14 @@ export default function CeoPayroll() {
       {showModal && selectedUser && (
         <div className="ceo-modal-overlay">
           <div className="ceo-modal">
-            <div className="ceo-modal-header">
-              <h3>Confirm Payment</h3>
-              <p>For {selectedUser.employee_name}</p>
+            <div className="ceo-modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <h3>Confirm Payment</h3>
+                <p>For {selectedUser.employee_name}</p>
+              </div>
+              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 0, marginTop: '2px' }}>
+                <X size={20} />
+              </button>
             </div>
             <div className="ceo-modal-body">
               <div className="payment-summary">
@@ -431,7 +431,7 @@ export default function CeoPayroll() {
               </div>
 
               <div className="form-group">
-                <label>Transaction Reference ID</label>
+                <label>Transaction Reference ID (Optional)</label>
                 <input 
                   type="text" 
                   placeholder="e.g. UTR123456789" 
