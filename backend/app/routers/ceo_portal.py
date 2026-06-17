@@ -1487,6 +1487,7 @@ class ProcessPayrollRequest(BaseModel):
     lop_days_reversed: Optional[float] = 0.0
     payment_method: str
     transaction_ref: str
+    payment_date: Optional[str] = None
 
 @router.get("/payroll/pending")
 def get_pending_payrolls(month: int, year: int, current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
@@ -1569,7 +1570,10 @@ def process_manual_payroll(user_id: int, req: ProcessPayrollRequest, current_use
     payslip.status = "paid"
     payslip.payment_method = req.payment_method
     payslip.transaction_ref = req.transaction_ref
-    payslip.payment_date = datetime.now()
+    if req.payment_date:
+        payslip.payment_date = datetime.strptime(req.payment_date, "%Y-%m-%d")
+    else:
+        payslip.payment_date = datetime.now()
     payslip.worked_days = req.worked_days
     payslip.arrear_days = req.arrear_days
     payslip.lop_days = req.lop_days

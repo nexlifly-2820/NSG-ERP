@@ -18,6 +18,7 @@ export default function CeoPayroll() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('Bank Transfer');
   const [transactionRef, setTransactionRef] = useState('');
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   
   // PDF Fields State
   const [workedDays, setWorkedDays] = useState('');
@@ -130,6 +131,7 @@ export default function CeoPayroll() {
           lop: selectedUser.lop,
           payment_method: paymentMethod,
           transaction_ref: transactionRef,
+          payment_date: paymentDate,
           worked_days: parseFloat(workedDays) || null,
           arrear_days: parseFloat(arrearDays) || 0,
           lop_days: parseFloat(lopDays) || 0,
@@ -215,14 +217,24 @@ export default function CeoPayroll() {
         </div>
         <div className="ceo-payroll-filters">
           <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))}>
-            {Array.from({ length: 12 }, (_, i) => (
+            {Array.from({ length: 12 }, (_, i) => i).filter(i => {
+              const now = new Date();
+              return year < now.getFullYear() || (year === now.getFullYear() && i <= now.getMonth());
+            }).map(i => (
               <option key={i + 1} value={i + 1}>
                 {new Date(0, i).toLocaleString('default', { month: 'long' })}
               </option>
             ))}
           </select>
-          <select value={year} onChange={(e) => setYear(parseInt(e.target.value))}>
-            {Array.from({ length: 21 }, (_, i) => new Date().getFullYear() - 10 + i).map(y => (
+          <select value={year} onChange={(e) => {
+            const newYear = parseInt(e.target.value);
+            setYear(newYear);
+            const now = new Date();
+            if (newYear === now.getFullYear() && month > now.getMonth() + 1) {
+              setMonth(now.getMonth() + 1);
+            }
+          }}>
+            {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - 10 + i).map(y => (
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
@@ -382,6 +394,16 @@ export default function CeoPayroll() {
                   placeholder="e.g. UTR123456789" 
                   value={transactionRef}
                   onChange={e => setTransactionRef(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Payment Date</label>
+                <input 
+                  type="date" 
+                  value={paymentDate}
+                  max={new Date().toISOString().split('T')[0]}
+                  onChange={e => setPaymentDate(e.target.value)}
                 />
               </div>
 

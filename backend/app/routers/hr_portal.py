@@ -97,6 +97,15 @@ class EmployeeCreateRequest(BaseModel):
     photo: Optional[str] = None
     manager_id: Optional[int] = None
     role: Optional[str] = "employee"
+    pf_number: Optional[str] = None
+    uan: Optional[str] = None
+    esi_number: Optional[str] = None
+    pan_number: Optional[str] = None
+    location: Optional[str] = None
+    bank_name: Optional[str] = None
+    account_number: Optional[str] = None
+    ifsc_code: Optional[str] = None
+    bank_branch: Optional[str] = None
 
 class EmployeeResponse(BaseModel):
     id: int
@@ -118,6 +127,12 @@ class EmployeeResponse(BaseModel):
     manager_id: Optional[int]
     photo: Optional[str]
     documents: Optional[str]
+    pf_number: Optional[str]
+    uan: Optional[str]
+    esi_number: Optional[str]
+    pan_number: Optional[str]
+    location: Optional[str]
+    bank_branch: Optional[str]
 
     class Config:
         from_attributes = True
@@ -137,6 +152,15 @@ class EmployeeUpdateRequest(BaseModel):
     manager_id: Optional[int] = None
     photo: Optional[str] = None
     status: Optional[str] = None
+    pf_number: Optional[str] = None
+    uan: Optional[str] = None
+    esi_number: Optional[str] = None
+    pan_number: Optional[str] = None
+    location: Optional[str] = None
+    bank_name: Optional[str] = None
+    account_number: Optional[str] = None
+    ifsc_code: Optional[str] = None
+    bank_branch: Optional[str] = None
 
 class PasswordResetRequest(BaseModel):
     new_password: str
@@ -731,6 +755,48 @@ def get_employees(current_user: models.User = Depends(security.get_current_user)
     verify_hr_role(current_user)
     return db.query(models.User).filter(models.User.role.in_(["employee", "tl", "hr"])).offset(skip).limit(limit).all()
 
+@router.get("/departments")
+def get_departments(current_user: models.User = Depends(security.get_current_user)):
+    verify_hr_role(current_user)
+    return [
+        {"id": 1, "name": "Engineering"},
+        {"id": 2, "name": "Human Resources"},
+        {"id": 3, "name": "Sales"},
+        {"id": 4, "name": "Marketing"},
+        {"id": 5, "name": "Operations"},
+        {"id": 6, "name": "Finance"},
+        {"id": 7, "name": "Product"},
+    ]
+
+@router.get("/designations")
+def get_designations(current_user: models.User = Depends(security.get_current_user)):
+    verify_hr_role(current_user)
+    return [
+        {"id": 1, "name": "Software Engineer", "dept": "Engineering"},
+        {"id": 2, "name": "Senior Software Engineer", "dept": "Engineering"},
+        {"id": 3, "name": "Engineering Manager", "dept": "Engineering"},
+        {"id": 4, "name": "System Administrator", "dept": "Engineering"},
+        {"id": 5, "name": "HR Executive", "dept": "Human Resources"},
+        {"id": 6, "name": "HR Manager", "dept": "Human Resources"},
+        {"id": 7, "name": "Sales Representative", "dept": "Sales"},
+        {"id": 8, "name": "Sales Manager", "dept": "Sales"},
+        {"id": 9, "name": "Marketing Specialist", "dept": "Marketing"},
+        {"id": 10, "name": "Product Manager", "dept": "Product"},
+        {"id": 11, "name": "Operations Executive", "dept": "Operations"},
+        {"id": 12, "name": "Financial Analyst", "dept": "Finance"},
+        {"id": 13, "name": "CEO", "dept": "Operations"},
+    ]
+
+@router.get("/shifts")
+def get_shifts(current_user: models.User = Depends(security.get_current_user)):
+    verify_hr_role(current_user)
+    return [
+        {"id": 1, "name": "General (09:00 AM - 06:00 PM)"},
+        {"id": 2, "name": "Morning (06:00 AM - 03:00 PM)"},
+        {"id": 3, "name": "Evening (02:00 PM - 11:00 PM)"},
+        {"id": 4, "name": "Night (10:00 PM - 07:00 AM)"},
+    ]
+
 @router.get("/team-leads", response_model=List[EmployeeResponse])
 def get_team_leads(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
@@ -774,14 +840,20 @@ def add_employee(req: EmployeeCreateRequest, current_user: models.User = Depends
         emp_id=emp_id,
         join_date=req.join_date,
         probation_end_date=probation_end,
-        bank_name=None,
-        account_number=None,
-        ifsc_code=None,
+        bank_name=req.bank_name,
+        account_number=req.account_number,
+        ifsc_code=req.ifsc_code,
+        bank_branch=req.bank_branch,
         grade=3,
         manager="John Doe",
         manager_id=req.manager_id,
         photo=req.photo or "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&fit=crop&q=80",
-        documents=json.dumps(initial_docs)
+        documents=json.dumps(initial_docs),
+        pf_number=req.pf_number,
+        uan=req.uan,
+        esi_number=req.esi_number,
+        pan_number=req.pan_number,
+        location=req.location
     )
     db.add(db_emp)
     db.flush()
@@ -970,6 +1042,24 @@ def update_employee(id: int, req: EmployeeUpdateRequest, current_user: models.Us
         emp.photo = req.photo
     if req.status is not None:
         emp.status = req.status
+    if req.pf_number is not None:
+        emp.pf_number = req.pf_number
+    if req.uan is not None:
+        emp.uan = req.uan
+    if req.esi_number is not None:
+        emp.esi_number = req.esi_number
+    if req.pan_number is not None:
+        emp.pan_number = req.pan_number
+    if req.location is not None:
+        emp.location = req.location
+    if req.bank_name is not None:
+        emp.bank_name = req.bank_name
+    if req.account_number is not None:
+        emp.account_number = req.account_number
+    if req.ifsc_code is not None:
+        emp.ifsc_code = req.ifsc_code
+    if req.bank_branch is not None:
+        emp.bank_branch = req.bank_branch
 
     db_log = models.AuditLog(
         initiator_id=current_user.name,

@@ -24,6 +24,7 @@ class User(Base):
     bank_name = Column(String, nullable=True)
     account_number = Column(String, nullable=True)
     ifsc_code = Column(String, nullable=True)
+    bank_branch = Column(String, nullable=True)
     grade = Column(Integer, default=1)
     manager = Column(String, nullable=True) # Deprecated string name, keep for backward compatibility
     manager_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)

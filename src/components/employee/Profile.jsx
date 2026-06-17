@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import BankSection from './BankSection';
+
 import DocCard from './DocCard';
 import { User, Mail, Home, Camera, Check, ChevronDown } from 'lucide-react';
 import AvatarFallback from '../common/AvatarFallback';
@@ -22,9 +22,7 @@ export default function Profile({ currentUser }) {
     emergencyContactName: '', emergencyContactPhone: ''
   });
 
-  const [bankData, setBankData] = useState({
-    bankName: '', holderName: '', accountNumber: '', ifscCode: '', status: 'unverified'
-  });
+
 
   const [docs, setDocs] = useState(defaultDocs);
   const [avatar, setAvatar] = useState(DEFAULT_AVATAR);
@@ -67,16 +65,7 @@ export default function Profile({ currentUser }) {
           });
           // Avatar from DB
           if (data.photo) setAvatar(data.photo);
-          // Bank from DB
-          if (data.bank_name || data.account_number) {
-            setBankData({
-              bankName: data.bank_name || '',
-              holderName: data.name || '',
-              accountNumber: data.account_number || '',
-              ifscCode: data.ifsc_code || '',
-              status: (data.bank_name && data.account_number) ? 'verified' : 'unverified'
-            });
-          }
+          // Bank data is now read-only in Employment Details
           // Documents from DB
           if (data.documents) {
             try { setDocs(JSON.parse(data.documents)); } catch {}
@@ -158,31 +147,7 @@ export default function Profile({ currentUser }) {
     }
   };
 
-  const handleUpdateBank = async (updatedBank) => {
-    try {
-      const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch('/api/employee-portal/profile/update-bank', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          bank_name: updatedBank.bankName,
-          account_number: updatedBank.accountNumber,
-          ifsc_code: updatedBank.ifscCode
-        })
-      });
-      if (res.ok) {
-        setBankData({ ...updatedBank, status: 'pending' });
-        showToast('Bank details saved to database ✓');
-      } else {
-        showToast('Failed to update bank details');
-      }
-    } catch (e) { console.error(e); showToast('Network error'); }
-  };
 
-  const handleSimulateBankVerify = (status) => {
-    setBankData(prev => ({ ...prev, status }));
-    showToast(`Bank account status: ${status}`);
-  };
 
   const handleUploadDoc = async (id, fileName) => {
     const today = new Date().toISOString().split('T')[0];
@@ -488,19 +453,84 @@ export default function Profile({ currentUser }) {
             </button>
           )}
         </form>
+
+        <div style={{ marginTop: '24px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+          <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '12px' }}>Employment & Tax Details</h4>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Department</span>
+              <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.department || 'N/A'}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Designation / Title</span>
+              <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.designation || 'N/A'}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Phone Number</span>
+              <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.phone || 'N/A'}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>System Role</span>
+              <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.role || 'N/A'}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Reports To (Team Lead)</span>
+              <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.manager || 'N/A'}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Structural Grade</span>
+              <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.grade ? `Grade ${liveProfile.grade}` : 'N/A'}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Office Location</span>
+              <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.location || 'N/A'}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>PF Number</span>
+              <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.pf_number || 'N/A'}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>UAN</span>
+              <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.uan || 'N/A'}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>ESI Number</span>
+              <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.esi_number || 'N/A'}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>PAN</span>
+              <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.pan_number || 'N/A'}</span>
+            </div>
+          </div>
+
+          <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '16px' }}>
+            <h5 style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '12px', textTransform: 'uppercase' }}>Bank Summary</h5>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Bank Account Number</span>
+                <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.account_number || 'N/A'}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>IFSC Code</span>
+                <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.ifsc_code || 'N/A'}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Bank Name</span>
+                <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.bank_name || 'N/A'}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Bank Branch Name</span>
+                <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.bank_branch || 'N/A'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </>
     );
   };
 
-  const renderBankSection = () => {
-    return (
-      <BankSection 
-        bankData={bankData} 
-        onUpdateBank={handleUpdateBank} 
-        onSimulateVerify={handleSimulateBankVerify}
-      />
-    );
-  };
+
 
   const renderDocsSection = () => {
     return (
@@ -543,11 +573,10 @@ export default function Profile({ currentUser }) {
             grid-template-columns: 1.2fr 2fr;
             grid-template-areas: 
               "photo details"
-              "bank docs";
+              "docs details";
           }
           .area-photo { grid-area: photo; }
           .area-details { grid-area: details; }
-          .area-bank { grid-area: bank; }
           .area-docs { grid-area: docs; }
         }
 
@@ -863,53 +892,7 @@ export default function Profile({ currentUser }) {
             </div>
           </div>
 
-          {/* FOLD 3: Bank Account */}
-          <div className="accordion-item" style={{ border: '1px solid var(--border-color)', borderRadius: '12px', overflow: 'hidden', backgroundColor: 'var(--bg-secondary)' }}>
-            <button 
-              type="button"
-              onClick={() => toggleSection('bank')}
-              style={{
-                width: '100%',
-                padding: '16px 20px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                textAlign: 'left',
-                color: 'var(--text-primary)',
-                fontWeight: '700',
-                fontSize: '14px',
-                outline: 'none'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Check size={16} style={{ color: 'var(--accent-green)' }} />
-                <span>Bank Account Section</span>
-              </div>
-              <ChevronDown 
-                size={18} 
-                style={{ 
-                  transform: expandedSection === 'bank' ? 'rotate(180deg)' : 'rotate(0deg)', 
-                  transition: 'transform 0.2s ease',
-                  color: 'var(--text-muted)'
-                }} 
-              />
-            </button>
-            <div style={{
-              maxHeight: expandedSection === 'bank' ? '800px' : '0px',
-              overflow: 'hidden',
-              transition: 'max-height 0.3s ease-in-out',
-              borderTop: expandedSection === 'bank' ? '1px solid var(--border-color)' : 'none'
-            }}>
-              <div style={{ padding: '20px' }}>
-                {renderBankSection()}
-              </div>
-            </div>
-          </div>
-
-          {/* FOLD 4: Document Uploads */}
+          {/* FOLD 3: Document Uploads */}
           <div className="accordion-item" style={{ border: '1px solid var(--border-color)', borderRadius: '12px', overflow: 'hidden', backgroundColor: 'var(--bg-secondary)' }}>
             <button 
               type="button"
@@ -965,10 +948,6 @@ export default function Profile({ currentUser }) {
           
           <div className="content-card area-details">
             {renderDetailsSection()}
-          </div>
-          
-          <div className="area-bank">
-            {renderBankSection()}
           </div>
           
           <div className="content-card area-docs">

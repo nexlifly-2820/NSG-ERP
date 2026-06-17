@@ -691,7 +691,18 @@ class UserProfileResponse(BaseModel):
     bank_name: Optional[str] = None
     account_number: Optional[str] = None
     ifsc_code: Optional[str] = None
+    bank_branch: Optional[str] = None
     documents: Optional[str] = None
+    pf_number: Optional[str] = None
+    uan: Optional[str] = None
+    esi_number: Optional[str] = None
+    pan_number: Optional[str] = None
+    location: Optional[str] = None
+    emp_id: Optional[str] = None
+    designation: Optional[str] = None
+    phone: Optional[str] = None
+    grade: Optional[int] = None
+    manager: Optional[str] = None
 
     class Config:
         from_attributes = True

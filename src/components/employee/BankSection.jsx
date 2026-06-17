@@ -7,6 +7,7 @@ export default function BankSection({ bankData, onUpdateBank, onSimulateVerify }
   const [holderName, setHolderName] = useState(bankData.holderName || '');
   const [accountNumber, setAccountNumber] = useState(bankData.accountNumber || '');
   const [ifscCode, setIfscCode] = useState(bankData.ifscCode || '');
+  const [bankBranch, setBankBranch] = useState(bankData.bankBranch || '');
 
   // Validation Errors state
   const [errors, setErrors] = useState({});
@@ -57,6 +58,10 @@ export default function BankSection({ bankData, onUpdateBank, onSimulateVerify }
       newErrors.ifscCode = 'Invalid IFSC code format (e.g. SBIN0001234).';
     }
 
+    if (!bankBranch.trim()) {
+      newErrors.bankBranch = 'Bank branch name is required.';
+    }
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
@@ -86,6 +91,7 @@ export default function BankSection({ bankData, onUpdateBank, onSimulateVerify }
       holderName: holderName.trim(),
       accountNumber: accountNumber.trim(),
       ifscCode: ifscCode.trim().toUpperCase(),
+      bankBranch: bankBranch.trim(),
       status: 'pending' // status switches to UPDATE-PENDING
     });
 
@@ -561,6 +567,30 @@ export default function BankSection({ bankData, onUpdateBank, onSimulateVerify }
             />
             {errors.ifscCode && (
               <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: '500' }}>{errors.ifscCode}</span>
+            )}
+          </div>
+
+          {/* Bank Branch Name */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>Bank Branch Name</label>
+            <input
+              type="text"
+              value={bankBranch}
+              onChange={(e) => setBankBranch(e.target.value)}
+              required
+              placeholder="Main Branch"
+              style={{
+                padding: '8px 10px',
+                borderRadius: '6px',
+                border: errors.bankBranch ? '1px solid #ef4444' : '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+                fontSize: '12px',
+                outline: 'none'
+              }}
+            />
+            {errors.bankBranch && (
+              <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: '500' }}>{errors.bankBranch}</span>
             )}
           </div>
 

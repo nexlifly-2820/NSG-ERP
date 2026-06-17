@@ -40,6 +40,15 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
   const [newStatus, setNewStatus] = useState('probation');
   const [newManagerId, setNewManagerId] = useState('');
   const [newSystemRole, setNewSystemRole] = useState('employee');
+  const [newPfNumber, setNewPfNumber] = useState('');
+  const [newUan, setNewUan] = useState('');
+  const [newEsiNumber, setNewEsiNumber] = useState('');
+  const [newPanNumber, setNewPanNumber] = useState('');
+  const [newLocation, setNewLocation] = useState('');
+  const [newBankName, setNewBankName] = useState('');
+  const [newAccountNumber, setNewAccountNumber] = useState('');
+  const [newIfscCode, setNewIfscCode] = useState('');
+  const [newBankBranch, setNewBankBranch] = useState('');
 
   const [departments, setDepartments] = useState([]);
   const [designations, setDesignations] = useState([]);
@@ -59,6 +68,15 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
   const [editSystemRole, setEditSystemRole] = useState('employee');
   const [editPhoto, setEditPhoto] = useState('');
   const [editPhotoFile, setEditPhotoFile] = useState(null);
+  const [editPfNumber, setEditPfNumber] = useState('');
+  const [editUan, setEditUan] = useState('');
+  const [editEsiNumber, setEditEsiNumber] = useState('');
+  const [editPanNumber, setEditPanNumber] = useState('');
+  const [editLocation, setEditLocation] = useState('');
+  const [editBankName, setEditBankName] = useState('');
+  const [editAccountNumber, setEditAccountNumber] = useState('');
+  const [editIfscCode, setEditIfscCode] = useState('');
+  const [editBankBranch, setEditBankBranch] = useState('');
 
   // Reset Password States
   const [showResetModal, setShowResetModal] = useState(false);
@@ -194,7 +212,16 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
           photo: finalPhotoUrl,
           manager_id: newManagerId ? parseInt(newManagerId) : null,
           role: newSystemRole,
-          shift_timing: newShift
+          shift_timing: newShift,
+          pf_number: newPfNumber || null,
+          uan: newUan || null,
+          esi_number: newEsiNumber || null,
+          pan_number: newPanNumber || null,
+          location: newLocation || null,
+          bank_name: newBankName || null,
+          account_number: newAccountNumber || null,
+          ifsc_code: newIfscCode || null,
+          bank_branch: newBankBranch || null
         })
       });
 
@@ -373,7 +400,16 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
           manager: editManager ? teamLeads.find(tl => String(tl.id) === String(editManager))?.name : null,
           manager_id: editManager ? parseInt(editManager) : null,
           role: editSystemRole,
-          photo: finalPhotoUrl
+          photo: finalPhotoUrl,
+          pf_number: editPfNumber || null,
+          uan: editUan || null,
+          esi_number: editEsiNumber || null,
+          pan_number: editPanNumber || null,
+          location: editLocation || null,
+          bank_name: editBankName || null,
+          account_number: editAccountNumber || null,
+          ifsc_code: editIfscCode || null,
+          bank_branch: editBankBranch || null
         })
       });
       if (!res.ok) {
@@ -456,6 +492,15 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
     setEditManager(emp.manager_id || '');
     setEditSystemRole(emp.role || 'employee');
     setEditPhoto(emp.photo || '');
+    setEditPfNumber(emp.pf_number || '');
+    setEditUan(emp.uan || '');
+    setEditEsiNumber(emp.esi_number || '');
+    setEditPanNumber(emp.pan_number || '');
+    setEditLocation(emp.location || '');
+    setEditBankName(emp.bank_name || '');
+    setEditAccountNumber(emp.account_number || '');
+    setEditIfscCode(emp.ifsc_code || '');
+    setEditBankBranch(emp.bank_branch || '');
     setEditPhotoFile(null);
     setShowEditModal(true);
   };
@@ -702,12 +747,29 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                       <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>Active Manager & Dept</span>
                       <strong>{selectedEmp.manager} ({selectedEmp.department})</strong>
                     </div>
+                    <div>
+                      <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>Office Location</span>
+                      <strong>{selectedEmp.location || 'N/A'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>PF / UAN / ESI</span>
+                      <strong>{selectedEmp.pf_number || 'N/A'} / {selectedEmp.uan || 'N/A'} / {selectedEmp.esi_number || 'N/A'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>PAN</span>
+                      <strong>{selectedEmp.pan_number || 'N/A'}</strong>
+                    </div>
                     <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', marginTop: '4px' }}>
                       <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>Masked Bank Details</span>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                        <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)' }}>
-                          {selectedEmp.bank_name} — {revealBank ? selectedEmp.account_number : `****${selectedEmp.account_number.slice(-4)}`}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)' }}>
+                            {selectedEmp.bank_name || 'No Bank'} — {revealBank ? (selectedEmp.account_number || 'N/A') : `****${(selectedEmp.account_number || '0000').slice(-4)}`}
+                          </span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                            IFSC: {selectedEmp.ifsc_code || 'N/A'} | Branch: {selectedEmp.bank_branch || 'N/A'}
+                          </span>
+                        </div>
                         {!revealBank ? (
                           <button
                             onClick={() => handleRevealBankDetails(selectedEmp)}
@@ -1021,8 +1083,48 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>PROFILE PHOTO</label>
-                <input type="file" accept="image/*" onChange={(e) => setNewPhotoFile(e.target.files[0])} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>PF NUMBER</label>
+                <input type="text" value={newPfNumber} onChange={(e) => setNewPfNumber(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>UAN</label>
+                <input type="text" value={newUan} onChange={(e) => setNewUan(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>ESI NUMBER</label>
+                <input type="text" value={newEsiNumber} onChange={(e) => setNewEsiNumber(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>PAN</label>
+                <input type="text" value={newPanNumber} onChange={(e) => setNewPanNumber(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>OFFICE LOCATION</label>
+                <input type="text" value={newLocation} onChange={(e) => setNewLocation(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>BANK ACCOUNT NUMBER</label>
+                <input type="text" value={newAccountNumber} onChange={(e) => setNewAccountNumber(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>IFSC CODE</label>
+                <input type="text" value={newIfscCode} onChange={(e) => setNewIfscCode(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>BANK NAME</label>
+                <input type="text" value={newBankName} onChange={(e) => setNewBankName(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>BANK BRANCH NAME</label>
+                <input type="text" value={newBankBranch} onChange={(e) => setNewBankBranch(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
               </div>
             </div>
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
@@ -1096,6 +1198,51 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                     <option key={tl.id} value={tl.id}>{tl.name}</option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>PF NUMBER</label>
+                <input type="text" value={editPfNumber} onChange={(e) => setEditPfNumber(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>UAN</label>
+                <input type="text" value={editUan} onChange={(e) => setEditUan(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>ESI NUMBER</label>
+                <input type="text" value={editEsiNumber} onChange={(e) => setEditEsiNumber(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>PAN</label>
+                <input type="text" value={editPanNumber} onChange={(e) => setEditPanNumber(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>OFFICE LOCATION</label>
+                <input type="text" value={editLocation} onChange={(e) => setEditLocation(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>BANK ACCOUNT NUMBER</label>
+                <input type="text" value={editAccountNumber} onChange={(e) => setEditAccountNumber(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>IFSC CODE</label>
+                <input type="text" value={editIfscCode} onChange={(e) => setEditIfscCode(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>BANK NAME</label>
+                <input type="text" value={editBankName} onChange={(e) => setEditBankName(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>BANK BRANCH NAME</label>
+                <input type="text" value={editBankBranch} onChange={(e) => setEditBankBranch(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
               </div>
 
               <div style={{ gridColumn: '1 / -1' }}>
