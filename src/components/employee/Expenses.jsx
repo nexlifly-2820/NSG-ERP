@@ -3,7 +3,6 @@ import useSWR from 'swr';
 
 const fetcher = url => fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('nsg_jwt_token')}` } }).then(res => res.json());
 import ExpenseForm from './ExpenseForm';
-import ReimbursementTracker from './ReimbursementTracker';
 import { Check, X, FileText, ClipboardList, PlusCircle } from 'lucide-react';
 
 export default function Expenses({ currentUser }) {
@@ -12,6 +11,7 @@ export default function Expenses({ currentUser }) {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [mobileTab, setMobileTab] = useState('form');
   const [confirmCancelId, setConfirmCancelId] = useState(null);
+  const [viewDescription, setViewDescription] = useState(null);
 
   const { data: claimsData, mutate: mutateClaims } = useSWR('/api/employee-portal/expenses/my-claims', fetcher);
   
@@ -155,6 +155,20 @@ export default function Expenses({ currentUser }) {
         </div>
       )}
 
+      {viewDescription && (
+        <div className="confirm-dialog-overlay" onClick={() => setViewDescription(null)}>
+          <div className="confirm-dialog-box" onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)' }}>Description</h4>
+              <button onClick={() => setViewDescription(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0' }}><X size={16} /></button>
+            </div>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5', whiteSpace: 'pre-wrap', maxHeight: '300px', overflowY: 'auto' }}>
+              {viewDescription}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="component-header">
         <div>
           <h1>Employee Expenses</h1>
@@ -173,7 +187,6 @@ export default function Expenses({ currentUser }) {
         {(!isMobile || mobileTab === 'form') && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <ExpenseForm onSubmitClaim={handleSubmitClaim} />
-            <ReimbursementTracker claim={selectedClaim} onCancelClaim={handleCancelClaimRequest} />
           </div>
         )}
 
@@ -194,10 +207,9 @@ export default function Expenses({ currentUser }) {
                     <th style={{ fontSize: '11px' }}>Date</th>
                     <th style={{ fontSize: '11px' }}>Category</th>
                     <th style={{ fontSize: '11px' }}>Amount</th>
+                    <th style={{ fontSize: '11px' }}>Description</th>
                     <th style={{ fontSize: '11px' }}>Receipt</th>
-                    <th style={{ fontSize: '11px' }}>TL Review</th>
-                    <th style={{ fontSize: '11px' }}>HR Audit</th>
-                    <th style={{ fontSize: '11px' }}>Payout</th>
+                    <th style={{ fontSize: '11px' }}>CEO Approval</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -212,19 +224,30 @@ export default function Expenses({ currentUser }) {
                           <span className="badge-cat" style={{ color: catColor, backgroundColor: `${catColor}15` }}>{getCategoryLabel(claim.category)}</span>
                         </td>
                         <td className="claim-amt" style={{ color: catColor }}>{formattedAmount}</td>
-                        <td>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <FileText size={12} /> {claim.receiptName}
-                          </span>
+                        <td 
+                          onClick={(e) => { e.stopPropagation(); setViewDescription(claim.description); }}
+                          style={{ fontSize: '11px', maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }} 
+                          title="Click to view full description"
+                        >
+                          <span style={{ textDecoration: 'underline' }}>{claim.description}</span>
                         </td>
-                        <td><span className={`status-pill ${claim.tlStatus}`}>{claim.tlStatus}</span></td>
-                        <td><span className={`status-pill ${claim.hrStatus}`}>{claim.hrStatus}</span></td>
-                        <td><span className={`status-pill ${claim.payrollStatus === 'reimbursed' ? 'approved' : claim.payrollStatus}`}>{claim.payrollStatus === 'reimbursed' ? 'Paid' : claim.payrollStatus}</span></td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <a 
+                            href={claim.receiptName} 
+                            download 
+                            style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none', cursor: 'pointer' }}
+                            onMouseOver={(e) => { e.currentTarget.style.color = 'var(--accent-green)'; e.currentTarget.style.textDecoration = 'underline'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.textDecoration = 'none'; }}
+                          >
+                            <FileText size={12} /> {claim.receiptName}
+                          </a>
+                        </td>
+                        <td><span className={`status-pill ${claim.payrollStatus === 'reimbursed' ? 'approved' : claim.payrollStatus}`}>{claim.payrollStatus === 'reimbursed' ? 'Approved' : claim.payrollStatus}</span></td>
                       </tr>
                     );
                   })}
                   {claims.length === 0 && (
-                    <tr><td colSpan="7" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No expense claims submitted yet.</td></tr>
+                    <tr><td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No expense claims submitted yet.</td></tr>
                   )}
                 </tbody>
               </table>

@@ -3,7 +3,7 @@ import ReceiptUpload from './ReceiptUpload';
 import { CreditCard, AlertCircle } from 'lucide-react';
 
 export default function ExpenseForm({ onSubmitClaim }) {
-  const [category, setCategory] = useState('travel');
+  const [category, setCategory] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setTcDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [description, setDescription] = useState('');
@@ -14,14 +14,7 @@ export default function ExpenseForm({ onSubmitClaim }) {
   // Validation errors state
   const [errors, setErrors] = useState({});
 
-  const categories = [
-    { id: 'travel', name: 'Travel (Cab/Flight/Train)', color: 'hsl(210, 70%, 50%)' },
-    { id: 'meal', name: 'Meals & Entertainment', color: 'hsl(35, 90%, 60%)' },
-    { id: 'accommodation', name: 'Accommodation', color: 'hsl(265, 70%, 60%)' },
-    { id: 'client', name: 'Client Entertainment', color: 'hsl(150, 70%, 50%)' },
-    { id: 'office', name: 'Office Supplies', color: 'hsl(180, 70%, 45%)' },
-    { id: 'other', name: 'Other', color: 'hsl(0, 0%, 50%)' },
-  ];
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -80,7 +73,7 @@ export default function ExpenseForm({ onSubmitClaim }) {
       });
 
       // Reset Form
-      setCategory('travel');
+      setCategory('');
       setAmount('');
       setTcDate(new Date().toISOString().split('T')[0]);
       setDescription('');
@@ -115,15 +108,17 @@ export default function ExpenseForm({ onSubmitClaim }) {
       </p>
 
 
-      {/* Category Dropdown */}
+      {/* Category Input */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
         <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
           Category <span style={{ color: '#ef4444' }}>*</span>
         </label>
-        <select
+        <input
+          type="text"
           value={category}
           onChange={(e) => setCategory(e.target.value)}
           required
+          placeholder="Please Enter Your Claim Type"
           style={{
             padding: '10px 12px',
             borderRadius: '8px',
@@ -132,15 +127,10 @@ export default function ExpenseForm({ onSubmitClaim }) {
             color: 'var(--text-primary)',
             outline: 'none',
             fontSize: '13px',
-            cursor: 'pointer'
+            width: '100%',
+            fontFamily: 'inherit'
           }}
-        >
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.name}
-            </option>
-          ))}
-        </select>
+        />
         {errors.category && (
           <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: '500' }}>{errors.category}</span>
         )}

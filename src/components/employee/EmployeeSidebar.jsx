@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   LayoutDashboard, CreditCard, User, UserMinus, 
   HelpCircle, Briefcase, MessageSquare,
-  Calendar, Clock, CheckSquare, Coins, Network, Target
+  Calendar, Clock, CheckSquare, Coins, Target
 } from 'lucide-react';
 
 export default function EmployeeSidebar({ activeTab, setActiveTab, currentUser }) {
@@ -18,7 +18,6 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, currentUser }
   const isHelpActive = activeTab === 'help';
   const isAssetsActive = activeTab === 'assets';
   const isMessagingActive = activeTab === 'messaging';
-  const isOrgChartActive = activeTab === 'orgChart';
   const isPerformanceActive = activeTab === 'performance';
   const isHolidaysActive = activeTab === 'holidays';
 
@@ -114,17 +113,7 @@ export default function EmployeeSidebar({ activeTab, setActiveTab, currentUser }
         style={isExpensesActive ? activeStyle : {}}
       >
         <CreditCard size={18} />
-        <span>Expenses</span>
-      </button>
-
-      {/* Org Chart Tab */}
-      <button
-        className={`nav-link ${isOrgChartActive ? 'active' : ''}`}
-        onClick={() => setActiveTab('orgChart')}
-        style={isOrgChartActive ? activeStyle : {}}
-      >
-        <Network size={18} />
-        <span>Org Chart</span>
+        <span>Claim Expenses</span>
       </button>
 
       {/* Performance Tab */}

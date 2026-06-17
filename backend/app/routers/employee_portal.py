@@ -428,7 +428,6 @@ def claim_expense(req: ExpenseClaimCreate, current_user: models.User = Depends(s
     # Create System Notification for the employee
     notif = models.Notification(
         user_id=current_user.id,
-        title="Expense Claim Submitted",
         message=f"Your {req.category} expense claim for ₹{req.amount} has been successfully submitted and is pending TL review.",
         type="expenses"
     )

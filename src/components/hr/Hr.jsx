@@ -16,6 +16,7 @@ const ReportsEngineView = lazy(() => import('./modules/reports/ReportsEngineView
 const HrSettingsView = lazy(() => import('./modules/settings/HrSettingsView').then(m => ({ default: m.HrSettingsView })));
 const HrMessagingView = lazy(() => import('./modules/messaging/HrMessagingView').then(m => ({ default: m.HrMessagingView })));
 const HolidayCalendar = lazy(() => import('../common/HolidayCalendar'));
+const OrgChart = lazy(() => import('../employee/OrgChart'));
 
 export default function Hr({ activeTab, queryParams, setQueryParams, currentUser }) {
 
@@ -57,6 +58,8 @@ export default function Hr({ activeTab, queryParams, setQueryParams, currentUser
         return <ErrorBoundary><HrMessagingView {...props} /></ErrorBoundary>;
       case 'holidays':
         return <ErrorBoundary><HolidayCalendar /></ErrorBoundary>;
+      case 'orgChart':
+        return <ErrorBoundary><OrgChart {...props} /></ErrorBoundary>;
       default:
         return <ErrorBoundary><HrDashboardView {...props} /></ErrorBoundary>;
     }

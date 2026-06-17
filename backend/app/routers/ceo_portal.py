@@ -2397,6 +2397,31 @@ def get_all_approvals(current_user: models.User = Depends(security.get_current_u
             "policyId": p.id,
             "rawItem": None
         })
+
+    # 5. Expense Claims
+    claims = db.query(models.ExpenseClaim).offset(skip).limit(limit).all()
+    for c in claims:
+        emp = db.query(models.User).filter(models.User.id == c.user_id).first()
+        status_label = 'Pending'
+        if c.status in ['reimbursed', 'approved']: status_label = 'Approved'
+        elif c.status == 'rejected': status_label = 'Denied'
+        
+        approvals.append({
+            "id": f"EXP-{c.id}",
+            "type": "Claim Expenses",
+            "requestedBy": emp.name if emp else f"User #{c.user_id}",
+            "dept": emp.department if emp else "Unknown",
+            "urgency": "Normal",
+            "submittedAt": str(c.claim_date) if getattr(c, 'claim_date', None) else "Recent",
+            "amount": f"₹{int(c.amount):,}",
+            "status": status_label,
+            "expenseId": c.id,
+            "date": str(c.claim_date) if getattr(c, 'claim_date', None) else "-",
+            "category": c.category,
+            "description": getattr(c, 'description', '-'),
+            "receiptName": getattr(c, 'receipt_url', 'receipt.pdf') or 'receipt.pdf',
+            "rawItem": None
+        })
         
     # Append Audit Trails to all items
     for item in approvals:
@@ -2410,7 +2435,9 @@ def get_all_approvals(current_user: models.User = Depends(security.get_current_u
         elif module_name == "Resignation":
             numeric_id = item["resignationId"]
         elif module_name == "Policy":
-            numeric_id = item["policyId"]
+            numeric_id = item.get("policyId")
+        elif module_name == "Claim Expenses":
+            numeric_id = item.get("expenseId")
             
         if numeric_id is not None:
             logs = db.query(models.AuditLog).filter(

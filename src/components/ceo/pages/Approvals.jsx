@@ -1,7 +1,7 @@
 // Crash fix applied
 import React, { useState, useEffect } from 'react';
 import { 
-  CheckCircle, XCircle, Search, Filter, MessageSquare, Clock, ArrowRight, User, AlertCircle, X, Check, TrendingUp
+  CheckCircle, XCircle, Search, Filter, MessageSquare, Clock, ArrowRight, User, AlertCircle, X, Check, TrendingUp, FileText
 } from 'lucide-react';
 import '../CEO.css';
 
@@ -22,7 +22,7 @@ const THEME = {
   warning: '#F59E0B'       
 };
 
-const TABS = ['All', 'Payroll', 'Budget', 'Resignation', 'Policy', 'Promotions', 'History'];
+const TABS = ['All', 'Payroll', 'Budget', 'Resignation', 'Policy', 'Promotions', 'Claim Expenses', 'History'];
 
 // ==========================================
 // COMPONENTS ARCHITECTURE (AS PER SPEC)
@@ -109,6 +109,20 @@ const ApprovalDetailDrawer = ({ approval, onClose, onAction }) => {
           </div>
         )}
 
+        {approval.category && (
+          <div style={{ marginBottom: '32px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 600, color: THEME.textMuted, marginBottom: '8px' }}>Category & Details</div>
+            <div style={{ fontSize: '15px', color: THEME.textMain, fontWeight: 500 }}>{approval.category}</div>
+            <div style={{ fontSize: '14px', color: THEME.textMuted, marginTop: '4px' }}>{approval.description}</div>
+            {approval.receiptName && (
+               <a href={approval.receiptName} download style={{ textDecoration: 'none', marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: THEME.bgHover, borderRadius: '8px', border: `1px solid ${THEME.borderLight}`, cursor: 'pointer' }} onMouseOver={(e) => e.currentTarget.style.borderColor = THEME.primary} onMouseOut={(e) => e.currentTarget.style.borderColor = THEME.borderLight}>
+                 <FileText size={16} color={THEME.primary} />
+                 <span style={{ fontSize: '13px', fontWeight: 600, color: THEME.primary }}>{approval.receiptName}</span>
+               </a>
+            )}
+          </div>
+        )}
+
         <div style={{ marginBottom: '32px' }}>
           <div style={{ fontSize: '14px', fontWeight: 600, color: THEME.textMuted, marginBottom: '20px' }}>Audit Trail</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative' }}>
@@ -145,7 +159,7 @@ const ApprovalDetailDrawer = ({ approval, onClose, onAction }) => {
   );
 };
 
-const ApprovalRow = ({ item, isSelected, isChecked, onSelect, onToggleCheck }) => {
+const ApprovalRow = ({ item, isSelected, isChecked, onSelect, onToggleCheck, activeTab }) => {
   return (
     <tr 
       onClick={() => onSelect(item)}
@@ -159,18 +173,34 @@ const ApprovalRow = ({ item, isSelected, isChecked, onSelect, onToggleCheck }) =
       <td onClick={(e) => e.stopPropagation()} style={{ padding: '16px 24px', width: '60px' }}>
         <input type="checkbox" checked={isChecked} onChange={() => onToggleCheck(item.id)} style={{ width: '16px', height: '16px', accentColor: THEME.primary }} />
       </td>
-      <td style={{ padding: '16px', color: THEME.textMuted, fontSize: '13px', fontWeight: 600 }}>{item.id}</td>
-      <td style={{ padding: '16px', color: THEME.textMain, fontWeight: 600 }}>{item.type}</td>
-      <td style={{ padding: '16px' }}>
-        <div style={{ color: THEME.textMain, fontWeight: 500 }}>{item.requestedBy}</div>
-        <div style={{ color: THEME.textMuted, fontSize: '12px', marginTop: '2px' }}>{item.dept}</div>
-      </td>
-      <td style={{ padding: '16px' }}>
-        <div style={{ color: THEME.textMain, fontWeight: 600 }}>{item.amount || '-'}</div>
-        <div style={{ color: THEME.textMuted, fontSize: '12px', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <Clock size={12}/> {item.submittedAt}
-        </div>
-      </td>
+      {activeTab === 'Claim Expenses' ? (
+        <>
+          <td style={{ padding: '16px', color: THEME.textMuted, fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap' }}>{item.submittedAt}</td>
+          <td style={{ padding: '16px', color: THEME.textMain, fontWeight: 600 }}>{item.category || '-'}</td>
+          <td style={{ padding: '16px', color: THEME.textMain, fontWeight: 600 }}>{item.amount || '-'}</td>
+          <td style={{ padding: '16px', color: THEME.textMuted, fontSize: '13px', maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item.description}>{item.description || '-'}</td>
+          <td style={{ padding: '16px' }}>
+            <span style={{ fontSize: '13px', color: THEME.textMuted, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <FileText size={14} /> {item.receiptName || 'N/A'}
+            </span>
+          </td>
+        </>
+      ) : (
+        <>
+          <td style={{ padding: '16px', color: THEME.textMuted, fontSize: '13px', fontWeight: 600 }}>{item.id}</td>
+          <td style={{ padding: '16px', color: THEME.textMain, fontWeight: 600 }}>{item.type}</td>
+          <td style={{ padding: '16px' }}>
+            <div style={{ color: THEME.textMain, fontWeight: 500 }}>{item.requestedBy}</div>
+            <div style={{ color: THEME.textMuted, fontSize: '12px', marginTop: '2px' }}>{item.dept}</div>
+          </td>
+          <td style={{ padding: '16px' }}>
+            <div style={{ color: THEME.textMain, fontWeight: 600 }}>{item.amount || '-'}</div>
+            <div style={{ color: THEME.textMuted, fontSize: '12px', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Clock size={12}/> {item.submittedAt}
+            </div>
+          </td>
+        </>
+      )}
       <td style={{ padding: '16px 24px', textAlign: 'right' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px' }}>
           <span style={{ 
@@ -178,14 +208,16 @@ const ApprovalRow = ({ item, isSelected, isChecked, onSelect, onToggleCheck }) =
             background: item.status === 'Approved' ? `${THEME.primary}20` : item.status === 'Denied' ? `${THEME.danger}20` : `${THEME.warning}20`,
             color: item.status === 'Approved' ? THEME.primary : item.status === 'Denied' ? THEME.danger : THEME.warning
           }}>
-            {item.status}
+            {activeTab === 'Claim Expenses' ? item.status.toLowerCase() : item.status}
           </span>
-          <button 
-            style={{ padding: '4px 10px', background: THEME.primary, color: '#FFF', border: 'none', borderRadius: '4px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
-            onClick={(e) => { e.stopPropagation(); onSelect(item); }}
-          >
-            Review <ArrowRight size={14} />
-          </button>
+          {activeTab !== 'Claim Expenses' && (
+            <button 
+              style={{ padding: '4px 10px', background: THEME.primary, color: '#FFF', border: 'none', borderRadius: '4px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
+              onClick={(e) => { e.stopPropagation(); onSelect(item); }}
+            >
+              Review <ArrowRight size={14} />
+            </button>
+          )}
         </div>
       </td>
     </tr>
@@ -272,6 +304,7 @@ const ApprovalTable = ({ data, activeTab, selectedIds, onToggleCheck, onToggleAl
                       <option value="Resignation">Resignation</option>
                       <option value="Policy">Policy</option>
                       <option value="Promotions">Promotions</option>
+                      <option value="Claim Expenses">Claim Expenses</option>
                     </select>
                   </div>
 
@@ -322,28 +355,44 @@ const ApprovalTable = ({ data, activeTab, selectedIds, onToggleCheck, onToggleAl
       <div style={{ overflowY: 'auto', overflowX: 'auto', flex: 1 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '600px' }}>
           <thead>
-            <tr style={{ background: THEME.bgBase, borderBottom: `1px solid ${THEME.border}` }}>
-              <th style={{ padding: '16px 24px', width: '60px' }}>
-                <input type="checkbox" checked={isAllChecked} onChange={() => onToggleAll(filtered)} style={{ width: '16px', height: '16px', accentColor: THEME.primary }} />
-              </th>
-              <th style={{ padding: '16px', color: THEME.textMuted, fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Request ID</th>
-              <th style={{ padding: '16px', color: THEME.textMuted, fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Type</th>
-              <th style={{ padding: '16px', color: THEME.textMuted, fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Submitted By</th>
-              <th style={{ padding: '16px', color: THEME.textMuted, fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Details & Date</th>
-              <th style={{ padding: '16px 24px', color: THEME.textMuted, fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Status & Action</th>
-            </tr>
+              <tr style={{ background: THEME.bgBase, borderBottom: `1px solid ${THEME.border}` }}>
+                <th style={{ padding: '16px 24px', width: '60px' }}>
+                  <input type="checkbox" checked={isAllChecked} onChange={() => onToggleAll(filtered)} style={{ width: '16px', height: '16px', accentColor: THEME.primary }} />
+                </th>
+                {activeTab === 'Claim Expenses' ? (
+                  <>
+                    <th style={{ padding: '16px', color: THEME.textMuted, fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Date</th>
+                    <th style={{ padding: '16px', color: THEME.textMuted, fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Category</th>
+                    <th style={{ padding: '16px', color: THEME.textMuted, fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Amount</th>
+                    <th style={{ padding: '16px', color: THEME.textMuted, fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Description</th>
+                    <th style={{ padding: '16px', color: THEME.textMuted, fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Receipt</th>
+                    <th style={{ padding: '16px 24px', color: THEME.textMuted, fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>CEO Approval</th>
+                  </>
+                ) : (
+                  <>
+                    <th style={{ padding: '16px', color: THEME.textMuted, fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Request ID</th>
+                    <th style={{ padding: '16px', color: THEME.textMuted, fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Type</th>
+                    <th style={{ padding: '16px', color: THEME.textMuted, fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Submitted By</th>
+                    <th style={{ padding: '16px', color: THEME.textMuted, fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Details & Date</th>
+                    <th style={{ padding: '16px 24px', color: THEME.textMuted, fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Status & Action</th>
+                  </>
+                )}
+              </tr>
           </thead>
           <tbody>
-            {filtered.map(item => (
-              <ApprovalRow 
-                key={item.id} 
-                item={item} 
-                isSelected={selectedApproval?.id === item.id}
-                isChecked={selectedIds.has(item.id)}
-                onSelect={onSelect}
-                onToggleCheck={onToggleCheck}
-              />
-            ))}
+            {filtered.map(item => {
+              return (
+                <ApprovalRow 
+                  key={item.id} 
+                  item={item} 
+                  activeTab={activeTab}
+                  isSelected={selectedApproval?.id === item.id}
+                  isChecked={selectedIds.has(item.id)}
+                  onSelect={onSelect}
+                  onToggleCheck={onToggleCheck}
+                />
+              );
+            })}
           </tbody>
         </table>
         {filtered.length === 0 && (
@@ -496,6 +545,18 @@ export default function ApprovalsPage() {
         });
         if (!res.ok) throw new Error(`Failed to ${action} policy.`);
         alert(`Company policy ${isApprove ? 'approved' : 'rejected'} successfully.`);
+      } else if (item.id.startsWith('EXP-')) {
+        const expenseId = item.expenseId;
+        const endpoint = `/api/ceo-portal/expenses/${expenseId}/${action}`;
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error(`Failed to ${action} expense claim.`);
+        alert(isApprove
+          ? 'Expense claim approved!'
+          : 'Expense claim rejected.'
+        );
       } else if (item.type === 'Promotions') {
         const decision = isApprove ? 'approved_by_ceo' : 'rejected_by_ceo';
         const res = await fetch(`/api/hr-portal/promotions/${item.id}/decide`, {

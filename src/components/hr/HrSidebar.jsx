@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   LayoutDashboard, Briefcase, Users, FileCheck, 
   Clock, FileWarning, Calendar, CreditCard, TrendingUp, LogOut, 
-  BarChart3, Sliders, MessageSquare 
+  BarChart3, Sliders, MessageSquare, Network 
 } from 'lucide-react';
 
 export default function HrSidebar({ activeTab, setActiveTab }) {
@@ -14,7 +14,7 @@ export default function HrSidebar({ activeTab, setActiveTab }) {
     { id: 'attendance', label: 'Attendance', icon: Clock },
     { id: 'timesheets', label: 'Timesheet Exceptions', icon: FileWarning },
     { id: 'leave', label: 'Leave Management', icon: Calendar },
-
+    { id: 'orgChart', label: 'Org Chart', icon: Network },
     { id: 'appraisals', label: 'Appraisals', icon: TrendingUp },
     { id: 'exits', label: 'Exits & FnF', icon: LogOut },
     { id: 'reports', label: 'Reports Engine', icon: BarChart3 },

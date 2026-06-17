@@ -31,12 +31,7 @@ export default function ReceiptUpload({ onFile, accept = 'image/*,application/pd
       return;
     }
 
-    // Validate size (max 5MB)
-    const maxSizeBytes = 5 * 1024 * 1024;
-    if (selectedFile.size > maxSizeBytes) {
-      setError('File size must be under 5MB.');
-      return;
-    }
+
 
     setFile(selectedFile);
     setIsUploading(true);
@@ -191,7 +186,7 @@ export default function ReceiptUpload({ onFile, accept = 'image/*,application/pd
             {isDragging ? 'Drop receipt here!' : 'Click or drag receipt here'}
           </span>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-            Images or PDF up to 5MB (Required)
+            Images or PDF (Required)
           </span>
         </div>
       )}
