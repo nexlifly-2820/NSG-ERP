@@ -1,0 +1,185 @@
+/* Premium Table Styles */
+.tableContainer {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.premiumTable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+}
+
+.premiumTable th {
+  background: #f8fafc;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.premiumTable th.centerAlign {
+  text-align: center;
+}
+
+.premiumTable td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+  font-size: 14px;
+  color: #334155;
+  background: #ffffff;
+  transition: background-color 0.2s ease;
+}
+
+.premiumTable td.centerAlign {
+  text-align: center;
+}
+
+.premiumTable tbody tr {
+  cursor: pointer;
+}
+
+.premiumTable tbody tr:hover td {
+  background-color: #f8fafc;
+}
+
+.premiumTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* User Profile Column */
+.userProfile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.userAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.userInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.userName {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 14px;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.userEmail {
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* Highlighted Columns / Badges */
+.idHighlight {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  background: #f1f5f9;
+  padding: 4px 10px;
+  border-radius: 6px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.roleTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.roleTagHr {
+  background: rgba(192, 38, 211, 0.05);
+  color: #c026d3; /* fuchsia-600 */
+  border-color: rgba(192, 38, 211, 0.2);
+}
+
+.roleTagTl {
+  background: rgba(37, 99, 235, 0.05);
+  color: #2563eb; /* blue-600 */
+  border-color: rgba(37, 99, 235, 0.2);
+}
+
+.roleTagEmployee {
+  background: rgba(5, 150, 105, 0.05);
+  color: #059669; /* emerald-600 */
+  border-color: rgba(5, 150, 105, 0.2);
+}
+
+/* Ensure no wrapping for dates and statuses */
+.nowrapCell {
+  white-space: nowrap;
+}
+
+/* Action Buttons */
+.actionGroup {
+  display: inline-flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.actionBtn {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #64748b;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.actionBtn.edit:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #2563eb;
+}
+
+.actionBtn.reset:hover {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #d97706;
+}
+
+.actionBtn.delete:hover {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+}

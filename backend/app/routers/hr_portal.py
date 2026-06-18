@@ -1390,22 +1390,57 @@ def delete_leave_request(id: int, current_user: models.User = Depends(security.g
     db.commit()
     return {"status": "success", "message": "Leave request successfully deleted and balances restored if applicable."}
 
-@router.get("/timesheets/exceptions", response_model=List[TimesheetExceptionResponse])
-def get_timesheet_exceptions(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
-    verify_hr_role(current_user)
-    return db.query(models.TimesheetException).offset(skip).limit(limit).all()
+class ApprovedTimesheetResponse(BaseModel):
+    id: int
+    user_id: int
+    manager_id: Optional[int]
+    date: date
+    project: str
+    task: str
+    description: str
+    hours: float
+    status: str
+    employee_name: str
+    approved_by_name: Optional[str] = None
 
-@router.post("/timesheets/exceptions/{id}/resolve", response_model=TimesheetExceptionResponse)
-def resolve_timesheet_exception(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    class Config:
+        from_attributes = True
+
+@router.get("/timesheets/approved", response_model=List[ApprovedTimesheetResponse])
+def get_approved_timesheets(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    exc = db.query(models.TimesheetException).filter(models.TimesheetException.id == id).first()
-    if not exc:
-        raise HTTPException(status_code=404, detail="Timesheet exception record not found.")
-        
-    exc.status = "resolved"
-    db.commit()
-    db.refresh(exc)
-    return exc
+    
+    from sqlalchemy.orm import aliased
+    Employee = aliased(models.User)
+    Manager = aliased(models.User)
+    
+    query = db.query(models.DailyTimesheet, Employee, Manager).join(
+        Employee, models.DailyTimesheet.user_id == Employee.id
+    ).outerjoin(
+        Manager, models.DailyTimesheet.manager_id == Manager.id
+    ).filter(
+        models.DailyTimesheet.status == "approved"
+    ).order_by(models.DailyTimesheet.date.desc())
+    
+    results = query.offset(skip).limit(limit).all()
+    
+    res = []
+    for ts, emp, mgr in results:
+        r = ApprovedTimesheetResponse(
+            id=ts.id,
+            user_id=ts.user_id,
+            manager_id=ts.manager_id,
+            date=ts.date,
+            project=ts.project,
+            task=ts.task,
+            description=ts.description,
+            hours=ts.hours,
+            status=ts.status,
+            employee_name=emp.name,
+            approved_by_name=mgr.name if mgr else "Unknown TL"
+        )
+        res.append(r)
+    return res
 
 # 6. Payroll Builder, Claims, and TDS
 @router.get("/payroll/runs", response_model=List[PayrollRunResponse])

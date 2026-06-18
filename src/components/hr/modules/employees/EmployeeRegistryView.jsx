@@ -1,13 +1,20 @@
 // Crash fix applied
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, Plus, Search, Download, Lock, RefreshCw, Trash2, Edit3 } from 'lucide-react';
+import { CheckCircle, Plus, Search, Download, Lock, RefreshCw, Trash2, Edit3, Filter, Shield, Users, User } from 'lucide-react';
 import { notify } from '../../utils/notify';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import styles from './employeeRegistry.module.css';
 
 export function EmployeeRegistryView({ queryParams, setQueryParams }) {
   const [db, onUpdateDb] = useState({ employees: [], auditLogs: [], trainingProgress: [], onboardingTasks: [], leaveBalances: [], attendanceLogs: [], payslips: [] });
 
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('All');
+  const [roleFilter, setRoleFilter] = useState('All');
+  const [desigFilter, setDesigFilter] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
   const [apiEmployees, setApiEmployees] = useState(null);
   const [teamLeads, setTeamLeads] = useState([]);
   const employeeList = apiEmployees || db.employees;
@@ -137,36 +144,141 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
     fetchEmployees();
   }, []);
 
+  const uniqueRoles = [...new Set(employeeList.map(e => e.role).filter(Boolean))];
+  const uniqueDepts = [...new Set(employeeList.map(e => e.department).filter(Boolean))];
+  const uniqueDesigs = [...new Set(employeeList
+    .filter(e => deptFilter === 'All' || e.department === deptFilter)
+    .map(e => e.designation)
+    .filter(Boolean))];
+
   const filtered = employeeList.filter(e => {
     const searchLower = search.toLowerCase();
     const matchesSearch = e.name.toLowerCase().includes(searchLower) || 
                           (e.emp_id && e.emp_id.toLowerCase().includes(searchLower)) ||
                           (e.designation && e.designation.toLowerCase().includes(searchLower));
     const matchesDept = deptFilter === 'All' || e.department === deptFilter;
-    return matchesSearch && matchesDept;
+    const matchesRole = roleFilter === 'All' || e.role === roleFilter;
+    const matchesDesig = desigFilter === 'All' || e.designation === desigFilter;
+    return matchesSearch && matchesDept && matchesRole && matchesDesig;
   });
 
-  const handleExportCSV = () => {
-    let csv = 'Employee ID,Name,Email,Department,Designation,Status,Join Date\n';
-    filtered.forEach(e => {
-      csv += `${e.emp_id},${e.name},${e.email},${e.department},${e.designation},${e.status},${e.join_date}\n`;
-    });
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.setAttribute('href', url);
-    a.setAttribute('download', `NSG_Employee_Registry_${new Date().toISOString().split('T')[0]}.csv`);
-    a.click();
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, deptFilter, roleFilter, desigFilter]);
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentEmployees = filtered.slice(startIndex, startIndex + itemsPerPage);
+
+  const exportToPDF = () => {
+    const doc = new jsPDF('landscape', 'pt', 'a4');
     
-    // Log csv export to audit
+    const img = new Image();
+    img.src = '/hmns-logo.png';
+    
+    const renderPDF = () => {
+      // Premium White Header
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, doc.internal.pageSize.getWidth(), 110, 'F');
+      
+      try {
+        const imgRatio = img.width / img.height;
+        const logoHeight = 45;
+        const logoWidth = logoHeight * imgRatio;
+        doc.addImage(img, 'PNG', 40, 25, logoWidth, logoHeight);
+      } catch (e) {
+        doc.setFontSize(20);
+        doc.setTextColor(15, 23, 42);
+        doc.text('HMNS Software Solution', 40, 50);
+      }
+      
+      // Divider Line
+      doc.setDrawColor(226, 232, 240); // slate-200
+      doc.setLineWidth(1);
+      doc.line(40, 100, doc.internal.pageSize.getWidth() - 40, 100);
+      
+      // Report Title
+      doc.setFontSize(20);
+      doc.setTextColor(15, 23, 42); // slate-900
+      doc.setFont('helvetica', 'bold');
+      doc.text('EMPLOYEE REGISTRY MASTER LOG', doc.internal.pageSize.getWidth() - 40, 45, { align: 'right' });
+      
+      // Timestamp
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139); // slate-500
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Generated on: ${new Date().toLocaleString()}`, doc.internal.pageSize.getWidth() - 40, 65, { align: 'right' });
+
+      // Filter info
+      let filterText = `Filters: `;
+      if (roleFilter !== 'All') filterText += `Role: ${roleFilter} | `;
+      if (deptFilter !== 'All') filterText += `Dept: ${deptFilter} | `;
+      if (desigFilter !== 'All') filterText += `Desig: ${desigFilter}`;
+      
+      doc.setFontSize(10);
+      doc.setTextColor(71, 85, 105);
+      doc.text(filterText.replace(/ \| $/, ''), 40, 85);
+
+      // Table Data
+      const tableColumn = ["ID", "Name", "Department", "Designation", "Role", "Status", "Join Date"];
+      const tableRows = [];
+
+      filtered.forEach(emp => {
+        const rowData = [
+          emp.emp_id,
+          emp.name,
+          emp.department,
+          emp.designation,
+          emp.role,
+          emp.status,
+          emp.join_date
+        ];
+        tableRows.push(rowData);
+      });
+
+      autoTable(doc, {
+        startY: 120,
+        head: [tableColumn],
+        body: tableRows,
+        theme: 'grid',
+        headStyles: { 
+          fillColor: [51, 65, 85], // slate-700
+          textColor: [255, 255, 255], 
+          fontStyle: 'bold',
+          halign: 'left',
+          valign: 'middle'
+        },
+        styles: { 
+          fontSize: 10, 
+          cellPadding: 8,
+          textColor: [51, 65, 85],
+          lineColor: [226, 232, 240],
+          lineWidth: 0.5
+        },
+        alternateRowStyles: { fillColor: [248, 250, 252] }, // slate-50
+        margin: { top: 120, left: 40, right: 40, bottom: 40 },
+        didDrawPage: function (data) {
+          doc.setFontSize(9);
+          doc.setTextColor(148, 163, 184); // slate-400
+          doc.text(`Page ${doc.internal.getNumberOfPages()}`, doc.internal.pageSize.getWidth() - 40, doc.internal.pageSize.getHeight() - 20, { align: 'right' });
+        }
+      });
+
+      doc.save(`NSG_Employee_Registry_${new Date().toISOString().split('T')[0]}.pdf`);
+    };
+
+    img.onload = renderPDF;
+    img.onerror = renderPDF;
+    
+    // Log export to audit
     const newLogs = [...db.auditLogs, {
       id: Date.now(),
       timestamp: new Date().toISOString(),
       initiator_id: 'Sarah Jenkins',
       module: 'Employees',
       record_id: 0,
-      action_type: 'verify_doc', // Export action
-      change_diff: { export_action: 'Employee Registry CSV Exported', row_count: filtered.length },
+      action_type: 'verify_doc',
+      change_diff: { export_action: 'Employee Registry PDF Exported', row_count: filtered.length },
       ip_address: '192.168.1.104',
       client_agent: 'Chrome / Windows'
     }];
@@ -586,15 +698,15 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
   };
 
   return (
-    <div className="component-container">
+    <div className="component-container" style={{ padding: '20px 12px', maxWidth: '100%', width: '100%' }}>
       <div className="component-header">
         <div>
           <h1>Employee Registry</h1>
           <p>Monitor staffing rosters, verify identity records, and oversee onboarding completions.</p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="print-btn" style={{ padding: '8px 16px', fontSize: '13px' }} onClick={handleExportCSV}>
-            <Download size={16} /> Export CSV
+          <button className="print-btn" style={{ padding: '8px 16px', fontSize: '13px', background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.2)' }} onClick={exportToPDF}>
+            <Download size={16} /> Download PDF
           </button>
           <button className="strategic-list-item" style={{ backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => setShowAddWizard(true)}>
             <Plus size={16} /> Add Employee
@@ -603,63 +715,88 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
       </div>
 
       {/* Searching filters */}
-      <div style={{ display: 'flex', gap: '16px', backgroundColor: 'var(--bg-secondary)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '16px' }}>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', padding: '6px 12px', borderRadius: '8px', gap: '8px' }}>
-          <Search size={18} style={{ color: 'var(--text-muted)' }} />
-          <input type="text" placeholder="Search by name, ID or role..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', width: '100%', outline: 'none', fontSize: '13px' }} />
+      <div style={{ display: 'flex', gap: '12px', backgroundColor: '#f8fafc', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '16px', alignItems: 'center', flexWrap: 'nowrap', overflowX: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingRight: '20px', borderRight: '1px solid #cbd5e1' }}>
+          <Filter size={18} color="#94a3b8" />
+          <span style={{fontSize: '13px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Filters</span>
         </div>
-        <select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 16px', borderRadius: '8px', outline: 'none' }}>
+        
+        <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#ffffff', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: '8px', gap: '8px', minWidth: '200px' }}>
+          <Search size={16} style={{ color: '#94a3b8' }} />
+          <input type="text" placeholder="Search name, ID..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ background: 'none', border: 'none', color: '#334155', width: '100%', outline: 'none', fontSize: '13px' }} />
+        </div>
+
+        <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#334155', fontWeight: 600, fontSize: '13px', outline: 'none', backgroundColor: '#ffffff', flexShrink: 0 }}>
+          <option value="All">All Roles</option>
+          {uniqueRoles.map(r => <option key={r} value={r}>{r}</option>)}
+        </select>
+
+        <select value={deptFilter} onChange={(e) => { setDeptFilter(e.target.value); setDesigFilter('All'); }} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#334155', fontWeight: 600, fontSize: '13px', outline: 'none', backgroundColor: '#ffffff', flexShrink: 0 }}>
           <option value="All">All Departments</option>
-          {departments.map(d => (
-            <option key={d.id} value={d.name}>{d.name}</option>
-          ))}
+          {uniqueDepts.map(d => <option key={d} value={d}>{d}</option>)}
+        </select>
+
+        <select value={desigFilter} onChange={(e) => setDesigFilter(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#334155', fontWeight: 600, fontSize: '13px', outline: 'none', backgroundColor: '#ffffff', flexShrink: 0 }}>
+          <option value="All">All Designations</option>
+          {uniqueDesigs.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
       </div>
 
       <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
         {/* Directory Tables */}
-        <div className="table-container" style={{ flex: 1, margin: 0, overflowX: 'auto' }}>
-          <table className="data-table">
+        <div className={styles.tableContainer} style={{ flex: 1, margin: 0 }}>
+          <table className={styles.premiumTable}>
             <thead>
               <tr>
-                <th>Photo</th>
-                <th>Employee ID</th>
-                <th>Name</th>
-                <th>Email</th>
+                <th>Employee</th>
+                <th className={styles.centerAlign}>ID</th>
                 <th>Department</th>
                 <th>Designation</th>
-                <th>Status</th>
-                <th>Join Date</th>
-                <th style={{ textAlign: 'center' }}>Actions</th>
+                <th className={styles.centerAlign}>Role</th>
+                <th className={styles.centerAlign}>Status</th>
+                <th className={styles.centerAlign}>Join Date</th>
+                <th className={styles.centerAlign}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(emp => (
-                <tr key={emp.id} onClick={() => { setSelectedEmp(emp); setProfileTab('info'); setRevealBank(false); }} style={{ cursor: 'pointer' }}>
+              {currentEmployees.map(emp => (
+                <tr key={emp.id} onClick={() => { setSelectedEmp(emp); setProfileTab('info'); setRevealBank(false); }}>
                   <td>
-                    <img src={emp.photo || `https://ui-avatars.com/api/?name=${emp.name.replace(/ /g, '+')}&background=0F172A&color=fff`} alt={emp.name} onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${emp.name.replace(/ /g, '+')}&background=0F172A&color=fff`; }} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+                    <div className={styles.userProfile}>
+                      <img src={emp.photo || `https://ui-avatars.com/api/?name=${emp.name.replace(/ /g, '+')}&background=0F172A&color=fff`} alt={emp.name} className={styles.userAvatar} onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${emp.name.replace(/ /g, '+')}&background=0F172A&color=fff`; }} />
+                      <div className={styles.userInfo}>
+                        <span className={styles.userName}>{emp.name}</span>
+                        <span className={styles.userEmail}>{emp.email}</span>
+                      </div>
+                    </div>
                   </td>
-                  <td><span className="code-span">{emp.emp_id}</span></td>
-                  <td><strong>{emp.name}</strong></td>
-                  <td>{emp.email}</td>
+                  <td className={styles.centerAlign}><span className={styles.idHighlight}>{emp.emp_id}</span></td>
                   <td>{emp.department}</td>
                   <td>{emp.designation}</td>
-                  <td>
+                  <td className={styles.centerAlign}>
+                    <span className={`${styles.roleTag} ${emp.role === 'hr' ? styles.roleTagHr : emp.role === 'tl' ? styles.roleTagTl : styles.roleTagEmployee}`}>
+                      {emp.role === 'hr' && <Shield size={12} />}
+                      {emp.role === 'tl' && <Users size={12} />}
+                      {emp.role === 'employee' && <User size={12} />}
+                      {emp.role}
+                    </span>
+                  </td>
+                  <td className={`${styles.centerAlign} ${styles.nowrapCell}`}>
                     <span className={`badge-pill ${emp.status === 'active' ? 'badge-green' : emp.status === 'probation' ? 'badge-gold' : 'danger'}`}>
                       {emp.status}
                     </span>
                   </td>
-                  <td>{emp.join_date}</td>
-                  <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center' }}>
-                    <div style={{ display: 'inline-flex', gap: '6px' }}>
-                      <button title="Edit Employee" onClick={() => openEditModal(emp)} style={{ background: 'none', border: '1px solid var(--border-color)', color: '#60a5fa', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '10px' }}>
-                        <Edit3 size={11} /> Edit
+                  <td className={`${styles.centerAlign} ${styles.nowrapCell}`}>{emp.join_date}</td>
+                  <td className={styles.centerAlign} onClick={(e) => e.stopPropagation()}>
+                    <div className={styles.actionGroup}>
+                      <button title="Edit Employee" onClick={() => openEditModal(emp)} className={`${styles.actionBtn} ${styles.edit}`}>
+                        <Edit3 size={14} />
                       </button>
-                      <button title="Reset Password" onClick={() => openResetModal(emp)} style={{ background: 'none', border: '1px solid var(--border-color)', color: '#f59e0b', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '10px' }}>
-                        <Lock size={11} /> Reset
+                      <button title="Reset Password" onClick={() => openResetModal(emp)} className={`${styles.actionBtn} ${styles.reset}`}>
+                        <Lock size={14} />
                       </button>
-                      <button title="Delete Employee" onClick={() => handleDeleteEmployee(emp.id)} style={{ background: 'none', border: '1px solid #ef4444', color: '#ef4444', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '10px' }}>
-                        <Trash2 size={11} /> Delete
+                      <button title="Delete Employee" onClick={() => handleDeleteEmployee(emp.id)} className={`${styles.actionBtn} ${styles.delete}`}>
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </td>
@@ -667,6 +804,42 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
               ))}
             </tbody>
           </table>
+          
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+              <span style={{ fontSize: '13px', color: '#64748b' }}>
+                Showing <strong>{startIndex + 1}</strong> to <strong>{Math.min(startIndex + itemsPerPage, filtered.length)}</strong> of <strong>{filtered.length}</strong> entries
+              </span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  style={{ padding: '6px 12px', fontSize: '13px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: currentPage === 1 ? '#f1f5f9' : '#fff', color: currentPage === 1 ? '#94a3b8' : '#334155', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontWeight: 600 }}
+                >
+                  Previous
+                </button>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', borderRadius: '6px', border: page === currentPage ? 'none' : '1px solid #cbd5e1', backgroundColor: page === currentPage ? '#2563eb' : '#fff', color: page === currentPage ? '#fff' : '#334155', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  style={{ padding: '6px 12px', fontSize: '13px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: currentPage === totalPages ? '#f1f5f9' : '#fff', color: currentPage === totalPages ? '#94a3b8' : '#334155', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', fontWeight: 600 }}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Profile Side Panels */}

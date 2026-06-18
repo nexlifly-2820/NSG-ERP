@@ -1,6 +1,6 @@
 import React from 'react';
 import { 
-  LayoutDashboard, Briefcase, Users, FileCheck, 
+  LayoutDashboard, Briefcase, Users, FileCheck, FileCheck2, CalendarDays,
   Clock, FileWarning, Calendar, CreditCard, TrendingUp, LogOut, 
   BarChart3, Sliders, MessageSquare, Network 
 } from 'lucide-react';
@@ -12,7 +12,7 @@ export default function HrSidebar({ activeTab, setActiveTab }) {
     { id: 'employees', label: 'Employee Registry', icon: Users },
     { id: 'onboarding', label: 'Onboarding', icon: FileCheck },
     { id: 'attendance', label: 'Attendance', icon: Clock },
-    { id: 'timesheets', label: 'Timesheet Exceptions', icon: FileWarning },
+    { id: 'timesheets', label: 'Approved Timesheets', icon: FileCheck2 },
     { id: 'leave', label: 'Leave Management', icon: Calendar },
     { id: 'orgChart', label: 'Org Chart', icon: Network },
     { id: 'appraisals', label: 'Appraisals', icon: TrendingUp },

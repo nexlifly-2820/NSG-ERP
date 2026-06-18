@@ -51,6 +51,7 @@ class User(Base):
     attendance_corrections = relationship("AttendanceCorrection", back_populates="user", cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
     timesheets = relationship("Timesheet", back_populates="user", cascade="all, delete-orphan")
+    daily_timesheets = relationship("DailyTimesheet", foreign_keys="[DailyTimesheet.user_id]", back_populates="user", cascade="all, delete-orphan")
     tasks = relationship("Task", back_populates="user", cascade="all, delete-orphan")
     leave_balances = relationship("LeaveBalance", back_populates="user", cascade="all, delete-orphan")
     leave_requests = relationship("LeaveRequest", back_populates="user", cascade="all, delete-orphan")
@@ -145,6 +146,26 @@ class TimesheetRow(Base):
 
     # Relationships
     timesheet = relationship("Timesheet", back_populates="rows")
+
+
+class DailyTimesheet(Base):
+    __tablename__ = "daily_timesheets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    manager_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    date = Column(Date, nullable=False, index=True)
+    project = Column(String, nullable=False)
+    task = Column(String, nullable=False)
+    description = Column(Text, nullable=False)
+    hours = Column(Float, nullable=False)
+    status = Column(String, default="pending")  # pending, approved, rejected
+    rejection_comment = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id], back_populates="daily_timesheets")
+    manager = relationship("User", foreign_keys=[manager_id])
 
 
 class Task(Base):

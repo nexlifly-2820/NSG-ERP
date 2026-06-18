@@ -1,29 +1,53 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Users, CalendarCheck, GitCommit, X, Check, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Users, CalendarCheck, X, Check, FileText, Clock, CalendarDays, Filter } from 'lucide-react';
 import styles from './teamTimesheets.module.css';
+import '../../employee/pagination.css'; // Reuse pagination styles
 
 const TeamTimesheets = () => {
   const [activeTab, setActiveTab] = useState('table');
   const [timesheets, setTimesheets] = useState([]);
+  const [selectedLog, setSelectedLog] = useState(null);
+  
+  // Team members for dynamic dropdown
   const [teamMembers, setTeamMembers] = useState([]);
 
-  const fetchData = async () => {
+  // Date defaults
+  const today = new Date();
+  const initialYear = today.getFullYear();
+  const initialMonth = today.getMonth() + 1;
+  const initialWeek = 0; // Default to 'All Weeks'
+
+  // Filter states
+  const [filterEmployeeId, setFilterEmployeeId] = useState(''); // Empty means all
+  const [filterYear, setFilterYear] = useState(initialYear);
+  const [filterMonth, setFilterMonth] = useState(initialMonth);
+  const [filterWeek, setFilterWeek] = useState(initialWeek);
+  const [filterDate, setFilterDate] = useState('');
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
+  const fetchTeamMembers = async () => {
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const headers = { 'Authorization': `Bearer ${token}` };
-      const [tsRes, memRes] = await Promise.all([
-        fetch('/api/timesheets/pending', { headers }),
-        fetch('/api/team-lead/team-members', { headers })
-      ]);
-      if (tsRes.ok) setTimesheets(await tsRes.json());
-      if (memRes.ok) setTeamMembers(await memRes.json());
+      const res = await fetch('/api/team-lead/team-members', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setTeamMembers(await res.json());
+      }
     } catch (e) { console.error(e); }
   };
 
   const fetchPending = async () => {
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch('/api/timesheets/pending', {
+      let url = `/api/timesheets/pending?year=${filterYear}&month=${filterMonth}`;
+      if (filterWeek > 0) url += `&week=${filterWeek}`;
+      if (filterEmployeeId) url += `&employee_id=${filterEmployeeId}`;
+
+      const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -33,118 +57,74 @@ const TeamTimesheets = () => {
   };
 
   useEffect(() => {
-    fetchData();
+    fetchTeamMembers();
   }, []);
 
-  const employees = useMemo(() => {
-    const list = timesheets.map(ts => {
-      let totalH = 0;
-      (ts.rows || []).forEach(r => {
-        totalH += Object.values(r.hours || {}).reduce((sum, h) => sum + (parseFloat(h) || 0), 0);
-      });
-      const member = teamMembers.find(m => m.id === ts.employee_id);
-      return {
-        id: ts.id,
-        employee_id: ts.employee_id,
-        name: member ? member.name : `Employee #${ts.employee_id}`,
-        weekOf: `Week of ${ts.week_start_date}`,
-        totalHours: `${totalH.toFixed(1)}h`,
-        status: ts.status.toUpperCase(),
-        raw: ts
-      };
-    });
-    
-    return list;
-  }, [timesheets, teamMembers]);
+  useEffect(() => {
+    fetchPending();
+  }, [filterYear, filterMonth, filterWeek, filterEmployeeId]);
 
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
-
-  const activeSelected = useMemo(() => {
-    if (!selectedEmployee) return null;
-    return employees.find(e => e.id === selectedEmployee.id) || selectedEmployee;
-  }, [employees, selectedEmployee]);
+  // Client-side filtering for specific date
+  const filteredTimesheets = timesheets.filter(ts => {
+    if (filterDate && ts.date !== filterDate) return false;
+    return true;
+  });
 
   useEffect(() => {
-    if (employees.length > 0 && !selectedEmployee) {
-      setSelectedEmployee(employees[0]);
-    }
-  }, [employees, selectedEmployee]);
+    setCurrentPage(1);
+  }, [filterYear, filterMonth, filterWeek, filterEmployeeId, filterDate]);
 
-  const handleReviewClick = (emp) => {
-    setSelectedEmployee(emp);
+  const totalPages = Math.ceil(filteredTimesheets.length / ITEMS_PER_PAGE);
+  const paginatedTimesheets = filteredTimesheets.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  const handleReviewClick = (log) => {
+    setSelectedLog(log);
     setActiveTab('reviewer');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleApprove = async () => {
-    if (!activeSelected || !activeSelected.raw) {
-      alert("Demo timesheet approved successfully!");
-      setActiveTab('table');
-      return;
-    }
-    
+    if (!selectedLog) return;
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch(`/api/timesheets/${activeSelected.id}/approve`, {
+      const res = await fetch(`/api/timesheets/${selectedLog.id}/approve`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        alert(`Timesheet approved for ${activeSelected.name}!`);
+        setSelectedLog(null);
         fetchPending();
         setActiveTab('table');
+      } else {
+        alert("Failed to approve timesheet.");
       }
     } catch (e) { console.error(e); }
   };
 
   const handleReject = async () => {
-    if (!activeSelected || !activeSelected.raw) {
-      alert("Demo timesheet rejected successfully!");
-      setActiveTab('table');
-      return;
-    }
-    
-    const comment = prompt('Please specify a rejection reason comment:', 'Hours incomplete. Please correct and resubmit.');
-    if (comment === null) return; // cancel clicked
+    if (!selectedLog) return;
+    const comment = prompt('Please specify a rejection reason comment:');
+    if (!comment) return;
 
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch(`/api/timesheets/${activeSelected.id}/reject`, {
+      const res = await fetch(`/api/timesheets/${selectedLog.id}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ comment })
       });
       if (res.ok) {
-        alert(`Timesheet rejected with comment dispatched back to ${activeSelected.name}.`);
+        setSelectedLog(null);
         fetchPending();
         setActiveTab('table');
+      } else {
+        alert("Failed to reject timesheet.");
       }
     } catch (e) { console.error(e); }
   };
 
-  const getDaysInfo = (weekStartStr) => {
-    if (!weekStartStr) return [];
-    const [y, m, d] = weekStartStr.split('-').map(Number);
-    const startDate = new Date(y, m - 1, d);
-    const days = [];
-    const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-    const shortNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-    for (let i = 0; i < 5; i++) {
-      const cur = new Date(startDate);
-      cur.setDate(cur.getDate() + i);
-      const monthName = cur.toLocaleDateString('en-US', { month: 'short' });
-      days.push({
-        key: shortNames[i],
-        label: `${dayNames[i]}, ${monthName} ${cur.getDate()}`,
-        shortLabel: `${monthName} ${cur.getDate()}`,
-        index: i
-      });
-    }
-    return days;
-  };
-
   return (
     <div className={styles.container}>
-
       <div className={styles.mainContent}>
         {/* TABS */}
         <div className={styles.tabsContainer}>
@@ -152,13 +132,18 @@ const TeamTimesheets = () => {
             className={`${styles.tab} ${activeTab === 'table' ? styles.active : ''}`}
             onClick={() => setActiveTab('table')}
           >
-            <Users className={styles.tabIcon} /> Team Timesheets Table
+            <Users className={styles.tabIcon} /> Pending Timesheets
+            {timesheets.length > 0 && (
+              <span style={{background: activeTab === 'table' ? '#4f46e5' : '#cbd5e1', color: 'white', borderRadius: '10px', padding: '2px 8px', fontSize: '11px', marginLeft: '6px'}}>
+                {timesheets.length}
+              </span>
+            )}
           </div>
           <div 
             className={`${styles.tab} ${activeTab === 'reviewer' ? styles.active : ''}`}
             onClick={() => setActiveTab('reviewer')}
           >
-            <CalendarCheck className={styles.tabIcon} /> Timesheet Detail Reviewer
+            <CalendarCheck className={styles.tabIcon} /> Log Review
           </div>
         </div>
 
@@ -166,132 +151,219 @@ const TeamTimesheets = () => {
         {activeTab === 'table' && (
           <div className={styles.card}>
             <div className={styles.cardHeader}>
-              <h2 className={styles.cardTitle}>Team Timesheets Pending Review</h2>
-              <input type="text" placeholder="Search employee..." className={styles.searchInput} />
+              <h2 className={styles.cardTitle}>Daily Logs Pending Approval</h2>
+              <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
+                <Filter size={20} color="#94a3b8" />
+                <select 
+                  style={{padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#334155', fontWeight: 500, outline: 'none'}}
+                  value={filterEmployeeId} 
+                  onChange={e => setFilterEmployeeId(e.target.value)}
+                >
+                  <option value="">All Team Members</option>
+                  {teamMembers.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.name}</option>
+                  ))}
+                </select>
+
+                <input 
+                  type="date"
+                  style={{padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#334155', fontWeight: 500, outline: 'none'}}
+                  value={filterDate}
+                  onChange={e => setFilterDate(e.target.value)}
+                  title="Filter by specific date"
+                />
+
+                <select 
+                  style={{padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#334155', fontWeight: 500, outline: 'none', opacity: filterDate ? 0.5 : 1}}
+                  value={filterWeek} 
+                  onChange={e => setFilterWeek(parseInt(e.target.value))}
+                  disabled={!!filterDate}
+                >
+                  <option value={0}>All Weeks</option>
+                  <option value={1}>Week 1</option>
+                  <option value={2}>Week 2</option>
+                  <option value={3}>Week 3</option>
+                  <option value={4}>Week 4</option>
+                  <option value={5}>Week 5</option>
+                </select>
+
+                <select 
+                  style={{padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#334155', fontWeight: 500, outline: 'none', opacity: filterDate ? 0.5 : 1}}
+                  value={filterMonth} 
+                  onChange={e => setFilterMonth(parseInt(e.target.value))}
+                  disabled={!!filterDate}
+                >
+                  <option value={1}>January</option><option value={2}>February</option>
+                  <option value={3}>March</option><option value={4}>April</option>
+                  <option value={5}>May</option><option value={6}>June</option>
+                  <option value={7}>July</option><option value={8}>August</option>
+                  <option value={9}>September</option><option value={10}>October</option>
+                  <option value={11}>November</option><option value={12}>December</option>
+                </select>
+
+                <select 
+                  style={{padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#334155', fontWeight: 500, outline: 'none', opacity: filterDate ? 0.5 : 1}}
+                  value={filterYear} 
+                  onChange={e => setFilterYear(parseInt(e.target.value))}
+                  disabled={!!filterDate}
+                >
+                  {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
             </div>
             
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>EMPLOYEE</th>
-                  <th>WEEK OF</th>
-                  <th>TOTAL HOURS</th>
-                  <th>STATUS</th>
-                  <th>ACTION</th>
-                </tr>
-              </thead>
-              <tbody>
-                {employees.map(emp => (
-                  <tr key={emp.id}>
-                    <td>{emp.name}</td>
-                    <td>{emp.weekOf}</td>
-                    <td>{emp.totalHours}</td>
-                    <td>
-                      <span className={`${styles.statusBadge} ${
-                        emp.status === 'SUBMITTED' ? styles.statusSubmitted :
-                        emp.status === 'APPROVED' ? styles.statusApproved :
-                        emp.status === 'DRAFT' ? styles.statusDraft :
-                        styles.statusRejected
-                      }`}>
-                        {emp.status}
-                      </span>
-                    </td>
-                    <td>
-                      <button className={styles.btnReview} onClick={() => handleReviewClick(emp)}>
-                        Review
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {employees.length === 0 && (
+            <div className={styles.tableContainer}>
+              <table className={styles.table}>
+                <thead>
                   <tr>
-                    <td colSpan="5" style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
-                      No pending timesheets require review.
-                    </td>
+                    <th style={{width: '25%'}}>Employee</th>
+                    <th style={{width: '15%'}}>Date</th>
+                    <th style={{width: '20%'}}>Project</th>
+                    <th style={{width: '20%'}}>Task</th>
+                    <th style={{width: '10%', textAlign: 'center'}}>Hours</th>
+                    <th style={{width: '10%', textAlign: 'center'}}>Action</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {paginatedTimesheets.map(log => (
+                    <tr key={log.id}>
+                      <td>
+                        <div className={styles.employeeName}>
+                          <div className={styles.avatar}>
+                            {log.employee_name.charAt(0).toUpperCase()}
+                          </div>
+                          {log.employee_name}
+                        </div>
+                      </td>
+                      <td>
+                        <span className={styles.logDate}><CalendarDays size={14} color="#94a3b8" /> {log.date}</span>
+                      </td>
+                      <td>
+                        <div className={styles.logProject}>{log.project}</div>
+                      </td>
+                      <td>
+                        <div className={styles.logTask} title={log.task}>{log.task}</div>
+                      </td>
+                      <td style={{textAlign: 'center'}}>
+                        <span className={styles.statusBadge}>{log.hours}h</span>
+                      </td>
+                      <td>
+                        <button className={styles.btnReview} onClick={() => handleReviewClick(log)}>
+                          Review
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {timesheets.length === 0 && (
+                    <tr>
+                      <td colSpan="6" style={{ textAlign: 'center', padding: '60px', color: '#64748b' }}>
+                        <div style={{display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', borderRadius: '50%', background: '#f1f5f9', marginBottom: '16px'}}>
+                          <Check size={32} color="#10b981" />
+                        </div>
+                        <div style={{color: '#0f172a', fontSize: '18px', fontWeight: 700}}>All Caught Up!</div>
+                        <div style={{marginTop: '8px'}}>No pending daily timesheets require review for this selection.</div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Controls */}
+            {timesheets.length > 0 && (
+              <div className="pagination-container" style={{ borderTop: 'none', padding: '0 32px 24px 32px' }}>
+                <div className="pagination-info">
+                  Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, timesheets.length)} of {timesheets.length} entries
+                </div>
+                <div className="pagination-controls">
+                  <button 
+                    className="page-btn" 
+                    disabled={currentPage === 1} 
+                    onClick={() => setCurrentPage(p => p - 1)}
+                  >
+                    Previous
+                  </button>
+                  {[...Array(totalPages)].map((_, i) => (
+                    <button 
+                      key={i} 
+                      className={`page-btn ${currentPage === i + 1 ? 'active' : ''}`}
+                      onClick={() => setCurrentPage(i + 1)}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                  <button 
+                    className="page-btn" 
+                    disabled={currentPage === totalPages} 
+                    onClick={() => setCurrentPage(p => p + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {/* TAB CONTENT: REVIEWER */}
         {activeTab === 'reviewer' && (
           <div className={styles.reviewerContainer}>
-            <div className={styles.reviewerHeader}>
-              <div>
-                <div className={styles.reviewerTitleSub}>Reviewing Timesheet for</div>
-                <div className={styles.reviewerTitle}>
-                  {activeSelected ? `${activeSelected.name} (${activeSelected.weekOf})` : 'No employee selected'}
-                </div>
-              </div>
-              
-              <div className={styles.actionGroup}>
-                <button className={styles.btnReject} onClick={handleReject}><X size={14} /> Reject with Comment</button>
-                <button className={styles.btnApprove} onClick={handleApprove}><Check size={14} /> Approve Timesheet</button>
-              </div>
-            </div>
-
-            {activeSelected ? (() => {
-              const weekStr = activeSelected.raw?.week_start_date || activeSelected.weekOf.replace('Week of ', '');
-              const days = getDaysInfo(weekStr);
-              
-              let rows = activeSelected.raw?.rows;
-              if (!rows) {
-                // Generate deterministic synthetic rows for demo
-                rows = [
-                  { taskId: 102, name: "Setup Authentication Flow", sprint: "Sprint 14", hours: { Mon: 5, Tue: 6, Wed: 0, Thu: 0, Fri: 0 } },
-                  { taskId: 105, name: "Team Sync & Code Review", sprint: "Sprint 14", hours: { Mon: 3, Tue: 0, Wed: 0, Thu: 2, Fri: 0 } },
-                  { taskId: 110, name: "Database Schema Updates", sprint: "Sprint 14", hours: { Mon: 0, Tue: 2, Wed: 8, Thu: 6, Fri: 8 } }
-                ];
-              }
-
-              return (
-                <>
-                  {days.map(day => {
-                    const tasksForDay = rows.filter(r => (r.hours[day.key] || 0) > 0);
-                    const dayTotal = tasksForDay.reduce((sum, r) => sum + (r.hours[day.key] || 0), 0);
-                    
-                    if (tasksForDay.length === 0) return null;
-
-                    return (
-                      <div className={styles.dailyBlock} key={day.key}>
-                        <div className={styles.dailyBlockHeader}>
-                          <span className={styles.dailyBlockDate}>{day.label}</span>
-                          <span className={styles.dailyBlockTotal}>{dayTotal} hours total</span>
-                        </div>
-                        
-                        {tasksForDay.map((task, idx) => {
-                          const isMatched = (task.taskId || idx) % 2 === 0;
-                          return (
-                            <div className={styles.taskItem} key={idx}>
-                              <div className={styles.taskInfo}>
-                                <div className={styles.taskId}>TASK-{task.taskId || 'MISC'}</div>
-                                <div className={styles.taskTitle}>{task.name}</div>
-                              </div>
-                              <div className={styles.taskMeta}>
-                                <div className={`${styles.gitStatus} ${isMatched ? styles.gitMatched : styles.gitNoCommits}`}>
-                                  {isMatched ? <><GitCommit size={14} /> GIT MATCHED</> : <><AlertTriangle size={14} /> NO COMMITS</>}
-                                </div>
-                                <div className={styles.taskHours}>{task.hours[day.key]}h</div>
-                              </div>
-                            </div>
-                          );
-                        })}
+            {selectedLog ? (
+              <>
+                <div className={styles.reviewerHeader}>
+                  <div>
+                    <div className={styles.reviewerTitleSub}>Reviewing Daily Log</div>
+                    <div className={styles.reviewerTitle}>
+                      <div className={styles.avatar} style={{width: '40px', height: '40px', fontSize: '16px'}}>
+                        {selectedLog.employee_name.charAt(0).toUpperCase()}
                       </div>
-                    );
-                  })}
-                </>
-              );
-            })() : (
-              <div style={{ padding: '40px', textAlign: 'center', color: '#64748b', background: 'white', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                Please select an employee from the Team Timesheets Table.
+                      {selectedLog.employee_name}
+                    </div>
+                  </div>
+                  
+                  <div className={styles.actionGroup}>
+                    <button className={styles.btnReject} onClick={handleReject}><X size={16} /> Reject</button>
+                    <button className={styles.btnApprove} onClick={handleApprove}><Check size={16} /> Approve Log</button>
+                  </div>
+                </div>
+
+                <div className={styles.dailyBlock}>
+                  <div className={styles.dailyBlockHeader}>
+                    <div>
+                      <div className={styles.metaLabel}>Date</div>
+                      <div className={styles.metaValue} style={{display: 'flex', alignItems: 'center', gap: '6px'}}><CalendarDays size={16} color="#64748b"/> {selectedLog.date}</div>
+                    </div>
+                    <div>
+                      <div className={styles.metaLabel}>Project</div>
+                      <div className={styles.metaValue}>{selectedLog.project}</div>
+                    </div>
+                    <div>
+                      <div className={styles.metaLabel}>Hours Logged</div>
+                      <div className={styles.metaValue} style={{color: '#4f46e5', display: 'flex', alignItems: 'center', gap: '6px'}}><Clock size={16}/> {selectedLog.hours} Hours</div>
+                    </div>
+                  </div>
+                  
+                  <div className={styles.reviewContent}>
+                    <div className={styles.taskHeader}>
+                      <FileText size={20} color="#4f46e5"/> {selectedLog.task}
+                    </div>
+                    <div className={styles.taskDesc}>
+                      {selectedLog.description}
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div style={{ padding: '80px', textAlign: 'center', color: '#64748b' }}>
+                <div style={{display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '80px', height: '80px', borderRadius: '50%', background: '#f8fafc', marginBottom: '20px'}}>
+                  <FileText size={40} color="#cbd5e1" />
+                </div>
+                <div style={{fontSize: '20px', fontWeight: 700, color: '#0f172a'}}>No Log Selected</div>
+                <div style={{marginTop: '12px'}}>Please select a pending timesheet from the Pending Timesheets tab to review.</div>
               </div>
             )}
           </div>
         )}
-
-
       </div>
     </div>
   );

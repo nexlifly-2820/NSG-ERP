@@ -161,10 +161,9 @@ export default function CompanySetup() {
     gst: '27AADCN4521E1Z8', 
     cin: 'U74900MH2010PTC123456',
     address: 'Unit 401, Mindspace IT Park, Malad West, Mumbai, Maharashtra 400064',
-    fy: 'apr',
-    currency: 'inr',
     office_latitude: '',
-    office_longitude: ''
+    office_longitude: '',
+    allowed_radius: '300'
   });
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
@@ -195,10 +194,9 @@ export default function CompanySetup() {
           gst: configs.company_gst || '27AADCN4521E1Z8',
           cin: configs.company_cin || 'U74900MH2010PTC123456',
           address: configs.company_address || 'Unit 401, Mindspace IT Park, Malad West, Mumbai, Maharashtra 400064',
-          fy: configs.company_fy || 'apr',
-          currency: configs.company_currency || 'inr',
           office_latitude: configs.office_latitude || '',
-          office_longitude: configs.office_longitude || ''
+          office_longitude: configs.office_longitude || '',
+          allowed_radius: configs.allowed_radius || '300'
         });
         if (configs.company_logo) {
           setLogoFile(configs.company_logo.split('/').pop());
@@ -298,12 +296,11 @@ export default function CompanySetup() {
     const p2 = saveSetting('company_gst', profileData.gst);
     const p3 = saveSetting('company_cin', profileData.cin);
     const p4 = saveSetting('company_address', profileData.address);
-    const p5 = saveSetting('company_fy', profileData.fy);
-    const p6 = saveSetting('company_currency', profileData.currency);
-    const p7 = saveSetting('office_latitude', profileData.office_latitude);
-    const p8 = saveSetting('office_longitude', profileData.office_longitude);
+    const p5 = saveSetting('office_latitude', profileData.office_latitude);
+    const p6 = saveSetting('office_longitude', profileData.office_longitude);
+    const p7 = saveSetting('allowed_radius', profileData.allowed_radius);
     
-    const results = await Promise.all([p1, p2, p3, p4, p5, p6, p7, p8]);
+    const results = await Promise.all([p1, p2, p3, p4, p5, p6, p7]);
     setIsSaving(false);
     if (results.every(r => r)) {
       showToast('Profile configuration saved securely.');
@@ -661,7 +658,7 @@ export default function CompanySetup() {
                             <MapPin size={14} style={{ marginRight: '6px' }} /> Use My Current Location
                         </button>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                         <div>
                             <label style={{ fontSize: '12px', color: 'var(--ceo-text-secondary)', marginBottom: '4px', display: 'block' }}>Latitude</label>
                             <input className="ceo-form-input" placeholder="e.g. 17.6868" required value={profileData.office_latitude || ''} onChange={(e) => setProfileData({...profileData, office_latitude: e.target.value})} />
@@ -670,26 +667,12 @@ export default function CompanySetup() {
                             <label style={{ fontSize: '12px', color: 'var(--ceo-text-secondary)', marginBottom: '4px', display: 'block' }}>Longitude</label>
                             <input className="ceo-form-input" placeholder="e.g. 83.2185" required value={profileData.office_longitude || ''} onChange={(e) => setProfileData({...profileData, office_longitude: e.target.value})} />
                         </div>
+                        <div>
+                            <label style={{ fontSize: '12px', color: 'var(--ceo-text-secondary)', marginBottom: '4px', display: 'block' }}>Allowed Distance (Meters)</label>
+                            <input type="number" min="10" className="ceo-form-input" placeholder="e.g. 300" required value={profileData.allowed_radius || '300'} onChange={(e) => setProfileData({...profileData, allowed_radius: e.target.value})} />
+                        </div>
                     </div>
-                    <p style={{ fontSize: '12px', color: 'var(--ceo-text-muted)', marginTop: '8px', marginBottom: 0 }}>These coordinates will be used to automatically mark employee attendance as "Office" or "WFH" (300 meters radius).</p>
-                  </div>
-                  
-                  <div className="ceo-form-group">
-                    <label>Financial Year Start</label>
-                    <select className="ceo-form-input" value={profileData.fy || 'apr'} onChange={(e) => setProfileData({...profileData, fy: e.target.value})}>
-                      <option value="apr">April (Recommended)</option>
-                      <option value="jan">January</option>
-                      <option value="jul">July</option>
-                    </select>
-                  </div>
-                  
-                  <div className="ceo-form-group">
-                    <label>Default Currency</label>
-                    <select className="ceo-form-input" value={profileData.currency || 'inr'} onChange={(e) => setProfileData({...profileData, currency: e.target.value})}>
-                      <option value="inr">INR (₹)</option>
-                      <option value="usd">USD ($)</option>
-                      <option value="eur">EUR (€)</option>
-                    </select>
+                    <p style={{ fontSize: '12px', color: 'var(--ceo-text-muted)', marginTop: '8px', marginBottom: 0 }}>These coordinates and distance will be used to automatically mark employee attendance as "Office" or "WFH".</p>
                   </div>
 
                   <div style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--ceo-border)', paddingTop: '24px', marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>

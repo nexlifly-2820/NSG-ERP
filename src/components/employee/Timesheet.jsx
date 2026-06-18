@@ -1,577 +1,387 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Send, Lock, AlertTriangle, CheckCircle, X, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Filter, Send, Edit, Trash2, CheckCircle, Clock, AlertTriangle, Save, CalendarDays, Check } from 'lucide-react';
 import './Timesheet.css';
-
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-
-
-function getWeekDates(offset = 0) {
-  const now = new Date();
-  const day = now.getDay();
-  const mon = new Date(now);
-  mon.setDate(now.getDate() - (day === 0 ? 6 : day - 1) + offset * 7);
-  return DAYS.map((_, i) => {
-    const d = new Date(mon);
-    d.setDate(mon.getDate() + i);
-    return d;
-  });
-}
-
-function fmtDate(d) {
-  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-}
-
-function fmtWeekLabel(dates) {
-  return `${fmtDate(dates[0])} – ${fmtDate(dates[4])}`;
-}
-
-function dayTotal(row) {
-  return DAYS.reduce((sum, d) => sum + (parseFloat(row.hours[d]) || 0), 0);
-}
-
-function colTotal(rows, day) {
-  return rows.reduce((sum, r) => sum + (parseFloat(r.hours[day]) || 0), 0);
-}
-
-function weekTotal(rows) {
-  return rows.reduce((sum, r) => sum + dayTotal(r), 0);
-}
-
-// ─── AddTaskModal ─────────────────────────────────────────────────────────────
-
-function AddTaskModal({ onAdd, onClose, existingIds, existingNames, availableTasks }) {
-  const available = availableTasks.filter(t => !existingIds.includes(t.id));
-  const [customTaskName, setCustomTaskName] = useState('');
-
-  const handleAddCustom = () => {
-    if (!customTaskName.trim()) return;
-    if (existingNames && existingNames.includes(customTaskName.trim().toLowerCase())) {
-      alert("This task already exists in your timesheet.");
-      return;
-    }
-    onAdd({
-      id: null, // Must be null so backend Pydantic Optional[int] doesn't throw 422
-      name: customTaskName.trim(),
-      sprint: 'General'
-    });
-    onClose();
-  };
-
-  return (
-    <div className="ts-modal-overlay" onClick={onClose}>
-      <div className="ts-modal" onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div className="ts-modal__title">Add Task to Timesheet</div>
-            <div className="ts-modal__sub">Pick a sprint task or add a custom one</div>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ts-text-dim)' }}>
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="ts-modal__list">
-          {available.length === 0 ? (
-            <p style={{ color: 'var(--ts-text-muted)', fontSize: 13, textAlign: 'center', padding: '16px 0', margin: 0 }}>
-              No assigned sprint tasks. Add a custom task below.
-            </p>
-          ) : (
-            available.map(t => (
-              <div key={t.id} className="ts-modal__task-item" onClick={() => { onAdd(t); onClose(); }}>
-                <div>
-                  <div className="ts-modal__task-name">{t.name}</div>
-                  <div className="ts-modal__task-sprint">{t.sprint}</div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div style={{ padding: '16px', borderTop: '1px solid var(--ts-border)', background: 'var(--ts-bg-inner)', borderBottomLeftRadius: 12, borderBottomRightRadius: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ts-text)', marginBottom: 8 }}>Or add a custom activity</div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input 
-              type="text" 
-              placeholder="e.g., Interviews, Team Meeting, Admin" 
-              value={customTaskName}
-              onChange={e => setCustomTaskName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleAddCustom()}
-              style={{ 
-                flex: 1, padding: '8px 12px', borderRadius: 6, 
-                border: '1px solid var(--ts-border)', 
-                background: 'var(--ts-bg-card)', color: '#fff', fontSize: 13 
-              }}
-            />
-            <button 
-              onClick={handleAddCustom}
-              disabled={!customTaskName.trim()}
-              style={{ 
-                padding: '8px 16px', borderRadius: 6, 
-                background: customTaskName.trim() ? 'var(--ts-violet)' : 'var(--ts-border)', 
-                color: customTaskName.trim() ? '#fff' : 'var(--ts-text-muted)', 
-                border: 'none', cursor: customTaskName.trim() ? 'pointer' : 'not-allowed', 
-                fontWeight: 600, fontSize: 13, transition: 'background 0.2s'
-              }}
-            >
-              Add
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── SubmitConfirmModal ───────────────────────────────────────────────────────
-
-function SubmitConfirmModal({ weekLabel, total, onConfirm, onClose }) {
-  return (
-    <div className="ts-modal-overlay" onClick={onClose}>
-      <div className="ts-modal" onClick={e => e.stopPropagation()} style={{ width: 380 }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
-          <div className="ts-modal__title" style={{ fontSize: 16 }}>Submit Timesheet?</div>
-          <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--ts-text-dim)' }}>
-            Week of <strong style={{ color: 'var(--ts-text)' }}>{weekLabel}</strong> · <strong style={{ color: 'var(--ts-text)' }}>{total.toFixed(1)}h</strong> total
-          </p>
-          <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--ts-text-muted)' }}>
-            This will lock the grid and send to TL for review.
-          </p>
-        </div>
-        <div className="ts-modal__actions" style={{ justifyContent: 'stretch', gap: 10 }}>
-          <button className="ts-modal__cancel-btn" onClick={onClose} style={{ flex: 1 }}>Cancel</button>
-          <button className="ts-modal__confirm-btn" onClick={onConfirm} style={{ flex: 1 }}>Submit</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── HoursInput ───────────────────────────────────────────────────────────────
-
-function HoursInput({ value, onChange, isReadOnly, rowIdx, dayIdx, onKeyDown }) {
-  const [focused, setFocused] = useState(false);
-  const val = value === 0 ? '' : String(value);
-
-  return (
-    <input
-      type="number"
-      inputMode="decimal"
-      min={0} max={24} step={0.5}
-      placeholder="0"
-      value={val}
-      readOnly={isReadOnly}
-      onChange={e => {
-        const v = parseFloat(e.target.value);
-        onChange(isNaN(v) ? 0 : Math.min(24, Math.max(0, v)));
-      }}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      onKeyDown={e => onKeyDown(e, rowIdx, dayIdx)}
-      className="ts-hour-input"
-      style={{
-        width: '100%',
-        borderColor: focused ? 'rgba(167,139,250,0.6)' : 'var(--ts-border)',
-        background: isReadOnly
-          ? 'rgba(255,255,255,0.03)'
-          : focused
-            ? 'rgba(167,139,250,0.07)'
-            : 'var(--ts-bg-inner)',
-      }}
-      disabled={isReadOnly}
-    />
-  );
-}
-
-// ─── DayTotalBadge ────────────────────────────────────────────────────────────
-
-function DayTotalBadge({ total }) {
-  const cls = total >= 8
-    ? 'ts-day-total--ok'
-    : total > 0
-      ? 'ts-day-total--partial'
-      : 'ts-day-total--zero';
-  return (
-    <div className={`ts-day-total--na ${cls}`} style={{ textAlign: 'center', fontWeight: 800, fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>
-      {total.toFixed(1)}h
-    </div>
-  );
-}
-
-// ─── Main Timesheet ───────────────────────────────────────────────────────────
+import './pagination.css';
 
 export default function Timesheet() {
-  const [weekOffset, setWeekOffset] = useState(0);
-
-  const [availableTasks, setAvailableTasks] = useState([]);
+  const [timesheets, setTimesheets] = useState([]);
   
-  const [rows, setRows] = useState([]);
-  const [status, setStatus] = useState('draft');
-  const [rejectedReason, setRejectedReason] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showSubmitModal, setShowSubmitModal] = useState(false);
-  const autoSaveTimer = useRef(null);
+  const today = new Date();
+  const initialYear = today.getFullYear();
+  const initialMonth = today.getMonth() + 1;
+  const initialWeek = Math.ceil(today.getDate() / 7);
 
-  const dates = getWeekDates(weekOffset);
-  const weekLabel = fmtWeekLabel(dates);
-  const total = weekTotal(rows);
-  const allDaysFilled = DAYS.every(d => colTotal(rows, d) >= 8);
-  const canSubmit = allDaysFilled && status === 'draft';
-  const isLocked = status === 'submitted' || status === 'approved';
+  // Filter states
+  const [filterYear, setFilterYear] = useState(initialYear);
+  const [filterMonth, setFilterMonth] = useState(initialMonth);
+  const [filterWeek, setFilterWeek] = useState(initialWeek);
 
-  const weekStartDateStr = dates[0].toISOString().slice(0, 10);
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
-  // Fetch Available Tasks
   useEffect(() => {
-    const fetchTasks = async () => {
-      try {
-        const token = localStorage.getItem('nsg_jwt_token');
-        const res = await fetch('/api/employee-portal/tasks/my-tasks', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setAvailableTasks(data.map(t => ({ id: t.id, name: t.title, sprint: t.sprint || 'General' })));
-        }
-      } catch (e) { console.error(e); }
-    };
-    fetchTasks();
-  }, []);
+    setCurrentPage(1);
+  }, [timesheets.length, filterYear, filterMonth, filterWeek]);
 
-  // Fetch Timesheet for Week
-  useEffect(() => {
-    const fetchTimesheet = async () => {
-      try {
-        const token = localStorage.getItem('nsg_jwt_token');
-        const res = await fetch(`/api/timesheets/my-timesheets?week_start_date=${weekStartDateStr}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.length > 0) {
-            const ts = data[0];
-            setRows(ts.rows || []);
-            setStatus(ts.status || 'draft');
-            setRejectedReason(ts.rejection_comment || '');
-          } else {
-            // Empty week — start with blank rows
-            setRows([]);
-            setStatus('draft');
-            setRejectedReason('');
-          }
-        }
-      } catch (e) { console.error(e); }
-    };
-    fetchTimesheet();
-  }, [weekStartDateStr]);
+  const totalPages = Math.ceil(timesheets.length / ITEMS_PER_PAGE);
+  const paginatedTimesheets = timesheets.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  // Autosave draft edits to global database
-  const triggerAutoSave = async (updatedRows) => {
-    if (status === 'submitted' || status === 'approved') return;
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(async () => {
-      try {
-        const token = localStorage.getItem('nsg_jwt_token');
-        await fetch('/api/timesheets/save', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ week_start_date: weekStartDateStr, rows: updatedRows })
-        });
-      } catch (e) { console.error(e); }
-    }, 1000);
-  };
+  // Form states
+  const [isEditing, setIsEditing] = useState(false);
+  const [editId, setEditId] = useState(null);
+  
+  const [formProject, setFormProject] = useState('');
+  const [formTask, setFormTask] = useState('');
+  const [formDate, setFormDate] = useState(today.toISOString().slice(0, 10));
+  const [formHours, setFormHours] = useState('');
+  const [formDescription, setFormDescription] = useState('');
+  
+  const [errorMsg, setErrorMsg] = useState('');
 
-  function updateHours(rowIdx, day, val) {
-    const updatedRows = rows.map((r, i) =>
-      i === rowIdx ? { ...r, hours: { ...r.hours, [day]: val } } : r
-    );
-    setRows(updatedRows);
-    triggerAutoSave(updatedRows);
-  }
-
-  function removeRow(rowIdx) {
-    const updatedRows = rows.filter((_, i) => i !== rowIdx);
-    setRows(updatedRows);
-    triggerAutoSave(updatedRows);
-  }
-
-  function addTask(task) {
-    const updatedRows = [...rows, {
-      taskId: task.id, name: task.name, sprint: task.sprint,
-      hours: { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0 },
-    }];
-    setRows(updatedRows);
-    triggerAutoSave(updatedRows);
-  }
-
-  const handleSubmit = async () => {
+  const fetchTimesheets = async () => {
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      // Save first
-      await fetch('/api/timesheets/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ week_start_date: weekStartDateStr, rows: rows })
+      let url = `/api/timesheets/my-timesheets?year=${filterYear}&month=${filterMonth}`;
+      if (filterWeek > 0) {
+        url += `&week=${filterWeek}`;
+      }
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      // Then submit
+      if (res.ok) {
+        const data = await res.json();
+        setTimesheets(data);
+      } else {
+        console.error("Failed to fetch timesheets", await res.text());
+      }
+    } catch (e) { console.error("Network error fetching timesheets", e); }
+  };
+
+  useEffect(() => {
+    fetchTimesheets();
+  }, [filterYear, filterMonth, filterWeek]);
+
+  const handleSaveDraft = async () => {
+    setErrorMsg('');
+    
+    if (!formProject || !formTask || !formDate || !formDescription || !formHours) {
+      setErrorMsg("Please fill all fields to add a new timesheet log.");
+      return;
+    }
+
+    const hours = parseFloat(formHours);
+    if (isNaN(hours) || hours <= 0 || hours > 9) {
+      setErrorMsg("Hours must be a valid number between 0.5 and 9.");
+      return;
+    }
+
+    const payload = {
+      project: formProject,
+      task: formTask,
+      date: formDate,
+      hours: hours,
+      description: formDescription,
+      status: 'draft'
+    };
+
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const url = isEditing ? `/api/timesheets/${editId}` : `/api/timesheets/`;
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        resetForm();
+        fetchTimesheets();
+      } else {
+        let errStr = "Error saving timesheet.";
+        try {
+          const err = await res.json();
+          errStr = err.detail || errStr;
+        } catch(e) {
+          errStr += ` Status: ${res.status}`;
+        }
+        setErrorMsg(errStr);
+      }
+    } catch (e) {
+      console.error(e);
+      setErrorMsg("Network error. Please check your connection to the server.");
+    }
+  };
+
+  const submitAllDrafts = async () => {
+    const drafts = timesheets.filter(t => t.status === 'draft' || t.status === 'rejected').map(t => t.id);
+    if (drafts.length === 0) return;
+    
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
       const res = await fetch('/api/timesheets/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ week_start_date: weekStartDateStr })
+        body: JSON.stringify({ ids: drafts })
       });
       if (res.ok) {
-        setStatus('submitted');
-        setShowSubmitModal(false);
+        fetchTimesheets();
       }
-    } catch (e) { console.error(e); }
+    } catch(e) {}
   };
 
-  const inputRefs = useRef({});
-  function handleKeyDown(e, rowIdx, dayIdx) {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const nextDay = dayIdx + 1;
-      if (nextDay < DAYS.length) inputRefs.current[`${rowIdx}-${nextDay}`]?.querySelector('input')?.focus();
-      else inputRefs.current[`${rowIdx + 1}-0`]?.querySelector('input')?.focus();
+  const handleEdit = (ts) => {
+    setIsEditing(true);
+    setEditId(ts.id);
+    setFormProject(ts.project);
+    setFormTask(ts.task);
+    setFormDate(ts.date);
+    setFormDescription(ts.description);
+    setFormHours(ts.hours.toString());
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this log?")) return;
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/timesheets/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchTimesheets();
+      } else {
+        const err = await res.json();
+        alert(err.detail || "Failed to delete.");
+      }
+    } catch(e) {}
+  };
+
+  const resetForm = () => {
+    setIsEditing(false);
+    setEditId(null);
+    setFormProject('');
+    setFormTask('');
+    setFormDescription('');
+    setFormHours('');
+    setErrorMsg('');
+  };
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'approved': return <span className="status-badge status-approved"><CheckCircle size={14}/> Approved</span>;
+      case 'rejected': return <span className="status-badge status-rejected"><AlertTriangle size={14}/> Rejected</span>;
+      case 'pending': return <span className="status-badge status-pending"><Clock size={14}/> Pending</span>;
+      case 'draft': return <span className="status-badge status-draft">Draft</span>;
+      default: return null;
     }
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      inputRefs.current[`${rowIdx + 1}-${dayIdx}`]?.querySelector('input')?.focus();
-    }
-    if (e.key === 'Enter' && e.shiftKey) {
-      e.preventDefault();
-      inputRefs.current[`${rowIdx - 1}-${dayIdx}`]?.querySelector('input')?.focus();
-    }
-  }
+  };
+
+  const draftsCount = timesheets.filter(t => t.status === 'draft' || t.status === 'rejected').length;
 
   return (
-    <div className="component-container ts-root">
-      {/* Header */}
-      <div className="component-header">
-        <div>
-          <h1>Timesheet</h1>
-          <p>Log your daily hours per task. Submit by end of week for TL review.</p>
-        </div>
-      </div>
-
-      {/* Status banners */}
-      {status === 'submitted' && (
-        <div className="ts-banner ts-banner--success" style={{ marginBottom: 16 }}>
-          <CheckCircle size={16} />
-          <span>Timesheet submitted — locked for review by TL</span>
-          <Lock size={13} style={{ marginLeft: 4 }} />
-        </div>
-      )}
-      {status === 'rejected' && (
-        <div className="ts-banner ts-banner--rejected" style={{ marginBottom: 16 }}>
-          <AlertTriangle size={16} />
-          <span>{rejectedReason || 'Hours incomplete. Please correct and resubmit.'}</span>
-          <button className="ts-resubmit-btn" onClick={() => setStatus('draft')}>Resubmit</button>
-        </div>
-      )}
-
-      {/* Week navigator */}
-      <div className="ts-card ts-week-nav" style={{ marginBottom: 16 }}>
-        <button
-          className="ts-week-nav__btn"
-          onClick={() => setWeekOffset(o => o - 1)}
-          disabled={isLocked}
-        >
-          <ChevronLeft size={16} />
-        </button>
-        <div style={{ flex: 1, textAlign: 'center' }}>
-          <div className="ts-week-nav__label">
-            {weekOffset === 0 ? `Current Week · ${weekLabel}` : weekLabel}
+    <div className="ts-root">
+      
+      <div className="ts-card">
+        <div className="ts-header">
+          <div>
+            <h2>Daily Timesheets</h2>
+            <p>Log your daily work tasks below. Add new tasks instantly via the top row.</p>
+          </div>
+          <div className="filters">
+            <Filter size={20} color="#94a3b8" />
+            <select value={filterWeek} onChange={e => setFilterWeek(parseInt(e.target.value))}>
+              <option value={0}>All Weeks</option>
+              <option value={1}>Week 1</option>
+              <option value={2}>Week 2</option>
+              <option value={3}>Week 3</option>
+              <option value={4}>Week 4</option>
+              <option value={5}>Week 5</option>
+            </select>
+            <select value={filterMonth} onChange={e => setFilterMonth(parseInt(e.target.value))}>
+              <option value={1}>January</option><option value={2}>February</option>
+              <option value={3}>March</option><option value={4}>April</option>
+              <option value={5}>May</option><option value={6}>June</option>
+              <option value={7}>July</option><option value={8}>August</option>
+              <option value={9}>September</option><option value={10}>October</option>
+              <option value={11}>November</option><option value={12}>December</option>
+            </select>
+            <select value={filterYear} onChange={e => setFilterYear(parseInt(e.target.value))}>
+              {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
           </div>
         </div>
-        <button
-          className="ts-week-nav__btn"
-          onClick={() => setWeekOffset(o => o + 1)}
-          disabled={isLocked}
-        >
-          <ChevronRight size={16} />
-        </button>
-      </div>
 
-      {/* Grid */}
-      <div className="ts-card" style={{ padding: 0, marginBottom: 16, overflow: 'hidden' }}>
-        {/* Grid header */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '180px repeat(5, 1fr) 80px 36px',
-          background: 'var(--ts-bg-inner)',
-          borderBottom: '1px solid var(--ts-border)',
-          padding: '0 16px',
-        }}>
-          <div style={thStyle}>Task</div>
-          {DAYS.map((d, i) => (
-            <div key={d} style={{ ...thStyle, textAlign: 'center' }}>
-              <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--ts-text-dim)' }}>{d.toUpperCase()}</div>
-              <div style={{ fontSize: 10, color: 'var(--ts-text-muted)', fontWeight: 400 }}>
-                {fmtDate(dates[i]).toUpperCase()}
-              </div>
-            </div>
-          ))}
-          <div style={{ ...thStyle, textAlign: 'center', color: 'var(--ts-emerald)' }}>Total</div>
-          <div style={thStyle} />
-        </div>
-
-        {/* Task rows */}
-        {rows.map((row, rowIdx) => (
-          <div key={rowIdx} style={{
-            display: 'grid',
-            gridTemplateColumns: '180px repeat(5, 1fr) 80px 36px',
-            borderBottom: '1px solid var(--ts-border-subtle)',
-            padding: '10px 16px', alignItems: 'center', gap: 8,
-            background: rowIdx % 2 === 0 ? 'var(--ts-bg-card)' : 'rgba(255,255,255,0.015)',
-          }}>
-            {/* Task name */}
-            <div style={{ paddingRight: 8 }}>
-              <p style={{
-                margin: 0, fontSize: 12, fontWeight: 600,
-                color: 'var(--ts-text)',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }} title={row.name}>{row.name}</p>
-              <p style={{ margin: '2px 0 0', fontSize: 10, color: 'var(--ts-text-muted)' }}>
-                {row.sprint}
-              </p>
-            </div>
-
-            {/* Hour inputs */}
-            {DAYS.map((d, dayIdx) => (
-              <div key={d} ref={el => inputRefs.current[`${rowIdx}-${dayIdx}`] = el}>
-                <HoursInput
-                  value={row.hours[d]}
-                  onChange={val => updateHours(rowIdx, d, val)}
-                  isReadOnly={isLocked}
-                  rowIdx={rowIdx}
-                  dayIdx={dayIdx}
-                  onKeyDown={handleKeyDown}
-                />
-              </div>
-            ))}
-
-            {/* Row total */}
-            <div style={{
-              textAlign: 'center', fontWeight: 800, fontSize: 14,
-              color: dayTotal(row) > 0 ? 'var(--ts-emerald)' : 'var(--ts-text-dim)',
-              fontVariantNumeric: 'tabular-nums',
-            }}>
-              {dayTotal(row).toFixed(1)}h
-            </div>
-
-            {/* Remove */}
-            <button
-              onClick={() => removeRow(rowIdx)}
-              disabled={isLocked}
-              style={{
-                background: 'none', border: 'none',
-                cursor: isLocked ? 'not-allowed' : 'pointer',
-                color: 'var(--ts-text-muted)', padding: 4, borderRadius: 6,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                opacity: isLocked ? 0.3 : 1, transition: 'color 150ms',
-              }}
-              onMouseEnter={e => { if (!isLocked) e.currentTarget.style.color = 'var(--ts-red)'; }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'var(--ts-text-muted)'; }}
-            >
-              <Trash2 size={14} />
-            </button>
-          </div>
-        ))}
-
-        {/* Add task row */}
-        {!isLocked && (
-          <div style={{ padding: '10px 16px', borderTop: '1px dashed var(--ts-border)' }}>
-            <button className="ts-add-btn" onClick={() => setShowAddModal(true)} style={{ width: '100%', justifyContent: 'center' }}>
-              <Plus size={15} /> Add Task Row
-            </button>
+        {errorMsg && (
+          <div className="ts-error">
+            <AlertTriangle size={20} /> {errorMsg}
           </div>
         )}
 
-        {/* Footer totals */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '180px repeat(5, 1fr) 80px 36px',
-          padding: '12px 16px',
-          background: 'var(--ts-bg-inner)',
-          borderTop: '2px solid var(--ts-border)',
-          alignItems: 'center', gap: 8,
-        }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ts-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Day Total
-          </div>
-          {DAYS.map(d => (
-            <DayTotalBadge key={d} total={colTotal(rows, d)} />
-          ))}
-          <div style={{
-            textAlign: 'center', fontWeight: 900, fontSize: 15,
-            color: total >= 40 ? 'var(--ts-emerald)' : 'var(--ts-violet)',
-            fontVariantNumeric: 'tabular-nums',
-          }}>
-            {total.toFixed(1)}h
-          </div>
-          <div />
+        <div className="ts-table-container">
+          <table className="ts-table">
+            <thead>
+              <tr>
+                <th style={{width: '16%'}}>Project / Sprint</th>
+                <th style={{width: '20%'}}>Task Name</th>
+                <th style={{width: '150px'}}>Date</th>
+                <th style={{width: '100px', textAlign: 'center'}}>Hours</th>
+                <th style={{width: 'auto'}}>Description</th>
+                <th style={{width: '130px', textAlign: 'center'}}>Status</th>
+                <th style={{width: '140px', textAlign: 'center'}}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* Add New Entry Row */}
+              <tr className="entry-row">
+                <td>
+                  <input type="text" className="ts-input" placeholder="e.g. ERP" value={formProject} onChange={e => setFormProject(e.target.value)} />
+                </td>
+                <td>
+                  <input type="text" className="ts-input" placeholder="e.g. API Dev" value={formTask} onChange={e => setFormTask(e.target.value)} />
+                </td>
+                <td>
+                  <input type="date" className="ts-input" value={formDate} onChange={e => setFormDate(e.target.value)} disabled={isEditing} />
+                </td>
+                <td>
+                  <input type="number" step="0.5" min="0.5" max="9" className="ts-input" style={{textAlign: 'center'}} placeholder="0.0" value={formHours} onChange={e => setFormHours(e.target.value)} />
+                </td>
+                <td>
+                  <input type="text" className="ts-input" placeholder="Describe exactly what you did..." value={formDescription} onChange={e => setFormDescription(e.target.value)} />
+                </td>
+                <td style={{textAlign: 'center'}}>
+                  <span className="status-badge status-draft" style={{background: '#f8fafc', border: '1px dashed #cbd5e1', color: '#94a3b8'}}>
+                    <Edit size={12} /> {isEditing ? 'Editing...' : 'New Log'}
+                  </span>
+                </td>
+                <td>
+                  {isEditing ? (
+                    <div style={{display: 'flex', gap: '8px'}}>
+                      <button className="btn-primary" onClick={handleSaveDraft} style={{flex: 1, padding: '0'}} title="Save">
+                        <Check size={16} />
+                      </button>
+                      <button className="btn-secondary" onClick={resetForm} style={{flex: 1, padding: '0'}} title="Cancel">
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button className="btn-primary" onClick={handleSaveDraft} style={{width: '100%'}}>
+                      <Save size={16} /> Save Draft
+                    </button>
+                  )}
+                </td>
+              </tr>
+
+              {/* Logged Rows */}
+              {paginatedTimesheets.length > 0 ? paginatedTimesheets.map(ts => (
+                <tr key={ts.id} className="log-row">
+                  <td className="log-project">{ts.project}</td>
+                  <td className="log-task">{ts.task}</td>
+                  <td>
+                    <span className="log-date"><CalendarDays size={14} color="#94a3b8" /> {ts.date}</span>
+                  </td>
+                  <td style={{textAlign: 'center'}}>
+                    <span className="log-hours">{ts.hours}</span>
+                  </td>
+                  <td>
+                    <div className="log-desc" title={ts.description}>{ts.description}</div>
+                    {ts.status === 'rejected' && ts.rejection_comment && (
+                      <div className="rejection-note">TL Note: {ts.rejection_comment}</div>
+                    )}
+                  </td>
+                  <td style={{textAlign: 'center'}}>
+                    {getStatusBadge(ts.status)}
+                  </td>
+                  <td className="action-cell">
+                    {(ts.status === 'pending' || ts.status === 'draft' || ts.status === 'rejected') ? (
+                      <>
+                        <button className="icon-btn edit" onClick={() => handleEdit(ts)} title="Edit Log">
+                          <Edit size={18} />
+                        </button>
+                        <button className="icon-btn delete" onClick={() => handleDelete(ts.id)} title="Delete Log">
+                          <Trash2 size={18} />
+                        </button>
+                      </>
+                    ) : (
+                      <span style={{fontSize: '13px', color: '#94a3b8', fontStyle: 'italic', fontWeight: 500}}>Locked</span>
+                    )}
+                  </td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan="7" style={{textAlign: 'center', padding: '60px 20px'}}>
+                    <div style={{display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', borderRadius: '50%', background: '#f1f5f9', marginBottom: '16px'}}>
+                      <CalendarDays size={32} color="#94a3b8" />
+                    </div>
+                    <div style={{color: '#475569', fontSize: '16px', fontWeight: 600}}>No logs found for this period</div>
+                    <div style={{color: '#94a3b8', fontSize: '14px', marginTop: '8px'}}>Enter your daily work in the top row and click "Save Draft"</div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-      </div>
 
-      {/* Submit area */}
-      <div className="ts-submit-bar" style={{
-        border: `1px solid ${canSubmit ? 'var(--ts-violet-border)' : 'var(--ts-border)'}`,
-        boxShadow: canSubmit ? '0 0 0 3px rgba(167,139,250,0.08)' : 'none',
-      }}>
-        <div style={{ flex: 1 }}>
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--ts-text)' }}>
-            Week Total: <span style={{ fontVariantNumeric: 'tabular-nums' }}>{total.toFixed(1)}h</span>
-            {!allDaysFilled && status === 'draft' && (
-              <span className="ts-submit-bar__warning" style={{ display: 'inline-flex', marginLeft: 10, fontSize: 11 }}>
-                ⚠ All weekdays need ≥8h to unlock submit
-              </span>
-            )}
-          </p>
-          <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--ts-text-muted)' }}>
-            Auto-saved · {isLocked ? 'Submitted for review' : 'Draft'}
-          </p>
+        {/* Pagination Controls */}
+        {timesheets.length > 0 && (
+          <div className="pagination-container">
+            <div className="pagination-info">
+              Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, timesheets.length)} of {timesheets.length} entries
+            </div>
+            <div className="pagination-controls">
+              <button 
+                className="page-btn" 
+                disabled={currentPage === 1} 
+                onClick={() => setCurrentPage(p => p - 1)}
+              >
+                Previous
+              </button>
+              {[...Array(totalPages)].map((_, i) => (
+                <button 
+                  key={i} 
+                  className={`page-btn ${currentPage === i + 1 ? 'active' : ''}`}
+                  onClick={() => setCurrentPage(i + 1)}
+                >
+                  {i + 1}
+                </button>
+              ))}
+              <button 
+                className="page-btn" 
+                disabled={currentPage === totalPages} 
+                onClick={() => setCurrentPage(p => p + 1)}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Bottom Submit Section */}
+        <div className="submit-section">
+          <div className="submit-instruction">
+            <h4>Ready for Approval?</h4>
+            <p>Review your drafted logs in the table above. When complete, submit them to your TL.</p>
+          </div>
+          <button 
+            className="btn-primary" 
+            onClick={submitAllDrafts} 
+            disabled={draftsCount === 0}
+            style={{ 
+              opacity: draftsCount === 0 ? 0.5 : 1, 
+              cursor: draftsCount === 0 ? 'not-allowed' : 'pointer',
+              width: 'auto',
+              padding: '0 24px',
+              background: draftsCount > 0 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : '#cbd5e1'
+            }}
+          >
+            <Send size={16} /> Submit {draftsCount} Drafts to TL
+          </button>
         </div>
-        <button
-          onClick={() => canSubmit && setShowSubmitModal(true)}
-          disabled={!canSubmit}
-          className={`ts-submit-btn ${canSubmit ? 'ts-submit-btn--ready' : ''}`}
-          style={{
-            background: canSubmit ? 'hsl(265,70%,35%)' : 'hsl(240,20%,20%)',
-            color: canSubmit ? '#fff' : 'rgba(255,255,255,0.3)',
-          }}
-        >
-          {isLocked ? <Lock size={14} /> : <Send size={14} />}
-          {isLocked ? 'Submitted' : 'Submit Timesheet'}
-        </button>
+
       </div>
-
-
-      {/* Modals */}
-      {showAddModal && (
-        <AddTaskModal
-          onAdd={addTask}
-          onClose={() => setShowAddModal(false)}
-          existingIds={rows.map(r => r.taskId)}
-          existingNames={rows.map(r => r.name.toLowerCase())}
-          availableTasks={availableTasks}
-        />
-      )}
-      {showSubmitModal && (
-        <SubmitConfirmModal
-          weekLabel={weekLabel}
-          total={total}
-          onConfirm={handleSubmit}
-          onClose={() => setShowSubmitModal(false)}
-        />
-      )}
     </div>
   );
 }
-
-const thStyle = {
-  padding: '12px 0',
-  fontSize: 11, fontWeight: 700,
-  color: 'var(--ts-text-muted)',
-  textTransform: 'uppercase', letterSpacing: '0.05em',
-};

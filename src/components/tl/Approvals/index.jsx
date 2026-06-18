@@ -37,18 +37,6 @@ const Approvals = () => {
     overlapWarning: null
   }));
 
-  const { data: rawCorrections = [], mutate: mutateCorrections } = useSWR('/api/team-lead/attendance-corrections/pending', fetcher);
-  const corrections = rawCorrections.map(c => ({
-    id: c.id,
-    employee: getEmpName(c.user_id),
-    date: c.correction_date,
-    requestedTimes: `${new Date(c.requested_clock_in).toLocaleTimeString()} - ${new Date(c.requested_clock_out).toLocaleTimeString()}`,
-    reason: c.reason,
-    status: c.status,
-    photoEvidence: false,
-    gpsCoords: 'Not provided'
-  }));
-
   const { data: rawWfhs = [], mutate: mutateWfhs } = useSWR('/api/team-lead/wfh/pending', fetcher);
   const wfhs = rawWfhs.map(r => ({
     id: r.id,
@@ -58,22 +46,6 @@ const Approvals = () => {
     status: r.status,
     locationVerified: true
   }));
-
-  const { data: rawTimesheets = [], mutate: mutateTimesheets } = useSWR('/api/timesheets/pending', fetcher);
-  const timesheets = rawTimesheets.map(ts => {
-    let totalH = 0;
-    (ts.rows || []).forEach(r => {
-      totalH += Object.values(r.hours || {}).reduce((sum, h) => sum + (parseFloat(h) || 0), 0);
-    });
-    return {
-      id: ts.id,
-      employee: getEmpName(ts.employee_id),
-      employee_id: ts.employee_id,
-      weekOf: ts.week_start_date,
-      totalHours: totalH,
-      hours: ts.rows?.[0]?.hours || { Mon:0, Tue:0, Wed:0, Thu:0, Fri:0, Sat:0, Sun:0 }
-    };
-  });
 
   const { data: rawExpenses = [], mutate: mutateExpenses } = useSWR('/api/team-lead/expenses/pending', fetcher);
   const expenses = rawExpenses.map(c => {
@@ -111,14 +83,6 @@ const Approvals = () => {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         mutateLeaves();
-      } else if (activeTab === 'corrections') {
-        const action = actionType === 'approve' ? 'approve' : 'reject';
-        mutateCorrections(rawCorrections.filter(r => r.id !== id), false);
-        await fetch(`/api/team-lead/attendance-corrections/${id}/${action}`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        mutateCorrections();
       } else if (activeTab === 'expense') {
         const action = actionType === 'approve' ? 'approve' : 'reject';
         mutateExpenses(rawExpenses.filter(r => r.id !== id), false);
@@ -127,19 +91,6 @@ const Approvals = () => {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         mutateExpenses();
-      } else if (activeTab === 'timesheet') {
-        const action = actionType === 'approve' ? 'approve' : 'reject';
-        mutateTimesheets(rawTimesheets.filter(r => r.id !== id), false);
-        const body = actionType === 'reject' ? JSON.stringify({ comment: 'Rejected by TL from approvals' }) : null;
-        await fetch(`/api/timesheets/${id}/${action}`, {
-          method: 'POST',
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            ...(body ? {'Content-Type': 'application/json'} : {})
-          },
-          body
-        });
-        mutateTimesheets();
       } else if (activeTab === 'wfh') {
         const action = actionType === 'approve' ? 'approve' : 'reject';
         mutateWfhs(rawWfhs.filter(r => r.id !== id), false);
@@ -166,15 +117,9 @@ const Approvals = () => {
   } else if (activeTab === 'expense') {
     currentList = expenses;
     selectedItem = expenses.find(e => e.id === selectedId);
-  } else if (activeTab === 'timesheet') {
-    currentList = timesheets;
-    selectedItem = timesheets.find(t => t.id === selectedId);
   } else if (activeTab === 'wfh') {
     currentList = wfhs;
     selectedItem = wfhs.find(w => w.id === selectedId);
-  } else if (activeTab === 'corrections') {
-    currentList = corrections;
-    selectedItem = corrections.find(c => c.id === selectedId);
   }
 
   // --- RENDER DETAIL PANELS ---
@@ -208,42 +153,7 @@ const Approvals = () => {
     </>
   );
 
-  const renderTimesheetDetails = (item) => (
-    <>
-      <div className={styles.detailHeader}>
-        <h2 style={{ fontSize: '20px', margin: '0 0 8px 0', color: '#0f172a' }}>{item.employee}</h2>
-        <span style={{ color: '#94a3b8', fontSize: '14px' }}>Week of {item.weekOf}</span>
-      </div>
 
-
-      <div className={styles.detailSection} style={{ marginTop: '24px' }}>
-        <span className={styles.detailLabel}>Weekly Hours Grid</span>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>{item.hours.Mon}h</td>
-              <td>{item.hours.Tue}h</td>
-              <td>{item.hours.Wed}h</td>
-              <td>{item.hours.Thu}h</td>
-              <td>{item.hours.Fri}h</td>
-              <td>{item.hours.Sat}h</td>
-              <td>{item.hours.Sun}h</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div className={styles.detailSection}>
-        <span className={styles.detailLabel}>Total Logged</span>
-        <div className={styles.detailValue} style={{ fontSize: '18px', fontWeight: 'bold' }}>{item.totalHours} Hours</div>
-      </div>
-    </>
-  );
 
   const renderWfhDetails = (item) => (
     <>
@@ -266,40 +176,7 @@ const Approvals = () => {
     </>
   );
 
-  const renderCorrectionDetails = (item) => (
-    <>
-      <div className={styles.detailHeader}>
-        <h2 style={{ fontSize: '20px', margin: '0 0 8px 0', color: '#0f172a' }}>{item.employee}</h2>
-        <span style={{ color: '#94a3b8', fontSize: '14px' }}>Attendance Correction for {item.date}</span>
-      </div>
 
-      <div className={styles.detailSection}>
-        <span className={styles.detailLabel}>Requested Times</span>
-        <div className={styles.detailValue}>{item.requestedTimes}</div>
-      </div>
-
-      <div className={styles.detailSection}>
-        <span className={styles.detailLabel}>Reason</span>
-        <div className={styles.detailValue}>{item.reason}</div>
-      </div>
-
-      <div className={styles.detailSection}>
-        <span className={styles.detailLabel}>System Verification</span>
-        <table className={styles.table}>
-          <tbody>
-            <tr>
-              <td style={{ color: '#94a3b8' }}>Photo Evidence</td>
-              <td>{item.photoEvidence ? <span style={{ color: '#10b981' }}><Camera size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }}/> Provided</span> : 'None'}</td>
-            </tr>
-            <tr>
-              <td style={{ color: '#94a3b8' }}>GPS Coordinates</td>
-              <td><MapPin size={14} style={{ marginRight: '4px', verticalAlign: 'middle', color: '#3b82f6' }}/> {item.gpsCoords}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
 
   const renderExpenseDetails = (item) => (
     <>
@@ -348,25 +225,11 @@ const Approvals = () => {
           {leaves.length > 0 && <span className={styles.badge}>{leaves.length}</span>}
         </button>
         <button 
-          className={`${styles.tabBtn} ${activeTab === 'timesheet' ? styles.tabBtnActive : ''}`}
-          onClick={() => handleTabChange('timesheet')}
-        >
-          <Clock size={16} /> Timesheet
-          {timesheets.length > 0 && <span className={styles.badge}>{timesheets.length}</span>}
-        </button>
-        <button 
           className={`${styles.tabBtn} ${activeTab === 'wfh' ? styles.tabBtnActive : ''}`}
           onClick={() => handleTabChange('wfh')}
         >
           <FileText size={16} /> WFH
           {wfhs.length > 0 && <span className={styles.badge}>{wfhs.length}</span>}
-        </button>
-        <button 
-          className={`${styles.tabBtn} ${activeTab === 'corrections' ? styles.tabBtnActive : ''}`}
-          onClick={() => handleTabChange('corrections')}
-        >
-          <CheckCircle size={16} /> Attendance Corrections
-          {corrections.length > 0 && <span className={styles.badge}>{corrections.length}</span>}
         </button>
         <button 
           className={`${styles.tabBtn} ${activeTab === 'expense' ? styles.tabBtnActive : ''}`}
@@ -395,14 +258,11 @@ const Approvals = () => {
               >
                 <div className={styles.itemHeader}>
                   <span className={styles.employeeName}>{item.employee}</span>
-                  {activeTab === 'corrections' && <span className={styles.slaBadge}>{item.slaRemaining} SLA</span>}
                 </div>
                 
                 <div className={styles.itemDesc}>
                   {activeTab === 'leave' && `${item.type} (${item.days} days)`}
-                  {activeTab === 'timesheet' && `${item.totalHours} hrs logged`}
                   {activeTab === 'wfh' && `${item.date}`}
-                  {activeTab === 'corrections' && `${item.date}`}
                   {activeTab === 'expense' && `₹${Number(item.amount).toLocaleString('en-IN')} — ${item.category}`}
                 </div>
                 
@@ -434,9 +294,7 @@ const Approvals = () => {
           ) : (
             <div>
               {activeTab === 'leave' && renderLeaveDetails(selectedItem)}
-              {activeTab === 'timesheet' && renderTimesheetDetails(selectedItem)}
               {activeTab === 'wfh' && renderWfhDetails(selectedItem)}
-              {activeTab === 'corrections' && renderCorrectionDetails(selectedItem)}
               {activeTab === 'expense' && renderExpenseDetails(selectedItem)}
               
               <div className={styles.bigActionRow}>
