@@ -36,10 +36,11 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
   const [scanningDoc, setScanningDoc] = useState(null); // type of doc being scanned
 
   // New Employee Form States
-  const [newName, setNewName] = useState('');
+  const [newName, setNewName] = useState(queryParams?.get('pre_name') || '');
+  const [newEmpId, setNewEmpId] = useState(queryParams?.get('pre_emp_id') || '');
   const [newEmail, setNewEmail] = useState('');
-  const [newDept, setNewDept] = useState('');
-  const [newRole, setNewRole] = useState('');
+  const [newDept, setNewDept] = useState(queryParams?.get('pre_dept') || '');
+  const [newRole, setNewRole] = useState(queryParams?.get('pre_desig') || '');
   const [newShift, setNewShift] = useState('');
   const [newPhotoFile, setNewPhotoFile] = useState(null);
   const [newPhoto, setNewPhoto] = useState('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&fit=crop&q=80');
@@ -90,6 +91,33 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
   const [resetEmp, setResetEmp] = useState(null);
   const [newPassword, setNewPassword] = useState('');
 
+  // Assets State
+  const [employeeAssets, setEmployeeAssets] = useState([]);
+  const [isLoadingAssets, setIsLoadingAssets] = useState(false);
+
+  useEffect(() => {
+    if (selectedEmp && profileTab === 'asset') {
+      const fetchAssets = async () => {
+        setIsLoadingAssets(true);
+        try {
+          const token = localStorage.getItem('nsg_jwt_token');
+          const res = await fetch(`/api/hr-portal/onboarding/assets/${selectedEmp.id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setEmployeeAssets(data);
+          }
+        } catch (err) {
+          console.error("Failed to fetch assets", err);
+        } finally {
+          setIsLoadingAssets(false);
+        }
+      };
+      fetchAssets();
+    }
+  }, [selectedEmp, profileTab]);
+
   // Fetch employees from backend API
   const fetchEmployees = async () => {
     const token = localStorage.getItem('nsg_jwt_token');
@@ -107,11 +135,8 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
           account_number: emp.account_number || '50100000000000',
           ifsc_code: emp.ifsc_code || 'HDFC0000012',
           grade: emp.grade || 3,
-          manager: emp.manager || 'John Doe',
-          documents: emp.documents ? (typeof emp.documents === 'string' ? JSON.parse(emp.documents) : emp.documents) : [
-            { type: 'Aadhaar Card', name: 'aadhaar_verify.pdf', status: 'verified', date: emp.join_date },
-            { type: 'Degree Certificate', name: 'bachelors_degree.pdf', status: 'pending', date: emp.join_date }
-          ]
+          manager: emp.manager || '',
+          documents: emp.documents ? (typeof emp.documents === 'string' ? JSON.parse(emp.documents) : emp.documents) : []
         }));
         setApiEmployees(enriched);
         onUpdateDb({
@@ -316,6 +341,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
         },
         body: JSON.stringify({
           name: newName,
+          emp_id: newEmpId || null,
           email: newEmail,
           department: newDept,
           designation: newRole,
@@ -353,11 +379,8 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
         account_number: createdEmp.account_number || ('50100' + Math.floor(100000000 + Math.random() * 900000000)),
         ifsc_code: createdEmp.ifsc_code || 'HDFC0000012',
         grade: createdEmp.grade || 3,
-        manager: createdEmp.manager || 'John Doe',
-        documents: createdEmp.documents ? JSON.parse(createdEmp.documents) : [
-          { type: 'Aadhaar Card', name: 'aadhaar_verify.pdf', status: 'verified', date: new Date().toISOString().split('T')[0] },
-          { type: 'Degree Certificate', name: 'bachelors_degree.pdf', status: 'pending', date: new Date().toISOString().split('T')[0] }
-        ]
+        manager: createdEmp.manager || '',
+        documents: createdEmp.documents ? JSON.parse(createdEmp.documents) : []
       };
       
       // Add default training progress for the employee
@@ -617,6 +640,14 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
     setShowEditModal(true);
   };
 
+  useEffect(() => {
+    if (subTab === 'editEmployee' && selectedEmp && !showEditModal) {
+      openEditModal(selectedEmp);
+      setQueryParams({ empId: String(selectedEmp.id), subTab: 'info' });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subTab, selectedEmp, showEditModal]);
+
   const handleRevealBankDetails = (emp) => {
     setRevealBank(true);
     const newLogs = [...db.auditLogs, {
@@ -760,7 +791,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
             </thead>
             <tbody>
               {currentEmployees.map(emp => (
-                <tr key={emp.id} onClick={() => { setSelectedEmp(emp); setProfileTab('info'); setRevealBank(false); }}>
+                <tr key={emp.id} onClick={() => { setSelectedEmp(emp); setRevealBank(false); }}>
                   <td>
                     <div className={styles.userProfile}>
                       <img src={emp.photo || `https://ui-avatars.com/api/?name=${emp.name.replace(/ /g, '+')}&background=0F172A&color=fff`} alt={emp.name} className={styles.userAvatar} onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${emp.name.replace(/ /g, '+')}&background=0F172A&color=fff`; }} />
@@ -845,13 +876,9 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
         {/* Profile Side Panels */}
         {selectedEmp && (() => {
           const progress = db.trainingProgress?.find(p => p.employee_id === selectedEmp.id) || { completed_modules: 0, quiz_score: 0, passed: false };
-          const docs = selectedEmp.documents || [
-            { type: 'Aadhaar Card', name: 'aadhaar_verify.pdf', status: 'verified', date: '2026-05-20' },
-            { type: 'Degree Certificate', name: 'bachelors_degree.pdf', status: 'pending', date: '2026-05-22' }
-          ];
+          const docs = selectedEmp.documents || [];
           const leave = db.leaveBalances?.find(b => b.employee_id === selectedEmp.id) || { CL: 0, SL: 0, EL: 0 };
           const attendance = db.attendanceLogs?.filter(l => l.employee_id === selectedEmp.id) || [];
-          const payslipsList = db.payslips?.filter(p => p.employee_id === selectedEmp.id) || [];
 
           return (
             <div className="card" style={{ width: '420px', display: 'flex', flexDirection: 'column', gap: '16px', borderLeft: '4px solid var(--accent-pink)' }}>
@@ -860,26 +887,52 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                   <img src={selectedEmp.photo || `https://ui-avatars.com/api/?name=${selectedEmp.name.replace(/ /g, '+')}&background=0F172A&color=fff`} alt={selectedEmp.name} onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${selectedEmp.name.replace(/ /g, '+')}&background=0F172A&color=fff`; }} style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }} />
                   <div>
                     <h3 style={{ margin: 0, border: 'none', padding: 0 }}>{selectedEmp.name}</h3>
-                    <span className="code-span">{selectedEmp.emp_id}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                      <span className="code-span">{selectedEmp.emp_id}</span>
+                      <span className={`${styles.roleTag} ${selectedEmp.role === 'hr' ? styles.roleTagHr : selectedEmp.role === 'tl' ? styles.roleTagTl : styles.roleTagEmployee}`} style={{ padding: '2px 6px', fontSize: '10px' }}>
+                        {selectedEmp.role === 'hr' && <Shield size={10} />}
+                        {selectedEmp.role === 'tl' && <Users size={10} />}
+                        {selectedEmp.role === 'employee' && <User size={10} />}
+                        {selectedEmp.role ? selectedEmp.role.toUpperCase() : 'EMPLOYEE'}
+                      </span>
+                    </div>
+                    {(() => {
+                      const hrManager = employeeList.find(e => e.role === 'hr' && (e.designation || '').toLowerCase().includes('manager')) || employeeList.find(e => e.role === 'hr');
+                      const hrName = hrManager ? hrManager.name : 'HR Team';
+                      return (
+                        <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+                          {selectedEmp.manager ? (
+                            <span style={{ fontSize: '10px', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: '#2563eb', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Users size={10} /> TL: {selectedEmp.manager}
+                            </span>
+                          ) : null}
+                          <span style={{ fontSize: '10px', backgroundColor: 'rgba(192, 38, 211, 0.1)', color: '#c026d3', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Shield size={10} /> HR: {hrName}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <button title="Edit Employee" onClick={() => openEditModal(selectedEmp)} style={{ background: 'none', border: '1px solid var(--border-color)', color: '#60a5fa', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'stretch' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '-2px' }}>
+                    <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '18px', padding: 0, lineHeight: 1 }} onClick={() => setSelectedEmp(null)}>✕</button>
+                  </div>
+                  <button title="Edit Employee" onClick={() => openEditModal(selectedEmp)} style={{ background: 'none', border: '1px solid var(--border-color)', color: '#60a5fa', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontSize: '11px' }}>
                     <Edit3 size={14} /> Edit
                   </button>
-                  <button title="Delete Employee" onClick={() => handleDeleteEmployee(selectedEmp.id)} style={{ background: 'none', border: '1px solid #ef4444', color: '#ef4444', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+                  <button title="Delete Employee" onClick={() => handleDeleteEmployee(selectedEmp.id)} style={{ background: 'none', border: '1px solid #ef4444', color: '#ef4444', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontSize: '11px' }}>
                     <Trash2 size={14} /> Delete
                   </button>
-                  <button title="Reset Password" onClick={() => openResetModal(selectedEmp)} style={{ background: 'none', border: '1px solid var(--border-color)', color: '#f59e0b', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+                  <button title="Reset Password" onClick={() => openResetModal(selectedEmp)} style={{ background: 'none', border: '1px solid var(--border-color)', color: '#f59e0b', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontSize: '11px' }}>
                     <Lock size={12} /> Reset
                   </button>
-                  <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '18px' }} onClick={() => setSelectedEmp(null)}>✕</button>
                 </div>
               </div>
 
               {/* Tab Selector Inside Drawer */}
               <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', gap: '8px', paddingBottom: '4px' }}>
-                {['info', 'docs', 'probation', 'attendance', 'payroll'].map(tab => (
+                {['info', 'docs', 'probation', 'attendance', 'asset'].map(tab => (
                   <button
                     key={tab}
                     onClick={() => { setProfileTab(tab); setRevealBank(false); }}
@@ -1134,38 +1187,26 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                   </div>
                 )}
 
-                {profileTab === 'payroll' && (
+                {profileTab === 'asset' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
                     <div>
-                      <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>Salary Grade Bracket</span>
-                      <strong>Grade {selectedEmp.grade} — Fixed Base Bracket</strong>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>Historical Monthly Payslips</span>
+                      <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>Assigned Corporate Assets</span>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
-                        {payslipsList.map((payslip, idx) => (
-                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-tertiary)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                            <div>
-                              <span style={{ fontWeight: '600' }}>Month {payslip.month} / {payslip.year}</span>
-                              <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Net Salary: ₹{payslip.net.toLocaleString()}</div>
+                        {isLoadingAssets ? (
+                          <span style={{ color: 'var(--text-muted)' }}>Loading assets...</span>
+                        ) : employeeAssets.length > 0 ? (
+                          employeeAssets.map(asset => (
+                            <div key={asset.id} style={{ backgroundColor: 'var(--bg-tertiary)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div>
+                                <div style={{ fontSize: '13px', fontWeight: 'bold' }}>{asset.name} <span style={{ color: 'var(--text-muted)', fontWeight: 'normal', fontSize: '12px' }}>({asset.type})</span></div>
+                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>SN: {asset.serialNumber || 'N/A'} | Tag: {asset.id}</div>
+                              </div>
+                              <span style={{ backgroundColor: '#3b82f6', color: '#fff', padding: '4px 12px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' }}>{asset.returnStatus || 'Issued'}</span>
                             </div>
-                            <button
-                              onClick={() => alert(`Downloading payslip PDF structure for Month ${payslip.month}...`)}
-                              style={{
-                                background: 'none',
-                                border: '1px solid var(--accent-pink)',
-                                color: 'var(--accent-pink)',
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                fontSize: '10px',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              PDF Download
-                            </button>
-                          </div>
-                        ))}
-                        {payslipsList.length === 0 && <span style={{ color: 'var(--text-muted)' }}>No payslip ledgers processed for employee.</span>}
+                          ))
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>No assets assigned yet. (Connect with IT)</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1185,6 +1226,11 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>EMPLOYEE FULL NAME *</label>
                 <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} required placeholder="e.g. Jane Doe" style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>EMPLOYEE ID</label>
+                <input type="text" value={newEmpId} onChange={(e) => setNewEmpId(e.target.value)} placeholder="Auto-generated if left blank" style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
               </div>
               
               <div>

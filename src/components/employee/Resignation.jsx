@@ -32,8 +32,7 @@ export default function Resignation({ currentUser }) {
             submissionDate: data.resignation_date,
             lwdDate: data.LWD,
             reason: data.reason || '',
-            status: data.status,
-            daysServed: 8
+            status: data.status
           });
           if (data.early_relief_status) {
              setEarlyReliefStatus(data.early_relief_status);
@@ -56,6 +55,8 @@ export default function Resignation({ currentUser }) {
 
   useEffect(() => {
     fetchResignation();
+    const interval = setInterval(fetchResignation, 3000);
+    return () => clearInterval(interval);
   }, []);
 
   // --- Handlers ---

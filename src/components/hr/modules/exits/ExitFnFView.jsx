@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, Lock, Edit } from 'lucide-react';
+import { CheckCircle, Lock, Edit, X } from 'lucide-react';
 
 export function ExitFnFView() {
   const [exitTab, setExitTab] = useState('resignations'); // resignations | assets | fnf | noc
@@ -42,8 +42,8 @@ export function ExitFnFView() {
     fetchData();
   }, []);
 
-  const activeResignation = resignations.find(r => r.id === selectedResignId) || resignations[0] || { id: 1, employee_id: 103, status: 'pending', reason: 'Higher studies.' };
-  const exitingEmp = employees.find(e => e.id === activeResignation.employee_id) || { name: 'Staff', bank_name: 'HDFC', account_number: '0000', email: 'staff@nsg.com' };
+  const activeResignation = resignations.find(r => r.id === selectedResignId) || resignations[0] || { id: 1, user_id: 103, status: 'pending', reason: 'Higher studies.' };
+  const exitingEmp = employees.find(e => e.id === (activeResignation.employee_id || activeResignation.user_id)) || { name: 'Staff', bank_name: 'HDFC', account_number: '0000', email: 'staff@nsg.com' };
 
   // Fetch employee specific exit details dynamically
   useEffect(() => {
@@ -114,6 +114,42 @@ export function ExitFnFView() {
       console.error(e);
       alert('Error approving resignation.');
     }
+  };
+
+  const handleApproveInline = async (id, name, e) => {
+    e.stopPropagation();
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/hr-portal/exits/resignations/${id}/approve`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchData();
+        setSelectedResignId(id);
+        setExitTab('assets');
+        alert(`Resignation approved for ${name}! Continuing to Asset Return Checklist...`);
+      } else {
+        alert('Failed to approve.');
+      }
+    } catch (err) { console.error(err); alert('Error approving.'); }
+  };
+
+  const handleRejectInline = async (id, name, e) => {
+    e.stopPropagation();
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/hr-portal/exits/resignations/${id}/reject`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchData();
+        alert(`Resignation rejected for ${name}.`);
+      } else {
+        alert('Failed to reject.');
+      }
+    } catch (err) { console.error(err); alert('Error rejecting.'); }
   };
 
   const handleComputeFnF = () => {
@@ -204,28 +240,7 @@ export function ExitFnFView() {
           ))}
         </div>
 
-        {exitTab === 'resignations' && (
-          <button
-            onClick={() => setIsCalibrateOpen(true)}
-            className="print-btn"
-            style={{
-              backgroundColor: 'var(--accent-pink)',
-              color: '#fff',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '10px',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: 'var(--shadow-sm)'
-            }}
-          >
-            🚪 Calibrate Notice Period
-          </button>
-        )}
+
       </div>
 
       {exitTab === 'resignations' && (
@@ -246,7 +261,7 @@ export function ExitFnFView() {
               </thead>
               <tbody>
                 {resignations?.map((r, idx) => {
-                  const employee = employees.find(e => e.id === r.employee_id) || { name: 'Unknown' };
+                  const employee = employees.find(e => e.id === (r.employee_id || r.user_id)) || { name: 'Unknown' };
                   return (
                     <tr key={idx} onClick={() => { setSelectedResignId(r.id); setRelievingDate(r.LWD); }} style={{ cursor: 'pointer', backgroundColor: selectedResignId === r.id ? 'rgba(236,72,153,0.05)' : 'transparent' }}>
                       <td style={{ padding: '16px 40px' }}>
@@ -262,19 +277,26 @@ export function ExitFnFView() {
                         </span>
                       </td>
                       <td style={{ padding: '16px 40px' }}>
-                        <button
-                          className="print-btn"
-                          style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedResignId(r.id);
-                            setRelievingDate(r.LWD);
-                            setIsCalibrateOpen(true);
-                          }}
-                        >
-                          <Edit size={12} />
-                          Calibrate LWD
-                        </button>
+                        {r.status === 'pending' ? (
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', backgroundColor: 'var(--accent-green, #10b981)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                              onClick={(e) => handleApproveInline(r.id, employee.name, e)}
+                            >
+                              <CheckCircle size={12} />
+                              Approve
+                            </button>
+                            <button
+                              style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                              onClick={(e) => handleRejectInline(r.id, employee.name, e)}
+                            >
+                              <X size={12} />
+                              Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Actioned</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -575,7 +597,7 @@ export function ExitFnFView() {
               </div>
 
               <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-tertiary)', border: '1px dashed var(--border-color)', padding: '12px', borderRadius: '8px', lineHeight: '1.4', marginTop: '4px' }}>
-                ℹ️ Default notice period is 30 days. Early relieving overrides will create immutable audit logs in the database.
+                ℹ️ Default notice period is 15 days. Early relieving overrides will create immutable audit logs in the database.
               </div>
             </div>
 

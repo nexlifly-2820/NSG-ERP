@@ -1389,7 +1389,7 @@ def get_reports_analytics(current_user: models.User = Depends(security.get_curre
     ]
 
     # ── 6. ATTRITION: resignations per month / total headcount ───────────
-    all_resignations = db.query(models.Resignation).offset(skip).limit(limit).all()
+    all_resignations = db.query(models.Resignation).filter(models.Resignation.deleted_at == None).offset(skip).limit(limit).all()
     resign_by_month = defaultdict(int)
     for r in all_resignations:
         m = MONTH_NAMES[r.resignation_date.month - 1]
@@ -2367,7 +2367,7 @@ def get_all_approvals(current_user: models.User = Depends(security.get_current_u
         })
 
     # 3. Resignations
-    resignations = db.query(models.Resignation).offset(skip).limit(limit).all()
+    resignations = db.query(models.Resignation).filter(models.Resignation.deleted_at == None).offset(skip).limit(limit).all()
     for r in resignations:
         emp = db.query(models.User).filter(models.User.id == r.user_id).first()
         status_label = 'Pending'

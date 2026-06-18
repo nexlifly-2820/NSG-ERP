@@ -4,15 +4,7 @@ import { AlertTriangle, X } from 'lucide-react';
 export default function ResignationForm({ onSubmit }) {
   const todayStr = new Date().toISOString().split('T')[0];
   
-  // Default LWD is 30 days in the future
-  const defaultLwd = () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 30);
-    return d.toISOString().split('T')[0];
-  };
-
   const [resignationDate, setResignationDate] = useState(todayStr);
-  const [lwdDate, setLwdDate] = useState(defaultLwd);
   const [reason, setReason] = useState('');
   
   // Validation errors
@@ -36,23 +28,6 @@ export default function ResignationForm({ onSubmit }) {
       return;
     }
 
-    // Validate LWD: must be after resignation date & at least 30 days notice period
-    const minLwd = new Date(resDate);
-    minLwd.setDate(minLwd.getDate() + 30);
-    const lwdVal = new Date(lwdDate);
-    lwdVal.setHours(0, 0, 0, 0);
-    minLwd.setHours(0, 0, 0, 0);
-
-    if (lwdVal < resDate) {
-      setError('Last Working Day must be after the resignation date.');
-      return;
-    }
-
-    if (lwdVal < minLwd) {
-      setError('Last Working Day must be at least 30 days after the resignation date (minimum notice period).');
-      return;
-    }
-
     setError('');
     setShowConfirmModal(true);
   };
@@ -64,9 +39,13 @@ export default function ResignationForm({ onSubmit }) {
       return;
     }
 
+    const resDate = new Date(resignationDate);
+    resDate.setDate(resDate.getDate() + 15);
+    const calculatedLwd = resDate.toISOString().split('T')[0];
+
     onSubmit({
       submissionDate: resignationDate,
-      lwdDate: lwdDate,
+      lwdDate: calculatedLwd,
       reason: reason.trim()
     });
 
@@ -144,30 +123,7 @@ export default function ResignationForm({ onSubmit }) {
           />
         </div>
 
-        {/* Requested Last Working Day (LWD) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>
-            Requested Last Working Day (LWD)
-          </label>
-          <input 
-            type="date"
-            value={lwdDate}
-            onChange={(e) => setLwdDate(e.target.value)}
-            required
-            style={{
-              padding: '8px 10px',
-              borderRadius: '6px',
-              border: error && error.includes('Last Working Day') ? '1px solid #ef4444' : '1px solid var(--border-color)',
-              backgroundColor: 'var(--bg-primary)',
-              color: 'var(--text-primary)',
-              fontSize: '12px',
-              outline: 'none'
-            }}
-          />
-          {error && (
-            <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: '500' }}>{error}</span>
-          )}
-        </div>
+
 
         {/* Reason */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

@@ -97,6 +97,7 @@ class EmployeeCreateRequest(BaseModel):
     photo: Optional[str] = None
     manager_id: Optional[int] = None
     role: Optional[str] = "employee"
+    emp_id: Optional[str] = None
     pf_number: Optional[str] = None
     uan: Optional[str] = None
     esi_number: Optional[str] = None
@@ -618,10 +619,7 @@ def transition_candidate_to_employee(id: int, current_user: models.User = Depend
     probation_end = date.fromordinal(today.toordinal() + 180) # 6 months
     
     # Initial documents list
-    initial_docs = [
-        {"type": "Aadhaar Card", "name": "aadhaar_verify.pdf", "status": "verified", "date": today.isoformat()},
-        {"type": "Degree Certificate", "name": "bachelors_degree.pdf", "status": "pending", "date": today.isoformat()}
-    ]
+    initial_docs = []
     
     # Hash default password (e.g. EmployeeName@123)
     default_pwd_plain = f"{cand.name.replace(' ', '')}@123"
@@ -753,7 +751,7 @@ def create_job_offer(req: JobOfferCreate, current_user: models.User = Depends(se
 @router.get("/employees", response_model=List[EmployeeResponse])
 def get_employees(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.User).filter(models.User.role.in_(["employee", "tl", "hr"])).offset(skip).limit(limit).all()
+    return db.query(models.User).offset(skip).limit(limit).all()
 
 @router.get("/departments")
 def get_departments(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -789,22 +787,22 @@ def add_employee(req: EmployeeCreateRequest, current_user: models.User = Depends
     if exists:
         raise HTTPException(status_code=400, detail="Employee already exists.")
         
-    max_serial = 100
-    for u in db.query(models.User).all():
-        if u.emp_id and u.emp_id.startswith("NSG-0"):
-            try:
-                num = int(u.emp_id.split("-0")[-1])
-                if num > max_serial:
-                    max_serial = num
-            except ValueError:
-                pass
-    emp_id = f"NSG-0{max_serial + 1}"
+    if req.emp_id:
+        emp_id = req.emp_id
+    else:
+        max_serial = 100
+        for u in db.query(models.User).all():
+            if u.emp_id and u.emp_id.startswith("NSG-0"):
+                try:
+                    num = int(u.emp_id.split("-0")[-1])
+                    if num > max_serial:
+                        max_serial = num
+                except ValueError:
+                    pass
+        emp_id = f"NSG-0{max_serial + 1}"
     probation_end = date.fromordinal(req.join_date.toordinal() + 180)
     
-    initial_docs = [
-        {"type": "Aadhaar Card", "name": "aadhaar_verify.pdf", "status": "verified", "date": req.join_date.isoformat()},
-        {"type": "Degree Certificate", "name": "bachelors_degree.pdf", "status": "pending", "date": req.join_date.isoformat()}
-    ]
+    initial_docs = []
     
     default_pwd_plain = f"{req.name.replace(' ', '')}@123"
     default_pwd = security.hash_password(default_pwd_plain)
@@ -1661,7 +1659,7 @@ def update_pip(id: int, req: PIPGoalUpdate, current_user: models.User = Depends(
 @router.get("/exits/resignations", response_model=List[ResignationResponse])
 def get_resignations(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.Resignation).offset(skip).limit(limit).all()
+    return db.query(models.Resignation).filter(models.Resignation.deleted_at == None).offset(skip).limit(limit).all()
 
 @router.post("/exits/resignations/{id}/approve", response_model=ResignationResponse)
 def approve_resignation_hr(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -2410,7 +2408,7 @@ def list_resignations(
     """Fetch all employee resignation records. Used by CEO Approvals page."""
     if current_user.role not in ["hr", "ceo", "admin"]:
         raise HTTPException(status_code=403, detail="Forbidden.")
-    return db.query(models.Resignation).order_by(models.Resignation.resignation_date.desc()).offset(skip).limit(limit).all()
+    return db.query(models.Resignation).filter(models.Resignation.deleted_at == None).order_by(models.Resignation.resignation_date.desc()).offset(skip).limit(limit).all()
 
 
 @router.post("/exits/resignations/{id}/approve")
@@ -2489,6 +2487,14 @@ class AssetResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class AssetCreate(BaseModel):
+    assetTag: str
+    type: str
+    name: str
+    serialNumber: Optional[str] = None
+    issueDate: Optional[date] = None
+    condition: Optional[str] = None
+
 class LeaveBalanceResponse(BaseModel):
     id: int
     employee_id: int
@@ -2531,6 +2537,97 @@ def return_employee_asset(asset_id: str, current_user: models.User = Depends(sec
         asset.signedDate = datetime.now().date()
     db.commit()
     return {"status": "success", "returnStatus": asset.returnStatus}
+
+@router.get("/onboarding/assets/{employee_id}", response_model=List[AssetResponse])
+def get_onboarding_employee_assets(employee_id: int, current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
+    verify_hr_role(current_user)
+    return db.query(models.Asset).filter(models.Asset.user_id == employee_id).offset(skip).limit(limit).all()
+
+@router.post("/onboarding/assets/{employee_id}", response_model=AssetResponse)
+def assign_asset_to_employee(employee_id: int, req: AssetCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_hr_role(current_user)
+    asset = models.Asset(
+        id=req.assetTag,
+        user_id=employee_id,
+        assetTag=req.assetTag,
+        type=req.type,
+        name=req.name,
+        serialNumber=req.serialNumber,
+        issueDate=req.issueDate or date.today(),
+        condition=req.condition or "New",
+        returnStatus="Issued"
+    )
+    db.add(asset)
+    db.commit()
+    db.refresh(asset)
+    return asset
+
+class DocumentItem(BaseModel):
+    name: str
+    link: Optional[str] = None
+    type: str = "Document"
+    status: str = "Uploaded"
+
+@router.get("/onboarding/documents/{employee_id}")
+def get_onboarding_documents(employee_id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_hr_role(current_user)
+    user = db.query(models.User).filter(models.User.id == employee_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    if user.documents:
+        import json
+        return json.loads(user.documents)
+    return []
+
+from fastapi import Form, UploadFile, File
+import os
+
+@router.post("/onboarding/documents/{employee_id}")
+async def add_onboarding_document(
+    employee_id: int,
+    name: str = Form(...),
+    file: UploadFile = File(...),
+    current_user: models.User = Depends(security.get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    verify_hr_role(current_user)
+    user = db.query(models.User).filter(models.User.id == employee_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    
+    import json
+    import uuid
+    from datetime import datetime
+    
+    # Save file
+    os.makedirs("uploads", exist_ok=True)
+    file_ext = file.filename.split(".")[-1] if "." in file.filename else "pdf"
+    file_name = f"{uuid.uuid4()}.{file_ext}"
+    file_path = os.path.join("uploads", file_name)
+    
+    with open(file_path, "wb") as buffer:
+        content = await file.read()
+        buffer.write(content)
+        
+    existing_docs = []
+    if user.documents:
+        existing_docs = json.loads(user.documents)
+    
+    new_doc = {
+        "id": str(uuid.uuid4()),
+        "name": name,
+        "link": f"/uploads/{file_name}",
+        "type": "Document",
+        "status": "Uploaded",
+        "date": datetime.now().isoformat(),
+        "original_filename": file.filename
+    }
+    existing_docs.append(new_doc)
+    
+    user.documents = json.dumps(existing_docs)
+    db.commit()
+    
+    return new_doc
 
 @router.get("/exits/fnf-details/{employee_id}")
 def get_fnf_details(employee_id: int, current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
@@ -2979,12 +3076,15 @@ def decide_promotion(id: int, request: dict, db: Session = Depends(database.get_
 @router.get("/exits/resignations")
 def get_resignations(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
     verify_hr_role(current_user)
-    resigs = db.query(models.Resignation).offset(skip).limit(limit).all()
+    resigs = db.query(models.Resignation).filter(models.Resignation.deleted_at == None).offset(skip).limit(limit).all()
     return [
         {
             "id": r.id,
             "user_id": r.user_id,
+            "employee_id": r.user_id,
             "resignation_date": r.resignation_date.isoformat() if r.resignation_date else None,
+            "LWD": r.LWD.isoformat() if r.LWD else None,
+            "reason": r.reason,
             "status": r.status
         } for r in resigs
     ]
