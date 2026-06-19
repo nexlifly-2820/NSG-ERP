@@ -1,0 +1,21 @@
+
+/* Additional Layouts for Mobile */
+@media (max-width: 768px) {
+  table {
+    display: block !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    width: 100% !important;
+  }
+  
+  /* Kanban board responsive */
+  .kanban-board-container {
+     display: flex !important;
+     overflow-x: auto !important;
+     padding-bottom: 16px !important;
+  }
+
+  .kanban-column {
+     min-width: 280px !important;
+  }
+}

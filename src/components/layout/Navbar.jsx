@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Bell, Search, ChevronDown, Check, Shield, Briefcase, Award, Users,
-  Mail, CalendarOff, UserPlus, AlertTriangle, FileText, LogOut, X, Moon, Sun
+  Mail, CalendarOff, UserPlus, AlertTriangle, FileText, LogOut, X, Moon, Sun, Menu
 } from 'lucide-react';
 import { useTheme } from '../common/ThemeContext';
 
-export default function Navbar({ activeRole, setActiveRole, navigateTo, hrDb = {}, currentUser = {}, onLogout }) {
+export default function Navbar({ activeRole, setActiveRole, navigateTo, hrDb = {}, currentUser = {}, onLogout, onToggleSidebar }) {
   const [showRoleDropdown, setShowRoleDropdown]   = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [wsNotifications, setWsNotifications]     = useState([]);
@@ -191,7 +191,10 @@ export default function Navbar({ activeRole, setActiveRole, navigateTo, hrDb = {
   return (
     <header className="app-navbar">
       {/* Search Bar */}
-      <div className="navbar-left">
+      <div className="navbar-left" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <button className="mobile-menu-btn" onClick={onToggleSidebar}>
+          <Menu size={20} />
+        </button>
         <div className="search-container">
           <Search size={18} className="search-icon" />
           <input type="text" placeholder="Search resources, files, and users..." className="search-input" />

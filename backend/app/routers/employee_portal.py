@@ -841,6 +841,7 @@ class ResignationResponse(BaseModel):
     resignation_date: date
     LWD: date
     status: str
+    ceo_status: Optional[str] = "pending"
     reason: str
     early_relief_status: Optional[str] = None
     exit_checklist: Optional[str] = None

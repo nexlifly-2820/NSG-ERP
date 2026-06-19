@@ -490,10 +490,6 @@ export default function Profile({ currentUser }) {
               <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.manager || 'N/A'}</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Structural Grade</span>
-              <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.grade ? `Grade ${liveProfile.grade}` : 'N/A'}</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Office Location</span>
               <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.location || 'N/A'}</span>
             </div>

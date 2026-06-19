@@ -1,19 +1,11 @@
 import { useState, useEffect } from 'react';
 import ResignationForm from './ResignationForm';
 import NoticeTracker from './NoticeTracker';
-import ExitChecklist from './ExitChecklist';
 import { Calendar, CheckCircle2, XCircle } from 'lucide-react';
-
-const defaultChecklist = [
-  { id: 'handover', label: 'Handover tasks', completed: false },
-  { id: 'laptop', label: 'Laptop return', completed: false },
-  { id: 'access_card', label: 'Access card return', completed: false },
-  { id: 'kt_upload', label: 'KT document upload', completed: false, fileName: null }
-];
 
 export default function Resignation({ currentUser }) {
   const [resignationData, setResignationData] = useState(null);
-  const [checklist, setChecklist] = useState(defaultChecklist);
+  const [myAssets, setMyAssets] = useState([]);
   const [earlyReliefStatus, setEarlyReliefStatus] = useState(null);
   const [toast, setToast] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,14 +29,17 @@ export default function Resignation({ currentUser }) {
           if (data.early_relief_status) {
              setEarlyReliefStatus(data.early_relief_status);
           }
-          if (data.exit_checklist) {
-             try {
-                setChecklist(JSON.parse(data.exit_checklist));
-             } catch(e){}
-          }
         } else {
           setResignationData(null);
         }
+      }
+
+      // Fetch assets
+      const assetRes = await fetch('/api/employee-portal/resignation/my-assets', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (assetRes.ok) {
+        setMyAssets(await assetRes.json());
       }
     } catch (e) {
       console.error(e);
@@ -80,51 +75,6 @@ export default function Resignation({ currentUser }) {
         alert(err.detail || 'Error submitting resignation');
       }
     } catch (e) { console.error(e); }
-  };
-
-  const syncChecklistToBackend = async (newChecklist) => {
-    try {
-      const token = localStorage.getItem('nsg_jwt_token');
-      await fetch('/api/employee-portal/resignation/update-checklist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ checklist: newChecklist })
-      });
-    } catch(e) {}
-  };
-
-  const handleToggleTask = (taskId) => {
-    const updated = checklist.map(t => {
-      if (t.id === taskId) {
-        return {
-          ...t,
-          completed: !t.completed,
-          fileName: t.id === 'kt_upload' && t.completed ? null : t.fileName
-        };
-      }
-      return t;
-    });
-
-    setChecklist(updated);
-    syncChecklistToBackend(updated);
-    showToast('Checklist task updated.');
-  };
-
-  const handleUploadKTDoc = (fileName) => {
-    const updated = checklist.map(t => {
-      if (t.id === 'kt_upload') {
-        return {
-          ...t,
-          completed: true,
-          fileName: fileName
-        };
-      }
-      return t;
-    });
-
-    setChecklist(updated);
-    syncChecklistToBackend(updated);
-    showToast('KT document uploaded successfully.');
   };
 
   const handleRequestEarlyRelief = async () => {
@@ -166,7 +116,6 @@ export default function Resignation({ currentUser }) {
       });
       if (res.ok) {
         setResignationData(null);
-        setChecklist(defaultChecklist);
         setEarlyReliefStatus(null);
         showToast('Resignation withdrawn.');
         fetchResignation();
@@ -344,14 +293,29 @@ export default function Resignation({ currentUser }) {
           />
         </div>
 
-        {/* bottom area: Exit checklist items list */}
+        {/* bottom area: Assigned Corporate Assets */}
         {resignationData && (
-          <div className="area-checklist">
-            <ExitChecklist 
-              checklist={checklist}
-              onToggleTask={handleToggleTask}
-              onUploadKTDoc={handleUploadKTDoc}
-            />
+          <div className="area-checklist" style={{ backgroundColor: 'var(--bg-secondary)', padding: '24px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-sm)' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '16px', textTransform: 'uppercase' }}>Assigned Corporate Assets</h4>
+            {myAssets.length === 0 ? (
+              <div style={{ backgroundColor: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', border: '1px solid var(--border-color)' }}>
+                No assets assigned yet.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {myAssets.map((asset, idx) => (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                    <div>
+                      <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>{asset.name} <span style={{ color: 'var(--text-muted)', fontWeight: 'normal', fontSize: '13px' }}>({asset.type})</span></div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>SN: {asset.serialNumber || 'N/A'} | Tag: {asset.id}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span style={{ backgroundColor: '#3b82f6', color: '#fff', padding: '6px 14px', borderRadius: '14px', fontSize: '12px', fontWeight: 'bold' }}>{asset.returnStatus || 'Issued'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

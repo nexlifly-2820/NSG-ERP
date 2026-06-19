@@ -390,6 +390,7 @@ class ResignationResponse(BaseModel):
     resignation_date: date
     LWD: date
     status: str
+    ceo_status: Optional[str] = "pending"
     reason: str
 
     class Config:
@@ -1661,29 +1662,7 @@ def get_resignations(current_user: models.User = Depends(security.get_current_us
     verify_hr_role(current_user)
     return db.query(models.Resignation).filter(models.Resignation.deleted_at == None).offset(skip).limit(limit).all()
 
-@router.post("/exits/resignations/{id}/approve", response_model=ResignationResponse)
-def approve_resignation_hr(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
-    verify_hr_role(current_user)
-    res = db.query(models.Resignation).filter(models.Resignation.id == id).first()
-    if not res:
-        raise HTTPException(status_code=404, detail="Resignation request not found.")
-        
-    res.status = "approved"
-    db.commit()
-    db.refresh(res)
-    return res
 
-@router.post("/exits/resignations/{id}/reject", response_model=ResignationResponse)
-def reject_resignation_hr(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
-    verify_hr_role(current_user)
-    res = db.query(models.Resignation).filter(models.Resignation.id == id).first()
-    if not res:
-        raise HTTPException(status_code=404, detail="Resignation request not found.")
-        
-    res.status = "rejected"
-    db.commit()
-    db.refresh(res)
-    return res
 
 # 9. L&D (Learning Track)
 @router.get("/lnd/tracks", response_model=List[TrainingTrackResponse])
@@ -2426,10 +2405,14 @@ def approve_resignation(
     res = db.query(models.Resignation).filter(models.Resignation.id == id).first()
     if not res:
         raise HTTPException(status_code=404, detail="Resignation record not found.")
-    if res.status != "pending":
-        raise HTTPException(status_code=400, detail=f"Resignation is already {res.status}.")
-
-    res.status = "approved"
+    if current_user.role == "ceo":
+        if getattr(res, "ceo_status", "pending") != "pending":
+            raise HTTPException(status_code=400, detail=f"Resignation is already {getattr(res, 'ceo_status', 'pending')}.")
+        res.ceo_status = "approved"
+    else:
+        if res.status != "pending":
+            raise HTTPException(status_code=400, detail=f"Resignation is already {res.status}.")
+        res.status = "approved"
 
     # Notify the employee of the approval
     notif = models.Notification(
@@ -2455,10 +2438,14 @@ def reject_resignation(
     res = db.query(models.Resignation).filter(models.Resignation.id == id).first()
     if not res:
         raise HTTPException(status_code=404, detail="Resignation record not found.")
-    if res.status != "pending":
-        raise HTTPException(status_code=400, detail=f"Resignation is already {res.status}.")
-
-    res.status = "rejected"
+    if current_user.role == "ceo":
+        if getattr(res, "ceo_status", "pending") != "pending":
+            raise HTTPException(status_code=400, detail=f"Resignation is already {getattr(res, 'ceo_status', 'pending')}.")
+        res.ceo_status = "rejected"
+    else:
+        if res.status != "pending":
+            raise HTTPException(status_code=400, detail=f"Resignation is already {res.status}.")
+        res.status = "rejected"
 
     # Notify the employee
     notif = models.Notification(

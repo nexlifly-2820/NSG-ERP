@@ -152,7 +152,7 @@ const ApprovalDetailDrawer = ({ approval, onClose, onAction }) => {
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
           <button onClick={() => onAction('Deny', approval)} style={{ flex: 1, padding: '12px', background: 'transparent', border: `1px solid ${THEME.danger}`, color: THEME.danger, borderRadius: '8px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>Deny</button>
-          <button onClick={() => onAction('Approve', approval)} style={{ flex: 2, padding: '12px', background: THEME.primary, border: 'none', color: '#FFF', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', boxShadow: `0 4px 12px ${THEME.primary}40` }}>Approve Request</button>
+          <button onClick={() => onAction('Approve', approval)} style={{ flex: 2, padding: '12px', background: THEME.primary, border: 'none', color: '#FFF', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', boxShadow: `0 4px 12px ${THEME.primary}40` }}>Approve</button>
         </div>
       </div>
     </div>

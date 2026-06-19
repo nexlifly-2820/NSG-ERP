@@ -347,6 +347,7 @@ class Resignation(Base):
     resignation_date = Column(Date, nullable=False)
     LWD = Column(Date, nullable=False)
     status = Column(String, default="pending")  # pending, approved, rejected, withdrawn
+    ceo_status = Column(String, default="pending")  # pending, approved, rejected
     reason = Column(Text, nullable=False)
     early_relief_status = Column(String, nullable=True) # requested, approved, rejected
     exit_checklist = Column(Text, nullable=True) # JSON array of checklist items

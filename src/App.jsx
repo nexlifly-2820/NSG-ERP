@@ -15,6 +15,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [sessionTick, setSessionTick] = useState(0);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Helper to forward toast messages to the global provider (if available)
   const showToast = (msg, type = 'success') => {
@@ -202,9 +203,17 @@ export default function App() {
           <Sidebar 
             activeRole={route.role} 
             activeTab={route.tab} 
-            setActiveTab={(tab) => navigateTo(route.role, tab)} 
+            setActiveTab={(tab) => { navigateTo(route.role, tab); setIsMobileSidebarOpen(false); }} 
             currentUser={user}
             onLogout={handleLogout}
+            isOpen={isMobileSidebarOpen}
+            onClose={() => setIsMobileSidebarOpen(false)}
+          />
+
+          {/* Mobile Sidebar Overlay */}
+          <div 
+            className={`sidebar-overlay ${isMobileSidebarOpen ? 'open' : ''}`}
+            onClick={() => setIsMobileSidebarOpen(false)}
           />
 
           {/* Main Panel Viewport */}
@@ -212,10 +221,11 @@ export default function App() {
             {/* Header Navigation */}
             <Navbar 
               activeRole={route.role} 
-              setActiveRole={(role) => navigateTo(role, 'dashboard')} 
+              setActiveRole={(role) => { navigateTo(role, 'dashboard'); setIsMobileSidebarOpen(false); }} 
               navigateTo={navigateTo}
               currentUser={user}
               onLogout={handleLogout}
+              onToggleSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
             />
 
             {/* Dynamic Inner Layout Body */}

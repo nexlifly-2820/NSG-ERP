@@ -46,6 +46,7 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [customRole, setCustomRole] = useState('');
   const [customRoles, setCustomRoles] = useState([]);
+  const [boardPages, setBoardPages] = useState({});
 
   const defaultRoles = [
     'Senior React Developer',
@@ -346,17 +347,44 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
       </div>
 
       {/* ATS board grids arranged 3 per row without horizontal scrollbar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', paddingBottom: '16px' }}>
+      <div className="kanban-board-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', paddingBottom: '16px' }}>
         {stages.map(st => (
           <div key={st.id} style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '12px', border: '1px solid var(--border-color)', padding: '16px', minWidth: '0' }}>
             <h4 style={{ margin: '0 0 16px 0', borderBottom: '2px solid var(--border-color)', paddingBottom: '8px', textTransform: 'uppercase', fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between' }}>
               <span>{st.label}</span>
-              <span className="badge-pill bg-pink">{candidates.filter(c => c.stage === st.id).length}</span>
+              <span className="badge-pill bg-pink">{candidates.filter(c => {
+                if (c.stage !== st.id) return false;
+                if (st.id === 'joined' && c.created_at) {
+                  const diffDays = (new Date() - new Date(c.created_at)) / (1000 * 60 * 60 * 24);
+                  return diffDays <= 15;
+                }
+                return true;
+              }).length}</span>
             </h4>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {candidates.filter(c => c.stage === st.id).map(cand => (
-                <div key={cand.id} className="metric-card" style={{ padding: '14px', gap: '8px', borderLeft: '3px solid var(--accent-pink)' }}>
+              {(() => {
+                const stageCandidates = candidates.filter(c => {
+                  if (c.stage !== st.id) return false;
+                  if (st.id === 'joined' && c.created_at) {
+                    const createdDate = new Date(c.created_at);
+                    const now = new Date();
+                    const diffTime = now - createdDate;
+                    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+                    return diffDays <= 15;
+                  }
+                  return true;
+                });
+                const currentPage = boardPages[st.id] || 1;
+                const itemsPerPage = 3;
+                const startIndex = (currentPage - 1) * itemsPerPage;
+                const currentCandidates = stageCandidates.slice(startIndex, startIndex + itemsPerPage);
+                const totalPages = Math.ceil(stageCandidates.length / itemsPerPage);
+
+                return (
+                  <>
+                    {currentCandidates.map(cand => (
+                      <div key={cand.id} className="metric-card" style={{ padding: '14px', gap: '8px', borderLeft: '3px solid var(--accent-pink)' }}>
                   <div style={{ fontWeight: '600', fontSize: '13px' }}>{cand.name}</div>
                   <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{cand.role}</div>
                   {cand.interview_scheduled_at && (
@@ -411,6 +439,24 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
                   </div>
                 </div>
               ))}
+              {totalPages > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                  <button 
+                    disabled={currentPage === 1}
+                    onClick={() => setBoardPages(p => ({ ...p, [st.id]: currentPage - 1 }))}
+                    style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '4px 8px', borderRadius: '4px', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1 }}
+                  >Prev</button>
+                  <span>Page {currentPage} of {totalPages}</span>
+                  <button 
+                    disabled={currentPage === totalPages}
+                    onClick={() => setBoardPages(p => ({ ...p, [st.id]: currentPage + 1 }))}
+                    style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '4px 8px', borderRadius: '4px', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1 }}
+                  >Next</button>
+                </div>
+              )}
+                  </>
+                );
+              })()}
             </div>
           </div>
         ))}

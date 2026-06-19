@@ -1,0 +1,119 @@
+
+/* ================================================== */
+/* Responsive Web Design Styles */
+/* ================================================== */
+
+/* Base Utilities */
+.table-responsive-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+
+/* Tablet Layout Breakpoints */
+@media (max-width: 1024px) {
+  .metrics-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+  .strategy-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .dashboard-row-grid {
+    flex-wrap: wrap;
+  }
+}
+
+/* Mobile Layout Breakpoints */
+@media (max-width: 768px) {
+  /* Sidebar handling */
+  .app-sidebar {
+    position: fixed;
+    top: 0;
+    left: -100%;
+    z-index: 1000;
+    transition: left 0.3s ease;
+    width: 260px;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+  }
+  
+  .app-sidebar.open {
+    left: 0;
+  }
+
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 999;
+    backdrop-filter: blur(2px);
+  }
+
+  .sidebar-overlay.open {
+    display: block;
+  }
+
+  /* Navbar */
+  .app-navbar {
+    padding: 0 16px;
+    gap: 12px;
+  }
+
+  .search-container {
+    display: none; /* Hide global search on mobile to save space */
+  }
+
+  .nav-divider {
+    display: none;
+  }
+
+  .user-name, .user-role {
+    display: none; /* Hide user name on small screens, show avatar only */
+  }
+  
+  .role-selector-btn {
+    padding: 4px;
+    gap: 4px;
+  }
+
+  .mobile-menu-btn {
+    display: flex;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 8px;
+    margin-left: -8px;
+  }
+
+  /* Components Layouts */
+  .component-container {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .strategy-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-row-grid {
+    flex-direction: column;
+  }
+  
+  .ceo-form-group {
+    grid-column: 1 / -1; /* Make grid columns full width on mobile */
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-menu-btn {
+    display: none;
+  }
+}
