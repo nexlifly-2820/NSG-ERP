@@ -154,3 +154,124 @@
   border: 1px dashed #cbd5e1;
   color: #64748b;
 }
+
+/* Premium Overhaul Additions */
+.btn-export {
+  background-color: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+.btn-export:hover {
+  background-color: #e2e8f0;
+}
+
+.perf-filters {
+  display: flex;
+  gap: 16px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.filter-icon {
+  position: absolute;
+  left: 10px;
+  color: #94a3b8;
+}
+
+.filter-input, .filter-select {
+  padding: 8px 12px 8px 34px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background-color: white;
+  font-size: 13px;
+  color: #334155;
+  min-width: 220px;
+}
+.filter-select {
+  appearance: none;
+}
+
+.scorecard-status-badges {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.badge-success {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.badge-warning {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.btn-acknowledge.acknowledged {
+  background-color: #f8fafc;
+  color: #10b981;
+  border: 1px solid #10b981;
+  cursor: default;
+}
+
+.perf-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 13px;
+}
+
+.pagination-info {
+  color: #64748b;
+}
+
+.pagination-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-page {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  background-color: white;
+  color: #334155;
+  cursor: pointer;
+}
+.btn-page:disabled {
+  background-color: transparent;
+  border-color: transparent;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+

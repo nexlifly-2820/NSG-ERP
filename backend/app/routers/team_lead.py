@@ -191,6 +191,8 @@ class ScorecardResponse(BaseModel):
     tl_name: str
     rating: str
     comments: str
+    emp_acknowledged: bool
+    hr_acknowledged: bool
 
     class Config:
         from_attributes = True
@@ -869,16 +871,21 @@ def get_submitted_scorecards(current_user: models.User = Depends(security.get_cu
 @router.post("/scorecards", response_model=ScorecardResponse, status_code=status.HTTP_201_CREATED)
 def submit_scorecard(req: ScorecardCreateRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     verify_manager_role(current_user)
-    scorecard = models.AppraisalScorecard(
-        employee_name=req.employee_name,
-        tl_name=current_user.name,
-        rating=req.rating,
-        comments=req.comments
-    )
-    db.add(scorecard)
-    db.commit()
-    db.refresh(scorecard)
-    return scorecard
+    try:
+        scorecard = models.AppraisalScorecard(
+            employee_name=req.employee_name,
+            tl_name=current_user.name,
+            rating=req.rating,
+            comments=req.comments
+        )
+        db.add(scorecard)
+        db.commit()
+        db.refresh(scorecard)
+        return scorecard
+    except Exception as e:
+        db.rollback()
+        print(f"Error submitting scorecard: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to submit scorecard: {str(e)}")
 
 
 # ─── 7. Projects ─────────────────────────────────────────────────────────────

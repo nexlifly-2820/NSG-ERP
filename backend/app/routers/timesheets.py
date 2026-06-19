@@ -295,6 +295,64 @@ def get_pending_timesheets(
         res.append(r)
     return res
 
+@router.get("/tl-history", response_model=List[DailyTimesheetResponse])
+def get_tl_timesheets_history(
+    year: Optional[int] = None,
+    month: Optional[int] = None,
+    week: Optional[int] = None,
+    employee_id: Optional[int] = None,
+    current_user: models.User = Depends(security.get_current_user), 
+    db: Session = Depends(database.get_db)
+):
+    verify_manager_role(current_user)
+    
+    query = db.query(models.DailyTimesheet, models.User).join(
+        models.User, models.DailyTimesheet.user_id == models.User.id
+    ).filter(
+        models.DailyTimesheet.status == "approved"
+    )
+
+    if current_user.role == "tl":
+        query = query.filter(models.User.manager_id == current_user.id)
+        
+    if employee_id:
+        query = query.filter(models.DailyTimesheet.user_id == employee_id)
+
+    if year:
+        import calendar
+        if month:
+            if week and 1 <= week <= 5:
+                start_day = (week - 1) * 7 + 1
+                _, last_day_of_month = calendar.monthrange(year, month)
+                
+                if start_day > last_day_of_month:
+                    start_date = date(year, month, 1) # Fallback
+                    end_date = date(year, month, last_day_of_month)
+                else:
+                    end_day = min(start_day + 6, last_day_of_month)
+                    if week == 5:
+                        end_day = last_day_of_month
+                    start_date = date(year, month, start_day)
+                    end_date = date(year, month, end_day)
+            else:
+                start_date = date(year, month, 1)
+                _, last_day = calendar.monthrange(year, month)
+                end_date = date(year, month, last_day)
+        else:
+            start_date = date(year, 1, 1)
+            end_date = date(year, 12, 31)
+        query = query.filter(models.DailyTimesheet.date >= start_date, models.DailyTimesheet.date <= end_date)
+        
+    results = query.order_by(models.DailyTimesheet.date.desc()).all()
+    
+    res = []
+    for ts, user in results:
+        r = DailyTimesheetResponse.model_validate(ts)
+        r.employee_name = user.name
+        res.append(r)
+    return res
+
+
 @router.post("/{id}/approve", response_model=DailyTimesheetResponse)
 def approve_timesheet(
     id: int, 

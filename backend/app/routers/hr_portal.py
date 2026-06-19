@@ -493,6 +493,8 @@ class AppraisalScorecardResponse(BaseModel):
     tl_name: str
     rating: str
     comments: str
+    emp_acknowledged: bool
+    hr_acknowledged: bool
 
     class Config:
         from_attributes = True
@@ -1943,12 +1945,6 @@ def create_increment_proposal(req: IncrementProposalCreate, current_user: models
 def get_appraisal_scorecards(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
     scorecards = db.query(models.AppraisalScorecard).offset(skip).limit(limit).all()
-    if not scorecards:
-        for sc in DEFAULT_SCORECARDS:
-            db_sc = models.AppraisalScorecard(**sc)
-            db.add(db_sc)
-        db.commit()
-        scorecards = db.query(models.AppraisalScorecard).offset(skip).limit(limit).all()
     return scorecards
 
 
@@ -1966,23 +1962,23 @@ def get_promotions(current_user: models.User = Depends(security.get_current_user
 
 
 @router.post("/appraisal-scorecards/{id}/acknowledge")
-def acknowledge_scorecard(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+def acknowledge_hr_scorecard(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
     scorecard = db.query(models.AppraisalScorecard).filter(models.AppraisalScorecard.id == id).first()
     if not scorecard:
         raise HTTPException(status_code=404, detail="Scorecard not found.")
-
-    # Find the TL user by name to send them a notification
+    
+    scorecard.hr_acknowledged = True
+    
     tl_user = db.query(models.User).filter(models.User.name == scorecard.tl_name).first()
     if tl_user:
         db_notify = models.Notification(
             user_id=tl_user.id,
             message=f"HR has acknowledged your performance scorecard for {scorecard.employee_name} (Rating: {scorecard.rating}). Calibration audit confirmed.",
-            type="info"
+            type="success"
         )
         db.add(db_notify)
         db.commit()
-
     return {"status": "success", "message": f"TL [{scorecard.tl_name}] notified. Calibration audit acknowledged."}
 
 

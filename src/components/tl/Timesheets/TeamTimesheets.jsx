@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, CalendarCheck, X, Check, FileText, Clock, CalendarDays, Filter } from 'lucide-react';
 import styles from './teamTimesheets.module.css';
 import '../../employee/pagination.css'; // Reuse pagination styles
+import TeamTimesheetsHistory from './TeamTimesheetsHistory';
 
 const TeamTimesheets = () => {
   const [activeTab, setActiveTab] = useState('table');
@@ -145,7 +146,16 @@ const TeamTimesheets = () => {
           >
             <CalendarCheck className={styles.tabIcon} /> Log Review
           </div>
+          <div 
+            className={`${styles.tab} ${activeTab === 'history' ? styles.active : ''}`}
+            onClick={() => setActiveTab('history')}
+          >
+            <FileText className={styles.tabIcon} /> Timesheets History
+          </div>
         </div>
+
+        {/* TAB CONTENT: HISTORY */}
+        {activeTab === 'history' && <TeamTimesheetsHistory />}
 
         {/* TAB CONTENT: TABLE */}
         {activeTab === 'table' && (

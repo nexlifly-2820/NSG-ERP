@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { notify } from '../../utils/notify';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { Download, Search, Filter } from 'lucide-react';
 
 export function AppraisalsView() {
   const [appraisalTab, setAppraisalTab] = useState('proposals'); // proposals | cycles | scorecards | promotions
@@ -22,6 +25,13 @@ export function AppraisalsView() {
 
   const [proposedCTC, setProposedCTC] = useState(() => Math.round(currentAnnualCTC * 1.10));
   const [incrementPct, setIncrementPct] = useState(10);
+
+  // Pagination & Filtering for Scorecards
+  const [scCurrentPage, setScCurrentPage] = useState(1);
+  const [scItemsPerPage] = useState(10);
+  const [scFilterEmp, setScFilterEmp] = useState('');
+  const [scFilterTL, setScFilterTL] = useState('');
+  const [scFilterRating, setScFilterRating] = useState('All');
 
   // Sync values when the selected employee changes
   useEffect(() => {
@@ -306,58 +316,286 @@ export function AppraisalsView() {
 
 
 
-      {appraisalTab === 'scorecards' && (
-        <div className="table-container" style={{ margin: 0, overflowX: 'auto', width: '100%' }}>
-          <div className="pipeline-title" style={{ padding: '16px 40px 0 40px' }}>Performance Scorecard Inbox (TL-Submitted)</div>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th style={{ padding: '16px 40px', textAlign: 'left' }}>Employee Name</th>
-                <th style={{ padding: '16px 40px', textAlign: 'left' }}>Assigned Evaluator (TL)</th>
-                <th style={{ padding: '16px 40px', textAlign: 'left' }}>Performance Band Rating</th>
-                <th style={{ padding: '16px 40px', textAlign: 'left' }}>TL Feedback Comments</th>
-                <th style={{ padding: '16px 40px', textAlign: 'left' }}>Reminder Alert</th>
-              </tr>
-            </thead>
-            <tbody>
-              {scorecards.map((sc, idx) => (
-                <tr key={idx}>
-                  <td style={{ padding: '16px 40px' }}><strong>{sc.employee_name}</strong></td>
-                  <td style={{ padding: '16px 40px' }}>{sc.tl_name}</td>
-                  <td style={{ padding: '16px 40px' }}><span className="badge-pill bg-pink">{sc.rating}</span></td>
-                  <td style={{ padding: '16px 40px', fontSize: '12px', fontStyle: 'italic', maxWidth: '300px' }}>"{sc.comments}"</td>
-                  <td style={{ padding: '16px 40px' }}>
-                    <button
-                      className="print-btn"
-                      style={{ padding: '4px 8px', fontSize: '10px' }}
-                      onClick={async () => {
-                        const token = localStorage.getItem('nsg_jwt_token');
-                        try {
-                          const res = await fetch(`/api/hr-portal/appraisal-scorecards/${sc.id}/acknowledge`, {
-                            method: 'POST',
-                            headers: { 'Authorization': `Bearer ${token}` }
-                          });
-                          if (res.ok) {
-                            const data = await res.json();
-                            notify(data.message);
-                          } else {
-                            notify('Failed to acknowledge scorecard.', 'error');
-                          }
-                        } catch (err) {
-                          console.error(err);
-                          notify('Network error acknowledging scorecard. Please try again.', 'error');
-                        }
-                      }}
-                    >
-                      Acknowledge
-                    </button>
-                  </td>
+      {appraisalTab === 'scorecards' && (() => {
+        // Filter logic
+        const filteredScorecards = scorecards.filter(sc => {
+          const matchEmp = sc.employee_name.toLowerCase().includes(scFilterEmp.toLowerCase());
+          const matchTL = sc.tl_name.toLowerCase().includes(scFilterTL.toLowerCase());
+          const matchRating = scFilterRating === 'All' || sc.rating.startsWith(scFilterRating.charAt(0));
+          return matchEmp && matchTL && matchRating;
+        });
+
+        // Pagination logic
+        const totalPages = Math.ceil(filteredScorecards.length / scItemsPerPage) || 1;
+        const indexOfLastItem = scCurrentPage * scItemsPerPage;
+        const indexOfFirstItem = indexOfLastItem - scItemsPerPage;
+        const currentScorecards = filteredScorecards.slice(indexOfFirstItem, indexOfLastItem);
+
+        const exportPDF = () => {
+          const doc = new jsPDF('landscape', 'pt', 'a4');
+          
+          const img = new Image();
+          img.src = '/hmns-logo.png';
+          
+          const renderPDF = () => {
+            // Premium White Header
+            doc.setFillColor(255, 255, 255);
+            doc.rect(0, 0, doc.internal.pageSize.getWidth(), 110, 'F');
+            
+            try {
+              const imgRatio = img.width / img.height;
+              const logoHeight = 45;
+              const logoWidth = logoHeight * imgRatio;
+              doc.addImage(img, 'PNG', 40, 25, logoWidth, logoHeight);
+            } catch (e) {
+              doc.setFontSize(20);
+              doc.setTextColor(15, 23, 42);
+              doc.text('HMNS Software Solution', 40, 50);
+            }
+            
+            // Divider Line
+            doc.setDrawColor(226, 232, 240); // slate-200
+            doc.setLineWidth(1);
+            doc.line(40, 100, doc.internal.pageSize.getWidth() - 40, 100);
+            
+            // Report Title
+            doc.setFontSize(20);
+            doc.setTextColor(15, 23, 42); // slate-900
+            doc.setFont('helvetica', 'bold');
+            doc.text('GLOBAL PERFORMANCE SCORECARDS REPORT', doc.internal.pageSize.getWidth() - 40, 45, { align: 'right' });
+            
+            // Timestamp
+            doc.setFontSize(10);
+            doc.setTextColor(100, 116, 139); // slate-500
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Generated on: ${new Date().toLocaleString()}`, doc.internal.pageSize.getWidth() - 40, 65, { align: 'right' });
+
+            // Filter info
+            let filterText = `Filters: `;
+            if (scFilterEmp) filterText += `Employee: ${scFilterEmp} | `;
+            if (scFilterTL) filterText += `TL Name: ${scFilterTL} | `;
+            filterText += `Rating: ${scFilterRating}`;
+            
+            doc.setFontSize(10);
+            doc.setTextColor(71, 85, 105);
+            doc.text(filterText, 40, 85);
+
+            // Table Data
+            const tableColumn = ['Employee', 'Evaluator (TL)', 'Rating', 'Feedback Comments', 'Emp Ack', 'HR Appr'];
+            const tableRows = [];
+
+            filteredScorecards.forEach(sc => {
+              tableRows.push([
+                sc.employee_name, 
+                sc.tl_name,
+                sc.rating, 
+                sc.comments, 
+                sc.emp_acknowledged ? 'Yes' : 'Pending', 
+                sc.hr_acknowledged ? 'Yes' : 'Pending'
+              ]);
+            });
+
+            autoTable(doc, {
+              startY: 120,
+              head: [tableColumn],
+              body: tableRows,
+              theme: 'grid',
+              headStyles: { 
+                fillColor: [219, 39, 119], // pink-600
+                textColor: [255, 255, 255], 
+                fontStyle: 'bold',
+                halign: 'left',
+                valign: 'middle'
+              },
+              styles: { 
+                fontSize: 10, 
+                cellPadding: 8,
+                textColor: [51, 65, 85],
+                lineColor: [226, 232, 240],
+                lineWidth: 0.5
+              },
+              alternateRowStyles: { fillColor: [248, 250, 252] }, // slate-50
+              columnStyles: {
+                4: { halign: 'center', fontStyle: 'bold' },
+                5: { halign: 'center', fontStyle: 'bold' }
+              },
+              margin: { top: 120, left: 40, right: 40, bottom: 40 },
+              didDrawPage: function (data) {
+                doc.setFontSize(9);
+                doc.setTextColor(148, 163, 184); // slate-400
+                doc.text(`Page ${doc.internal.getNumberOfPages()}`, doc.internal.pageSize.getWidth() - 40, doc.internal.pageSize.getHeight() - 20, { align: 'right' });
+              }
+            });
+
+            doc.save(`Global_Scorecards_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+          };
+
+          img.onload = renderPDF;
+          img.onerror = renderPDF;
+        };
+
+        return (
+          <div className="card" style={{ margin: 0, overflowX: 'auto', width: '100%', padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
+              <div className="pipeline-title" style={{ padding: 0, margin: 0 }}>Performance Scorecard Inbox (TL-Submitted)</div>
+              <button 
+                onClick={exportPDF}
+                style={{ backgroundColor: '#fdf2f8', color: '#db2777', border: '1px solid #fbcfe8', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+              >
+                <Download size={16} /> Export PDF
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: '200px', display: 'flex', alignItems: 'center', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '0 12px' }}>
+                <Search size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                <input 
+                  type="text" 
+                  placeholder="Filter by Employee..." 
+                  value={scFilterEmp}
+                  onChange={(e) => { setScFilterEmp(e.target.value); setScCurrentPage(1); }}
+                  style={{ width: '100%', padding: '8px 8px 8px 12px', border: 'none', background: 'transparent', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: '200px', display: 'flex', alignItems: 'center', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '0 12px' }}>
+                <Search size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                <input 
+                  type="text" 
+                  placeholder="Filter by TL Name..." 
+                  value={scFilterTL}
+                  onChange={(e) => { setScFilterTL(e.target.value); setScCurrentPage(1); }}
+                  style={{ width: '100%', padding: '8px 8px 8px 12px', border: 'none', background: 'transparent', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }}
+                />
+              </div>
+              <div style={{ width: '180px', display: 'flex', alignItems: 'center', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '0 12px' }}>
+                <Filter size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                <select 
+                  value={scFilterRating}
+                  onChange={(e) => { setScFilterRating(e.target.value); setScCurrentPage(1); }}
+                  style={{ width: '100%', padding: '8px 8px 8px 12px', border: 'none', background: 'transparent', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', appearance: 'none' }}
+                >
+                  <option value="All">All Ratings</option>
+                  <option value="A">A Band</option>
+                  <option value="B">B Band</option>
+                  <option value="C">C Band</option>
+                  <option value="D">D Band</option>
+                </select>
+              </div>
+            </div>
+
+            <table className="data-table">
+              <thead>
+                <tr style={{ backgroundColor: '#f8fafc' }}>
+                  <th style={{ padding: '16px 20px', textAlign: 'left', color: '#64748b' }}>Employee Name</th>
+                  <th style={{ padding: '16px 20px', textAlign: 'left', color: '#64748b' }}>Assigned Evaluator (TL)</th>
+                  <th style={{ padding: '16px 20px', textAlign: 'left', color: '#64748b' }}>Performance Band</th>
+                  <th style={{ padding: '16px 20px', textAlign: 'left', color: '#64748b' }}>Feedback Comments</th>
+                  <th style={{ padding: '16px 20px', textAlign: 'left', color: '#64748b' }}>Global Status</th>
+                  <th style={{ padding: '16px 20px', textAlign: 'left', color: '#64748b' }}>HR Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {currentScorecards.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>
+                      No scorecards match the current filters.
+                    </td>
+                  </tr>
+                ) : (
+                  currentScorecards.map((sc, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '16px 20px', fontWeight: '600' }}>{sc.employee_name}</td>
+                      <td style={{ padding: '16px 20px', color: '#475569' }}>{sc.tl_name}</td>
+                      <td style={{ padding: '16px 20px' }}>
+                        <span className="badge-pill bg-pink">{sc.rating}</span>
+                      </td>
+                      <td style={{ padding: '16px 20px', fontSize: '13px', fontStyle: 'italic', maxWidth: '250px', color: '#475569', lineHeight: '1.5' }}>"{sc.comments}"</td>
+                      <td style={{ padding: '16px 20px' }}>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          {sc.emp_acknowledged && (
+                            <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#0ea5e9', backgroundColor: 'rgba(14,165,233,0.1)', padding: '4px 8px', borderRadius: '12px' }}>
+                              ✅ Emp Ack
+                            </span>
+                          )}
+                          {sc.hr_acknowledged && (
+                            <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#16a34a', backgroundColor: 'rgba(34,197,94,0.1)', padding: '4px 8px', borderRadius: '12px' }}>
+                              ✅ HR Appr
+                            </span>
+                          )}
+                          {!sc.emp_acknowledged && !sc.hr_acknowledged && (
+                            <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)', padding: '4px 8px', borderRadius: '12px' }}>
+                              ⏳ Pending
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td style={{ padding: '16px 20px' }}>
+                        {sc.hr_acknowledged ? (
+                          <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            ✅ Approved
+                          </span>
+                        ) : (
+                          <button
+                            className="print-btn"
+                            style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', fontWeight: 'bold' }}
+                            onClick={async () => {
+                              const token = localStorage.getItem('nsg_jwt_token');
+                              try {
+                                const res = await fetch(`/api/hr-portal/appraisal-scorecards/${sc.id}/acknowledge`, {
+                                  method: 'POST',
+                                  headers: { 'Authorization': `Bearer ${token}` }
+                                });
+                                if (res.ok) {
+                                  const data = await res.json();
+                                  mutateScorecards();
+                                  notify(data.message);
+                                } else {
+                                  notify('Failed to acknowledge scorecard.', 'error');
+                                }
+                              } catch (err) {
+                                console.error(err);
+                                notify('Network error acknowledging scorecard. Please try again.', 'error');
+                              }
+                            }}
+                          >
+                            Approve
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+
+            {/* Pagination Controls */}
+            {filteredScorecards.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border-color)', fontSize: '13px' }}>
+                <div style={{ color: 'var(--text-muted)' }}>
+                  Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredScorecards.length)} of {filteredScorecards.length} entries
+                </div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <button 
+                    onClick={() => setScCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={scCurrentPage === 1}
+                    style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: scCurrentPage === 1 ? 'transparent' : 'var(--bg-secondary)', color: scCurrentPage === 1 ? 'var(--text-muted)' : 'var(--text-primary)', cursor: scCurrentPage === 1 ? 'not-allowed' : 'pointer', fontWeight: '500' }}
+                  >
+                    Previous
+                  </button>
+                  <span style={{ padding: '4px 12px', fontWeight: 'bold', color: '#0f172a' }}>Page {scCurrentPage} of {totalPages}</span>
+                  <button 
+                    onClick={() => setScCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={scCurrentPage === totalPages}
+                    style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: scCurrentPage === totalPages ? 'transparent' : 'var(--bg-secondary)', color: scCurrentPage === totalPages ? 'var(--text-muted)' : 'var(--text-primary)', cursor: scCurrentPage === totalPages ? 'not-allowed' : 'pointer', fontWeight: '500' }}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {appraisalTab === 'promotions' && (
         <div className="table-container" style={{ margin: 0, overflowX: 'auto', width: '100%' }}>

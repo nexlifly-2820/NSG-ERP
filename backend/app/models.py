@@ -664,6 +664,8 @@ class AppraisalScorecard(Base):
     tl_name = Column(String, nullable=False)
     rating = Column(String, nullable=False)
     comments = Column(Text, nullable=False)
+    emp_acknowledged = Column(Boolean, default=False)
+    hr_acknowledged = Column(Boolean, default=False)
 
 
 class Project(Base):
