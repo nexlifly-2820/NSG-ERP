@@ -108,6 +108,36 @@ export function ExitFnFView() {
   const [lop, setLop] = useState(0);
   const [fnfComputed, setFnfComputed] = useState(false);
 
+  const handleTemplateUpload = (e, ref) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      
+      if (file.type === 'application/pdf') {
+        reader.onload = (event) => {
+          if (ref.current) {
+            ref.current.innerHTML = `<iframe src="${event.target.result}" width="100%" height="1000px" style="border: none;"></iframe>`;
+          }
+        };
+        reader.readAsDataURL(file);
+      } else if (file.type.startsWith('image/')) {
+        reader.onload = (event) => {
+          if (ref.current) {
+            ref.current.innerHTML = `<div style="text-align: center;"><img src="${event.target.result}" style="max-width: 100%;" /></div>`;
+          }
+        };
+        reader.readAsDataURL(file);
+      } else {
+        reader.onload = (event) => {
+          if (ref.current) {
+            ref.current.innerHTML = event.target.result;
+          }
+        };
+        reader.readAsText(file);
+      }
+    }
+  };
+
   const fetchData = async () => {
     try {
       const token = localStorage.getItem('nsg_jwt_token');
@@ -604,7 +634,13 @@ export function ExitFnFView() {
         <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
           <form onSubmit={handleSignNOC} className="card flex-2" style={{ borderLeft: '4px solid var(--accent-pink)', margin: 0, padding: '24px' }}>
             <div style={{ border: '1px solid var(--border-color)', padding: '24px', borderRadius: '12px', backgroundColor: 'var(--bg-primary)', fontFamily: 'var(--font-mono)', fontSize: '12px', lineHeight: '1.6', color: 'var(--text-primary)' }}>
-              <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '15px', marginBottom: '20px', letterSpacing: '1px' }}>NO OBJECTION CERTIFICATE</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '15px', letterSpacing: '1px' }}>NO OBJECTION CERTIFICATE</div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                  <label style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase' }}>Upload Custom Format</label>
+                  <input type="file" onChange={(e) => handleTemplateUpload(e, nocContentRef)} style={{ fontSize: '12px', maxWidth: '200px', backgroundColor: 'var(--bg-primary)', padding: '4px', borderRadius: '4px', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
+                </div>
+              </div>
               
               <div ref={nocContentRef} contentEditable suppressContentEditableWarning style={{ outline: 'none', minHeight: '150px', padding: '16px', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-tertiary)', marginBottom: '40px' }}>
                 <p>Date: {new Date().toLocaleDateString()}</p>
@@ -663,7 +699,13 @@ export function ExitFnFView() {
         <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
           <form onSubmit={handleSignRelieving} className="card flex-2" style={{ borderLeft: '4px solid var(--accent-pink)', margin: 0, padding: '24px' }}>
             <div style={{ border: '1px solid var(--border-color)', padding: '24px', borderRadius: '12px', backgroundColor: 'var(--bg-primary)', fontFamily: 'var(--font-mono)', fontSize: '12px', lineHeight: '1.6', color: 'var(--text-primary)' }}>
-              <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '15px', marginBottom: '20px', letterSpacing: '1px' }}>RELIEVING LETTER</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '15px', letterSpacing: '1px' }}>RELIEVING LETTER</div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                  <label style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase' }}>Upload Custom Format</label>
+                  <input type="file" onChange={(e) => handleTemplateUpload(e, relievingContentRef)} style={{ fontSize: '12px', maxWidth: '200px', backgroundColor: 'var(--bg-primary)', padding: '4px', borderRadius: '4px', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
+                </div>
+              </div>
               
               <div ref={relievingContentRef} contentEditable suppressContentEditableWarning style={{ outline: 'none', minHeight: '150px', padding: '16px', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-tertiary)', marginBottom: '40px' }}>
                 <p>Date: {new Date().toLocaleDateString()}</p>
