@@ -486,44 +486,6 @@ export default function EmployeeDashboard({ setActiveTab, currentUser }) {
             {!hideHolidaysExpensesPerfMsg && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-              {/* ── Pending Actions ── */}
-              <div className="emp-card">
-                <div className="emp-section-header" style={{ marginBottom: 14 }}>
-                  <div className="emp-section-header__left">
-                    <span style={{ fontSize: 16 }}>⚡</span>
-                    <span className="emp-section-header__title">Pending Actions</span>
-                    <span className="emp-badge-count" style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24' }}>
-                      {pendingActions.filter(a => !doneActions[a.id]).length}
-                    </span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '350px', overflowY: 'auto', paddingRight: '4px' }} className="emp-scrollable-area">
-                  {pendingActions.map(action => {
-                    const done = !!doneActions[action.id];
-                    return (
-                      <div
-                        key={action.id}
-                        className={`emp-action-row ${done ? 'emp-action-row--done' : 'emp-action-row--active'}`}
-                        style={{ borderColor: done ? 'rgba(16,185,129,0.25)' : 'var(--border-color)' }}
-                        onClick={() => {
-                          if (!done) setDoneActions(p => ({ ...p, [action.id]: true }));
-                          if (action.tab && setActiveTab) setActiveTab(action.tab);
-                        }}
-                      >
-                        <div className={`emp-action-checkbox ${done ? 'emp-action-checkbox--checked' : ''}`}
-                          style={{ borderColor: done ? '#10b981' : 'var(--text-muted)' }}
-                        >
-                          {done && '✓'}
-                        </div>
-                        <div>
-                          <p className={`emp-action-label ${done ? 'emp-action-label--done' : ''}`}>{action.label}</p>
-                          <p className="emp-action-sub">{action.sub}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
 
               {/* ── Notifications ── */}
               <div className="emp-card">
