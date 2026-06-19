@@ -229,7 +229,18 @@ export default function EmployeeDashboard({ setActiveTab, currentUser }) {
   ];
 
   // ── Notifications ─────────────────────────────────────────────────
-  const [notifRead, setNotifRead] = useState({});
+  const [notifRead, setNotifRead] = useState(() => {
+    try {
+      const stored = localStorage.getItem('emp_notif_read');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('emp_notif_read', JSON.stringify(notifRead));
+  }, [notifRead]);
   const notifications = dbData.notifications.map(n => ({
     id: n.id,
     icon: n.type === 'warning' ? '⚠️' : n.type === 'success' ? '✅' : '🔔',
@@ -237,6 +248,9 @@ export default function EmployeeDashboard({ setActiveTab, currentUser }) {
     time: n.timestamp ? new Date(n.timestamp).toLocaleTimeString() : 'Just now',
     unread: !n.read
   }));
+
+  const [annPage, setAnnPage] = useState(1);
+  const annsPerPage = 3;
 
 
   // Priority color util
@@ -298,16 +312,6 @@ export default function EmployeeDashboard({ setActiveTab, currentUser }) {
             <button className="emp-quick-btn" onClick={() => setActiveTab('profile')}>👤 Profile</button>
             {!hideTimesheet && (
               <button className="emp-quick-btn" onClick={() => setActiveTab('timesheet')}>⏱️ Timesheet</button>
-            )}
-            <button className="emp-quick-btn" onClick={() => setActiveTab('leave')}>🌴 Request Leave</button>
-            {!hideHolidaysExpensesPerfMsg && (
-              <button className="emp-quick-btn" onClick={() => setActiveTab('messaging')}>💬 Messages
-                {myChannels.length > 0 && (
-                  <span style={{ background: '#ef4444', color: '#fff', borderRadius: '10px', padding: '1px 6px', fontSize: '9px', fontWeight: '700' }}>
-                    {myChannels.length}
-                  </span>
-                )}
-              </button>
             )}
           </div>
         </div>
@@ -392,8 +396,8 @@ export default function EmployeeDashboard({ setActiveTab, currentUser }) {
 
           {/* ── Tasks ── */}
             {!hideTasks && (
-              <div className="emp-card emp-grid__tasks">
-                <div className="emp-section-header" style={{ marginBottom: 14 }}>
+              <div className="emp-card emp-grid__tasks" style={{ display: 'flex', flexDirection: 'column' }}>
+                <div className="emp-section-header" style={{ marginBottom: 14, flexShrink: 0 }}>
                   <div className="emp-section-header__left">
                     <span style={{ fontSize: 16 }}>📋</span>
                     <span className="emp-section-header__title">My Active Tasks</span>
@@ -407,13 +411,13 @@ export default function EmployeeDashboard({ setActiveTab, currentUser }) {
                   </button>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '350px', overflowY: 'auto', paddingRight: '4px' }} className="emp-scrollable-area">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '4px' }} className="emp-scrollable-area">
                   {openTasks.length === 0 && (
                     <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)', fontSize: 13 }}>
                       🎉 No open tasks — great job!
                     </div>
                   )}
-                  {openTasks.slice(0, 5).map(task => (
+                  {openTasks.map(task => (
                     <div key={task.id} className="emp-task-row">
                       <span className={`emp-priority ${priorityClass(task.priority)}`}>{task.priority}</span>
                       <div style={{ flex: 1 }}>
@@ -452,33 +456,54 @@ export default function EmployeeDashboard({ setActiveTab, currentUser }) {
                   </span>
                 </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '350px', overflowY: 'auto', paddingRight: '4px' }} className="emp-scrollable-area">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }} className="emp-scrollable-area">
                 {dbData.announcements.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '30px 20px', color: 'var(--text-muted)', fontSize: 13 }}>
                     No announcements yet.
                   </div>
                 ) : (
-                  dbData.announcements.slice(0, 3).map(ann => (
-                    <div key={ann.id} style={{
-                      padding: '14px',
-                      background: 'var(--bg-primary)',
-                      border: '1px solid var(--border-color)',
-                      borderLeft: ann.priority === 'Urgent' ? '4px solid #f87171' : '4px solid #60a5fa',
-                      borderRadius: 8,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 6
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>{ann.date}</span>
-                        {ann.priority === 'Urgent' && (
-                          <span style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.25)', padding: '1px 6px', borderRadius: 4, fontSize: 9, fontWeight: 800 }}>URGENT</span>
-                        )}
+                  <>
+                    {dbData.announcements.slice((annPage - 1) * annsPerPage, annPage * annsPerPage).map(ann => (
+                      <div key={ann.id} style={{
+                        padding: '14px',
+                        background: 'var(--bg-primary)',
+                        border: '1px solid var(--border-color)',
+                        borderLeft: ann.priority === 'Urgent' ? '4px solid #f87171' : '4px solid #60a5fa',
+                        borderRadius: 8,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 6
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>{ann.date}</span>
+                          {ann.priority === 'Urgent' && (
+                            <span style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.25)', padding: '1px 6px', borderRadius: 4, fontSize: 9, fontWeight: 800 }}>URGENT</span>
+                          )}
+                        </div>
+                        <strong style={{ fontSize: 13, color: 'var(--text-primary)' }}>{ann.title}</strong>
+                        <div dangerouslySetInnerHTML={{ __html: ann.body }} className="quill-content" style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }} />
                       </div>
-                      <strong style={{ fontSize: 13, color: '#fff' }}>{ann.title}</strong>
-                      <div dangerouslySetInnerHTML={{ __html: ann.body }} className="quill-content" style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }} />
-                    </div>
-                  ))
+                    ))}
+                    {dbData.announcements.length > annsPerPage && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
+                        <button 
+                          onClick={() => setAnnPage(p => Math.max(1, p - 1))}
+                          disabled={annPage === 1}
+                          style={{ background: 'none', border: '1px solid var(--border-color)', borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: annPage === 1 ? 'not-allowed' : 'pointer', color: 'var(--text-primary)', opacity: annPage === 1 ? 0.5 : 1 }}
+                        >
+                          ← Prev
+                        </button>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Page {annPage} of {Math.ceil(dbData.announcements.length / annsPerPage)}</span>
+                        <button 
+                          onClick={() => setAnnPage(p => Math.min(Math.ceil(dbData.announcements.length / annsPerPage), p + 1))}
+                          disabled={annPage === Math.ceil(dbData.announcements.length / annsPerPage)}
+                          style={{ background: 'none', border: '1px solid var(--border-color)', borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: annPage === Math.ceil(dbData.announcements.length / annsPerPage) ? 'not-allowed' : 'pointer', color: 'var(--text-primary)', opacity: annPage === Math.ceil(dbData.announcements.length / annsPerPage) ? 0.5 : 1 }}
+                        >
+                          Next →
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
