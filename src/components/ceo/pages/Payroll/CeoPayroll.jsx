@@ -145,12 +145,29 @@ export default function CeoPayroll() {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (event) => {
-        if (payslipContentRef.current) {
-          payslipContentRef.current.innerHTML = event.target.result;
-        }
-      };
-      reader.readAsText(file);
+      
+      if (file.type === 'application/pdf') {
+        reader.onload = (event) => {
+          if (payslipContentRef.current) {
+            payslipContentRef.current.innerHTML = `<iframe src="${event.target.result}" width="100%" height="1000px" style="border: none;"></iframe>`;
+          }
+        };
+        reader.readAsDataURL(file);
+      } else if (file.type.startsWith('image/')) {
+        reader.onload = (event) => {
+          if (payslipContentRef.current) {
+            payslipContentRef.current.innerHTML = `<div style="text-align: center;"><img src="${event.target.result}" style="max-width: 100%;" /></div>`;
+          }
+        };
+        reader.readAsDataURL(file);
+      } else {
+        reader.onload = (event) => {
+          if (payslipContentRef.current) {
+            payslipContentRef.current.innerHTML = event.target.result;
+          }
+        };
+        reader.readAsText(file);
+      }
     }
   };
 
