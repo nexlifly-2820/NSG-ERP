@@ -12,8 +12,15 @@ const INR = n => `₹${Number(n).toLocaleString('en-IN')}`;
 
 function PayslipsTab({ employeeId }) {
   const [downloading, setDownloading] = useState(null);
+  const now = new Date();
+  now.setMonth(now.getMonth() - 1);
+  const targetYear = now.getFullYear();
+  const targetMonth = now.getMonth() + 1;
+  const maxMonthStr = targetMonth.toString().padStart(2, '0');
+  const maxInputMonth = `${targetYear}-${maxMonthStr}`;
+
   const [activeSubTab, setActiveSubTab] = useState('last_month');
-  const [selectedHistoryMonth, setSelectedHistoryMonth] = useState('');
+  const [selectedHistoryMonth, setSelectedHistoryMonth] = useState(maxInputMonth);
   
   const { data: payslipsData } = useSWR('/api/employee-portal/payroll/my-payslips', fetcher);
   const payslipsList = payslipsData?.items || [];
@@ -25,13 +32,6 @@ function PayslipsTab({ employeeId }) {
     if (yearA !== yearB) return yearB - yearA;
     return b.month - a.month;
   });
-
-  const now = new Date();
-  now.setMonth(now.getMonth() - 1);
-  const targetYear = now.getFullYear();
-  const targetMonth = now.getMonth() + 1;
-  const maxMonthStr = targetMonth.toString().padStart(2, '0');
-  const maxInputMonth = `${targetYear}-${maxMonthStr}`;
 
   const lastMonthPayslips = sortedPayslips.filter(p => (p.year || 2026) === targetYear && p.month === targetMonth);
   
@@ -101,7 +101,6 @@ function PayslipsTab({ employeeId }) {
             <input 
               type="month"
               value={selectedHistoryMonth}
-              max={maxInputMonth}
               onChange={(e) => setSelectedHistoryMonth(e.target.value)}
               style={{
                 padding: '6px 12px',
@@ -114,14 +113,6 @@ function PayslipsTab({ employeeId }) {
                 fontFamily: 'inherit'
               }}
             />
-            {selectedHistoryMonth && (
-              <button 
-                onClick={() => setSelectedHistoryMonth('')}
-                style={{ background: 'none', border: 'none', color: 'var(--pay-text-muted)', cursor: 'pointer', fontSize: 13, textDecoration: 'underline' }}
-              >
-                Clear
-              </button>
-            )}
           </div>
         )}
       </div>
