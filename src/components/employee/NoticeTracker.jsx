@@ -171,84 +171,55 @@ export default function NoticeTracker({ resignationData, onRequestEarlyRelief, e
       </div>
 
       {/* Early Relief request controls */}
-      <div 
-        style={{ 
-          borderTop: '1px solid var(--border-color)', 
-          paddingTop: '16px', 
-          display: 'flex', 
-          flexDirection: 'column', 
-          gap: '10px' 
-        }}
-      >
-        {earlyReliefStatus === 'requested' ? (
-          <div 
-            style={{
-              padding: '10px 12px',
-              borderRadius: '6px',
-              backgroundColor: 'rgba(245, 158, 11, 0.05)',
-              border: '1px dashed rgba(245, 158, 11, 0.3)',
-              color: '#d97706',
-              fontSize: '11px',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-          >
-            <Clock size={12} />
-            <span>Early relief request is pending HR & Lead approval.</span>
-          </div>
-        ) : earlyReliefStatus === 'approved' ? (
-          <div 
-            style={{
-              padding: '10px 12px',
-              borderRadius: '6px',
-              backgroundColor: 'rgba(16, 185, 129, 0.05)',
-              border: '1px dashed rgba(16, 185, 129, 0.3)',
-              color: 'var(--accent-green)',
-              fontSize: '11px',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-          >
-            <Clock size={12} />
-            <span>Early relief request has been approved! LWD updated.</span>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-              Need to release early for another offer or education?
-            </span>
-            <button 
-              type="button"
-              onClick={onRequestEarlyRelief}
+      {(earlyReliefStatus === 'requested' || earlyReliefStatus === 'approved') && (
+        <div 
+          style={{ 
+            borderTop: '1px solid var(--border-color)', 
+            paddingTop: '16px', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '10px' 
+          }}
+        >
+          {earlyReliefStatus === 'requested' ? (
+            <div 
               style={{
-                border: '1px solid var(--border-color)',
-                backgroundColor: 'var(--bg-primary)',
-                color: 'var(--text-secondary)',
+                padding: '10px 12px',
                 borderRadius: '6px',
-                padding: '6px 12px',
+                backgroundColor: 'rgba(245, 158, 11, 0.05)',
+                border: '1px dashed rgba(245, 158, 11, 0.3)',
+                color: '#d97706',
                 fontSize: '11px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.borderColor = 'var(--text-muted)';
-                e.currentTarget.style.color = 'var(--text-primary)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.borderColor = 'var(--border-color)';
-                e.currentTarget.style.color = 'var(--text-secondary)';
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
               }}
             >
-              Request Early Relief
-            </button>
-          </div>
-        )}
-      </div>
+              <Clock size={12} />
+              <span>Early relief request is pending HR & Lead approval.</span>
+            </div>
+          ) : (
+            <div 
+              style={{
+                padding: '10px 12px',
+                borderRadius: '6px',
+                backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                border: '1px dashed rgba(16, 185, 129, 0.3)',
+                color: 'var(--accent-green)',
+                fontSize: '11px',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <Clock size={12} />
+              <span>Early relief request has been approved! LWD updated.</span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -26,88 +26,63 @@ export default function Navbar({ activeRole, setActiveRole, navigateTo, hrDb = {
   const activeRoleDetails = roles.find(r => r.id.toLowerCase() === activeRole.toLowerCase()) || roles.find(r => r.id.toLowerCase() === (currentUser.role || 'employee').toLowerCase()) || roles[3];
   const RoleIcon = activeRoleDetails.icon;
 
-  // ── Derive live notifications from hrDb ────────────────────────────────────
+  const [realNotifs, setRealNotifs] = useState([]);
+
+  // Fetch real notification counts from the dashboard metrics endpoint
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const token = localStorage.getItem('nsg_jwt_token');
+        if (!token) return;
+        const res = await fetch('/api/hr-portal/dashboard/metrics', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const metrics = await res.json();
+          const notifs = [];
+          
+          if (metrics.pendingLeaves > 0) {
+            notifs.push({
+              id: 'leave', icon: CalendarOff, color: '#f59e0b',
+              title: `${metrics.pendingLeaves} leave request${metrics.pendingLeaves > 1 ? 's' : ''} pending`,
+              sub: 'Requires HR approval', role: 'HR', tab: 'leave', time: 'Action required'
+            });
+          }
+          if (metrics.activeCandidates > 0) {
+            notifs.push({
+              id: 'candidates', icon: UserPlus, color: '#8b5cf6',
+              title: `${metrics.activeCandidates} active candidate${metrics.activeCandidates > 1 ? 's' : ''}`,
+              sub: 'In ATS screening', role: 'HR', tab: 'recruitment', time: 'Action required'
+            });
+          }
+          if (metrics.pendingExits > 0) {
+            notifs.push({
+              id: 'exits', icon: LogOut, color: '#f43f5e',
+              title: `${metrics.pendingExits} resignation${metrics.pendingExits > 1 ? 's' : ''} awaiting review`,
+              sub: 'F&F settlement needed', role: 'HR', tab: 'exits', time: 'Action required'
+            });
+          }
+          if (metrics.pendingExpenses > 0) {
+            notifs.push({
+              id: 'expense-claims', icon: FileText, color: '#06b6d4',
+              title: `${metrics.pendingExpenses} expense claim${metrics.pendingExpenses > 1 ? 's' : ''} awaiting review`,
+              sub: 'Payroll · Expense Claims', role: 'HR', tab: 'payroll', time: 'Pending'
+            });
+          }
+          setRealNotifs(notifs);
+        }
+      } catch (e) {
+        console.error('Failed to fetch metrics for navbar', e);
+      }
+    };
+    fetchMetrics();
+    // Poll every 30 seconds
+    const interval = setInterval(fetchMetrics, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const buildNotifications = () => {
-    const notifs = [];
-
-    // Pending leave requests
-    const pendingLeaves = (hrDb.leaveRequests || []).filter(r => r.status === 'Pending');
-    pendingLeaves.slice(0, 3).forEach(r => notifs.push({
-      id:     `leave-${r.id}`,
-      icon:   CalendarOff,
-      color:  '#f59e0b',
-      title:  `Leave request from ${r.employeeName || r.employee_name || 'Employee'}`,
-      sub:    `${r.leaveType || r.type || 'Leave'} · ${r.startDate || r.start_date || ''}`,
-      role:   'HR',
-      tab:    'leave',
-      time:   'Pending approval'
-    }));
-    if (pendingLeaves.length > 3) notifs.push({
-      id: 'leave-more', icon: CalendarOff, color: '#f59e0b',
-      title: `+${pendingLeaves.length - 3} more pending leave requests`,
-      sub: '', role: 'HR', tab: 'leave', time: ''
-    });
-
-    // New / unreviewed candidates
-    const newCandidates = (hrDb.candidates || []).filter(c =>
-      c.status === 'Applied' || c.status === 'New' || c.stage === 'Applied'
-    );
-    newCandidates.slice(0, 2).forEach(c => notifs.push({
-      id:    `cand-${c.id}`,
-      icon:   UserPlus,
-      color:  '#8b5cf6',
-      title:  `New applicant: ${c.name || 'Candidate'}`,
-      sub:    c.role || c.jobRole || c.position || 'Open Role',
-      role:   'HR',
-      tab:    'recruitment',
-      time:   'New application'
-    }));
-
-    // Timesheet exceptions
-    const exceptions = (hrDb.timesheetExceptions || []).filter(e =>
-      e.status === 'Pending' || e.status === 'Open'
-    );
-    if (exceptions.length > 0) notifs.push({
-      id:    'ts-exceptions',
-      icon:   AlertTriangle,
-      color:  '#ef4444',
-      title:  `${exceptions.length} timesheet exception${exceptions.length > 1 ? 's' : ''} need attention`,
-      sub:    'Regularisation required',
-      role:   'HR',
-      tab:    'timesheets',
-      time:   'Action required'
-    });
-
-    // Pending resignations
-    const pendingResignations = (hrDb.resignations || []).filter(r =>
-      r.status === 'pending' || r.status === 'Pending'
-    );
-    if (pendingResignations.length > 0) notifs.push({
-      id:    'exits',
-      icon:   LogOut,
-      color:  '#f43f5e',
-      title:  `${pendingResignations.length} resignation${pendingResignations.length > 1 ? 's' : ''} in notice period`,
-      sub:    'F&F settlement needed',
-      role:   'HR',
-      tab:    'exits',
-      time:   'Action required'
-    });
-
-    // Expense claims pending
-    const pendingClaims = (hrDb.expenseClaims || []).filter(c =>
-      c.status === 'Pending' || c.status === 'Submitted'
-    );
-    if (pendingClaims.length > 0) notifs.push({
-      id:    'expense-claims',
-      icon:   FileText,
-      color:  '#06b6d4',
-      title:  `${pendingClaims.length} expense claim${pendingClaims.length > 1 ? 's' : ''} awaiting review`,
-      sub:    'Payroll · Expense Claims',
-      role:   'HR',
-      tab:    'payroll',
-      time:   'Pending'
-    });
-
+    const notifs = [...realNotifs];
     // Fallback static notifs if db is empty (demo mode)
     if (notifs.length === 0) {
       notifs.push(
@@ -116,7 +91,6 @@ export default function Navbar({ activeRole, setActiveRole, navigateTo, hrDb = {
         { id: 'demo-3', icon: CalendarOff, color: '#f59e0b', title: 'Leave request pending',       sub: 'Annual Leave · 3 days',   role: 'HR', tab: 'leave',  time: '2h ago' }
       );
     }
-
     return notifs;
   };
 

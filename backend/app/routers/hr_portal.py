@@ -534,7 +534,10 @@ def get_dashboard_metrics(current_user: models.User = Depends(security.get_curre
     ongoing_pips = db.query(models.PIP).filter(models.PIP.status == "ongoing").count()
     pending_leaves = db.query(models.LeaveRequest).filter(models.LeaveRequest.status == "pending").count()
     pending_expenses = db.query(models.ExpenseClaim).filter(models.ExpenseClaim.status == "pending").count()
-    pending_exits = db.query(models.Resignation).filter(models.Resignation.status == "pending").count()
+    pending_exits = db.query(models.Resignation).filter(
+        models.Resignation.deleted_at == None,
+        models.Resignation.status.in_(["pending", "withdraw_pending"])
+    ).count()
     unresolved_grievances = db.query(models.DisciplinaryTicket).filter(models.DisciplinaryTicket.status == "issued").count()
 
     return {
@@ -1662,7 +1665,11 @@ def update_pip(id: int, req: PIPGoalUpdate, current_user: models.User = Depends(
 @router.get("/exits/resignations", response_model=List[ResignationResponse])
 def get_resignations(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_hr_role(current_user)
-    return db.query(models.Resignation).filter(models.Resignation.deleted_at == None).offset(skip).limit(limit).all()
+    return db.query(models.Resignation).filter(
+        models.Resignation.deleted_at == None,
+        models.Resignation.status != "withdrawn",
+        models.Resignation.status != "rejected"
+    ).order_by(models.Resignation.resignation_date.desc()).offset(skip).limit(limit).all()
 
 
 
@@ -2389,7 +2396,11 @@ def list_resignations(
     """Fetch all employee resignation records. Used by CEO Approvals page."""
     if current_user.role not in ["hr", "ceo", "admin"]:
         raise HTTPException(status_code=403, detail="Forbidden.")
-    return db.query(models.Resignation).filter(models.Resignation.deleted_at == None).order_by(models.Resignation.resignation_date.desc()).offset(skip).limit(limit).all()
+    return db.query(models.Resignation).filter(
+        models.Resignation.deleted_at == None,
+        models.Resignation.status != "withdrawn",
+        models.Resignation.status != "rejected"
+    ).order_by(models.Resignation.resignation_date.desc()).all()
 
 
 @router.post("/exits/resignations/{id}/approve")
@@ -2407,19 +2418,33 @@ def approve_resignation(
     res = db.query(models.Resignation).filter(models.Resignation.id == id).first()
     if not res:
         raise HTTPException(status_code=404, detail="Resignation record not found.")
+    was_withdraw = res.status == "withdraw_pending" or getattr(res, "ceo_status", "") == "withdraw_pending"
+    
     if current_user.role == "ceo":
-        if getattr(res, "ceo_status", "pending") != "pending":
-            raise HTTPException(status_code=400, detail=f"Resignation is already {getattr(res, 'ceo_status', 'pending')}.")
-        res.ceo_status = "approved"
+        current_status = getattr(res, "ceo_status", "pending")
+        if current_status == "withdraw_pending":
+            res.ceo_status = "withdrawn"
+        elif current_status == "pending":
+            res.ceo_status = "approved"
+        else:
+            raise HTTPException(status_code=400, detail=f"Resignation is already {current_status}.")
     else:
-        if res.status != "pending":
+        if res.status == "withdraw_pending":
+            res.status = "withdrawn"
+        elif res.status == "pending":
+            res.status = "approved"
+        else:
             raise HTTPException(status_code=400, detail=f"Resignation is already {res.status}.")
-        res.status = "approved"
 
     # Notify the employee of the approval
+    if was_withdraw:
+        msg = "Your resignation withdrawal request has been approved."
+    else:
+        msg = f"Your resignation has been approved. Your Last Working Day is {res.LWD}. We wish you all the best!"
+
     notif = models.Notification(
         user_id=res.user_id,
-        message=f"Your resignation has been approved. Your Last Working Day is {res.LWD}. We wish you all the best!",
+        message=msg,
         type="info",
         read=False
     )
@@ -2440,19 +2465,33 @@ def reject_resignation(
     res = db.query(models.Resignation).filter(models.Resignation.id == id).first()
     if not res:
         raise HTTPException(status_code=404, detail="Resignation record not found.")
+    was_withdraw = res.status == "withdraw_pending" or getattr(res, "ceo_status", "") == "withdraw_pending"
+
     if current_user.role == "ceo":
-        if getattr(res, "ceo_status", "pending") != "pending":
-            raise HTTPException(status_code=400, detail=f"Resignation is already {getattr(res, 'ceo_status', 'pending')}.")
-        res.ceo_status = "rejected"
+        current_status = getattr(res, "ceo_status", "pending")
+        if current_status == "withdraw_pending":
+            res.ceo_status = "pending"
+        elif current_status == "pending":
+            res.ceo_status = "rejected"
+        else:
+            raise HTTPException(status_code=400, detail=f"Resignation is already {current_status}.")
     else:
-        if res.status != "pending":
+        if res.status == "withdraw_pending":
+            res.status = "pending"
+        elif res.status == "pending":
+            res.status = "rejected"
+        else:
             raise HTTPException(status_code=400, detail=f"Resignation is already {res.status}.")
-        res.status = "rejected"
 
     # Notify the employee
+    if was_withdraw:
+        msg = "Your resignation withdrawal request has been rejected. Your resignation remains active."
+    else:
+        msg = "Your resignation request has been reviewed and rejected. Please reach out to HR for next steps."
+        
     notif = models.Notification(
         user_id=res.user_id,
-        message="Your resignation request has been reviewed and rejected. Please reach out to HR for next steps.",
+        message=msg,
         type="warning",
         read=False
     )
@@ -3065,7 +3104,7 @@ def decide_promotion(id: int, request: dict, db: Session = Depends(database.get_
 @router.get("/exits/resignations")
 def get_resignations(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
     verify_hr_role(current_user)
-    resigs = db.query(models.Resignation).filter(models.Resignation.deleted_at == None).offset(skip).limit(limit).all()
+    resigs = db.query(models.Resignation).offset(skip).limit(limit).all()
     return [
         {
             "id": r.id,

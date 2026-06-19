@@ -505,7 +505,7 @@ export default function ApprovalsPage() {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           if (!res.ok) throw new Error('Failed to approve payroll run.');
-          alert('Payroll transfer signed! Payout dispatched and monthly payslips released to all employee dashboards.');
+          window.showToast('Payroll transfer signed! Payout dispatched and monthly payslips released to all employee dashboards.', 'success');
         } else {
           // Deny/Reject Payroll run
           const res = await fetch(`/api/ceo-portal/payroll/runs/${runId}/reject`, {
@@ -513,7 +513,7 @@ export default function ApprovalsPage() {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           if (!res.ok) throw new Error('Failed to reject payroll run.');
-          alert('Payroll ledger rejected and sent back to HR.');
+          window.showToast('Payroll ledger rejected and sent back to HR.', 'error');
         }
       } else if (item.id.startsWith('RES-')) {
         const resignId = item.resignationId;
@@ -523,9 +523,10 @@ export default function ApprovalsPage() {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) throw new Error(`Failed to ${action} resignation.`);
-        alert(isApprove
-          ? 'Resignation exit approved! Offboarding clearance checklist updated in HR panel.'
-          : 'Resignation request rejected.'
+        window.showToast(isApprove
+          ? (item.type === 'Resignation Withdraw' ? 'Resignation withdrawal approved!' : 'Resignation exit approved! Offboarding clearance checklist updated in HR panel.')
+          : (item.type === 'Resignation Withdraw' ? 'Resignation withdrawal rejected.' : 'Resignation request rejected.'),
+          isApprove ? 'success' : 'error'
         );
       } else if (item.id.startsWith('BUD-')) {
         const budgetId = item.budgetId;
@@ -535,7 +536,7 @@ export default function ApprovalsPage() {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) throw new Error(`Failed to ${action} budget.`);
-        alert(`Budget request ${isApprove ? 'approved' : 'rejected'} successfully.`);
+        window.showToast(`Budget request ${isApprove ? 'approved' : 'rejected'} successfully.`, isApprove ? 'success' : 'error');
       } else if (item.id.startsWith('POL-')) {
         const policyId = item.policyId;
         const endpoint = `/api/ceo-portal/policies/${policyId}/${action}`;
@@ -544,7 +545,7 @@ export default function ApprovalsPage() {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) throw new Error(`Failed to ${action} policy.`);
-        alert(`Company policy ${isApprove ? 'approved' : 'rejected'} successfully.`);
+        window.showToast(`Company policy ${isApprove ? 'approved' : 'rejected'} successfully.`, isApprove ? 'success' : 'error');
       } else if (item.id.startsWith('EXP-')) {
         const expenseId = item.expenseId;
         const endpoint = `/api/ceo-portal/expenses/${expenseId}/${action}`;
@@ -553,9 +554,10 @@ export default function ApprovalsPage() {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) throw new Error(`Failed to ${action} expense claim.`);
-        alert(isApprove
+        window.showToast(isApprove
           ? 'Expense claim approved!'
-          : 'Expense claim rejected.'
+          : 'Expense claim rejected.',
+          isApprove ? 'success' : 'error'
         );
       } else if (item.type === 'Promotions') {
         const decision = isApprove ? 'approved_by_ceo' : 'rejected_by_ceo';
@@ -565,14 +567,14 @@ export default function ApprovalsPage() {
           body: JSON.stringify({ decision })
         });
         if (!res.ok) throw new Error(`Failed to ${action} promotion.`);
-        alert(isApprove ? '✅ Promotion approved! Employee notified.' : '❌ Promotion rejected. Employee notified.');
+        window.showToast(isApprove ? '✅ Promotion approved! Employee notified.' : '❌ Promotion rejected. Employee notified.', isApprove ? 'success' : 'error');
       }
 
       await fetchApprovals();
 
     } catch (err) {
       console.error(err);
-      alert(`Error performing action: ${err.message}`);
+      window.showToast(`Error performing action: ${err.message}`, 'error');
     } finally {
       // Close modal and drawer
       setModalConfig({ isOpen: false, type: '', item: null });

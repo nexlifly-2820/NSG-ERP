@@ -95,6 +95,11 @@ export function ExitFnFView() {
   // Live data states
   const [resignations, setResignations] = useState([]);
   const [employees, setEmployees] = useState([]);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+  const currentResignations = resignations.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.ceil(resignations.length / itemsPerPage);
   
   // Specific employee states fetched from backend
   const [employeeAssets, setEmployeeAssets] = useState([]);
@@ -211,13 +216,13 @@ export function ExitFnFView() {
       });
       if (res.ok) {
         fetchData();
-        alert(`Resignation exit approved for ${exitingEmp.name}! Corporate offboarding lists enqueued.`);
+        window.showToast(`Resignation exit approved for ${exitingEmp.name}! Corporate offboarding lists enqueued.`, 'success');
       } else {
-        alert('Failed to approve resignation.');
+        window.showToast('Failed to approve resignation.', 'error');
       }
     } catch (e) {
       console.error(e);
-      alert('Error approving resignation.');
+      window.showToast('Error approving resignation.', 'error');
     }
   };
 
@@ -233,11 +238,11 @@ export function ExitFnFView() {
         fetchData();
         setSelectedResignId(id);
         setExitTab('assets');
-        alert(`Resignation approved for ${name}! Continuing to Asset Return Checklist...`);
+        window.showToast(`Resignation approved for ${name}! Continuing to Asset Return Checklist...`, 'success');
       } else {
-        alert('Failed to approve.');
+        window.showToast('Failed to approve.', 'error');
       }
-    } catch (err) { console.error(err); alert('Error approving.'); }
+    } catch (err) { console.error(err); window.showToast('Error approving.', 'error'); }
   };
 
   const handleRejectInline = async (id, name, e) => {
@@ -250,21 +255,21 @@ export function ExitFnFView() {
       });
       if (res.ok) {
         fetchData();
-        alert(`Resignation rejected for ${name}.`);
+        window.showToast(`Resignation rejected for ${name}.`, 'success');
       } else {
-        alert('Failed to reject.');
+        window.showToast('Failed to reject.', 'error');
       }
-    } catch (err) { console.error(err); alert('Error rejecting.'); }
+    } catch (err) { console.error(err); window.showToast('Error rejecting.', 'error'); }
   };
 
   const handleComputeFnF = () => {
     setFnfComputed(true);
-    alert('Full & Final Settlement computed successfully based on live leave balances and active loan ledgers!');
+    window.showToast('Full & Final Settlement computed successfully based on live leave balances and active loan ledgers!', 'success');
   };
 
   const handleFinalizeFnF = async () => {
     if (!assetsFullyReturned) {
-      alert('WARNING: Compliance Gate Engaged! Cannot finalize FnF settlement until all issued assets are returned and verified by HR.');
+      window.showToast('WARNING: Compliance Gate Engaged! Cannot finalize FnF settlement until all issued assets are returned and verified by HR.', 'warning');
       return;
     }
 
@@ -400,7 +405,6 @@ export function ExitFnFView() {
         <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', width: '100%' }}>
           {/* Active resignation notice queues */}
           <div className="table-container" style={{ margin: 0, width: '100%', overflowX: 'auto' }}>
-            <div className="pipeline-title" style={{ padding: '16px 40px 0 40px' }}>Notice Period Resignation Registry</div>
             <table className="data-table">
               <thead>
                 <tr>
@@ -414,7 +418,7 @@ export function ExitFnFView() {
                 </tr>
               </thead>
               <tbody>
-                {resignations?.map((r, idx) => {
+                {currentResignations?.map((r, idx) => {
                   const employee = employees.find(e => e.id === (r.employee_id || r.user_id)) || { name: 'Unknown' };
                   return (
                     <tr key={idx} onClick={() => { setSelectedResignId(r.id); setRelievingDate(r.LWD); }} style={{ cursor: 'pointer', backgroundColor: selectedResignId === r.id ? 'rgba(236,72,153,0.05)' : 'transparent' }}>
@@ -426,31 +430,33 @@ export function ExitFnFView() {
                       <td style={{ padding: '16px 40px' }}>{r.LWD}</td>
                       <td style={{ padding: '16px 40px', fontSize: '11.5px', maxWidth: '180px' }}>"{r.reason}"</td>
                       <td style={{ padding: '16px 40px' }}>
-                        <span className={`badge-pill ${(!r.ceo_status || r.ceo_status === 'pending' || r.ceo_status === 'Pending') ? 'badge-gold' : r.ceo_status === 'rejected' ? 'badge-pink' : 'badge-green'}`}>
-                          {r.ceo_status || 'Pending'}
+                        <span className={`badge-pill ${(!r.ceo_status || r.ceo_status === 'pending' || r.ceo_status === 'Pending' || r.ceo_status === 'withdraw_pending') ? 'badge-gold' : r.ceo_status === 'rejected' ? 'badge-pink' : 'badge-green'}`}>
+                          {r.ceo_status === 'withdraw_pending' ? 'withdraw pending' : (r.ceo_status || 'Pending')}
                         </span>
                       </td>
                       <td style={{ padding: '16px 40px' }}>
-                        <span className={`badge-pill ${r.status === 'pending' ? 'badge-gold' : r.status === 'approved' ? 'badge-blue' : 'badge-green'}`}>
-                          {r.status}
+                        <span className={`badge-pill ${r.status === 'pending' || r.status === 'withdraw_pending' ? 'badge-gold' : r.status === 'approved' ? 'badge-blue' : r.status === 'withdrawn' ? 'badge-pink' : 'badge-green'}`}>
+                          {r.status === 'withdraw_pending' ? 'withdraw pending' : r.status}
                         </span>
                       </td>
                       <td style={{ padding: '16px 40px' }}>
-                        {r.status === 'pending' ? (
+                        {(r.status === 'pending' || r.status === 'withdraw_pending') ? (
                           <div style={{ display: 'flex', gap: '8px' }}>
                             <button
-                              style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', backgroundColor: 'var(--accent-green, #10b981)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                              disabled={!r.ceo_status || r.ceo_status.toLowerCase() === 'pending' || r.ceo_status === 'withdraw_pending'}
+                              style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', backgroundColor: 'var(--accent-green, #10b981)', color: 'white', border: 'none', borderRadius: '4px', cursor: (!r.ceo_status || r.ceo_status.toLowerCase() === 'pending' || r.ceo_status === 'withdraw_pending') ? 'not-allowed' : 'pointer', opacity: (!r.ceo_status || r.ceo_status.toLowerCase() === 'pending' || r.ceo_status === 'withdraw_pending') ? 0.5 : 1 }}
                               onClick={(e) => handleApproveInline(r.id, employee.name, e)}
                             >
                               <CheckCircle size={12} />
-                              Approve
+                              Approve {r.status === 'withdraw_pending' ? 'Withdraw' : ''}
                             </button>
                             <button
-                              style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                              disabled={!r.ceo_status || r.ceo_status.toLowerCase() === 'pending' || r.ceo_status === 'withdraw_pending'}
+                              style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: (!r.ceo_status || r.ceo_status.toLowerCase() === 'pending' || r.ceo_status === 'withdraw_pending') ? 'not-allowed' : 'pointer', opacity: (!r.ceo_status || r.ceo_status.toLowerCase() === 'pending' || r.ceo_status === 'withdraw_pending') ? 0.5 : 1 }}
                               onClick={(e) => handleRejectInline(r.id, employee.name, e)}
                             >
                               <X size={12} />
-                              Reject
+                              Reject {r.status === 'withdraw_pending' ? 'Withdraw' : ''}
                             </button>
                           </div>
                         ) : (
@@ -462,6 +468,27 @@ export function ExitFnFView() {
                 })}
               </tbody>
             </table>
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', padding: '16px 40px' }}>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  style={{ padding: '6px 12px', border: '1px solid var(--border-color)', borderRadius: '4px', background: 'transparent', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.5 : 1, color: 'var(--text-primary)' }}
+                >
+                  Previous
+                </button>
+                <span style={{ padding: '6px 12px', fontSize: '13px', color: 'var(--text-muted)' }}>
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  style={{ padding: '6px 12px', border: '1px solid var(--border-color)', borderRadius: '4px', background: 'transparent', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.5 : 1, color: 'var(--text-primary)' }}
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -217,26 +217,28 @@ export default function Resignation({ currentUser }) {
                 </button>
               )}
               
-              <button
-                type="button"
-                onClick={handleResetResignation}
-                style={{
-                  backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                  color: '#ef4444',
-                  border: '1px dashed #ef4444',
-                  borderRadius: '6px',
-                  padding: '6px 12px',
-                  fontSize: '11px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-              >
-                <XCircle size={12} />
-                <span>Withdraw / Reset (test)</span>
-              </button>
+              {(resignationData.status === 'pending' || resignationData.status === 'approved') && (
+                <button
+                  type="button"
+                  onClick={handleResetResignation}
+                  style={{
+                    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                    color: '#ef4444',
+                    border: '1px dashed #ef4444',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <XCircle size={12} />
+                  <span>Withdraw</span>
+                </button>
+              )}
             </>
           )}
         </div>
@@ -271,7 +273,7 @@ export default function Resignation({ currentUser }) {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ color: 'var(--text-secondary)', fontWeight: '600' }}>HR Approval Status</span>
                       <span style={{ fontSize: '11px', fontWeight: '700', padding: '3px 10px', borderRadius: '12px', textTransform: 'capitalize', backgroundColor: hrStatus === 'approved' ? 'rgba(59,130,246,0.1)' : hrStatus === 'cleared' ? 'rgba(16,185,129,0.1)' : 'rgba(251,191,36,0.1)', color: hrStatus === 'approved' ? '#3b82f6' : hrStatus === 'cleared' ? '#10b981' : '#f59e0b' }}>
-                        {hrStatus === 'pending' ? '⏳ Awaiting HR Review' : hrStatus === 'approved' ? '✓ LWD Confirmed by HR' : '✓ ' + hrStatus}
+                        {hrStatus === 'pending' ? '⏳ Awaiting HR Review' : hrStatus === 'withdraw_pending' ? '⏳ Awaiting Withdraw Approval' : hrStatus === 'approved' ? '✓ LWD Confirmed by HR' : '✓ ' + hrStatus}
                       </span>
                     </div>
                     {resignationData.reason && (
