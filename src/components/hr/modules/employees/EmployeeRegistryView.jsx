@@ -1,6 +1,6 @@
 // Crash fix applied
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, Plus, Search, Download, Lock, RefreshCw, Trash2, Edit3, Filter, Shield, Users, User } from 'lucide-react';
+import { CheckCircle, Plus, Search, Download, Lock, RefreshCw, Trash2, Edit3, Filter, Shield, Users, User, Eye, EyeOff } from 'lucide-react';
 import { notify } from '../../utils/notify';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -36,10 +36,11 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
   const [scanningDoc, setScanningDoc] = useState(null); // type of doc being scanned
 
   // New Employee Form States
-  const [newName, setNewName] = useState('');
+  const [newName, setNewName] = useState(queryParams?.get('pre_name') || '');
+  const [newEmpId, setNewEmpId] = useState(queryParams?.get('pre_emp_id') || '');
   const [newEmail, setNewEmail] = useState('');
-  const [newDept, setNewDept] = useState('');
-  const [newRole, setNewRole] = useState('');
+  const [newDept, setNewDept] = useState(queryParams?.get('pre_dept') || '');
+  const [newRole, setNewRole] = useState(queryParams?.get('pre_desig') || '');
   const [newShift, setNewShift] = useState('');
   const [newPhotoFile, setNewPhotoFile] = useState(null);
   const [newPhoto, setNewPhoto] = useState('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&fit=crop&q=80');
@@ -87,8 +88,37 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
 
   // Reset Password States
   const [showResetModal, setShowResetModal] = useState(false);
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [updatedPasswords, setUpdatedPasswords] = useState({});
   const [resetEmp, setResetEmp] = useState(null);
   const [newPassword, setNewPassword] = useState('');
+
+  // Assets State
+  const [employeeAssets, setEmployeeAssets] = useState([]);
+  const [isLoadingAssets, setIsLoadingAssets] = useState(false);
+
+  useEffect(() => {
+    if (selectedEmp && profileTab === 'asset') {
+      const fetchAssets = async () => {
+        setIsLoadingAssets(true);
+        try {
+          const token = localStorage.getItem('nsg_jwt_token');
+          const res = await fetch(`/api/hr-portal/onboarding/assets/${selectedEmp.id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setEmployeeAssets(data);
+          }
+        } catch (err) {
+          console.error("Failed to fetch assets", err);
+        } finally {
+          setIsLoadingAssets(false);
+        }
+      };
+      fetchAssets();
+    }
+  }, [selectedEmp, profileTab]);
 
   // Fetch employees from backend API
   const fetchEmployees = async () => {
@@ -102,16 +132,13 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
         const data = await res.json();
         const enriched = data.map(emp => ({
           ...emp,
-          phone: emp.phone || '+91 99000 11000',
-          bank_name: emp.bank_name || 'HDFC Bank',
-          account_number: emp.account_number || '50100000000000',
-          ifsc_code: emp.ifsc_code || 'HDFC0000012',
+          phone: emp.phone || '',
+          bank_name: emp.bank_name || '',
+          account_number: emp.account_number || '',
+          ifsc_code: emp.ifsc_code || '',
           grade: emp.grade || 3,
-          manager: emp.manager || 'John Doe',
-          documents: emp.documents ? (typeof emp.documents === 'string' ? JSON.parse(emp.documents) : emp.documents) : [
-            { type: 'Aadhaar Card', name: 'aadhaar_verify.pdf', status: 'verified', date: emp.join_date },
-            { type: 'Degree Certificate', name: 'bachelors_degree.pdf', status: 'pending', date: emp.join_date }
-          ]
+          manager: emp.manager || '',
+          documents: emp.documents ? (typeof emp.documents === 'string' ? JSON.parse(emp.documents) : emp.documents) : []
         }));
         setApiEmployees(enriched);
         onUpdateDb({
@@ -155,7 +182,12 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
     const searchLower = search.toLowerCase();
     const matchesSearch = e.name.toLowerCase().includes(searchLower) || 
                           (e.emp_id && e.emp_id.toLowerCase().includes(searchLower)) ||
-                          (e.designation && e.designation.toLowerCase().includes(searchLower));
+                          (e.department && e.department.toLowerCase().includes(searchLower)) ||
+                          (e.designation && e.designation.toLowerCase().includes(searchLower)) ||
+                          (e.role && e.role.toLowerCase().includes(searchLower)) ||
+                          (e.status && e.status.toLowerCase().includes(searchLower)) ||
+                          (e.join_date && e.join_date.toLowerCase().includes(searchLower)) ||
+                          (e.email && e.email.toLowerCase().includes(searchLower));
     const matchesDept = deptFilter === 'All' || e.department === deptFilter;
     const matchesRole = roleFilter === 'All' || e.role === roleFilter;
     const matchesDesig = desigFilter === 'All' || e.designation === desigFilter;
@@ -316,6 +348,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
         },
         body: JSON.stringify({
           name: newName,
+          emp_id: newEmpId || null,
           email: newEmail,
           department: newDept,
           designation: newRole,
@@ -348,16 +381,13 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
 
       const newEmp = {
         ...createdEmp,
-        phone: '+91 99887 76655',
-        bank_name: createdEmp.bank_name || 'HDFC Bank',
-        account_number: createdEmp.account_number || ('50100' + Math.floor(100000000 + Math.random() * 900000000)),
-        ifsc_code: createdEmp.ifsc_code || 'HDFC0000012',
+        phone: createdEmp.phone || '',
+        bank_name: createdEmp.bank_name || '',
+        account_number: createdEmp.account_number || '',
+        ifsc_code: createdEmp.ifsc_code || '',
         grade: createdEmp.grade || 3,
-        manager: createdEmp.manager || 'John Doe',
-        documents: createdEmp.documents ? JSON.parse(createdEmp.documents) : [
-          { type: 'Aadhaar Card', name: 'aadhaar_verify.pdf', status: 'verified', date: new Date().toISOString().split('T')[0] },
-          { type: 'Degree Certificate', name: 'bachelors_degree.pdf', status: 'pending', date: new Date().toISOString().split('T')[0] }
-        ]
+        manager: createdEmp.manager || '',
+        documents: createdEmp.documents ? JSON.parse(createdEmp.documents) : []
       };
       
       // Add default training progress for the employee
@@ -578,6 +608,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.detail || 'Failed to reset employee password.');
       }
+      setUpdatedPasswords(prev => ({ ...prev, [resetEmp.id]: newPassword }));
       setShowResetModal(false);
       setResetEmp(null);
       setNewPassword('');
@@ -616,6 +647,14 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
     setEditPhotoFile(null);
     setShowEditModal(true);
   };
+
+  useEffect(() => {
+    if (subTab === 'editEmployee' && selectedEmp && !showEditModal) {
+      openEditModal(selectedEmp);
+      setQueryParams({ empId: String(selectedEmp.id), subTab: 'info' });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subTab, selectedEmp, showEditModal]);
 
   const handleRevealBankDetails = (emp) => {
     setRevealBank(true);
@@ -697,6 +736,37 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
     }
   };
 
+  const handleDownloadDocument = (doc) => {
+    const fileHref = doc.link || doc.fileUrl || doc.file_url;
+    const docLabel = doc.name || doc.docType || 'Document';
+
+    if (fileHref) {
+      const element = document.createElement("a");
+      element.href = fileHref;
+      element.download = doc.original_filename || doc.fileName || doc.filename || `${docLabel.replace(/\s+/g, '_')}_Document`;
+      element.target = "_blank";
+      document.body.appendChild(element);
+      element.click();
+      document.body.removeChild(element);
+    } else {
+      const pdfData = "%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << >> >>\nendobj\nxref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000056 00000 n \n0000000111 00000 n \ntrailer\n<< /Size 4 /Root 1 0 R >>\nstartxref\n190\n%%EOF";
+      const blob = new Blob([pdfData], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      let fileName = docLabel;
+      if (!fileName.toLowerCase().endsWith('.pdf')) {
+        fileName += '.pdf';
+      }
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  };
+
   return (
     <div className="component-container" style={{ padding: '20px 12px', maxWidth: '100%', width: '100%' }}>
       <div className="component-header">
@@ -723,13 +793,8 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
         
         <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#ffffff', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: '8px', gap: '8px', minWidth: '200px' }}>
           <Search size={16} style={{ color: '#94a3b8' }} />
-          <input type="text" placeholder="Search name, ID..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ background: 'none', border: 'none', color: '#334155', width: '100%', outline: 'none', fontSize: '13px' }} />
+          <input type="text" placeholder="Search any field (Name, ID, Role...)" value={search} onChange={(e) => setSearch(e.target.value)} style={{ background: 'none', border: 'none', color: '#334155', width: '100%', outline: 'none', fontSize: '13px' }} />
         </div>
-
-        <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#334155', fontWeight: 600, fontSize: '13px', outline: 'none', backgroundColor: '#ffffff', flexShrink: 0 }}>
-          <option value="All">All Roles</option>
-          {uniqueRoles.map(r => <option key={r} value={r}>{r}</option>)}
-        </select>
 
         <select value={deptFilter} onChange={(e) => { setDeptFilter(e.target.value); setDesigFilter('All'); }} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#334155', fontWeight: 600, fontSize: '13px', outline: 'none', backgroundColor: '#ffffff', flexShrink: 0 }}>
           <option value="All">All Departments</option>
@@ -740,11 +805,16 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
           <option value="All">All Designations</option>
           {uniqueDesigs.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
+
+        <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', color: '#334155', fontWeight: 600, fontSize: '13px', outline: 'none', backgroundColor: '#ffffff', flexShrink: 0 }}>
+          <option value="All">All Roles</option>
+          {uniqueRoles.map(r => <option key={r} value={r}>{r}</option>)}
+        </select>
       </div>
 
-      <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
+      <div className="dashboard-row-grid" style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
         {/* Directory Tables */}
-        <div className={styles.tableContainer} style={{ flex: 1, margin: 0 }}>
+        <div className={styles.tableContainer} style={{ flex: 1, minWidth: 0, margin: 0 }}>
           <table className={styles.premiumTable}>
             <thead>
               <tr>
@@ -760,7 +830,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
             </thead>
             <tbody>
               {currentEmployees.map(emp => (
-                <tr key={emp.id} onClick={() => { setSelectedEmp(emp); setProfileTab('info'); setRevealBank(false); }}>
+                <tr key={emp.id} onClick={() => { setSelectedEmp(emp); setRevealBank(false); }}>
                   <td>
                     <div className={styles.userProfile}>
                       <img src={emp.photo || `https://ui-avatars.com/api/?name=${emp.name.replace(/ /g, '+')}&background=0F172A&color=fff`} alt={emp.name} className={styles.userAvatar} onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${emp.name.replace(/ /g, '+')}&background=0F172A&color=fff`; }} />
@@ -845,13 +915,9 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
         {/* Profile Side Panels */}
         {selectedEmp && (() => {
           const progress = db.trainingProgress?.find(p => p.employee_id === selectedEmp.id) || { completed_modules: 0, quiz_score: 0, passed: false };
-          const docs = selectedEmp.documents || [
-            { type: 'Aadhaar Card', name: 'aadhaar_verify.pdf', status: 'verified', date: '2026-05-20' },
-            { type: 'Degree Certificate', name: 'bachelors_degree.pdf', status: 'pending', date: '2026-05-22' }
-          ];
+          const docs = selectedEmp.documents || [];
           const leave = db.leaveBalances?.find(b => b.employee_id === selectedEmp.id) || { CL: 0, SL: 0, EL: 0 };
           const attendance = db.attendanceLogs?.filter(l => l.employee_id === selectedEmp.id) || [];
-          const payslipsList = db.payslips?.filter(p => p.employee_id === selectedEmp.id) || [];
 
           return (
             <div className="card" style={{ width: '420px', display: 'flex', flexDirection: 'column', gap: '16px', borderLeft: '4px solid var(--accent-pink)' }}>
@@ -860,26 +926,52 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                   <img src={selectedEmp.photo || `https://ui-avatars.com/api/?name=${selectedEmp.name.replace(/ /g, '+')}&background=0F172A&color=fff`} alt={selectedEmp.name} onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${selectedEmp.name.replace(/ /g, '+')}&background=0F172A&color=fff`; }} style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover' }} />
                   <div>
                     <h3 style={{ margin: 0, border: 'none', padding: 0 }}>{selectedEmp.name}</h3>
-                    <span className="code-span">{selectedEmp.emp_id}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                      <span className="code-span">{selectedEmp.emp_id}</span>
+                      <span className={`${styles.roleTag} ${selectedEmp.role === 'hr' ? styles.roleTagHr : selectedEmp.role === 'tl' ? styles.roleTagTl : styles.roleTagEmployee}`} style={{ padding: '2px 6px', fontSize: '10px' }}>
+                        {selectedEmp.role === 'hr' && <Shield size={10} />}
+                        {selectedEmp.role === 'tl' && <Users size={10} />}
+                        {selectedEmp.role === 'employee' && <User size={10} />}
+                        {selectedEmp.role ? selectedEmp.role.toUpperCase() : 'EMPLOYEE'}
+                      </span>
+                    </div>
+                    {(() => {
+                      const hrManager = employeeList.find(e => e.role === 'hr' && (e.designation || '').toLowerCase().includes('manager')) || employeeList.find(e => e.role === 'hr');
+                      const hrName = hrManager ? hrManager.name : 'HR Team';
+                      return (
+                        <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+                          {selectedEmp.manager && selectedEmp.manager !== 'John Doe' ? (
+                            <span style={{ fontSize: '10px', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: '#2563eb', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Users size={10} /> TL: {selectedEmp.manager}
+                            </span>
+                          ) : null}
+                          <span style={{ fontSize: '10px', backgroundColor: 'rgba(192, 38, 211, 0.1)', color: '#c026d3', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Shield size={10} /> HR: {hrName}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <button title="Edit Employee" onClick={() => openEditModal(selectedEmp)} style={{ background: 'none', border: '1px solid var(--border-color)', color: '#60a5fa', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'stretch' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '-2px' }}>
+                    <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '18px', padding: 0, lineHeight: 1 }} onClick={() => setSelectedEmp(null)}>✕</button>
+                  </div>
+                  <button title="Edit Employee" onClick={() => openEditModal(selectedEmp)} style={{ background: 'none', border: '1px solid var(--border-color)', color: '#60a5fa', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontSize: '11px' }}>
                     <Edit3 size={14} /> Edit
                   </button>
-                  <button title="Delete Employee" onClick={() => handleDeleteEmployee(selectedEmp.id)} style={{ background: 'none', border: '1px solid #ef4444', color: '#ef4444', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+                  <button title="Delete Employee" onClick={() => handleDeleteEmployee(selectedEmp.id)} style={{ background: 'none', border: '1px solid #ef4444', color: '#ef4444', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontSize: '11px' }}>
                     <Trash2 size={14} /> Delete
                   </button>
-                  <button title="Reset Password" onClick={() => openResetModal(selectedEmp)} style={{ background: 'none', border: '1px solid var(--border-color)', color: '#f59e0b', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+                  <button title="Reset Password" onClick={() => openResetModal(selectedEmp)} style={{ background: 'none', border: '1px solid var(--border-color)', color: '#f59e0b', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', fontSize: '11px' }}>
                     <Lock size={12} /> Reset
                   </button>
-                  <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '18px' }} onClick={() => setSelectedEmp(null)}>✕</button>
                 </div>
               </div>
 
               {/* Tab Selector Inside Drawer */}
               <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', gap: '8px', paddingBottom: '4px' }}>
-                {['info', 'docs', 'probation', 'attendance', 'payroll'].map(tab => (
+                {['info', 'docs', 'asset'].map(tab => (
                   <button
                     key={tab}
                     onClick={() => { setProfileTab(tab); setRevealBank(false); }}
@@ -913,13 +1005,10 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                       <strong>{selectedEmp.phone || '+91 99000 11000'}</strong>
                     </div>
                     <div>
-                      <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>Structural Grade & Designation</span>
-                      <strong>Grade {selectedEmp.grade} — {selectedEmp.designation}</strong>
+                      <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>Designation</span>
+                      <strong>{selectedEmp.designation}</strong>
                     </div>
-                    <div>
-                      <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>Active Manager & Dept</span>
-                      <strong>{selectedEmp.manager} ({selectedEmp.department})</strong>
-                    </div>
+
                     <div>
                       <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>Office Location</span>
                       <strong>{selectedEmp.location || 'N/A'}</strong>
@@ -937,10 +1026,10 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <span style={{ fontSize: '13px', fontFamily: 'var(--font-mono)' }}>
-                            {selectedEmp.bank_name || 'No Bank'} — {revealBank ? (selectedEmp.account_number || 'N/A') : `****${(selectedEmp.account_number || '0000').slice(-4)}`}
+                            {selectedEmp.bank_name || 'NA'} — {revealBank ? (selectedEmp.account_number || 'NA') : (selectedEmp.account_number ? `****${selectedEmp.account_number.slice(-4)}` : 'NA')}
                           </span>
                           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                            IFSC: {selectedEmp.ifsc_code || 'N/A'} | Branch: {selectedEmp.bank_branch || 'N/A'}
+                            IFSC: {selectedEmp.ifsc_code || 'NA'} | Branch: {selectedEmp.bank_branch || 'NA'}
                           </span>
                         </div>
                         {!revealBank ? (
@@ -975,7 +1064,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                         <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-tertiary)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                           <div>
                             <div style={{ fontSize: '13px', fontWeight: '600' }}>{doc.type}</div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{doc.name} ({doc.date})</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{doc.name}</div>
                           </div>
                           <div>
                             {doc.status === 'verified' ? (
@@ -984,18 +1073,21 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                               </span>
                             ) : (
                               <button
-                                onClick={() => handleVerifyDocument(doc.type)}
+                                onClick={() => handleDownloadDocument(doc)}
                                 style={{
-                                  backgroundColor: 'var(--accent-pink)',
-                                  color: '#fff',
-                                  border: 'none',
+                                  backgroundColor: 'transparent',
+                                  color: '#3b82f6',
+                                  border: '1px solid var(--border-color)',
                                   padding: '4px 8px',
                                   borderRadius: '4px',
                                   fontSize: '11px',
-                                  cursor: 'pointer'
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
                                 }}
                               >
-                                Verify
+                                <Download size={12} /> Download
                               </button>
                             )}
                           </div>
@@ -1003,169 +1095,31 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                       ))}
                     </div>
 
-                    {/* Upload simulated box */}
-                    <div style={{ border: '2px dashed var(--border-color)', borderRadius: '8px', padding: '16px', textAlign: 'center', marginTop: '8px' }}>
-                      {scanningDoc ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                          <RefreshCw size={24} className="animate-spin" style={{ color: 'var(--accent-pink)' }} />
-                          <span style={{ fontSize: '12px', color: 'var(--accent-pink)', fontWeight: 'bold' }} className="pulse">Malware Scanner Active: Analyzing {scanningDoc}...</span>
-                        </div>
-                      ) : (
-                        <div>
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>Upload document into verified vault</span>
-                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                            <button
-                              onClick={() => handleUploadDocument('PAN Card')}
-                              style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', color: '#fff', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}
-                            >
-                              + PAN Card
-                            </button>
-                            <button
-                              onClick={() => handleUploadDocument('Degree Certificate')}
-                              style={{ backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', color: '#fff', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}
-                            >
-                              + Degree
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+
                   </div>
                 )}
 
-                {profileTab === 'probation' && (
+
+                {profileTab === 'asset' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
                     <div>
-                      <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>Onboarding Status</span>
-                      <strong style={{ fontSize: '14px', color: selectedEmp.status === 'probation' ? 'var(--accent-gold)' : 'var(--accent-green)' }}>
-                        {selectedEmp.status.toUpperCase()}
-                      </strong>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>Probation Timeline End Date</span>
-                      <strong>{selectedEmp.probation_end_date}</strong>
-                    </div>
-
-                    {selectedEmp.status === 'probation' && (
-                      <div style={{ marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                          {progress.passed ? (
-                            <span style={{ color: 'var(--accent-green)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600' }}>
-                              <CheckCircle size={16} style={{ color: 'var(--accent-green)' }} /> L&D Compliance Quiz Passed ({progress.quiz_score}%)
-                            </span>
-                          ) : (
-                            <span style={{ color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600' }}>
-                              <Lock size={16} style={{ color: '#fbbf24' }} /> L&D Quiz Lock Prerequisite Engaged (Score: {progress.quiz_score}%)
-                            </span>
-                          )}
-                        </div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          <button
-                            className="print-btn"
-                            disabled={!progress.passed}
-                            style={{
-                              width: '100%',
-                              justifyContent: 'center',
-                              backgroundColor: progress.passed ? 'var(--accent-pink)' : 'rgba(255,255,255,0.05)',
-                              color: progress.passed ? '#fff' : 'var(--text-muted)',
-                              cursor: progress.passed ? 'pointer' : 'not-allowed',
-                              border: progress.passed ? 'none' : '1px solid var(--border-color)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '8px'
-                            }}
-                            onClick={() => handleConfirmProbation(selectedEmp.id)}
-                          >
-                            {!progress.passed && <Lock size={14} />} Confirm Probation Active
-                          </button>
-
-                          <button
-                            className="print-btn"
-                            style={{ width: '100%', justifyContent: 'center' }}
-                            onClick={() => handleExtendProbation(selectedEmp.id)}
-                          >
-                            Extend Probation Timeline (90 Days)
-                          </button>
-
-                          <button
-                            className="print-btn"
-                            style={{ width: '100%', justifyContent: 'center', backgroundColor: '#ef4444', color: '#fff', border: 'none' }}
-                            onClick={() => handleTerminateProbation(selectedEmp.id)}
-                          >
-                            Terminate Employment Status
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {profileTab === 'attendance' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
-                    <div style={{ display: 'flex', justifyBetween: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-                      <div>
-                        <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Casual Leave (CL)</span>
-                        <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{leave.CL} Days</div>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Sick Leave (SL)</span>
-                        <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{leave.SL} Days</div>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Earned Leave (EL)</span>
-                        <div style={{ fontSize: '16px', fontWeight: 'bold' }}>{leave.EL} Days</div>
-                      </div>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>Recent Presence Logs (This Month)</span>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px', maxHeight: '150px', overflowY: 'auto' }}>
-                        {attendance.map((log, idx) => (
-                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', backgroundColor: 'var(--bg-tertiary)', padding: '6px 10px', borderRadius: '4px' }}>
-                            <span>{log.date} ({log.work_mode.toUpperCase()})</span>
-                            <span style={{ color: log.is_late ? 'var(--accent-gold)' : 'var(--accent-green)', fontWeight: 'bold' }}>
-                              {log.is_late ? 'Late punch' : 'On-time punch'}
-                            </span>
-                          </div>
-                        ))}
-                        {attendance.length === 0 && <span style={{ color: 'var(--text-muted)' }}>No attendance logs captured for active period.</span>}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {profileTab === 'payroll' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
-                    <div>
-                      <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>Salary Grade Bracket</span>
-                      <strong>Grade {selectedEmp.grade} — Fixed Base Bracket</strong>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>Historical Monthly Payslips</span>
+                      <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>Assigned Corporate Assets</span>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
-                        {payslipsList.map((payslip, idx) => (
-                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-tertiary)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                            <div>
-                              <span style={{ fontWeight: '600' }}>Month {payslip.month} / {payslip.year}</span>
-                              <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Net Salary: ₹{payslip.net.toLocaleString()}</div>
+                        {isLoadingAssets ? (
+                          <span style={{ color: 'var(--text-muted)' }}>Loading assets...</span>
+                        ) : employeeAssets.length > 0 ? (
+                          employeeAssets.map(asset => (
+                            <div key={asset.id} style={{ backgroundColor: 'var(--bg-tertiary)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div>
+                                <div style={{ fontSize: '13px', fontWeight: 'bold' }}>{asset.name} <span style={{ color: 'var(--text-muted)', fontWeight: 'normal', fontSize: '12px' }}>({asset.type})</span></div>
+                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>SN: {asset.serialNumber || 'N/A'} | Tag: {asset.id}</div>
+                              </div>
+                              <span style={{ backgroundColor: '#3b82f6', color: '#fff', padding: '4px 12px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' }}>{asset.returnStatus || 'Issued'}</span>
                             </div>
-                            <button
-                              onClick={() => alert(`Downloading payslip PDF structure for Month ${payslip.month}...`)}
-                              style={{
-                                background: 'none',
-                                border: '1px solid var(--accent-pink)',
-                                color: 'var(--accent-pink)',
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                fontSize: '10px',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              PDF Download
-                            </button>
-                          </div>
-                        ))}
-                        {payslipsList.length === 0 && <span style={{ color: 'var(--text-muted)' }}>No payslip ledgers processed for employee.</span>}
+                          ))
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>No assets assigned yet. (Connect with IT)</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1185,6 +1139,11 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>EMPLOYEE FULL NAME *</label>
                 <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} required placeholder="e.g. Jane Doe" style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>EMPLOYEE ID</label>
+                <input type="text" value={newEmpId} onChange={(e) => setNewEmpId(e.target.value)} placeholder="Auto-generated if left blank" style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
               </div>
               
               <div>
@@ -1350,11 +1309,6 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>STRUCTURAL GRADE</label>
-                <input type="number" value={editGrade} onChange={(e) => setEditGrade(Number(e.target.value))} min={1} max={10} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
-              </div>
-
-              <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>SYSTEM ROLE</label>
                 <select value={editSystemRole} onChange={(e) => setEditSystemRole(e.target.value)} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }}>
                   <option value="employee">Employee</option>
@@ -1444,8 +1398,28 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '8px 0 16px 0' }}>
               Resetting password for <strong>{resetEmp.name}</strong> ({resetEmp.email}).
             </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', margin: '16px 0' }}>
-              <label style={{ fontSize: '12px', fontWeight: 'bold' }}>New Password</label>
+            {(!resetEmp.designation || resetEmp.designation.toLowerCase() !== 'ceo') && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', margin: '16px 0 8px 0' }}>
+                <label style={{ fontSize: '12px', fontWeight: 'bold' }}>OLD PASSWORD</label>
+                <div style={{ position: 'relative' }}>
+                  <input 
+                    type={showOldPassword ? "text" : "password"} 
+                    value={showOldPassword ? (resetEmp ? (updatedPasswords[resetEmp.id] || "erp123") : "") : "••••••••"}
+                    readOnly
+                    style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', padding: '8px', paddingRight: '40px', borderRadius: '6px', cursor: 'not-allowed' }} 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowOldPassword(!showOldPassword)}
+                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                  >
+                    {showOldPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', margin: '8px 0 16px 0' }}>
+              <label style={{ fontSize: '12px', fontWeight: 'bold' }}>NEW PASSWORD</label>
               <input 
                 type="text" 
                 value={newPassword} 

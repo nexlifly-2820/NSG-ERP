@@ -121,9 +121,7 @@ const DeptTreeNode = ({ dept, level = 0, onAdd, onEdit, onDelete }) => {
           transition: 'opacity 0.2s',
           marginLeft: 'auto'
         }}>
-          <button className="ceo-btn" style={{ padding: '6px', background: '#FFF' }} title="Add Sub-Department" onClick={() => onAdd(dept.id)}>
-            <Plus size={14} color="var(--ceo-primary)" />
-          </button>
+
           <button className="ceo-btn" style={{ padding: '6px', background: '#FFF' }} title="Edit Department" onClick={() => onEdit(dept)}>
             <Edit2 size={14} color="var(--ceo-text-secondary)" />
           </button>
@@ -171,6 +169,7 @@ export default function CompanySetup() {
   // UI States
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [modalConfig, setModalConfig] = useState(null);
   const fileInputRef = useRef(null);
@@ -406,13 +405,12 @@ export default function CompanySetup() {
       title: item ? 'Edit Designation' : 'Create Designation',
       fields: [
         { name: 'name', label: 'Designation Name', defaultValue: item?.name },
-        { name: 'department_id', label: 'Department', type: 'select', options: flatDepts.map(d => ({ value: `${d.id}:${d.name}`, label: d.name })), defaultValue: item ? `${item.department_id}:${item.dept}` : undefined },
-        { name: 'level', label: 'Band Level', defaultValue: item?.level }
+        { name: 'department_id', label: 'Department', type: 'select', options: flatDepts.map(d => ({ value: `${d.id}:${d.name}`, label: d.name })), defaultValue: item ? `${item.department_id}:${item.dept}` : undefined }
       ],
       onSave: async (data) => {
         setModalConfig(null);
         const deptId = parseInt(data.department_id.split(':')[0]);
-        const payload = { name: data.name, department_id: deptId, level: data.level };
+        const payload = { name: data.name, department_id: deptId, level: item ? item.level : 1 };
         const url = item ? `/api/ceo-portal/designations/${item.id}` : '/api/ceo-portal/designations';
         const method = item ? 'PUT' : 'POST';
         const res = await fetch(url, {
@@ -608,11 +606,16 @@ export default function CompanySetup() {
           {/* PROFILE TAB */}
           {activeTab === 'profile' && (
             <>
-              <div className="ceo-command-header">
+              <div className="ceo-command-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div className="ceo-typography-card-title"><Building2 size={20} color="var(--ceo-primary)" /> Legal Profile</div>
+                {!isEditingProfile && (
+                  <button className="ceo-btn ceo-btn-primary" onClick={() => setIsEditingProfile(true)}>
+                    <Edit2 size={16} /> Edit Profile
+                  </button>
+                )}
               </div>
               <div className="ceo-command-content" style={{ padding: '32px' }}>
-                <form onSubmit={handleSaveProfile} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', maxWidth: '800px' }}>
+                <form onSubmit={(e) => { e.preventDefault(); handleSaveProfile(e); setIsEditingProfile(false); }} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', maxWidth: '800px' }}>
                   
                   {/* Logo Upload */}
                   <div style={{ gridColumn: '1 / -1', marginBottom: '8px', display: 'flex', gap: '32px', alignItems: 'center', padding: '24px', background: 'var(--ceo-bg)', borderRadius: '12px', border: '1px dashed var(--ceo-border)' }}>
@@ -633,54 +636,59 @@ export default function CompanySetup() {
 
                   <div className="ceo-form-group" style={{ gridColumn: '1 / -1' }}>
                     <label>Company Name (Legal)</label>
-                    <input className="ceo-form-input" required value={profileData.name} onChange={(e) => setProfileData({...profileData, name: e.target.value})} />
+                    <input className="ceo-form-input" required disabled={!isEditingProfile} value={profileData.name} onChange={(e) => setProfileData({...profileData, name: e.target.value})} />
                   </div>
                   
                   <div className="ceo-form-group">
                     <label>GST Number</label>
-                    <input className="ceo-form-input" required value={profileData.gst} onChange={(e) => setProfileData({...profileData, gst: e.target.value})} />
+                    <input className="ceo-form-input" required disabled={!isEditingProfile} value={profileData.gst} onChange={(e) => setProfileData({...profileData, gst: e.target.value})} />
                   </div>
                   
                   <div className="ceo-form-group">
                     <label>CIN</label>
-                    <input className="ceo-form-input" required value={profileData.cin} onChange={(e) => setProfileData({...profileData, cin: e.target.value})} />
+                    <input className="ceo-form-input" required disabled={!isEditingProfile} value={profileData.cin} onChange={(e) => setProfileData({...profileData, cin: e.target.value})} />
                   </div>
                   
                   <div className="ceo-form-group" style={{ gridColumn: '1 / -1' }}>
                     <label>Registered Address</label>
-                    <textarea className="ceo-form-input" required rows={3} value={profileData.address || ''} onChange={(e) => setProfileData({...profileData, address: e.target.value})} />
+                    <textarea className="ceo-form-input" required disabled={!isEditingProfile} rows={3} value={profileData.address || ''} onChange={(e) => setProfileData({...profileData, address: e.target.value})} />
                   </div>
                   
                   <div className="ceo-form-group" style={{ gridColumn: '1 / -1', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                         <label style={{ margin: 0, fontWeight: 600, color: 'var(--ceo-text-primary)' }}>Office GPS Coordinates</label>
-                        <button type="button" className="ceo-btn ceo-btn-primary" onClick={handleCaptureGPS} style={{ padding: '6px 12px', fontSize: '13px' }}>
-                            <MapPin size={14} style={{ marginRight: '6px' }} /> Use My Current Location
-                        </button>
+                        {isEditingProfile && (
+                          <button type="button" className="ceo-btn ceo-btn-primary" onClick={handleCaptureGPS} style={{ padding: '6px 12px', fontSize: '13px' }}>
+                              <MapPin size={14} style={{ marginRight: '6px' }} /> Use My Current Location
+                          </button>
+                        )}
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                         <div>
                             <label style={{ fontSize: '12px', color: 'var(--ceo-text-secondary)', marginBottom: '4px', display: 'block' }}>Latitude</label>
-                            <input className="ceo-form-input" placeholder="e.g. 17.6868" required value={profileData.office_latitude || ''} onChange={(e) => setProfileData({...profileData, office_latitude: e.target.value})} />
+                            <input className="ceo-form-input" disabled={!isEditingProfile} placeholder="e.g. 17.6868" required value={profileData.office_latitude || ''} onChange={(e) => setProfileData({...profileData, office_latitude: e.target.value})} />
                         </div>
                         <div>
                             <label style={{ fontSize: '12px', color: 'var(--ceo-text-secondary)', marginBottom: '4px', display: 'block' }}>Longitude</label>
-                            <input className="ceo-form-input" placeholder="e.g. 83.2185" required value={profileData.office_longitude || ''} onChange={(e) => setProfileData({...profileData, office_longitude: e.target.value})} />
+                            <input className="ceo-form-input" disabled={!isEditingProfile} placeholder="e.g. 83.2185" required value={profileData.office_longitude || ''} onChange={(e) => setProfileData({...profileData, office_longitude: e.target.value})} />
                         </div>
                         <div>
                             <label style={{ fontSize: '12px', color: 'var(--ceo-text-secondary)', marginBottom: '4px', display: 'block' }}>Allowed Distance (Meters)</label>
-                            <input type="number" min="10" className="ceo-form-input" placeholder="e.g. 300" required value={profileData.allowed_radius || '300'} onChange={(e) => setProfileData({...profileData, allowed_radius: e.target.value})} />
+                            <input type="number" min="10" disabled={!isEditingProfile} className="ceo-form-input" placeholder="e.g. 300" required value={profileData.allowed_radius || '300'} onChange={(e) => setProfileData({...profileData, allowed_radius: e.target.value})} />
                         </div>
                     </div>
                     <p style={{ fontSize: '12px', color: 'var(--ceo-text-muted)', marginTop: '8px', marginBottom: 0 }}>These coordinates and distance will be used to automatically mark employee attendance as "Office" or "WFH".</p>
                   </div>
 
-                  <div style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--ceo-border)', paddingTop: '24px', marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
-                    <button type="submit" className="ceo-btn ceo-btn-primary" disabled={isSaving} style={{ padding: '10px 24px', fontSize: '15px' }}>
-                      {isSaving ? <Clock size={18} className="spin" /> : <Save size={18} />} 
-                      {isSaving ? 'Saving Changes...' : 'Save Configuration'}
-                    </button>
-                  </div>
+                  {isEditingProfile && (
+                    <div style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--ceo-border)', paddingTop: '24px', marginTop: '8px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                      <button type="button" className="ceo-btn" onClick={() => setIsEditingProfile(false)}>Cancel</button>
+                      <button type="submit" className="ceo-btn ceo-btn-primary" disabled={isSaving} style={{ padding: '10px 24px', fontSize: '15px' }}>
+                        {isSaving ? <Clock size={18} className="spin" /> : <Save size={18} />} 
+                        {isSaving ? 'Saving Changes...' : 'Save Configuration'}
+                      </button>
+                    </div>
+                  )}
 
                 </form>
               </div>
@@ -692,7 +700,7 @@ export default function CompanySetup() {
             <>
               <div className="ceo-command-header">
                 <div className="ceo-typography-card-title"><Network size={20} color="var(--ceo-primary)" /> Organization Chart</div>
-                <button className="ceo-btn ceo-btn-primary" onClick={() => handleDeptAdd(null)}><Plus size={16} /> Add Root Dept</button>
+                <button className="ceo-btn ceo-btn-primary" onClick={() => handleDeptAdd(null)}><Plus size={16} /> Add Dept</button>
               </div>
               <div className="ceo-command-content" style={{ padding: '32px' }}>
                 <div style={{ maxWidth: '800px', display: 'flex', flexDirection: 'column' }}>
@@ -724,7 +732,6 @@ export default function CompanySetup() {
                     <tr>
                       <th>Designation Name</th>
                       <th>Department</th>
-                      <th>Band Level</th>
                       <th>Headcount</th>
                       <th style={{ textAlign: 'right' }}>Actions</th>
                     </tr>
@@ -734,7 +741,6 @@ export default function CompanySetup() {
                       <tr key={des.id}>
                         <td style={{ fontWeight: 600 }}>{des.name}</td>
                         <td>{des.dept}</td>
-                        <td><span className="ceo-badge neutral">{des.level}</span></td>
                         <td>{des.count}</td>
                         <td style={{ textAlign: 'right' }}>
                           <button className="ceo-btn" style={{ padding: '6px', marginRight: '8px' }} onClick={() => handleDesigAddEdit(des)}><Edit2 size={14}/></button>
@@ -742,7 +748,7 @@ export default function CompanySetup() {
                         </td>
                       </tr>
                     ))}
-                    {designations.length === 0 && <tr><td colSpan="5" style={{ textAlign: 'center', padding: '40px', color: 'var(--ceo-text-muted)' }}>No designations available.</td></tr>}
+                    {designations.length === 0 && <tr><td colSpan="4" style={{ textAlign: 'center', padding: '40px', color: 'var(--ceo-text-muted)' }}>No designations available.</td></tr>}
                   </tbody>
                 </table>
               </div>

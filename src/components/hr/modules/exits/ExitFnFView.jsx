@@ -1,12 +1,96 @@
-import React, { useState, useEffect } from 'react';
-import { CheckCircle, Lock, Edit } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { CheckCircle, Lock, Edit, X, Download } from 'lucide-react';
+import html2pdf from 'html2pdf.js';
+
+const SignatureInput = ({ value, onChange }) => {
+  const canvasRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [signType, setSignType] = useState('canvas');
+
+  const isImage = value && value.startsWith('data:image/');
+
+  const startDrawing = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    setIsDrawing(true);
+  };
+
+  const draw = (e) => {
+    if (!isDrawing) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  const stopDrawing = () => {
+    if (!isDrawing) return;
+    setIsDrawing(false);
+    const canvas = canvasRef.current;
+    if (canvas) {
+      onChange(canvas.toDataURL());
+    }
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    onChange('');
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => onChange(ev.target.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+      <div style={{ display: 'flex', gap: '8px', fontSize: '11px', color: 'var(--text-muted)' }}>
+        <button type="button" onClick={() => { setSignType('canvas'); onChange(''); }} style={{ background: signType === 'canvas' ? 'var(--accent-pink)' : 'transparent', color: signType === 'canvas' ? '#fff' : 'inherit', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer' }}>Draw</button>
+        <button type="button" onClick={() => { setSignType('upload'); onChange(''); }} style={{ background: signType === 'upload' ? 'var(--accent-pink)' : 'transparent', color: signType === 'upload' ? '#fff' : 'inherit', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer' }}>Upload</button>
+      </div>
+      {signType === 'canvas' && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+          <canvas ref={canvasRef} width={180} height={60} onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing} style={{ border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'crosshair', background: '#fff' }} />
+          <button type="button" onClick={clearCanvas} style={{ fontSize: '10px', background: 'none', border: 'none', color: 'var(--accent-pink)', cursor: 'pointer' }}>Clear</button>
+        </div>
+      )}
+      {signType === 'upload' && (
+        <input type="file" accept="image/*" onChange={handleFileUpload} style={{ fontSize: '11px', width: '180px', color: 'var(--text-muted)' }} />
+      )}
+    </div>
+  );
+};
 
 export function ExitFnFView() {
   const [exitTab, setExitTab] = useState('resignations'); // resignations | assets | fnf | noc
   const [selectedResignId, setSelectedResignId] = useState(1);
   const [relievingDate, setRelievingDate] = useState('2026-06-20');
   const [hrSign, setHrSign] = useState('');
+  const [relievingSign, setRelievingSign] = useState('');
   const [isCalibrateOpen, setIsCalibrateOpen] = useState(false);
+  const nocContentRef = useRef(null);
+  const relievingContentRef = useRef(null);
 
   // Live data states
   const [resignations, setResignations] = useState([]);
@@ -14,13 +98,14 @@ export function ExitFnFView() {
   
   // Specific employee states fetched from backend
   const [employeeAssets, setEmployeeAssets] = useState([]);
-  const [loanDeduction, setLoanDeduction] = useState(0);
-  const [elEncashment, setElEncashment] = useState(0);
 
   // FnF computation states
-  const [earnedSalary, setEarnedSalary] = useState(35000);
-  const [reimbursements, setReimbursements] = useState(5000);
-  const [gratuity, setGratuity] = useState(0);
+  const [basicSalary, setBasicSalary] = useState(35000);
+  const [hra, setHra] = useState(15000);
+  const [allowances, setAllowances] = useState(5000);
+  const [epf, setEpf] = useState(1800);
+  const [tds, setTds] = useState(2500);
+  const [lop, setLop] = useState(0);
   const [fnfComputed, setFnfComputed] = useState(false);
 
   const fetchData = async () => {
@@ -42,8 +127,8 @@ export function ExitFnFView() {
     fetchData();
   }, []);
 
-  const activeResignation = resignations.find(r => r.id === selectedResignId) || resignations[0] || { id: 1, employee_id: 103, status: 'pending', reason: 'Higher studies.' };
-  const exitingEmp = employees.find(e => e.id === activeResignation.employee_id) || { name: 'Staff', bank_name: 'HDFC', account_number: '0000', email: 'staff@nsg.com' };
+  const activeResignation = resignations.find(r => r.id === selectedResignId) || resignations[0] || { id: 1, user_id: 103, status: 'pending', reason: 'Higher studies.' };
+  const exitingEmp = employees.find(e => e.id === (activeResignation.employee_id || activeResignation.user_id)) || { name: 'Staff', bank_name: 'HDFC', account_number: '0000', email: 'staff@nsg.com' };
 
   // Fetch employee specific exit details dynamically
   useEffect(() => {
@@ -59,29 +144,17 @@ export function ExitFnFView() {
         if (assetsRes.ok) setEmployeeAssets(await assetsRes.json());
         if (fnfRes.ok) {
           const fnfData = await fnfRes.json();
-          const totalLoans = fnfData.loans.reduce((acc, curr) => acc + curr.outstanding_balance, 0);
-          setLoanDeduction(totalLoans);
-          setElEncashment(Math.round((fnfData.leaveBalances?.EL || 0) * 1200));
+          // Fields fetched but UI overrides manually
         }
       } catch (e) { console.error(e); }
     };
     fetchEmployeeDetails();
   }, [exitingEmp.id]);
 
-  const assetLaptop = employeeAssets.find(a => a.type === 'Laptop')?.returnStatus === 'Signed';
-  const assetToken = employeeAssets.find(a => a.type === 'Access Card')?.returnStatus === 'Signed';
-  const assetPhone = employeeAssets.find(a => a.type === 'Headset')?.returnStatus === 'Signed';
-
-  const toggleAssetStatus = async (type) => {
-    const asset = employeeAssets.find(a => a.type === type);
-    if (!asset) {
-       alert("No asset of this type found assigned to employee!");
-       return;
-    }
-    
+  const toggleAssetStatus = async (assetId) => {
     try {
       const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch(`/api/hr-portal/exits/assets/${asset.id}/return`, {
+      const res = await fetch(`/api/hr-portal/exits/assets/${assetId}/return`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -95,7 +168,9 @@ export function ExitFnFView() {
     }
   };
 
-  const totalFnFPayout = earnedSalary + elEncashment + reimbursements + gratuity - loanDeduction;
+  const grossAdditions = basicSalary + hra + allowances;
+  const totalDeductions = epf + tds + lop;
+  const totalFnFPayout = grossAdditions - totalDeductions;
 
   const handleApproveResignation = async () => {
     try {
@@ -116,30 +191,54 @@ export function ExitFnFView() {
     }
   };
 
+  const handleApproveInline = async (id, name, e) => {
+    e.stopPropagation();
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/hr-portal/exits/resignations/${id}/approve`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchData();
+        setSelectedResignId(id);
+        setExitTab('assets');
+        alert(`Resignation approved for ${name}! Continuing to Asset Return Checklist...`);
+      } else {
+        alert('Failed to approve.');
+      }
+    } catch (err) { console.error(err); alert('Error approving.'); }
+  };
+
+  const handleRejectInline = async (id, name, e) => {
+    e.stopPropagation();
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/hr-portal/exits/resignations/${id}/reject`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchData();
+        alert(`Resignation rejected for ${name}.`);
+      } else {
+        alert('Failed to reject.');
+      }
+    } catch (err) { console.error(err); alert('Error rejecting.'); }
+  };
+
   const handleComputeFnF = () => {
     setFnfComputed(true);
     alert('Full & Final Settlement computed successfully based on live leave balances and active loan ledgers!');
   };
 
   const handleFinalizeFnF = async () => {
-    if (!assetLaptop || !assetToken || !assetPhone) {
+    if (!assetsFullyReturned) {
       alert('WARNING: Compliance Gate Engaged! Cannot finalize FnF settlement until all issued assets are returned and verified by HR.');
       return;
     }
 
-    try {
-      const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch(`/api/hr-portal/exits/resignations/${selectedResignId}/finalize`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        fetchData();
-        alert(`Settlement finalized for ${exitingEmp.name}. Net Payout of ₹${totalFnFPayout.toLocaleString()} approved.`);
-      }
-    } catch (e) {
-      console.error(e);
-    }
+    setExitTab('noc');
   };
 
   const handleSignNOC = async (e) => {
@@ -149,23 +248,82 @@ export function ExitFnFView() {
       return;
     }
 
-    try {
-      const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch(`/api/hr-portal/exits/resignations/${selectedResignId}/sign-noc`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        fetchData();
-        alert(`NOC fully signed and dispatched to ${exitingEmp.name} secure email portal. ERP login session revoked.`);
-        setHrSign('');
-      }
-    } catch (e) {
-      console.error(e);
-    }
+    const htmlContent = `
+      <div style="padding: 40px; background: white; color: black; font-family: monospace; font-size: 14px; line-height: 1.6; width: 700px; box-sizing: border-box; margin: 0 auto; text-align: justify;">
+        <img src="/hmns-logo.png" style="width: 100%; height: auto; max-height: 100px; object-fit: contain; margin-bottom: 20px;" crossorigin="anonymous" />
+        <div style="text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 30px; letter-spacing: 1px;">NO OBJECTION CERTIFICATE</div>
+        ${nocContentRef.current ? nocContentRef.current.innerHTML : ''}
+        
+        <div style="margin-top: 60px; display: flex; justify-content: space-between; align-items: flex-end;">
+          <div>
+            <div>System Checked: HMNS ERP Failsafe</div>
+            <span style="color: green; font-weight: bold;">Assets & FnF Cleared ✓</span>
+          </div>
+          <div style="text-align: right;">
+            ${hrSign.startsWith('data:image/') ? `<img src="${hrSign}" style="max-height: 40px; max-width: 180px; object-fit: contain; margin-bottom: 4px;" />` : `<div style="font-style: italic; font-size: 16px; margin-bottom: 4px; font-weight: bold;">${hrSign}</div>`}
+            <div style="font-size: 12px; color: #666; border-top: 1px solid #ccc; padding-top: 4px;">Authorized HR Manager Signature</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const opt = {
+      margin:       0.5,
+      filename:     `${exitingEmp.name}_NOC_Certificate.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true },
+      jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(htmlContent).save().then(() => {
+      alert('NOC fully signed and downloaded. ERP login session revoked.');
+      setHrSign('');
+    }).catch(err => {
+      console.error(err);
+      alert('Failed to generate PDF.');
+    });
   };
 
-  const assetsFullyReturned = assetLaptop && assetToken && assetPhone;
+  const handleSignRelieving = async (e) => {
+    e.preventDefault();
+    if (!relievingSign.trim()) {
+      alert('Please fill in your digital signature to sign off.');
+      return;
+    }
+
+    const htmlContent = `
+      <div style="padding: 40px; background: white; color: black; font-family: monospace; font-size: 14px; line-height: 1.6; width: 700px; box-sizing: border-box; margin: 0 auto; text-align: justify;">
+        <img src="/hmns-logo.png" style="width: 100%; height: auto; max-height: 100px; object-fit: contain; margin-bottom: 20px;" crossorigin="anonymous" />
+        <div style="text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 30px; letter-spacing: 1px;">RELIEVING LETTER</div>
+        ${relievingContentRef.current ? relievingContentRef.current.innerHTML : ''}
+        <div style="margin-top: 40px; display: flex; justify-content: space-between; align-items: flex-end;">
+          <div></div>
+          <div style="text-align: right;">
+            ${relievingSign.startsWith('data:image/') ? `<img src="${relievingSign}" style="max-height: 40px; max-width: 180px; object-fit: contain; margin-bottom: 4px;" />` : `<div style="font-style: italic; font-size: 16px; margin-bottom: 4px; font-weight: bold;">${relievingSign}</div>`}
+            <div style="font-size: 12px; color: #666; border-top: 1px solid #ccc; padding-top: 4px;">Authorized HR Manager Signature</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const opt = {
+      margin:       0.5,
+      filename:     `${exitingEmp.name}_Relieving_Letter.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true },
+      jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(htmlContent).save().then(() => {
+      alert('Relieving Letter fully signed and downloaded.');
+      setRelievingSign('');
+    }).catch(err => {
+      console.error(err);
+      alert('Failed to generate PDF.');
+    });
+  };
+
+  const assetsFullyReturned = employeeAssets.length === 0 || employeeAssets.every(a => a.returnStatus === 'Signed');
 
   return (
     <div className="component-container">
@@ -183,7 +341,8 @@ export function ExitFnFView() {
             { id: 'resignations', label: 'Resignations Tracker' },
             { id: 'assets', label: 'Asset Return Checklist' },
             { id: 'fnf', label: 'FnF Payout Calculator' },
-            { id: 'noc', label: 'NOC e-Sign Portal' }
+            { id: 'noc', label: 'NOC e-Sign Portal' },
+            { id: 'relieving', label: 'Relieving Letter' }
           ].map(tab => (
             <button
               key={tab.id}
@@ -204,28 +363,7 @@ export function ExitFnFView() {
           ))}
         </div>
 
-        {exitTab === 'resignations' && (
-          <button
-            onClick={() => setIsCalibrateOpen(true)}
-            className="print-btn"
-            style={{
-              backgroundColor: 'var(--accent-pink)',
-              color: '#fff',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '10px',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: 'var(--shadow-sm)'
-            }}
-          >
-            🚪 Calibrate Notice Period
-          </button>
-        )}
+
       </div>
 
       {exitTab === 'resignations' && (
@@ -240,13 +378,14 @@ export function ExitFnFView() {
                   <th style={{ padding: '16px 40px', textAlign: 'left' }}>Submission Date</th>
                   <th style={{ padding: '16px 40px', textAlign: 'left' }}>Last Working Date (LWD)</th>
                   <th style={{ padding: '16px 40px', textAlign: 'left' }}>Urgent Exit Reason</th>
+                  <th style={{ padding: '16px 40px', textAlign: 'left' }}>CEO Status</th>
                   <th style={{ padding: '16px 40px', textAlign: 'left' }}>Status</th>
                   <th style={{ padding: '16px 40px', textAlign: 'left' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {resignations?.map((r, idx) => {
-                  const employee = employees.find(e => e.id === r.employee_id) || { name: 'Unknown' };
+                  const employee = employees.find(e => e.id === (r.employee_id || r.user_id)) || { name: 'Unknown' };
                   return (
                     <tr key={idx} onClick={() => { setSelectedResignId(r.id); setRelievingDate(r.LWD); }} style={{ cursor: 'pointer', backgroundColor: selectedResignId === r.id ? 'rgba(236,72,153,0.05)' : 'transparent' }}>
                       <td style={{ padding: '16px 40px' }}>
@@ -257,24 +396,36 @@ export function ExitFnFView() {
                       <td style={{ padding: '16px 40px' }}>{r.LWD}</td>
                       <td style={{ padding: '16px 40px', fontSize: '11.5px', maxWidth: '180px' }}>"{r.reason}"</td>
                       <td style={{ padding: '16px 40px' }}>
+                        <span className={`badge-pill ${(!r.ceo_status || r.ceo_status === 'pending' || r.ceo_status === 'Pending') ? 'badge-gold' : r.ceo_status === 'rejected' ? 'badge-pink' : 'badge-green'}`}>
+                          {r.ceo_status || 'Pending'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '16px 40px' }}>
                         <span className={`badge-pill ${r.status === 'pending' ? 'badge-gold' : r.status === 'approved' ? 'badge-blue' : 'badge-green'}`}>
                           {r.status}
                         </span>
                       </td>
                       <td style={{ padding: '16px 40px' }}>
-                        <button
-                          className="print-btn"
-                          style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedResignId(r.id);
-                            setRelievingDate(r.LWD);
-                            setIsCalibrateOpen(true);
-                          }}
-                        >
-                          <Edit size={12} />
-                          Calibrate LWD
-                        </button>
+                        {r.status === 'pending' ? (
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', backgroundColor: 'var(--accent-green, #10b981)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                              onClick={(e) => handleApproveInline(r.id, employee.name, e)}
+                            >
+                              <CheckCircle size={12} />
+                              Approve
+                            </button>
+                            <button
+                              style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                              onClick={(e) => handleRejectInline(r.id, employee.name, e)}
+                            >
+                              <X size={12} />
+                              Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Actioned</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -288,35 +439,25 @@ export function ExitFnFView() {
       {exitTab === 'assets' && (
         <div style={{ display: 'flex', gap: '24px', justify: 'center' }}>
           <div className="card flex-2" style={{ borderLeft: '4px solid var(--accent-pink)', margin: 0 }}>
-            <h3>🛠️ Asset Allocation Checklist Checklist</h3>
+            <h3>🛠️ Asset Allocation Checklist</h3>
             <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px' }}>
               Confirm all corporate physical hardware properties are checked as returned by corresponding IT Leads before F&amp;F settlement is unblocked.
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'var(--bg-tertiary)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', cursor: 'pointer' }}>
-                <input type="checkbox" checked={assetLaptop} onChange={() => toggleAssetStatus('Laptop')} style={{ width: '20px', height: '20px' }} />
-                <div>
-                  <strong>Corporate MacBook Pro Silicon</strong>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>SN: NSG-MAC-093 | Verified physical casing clean</div>
-                </div>
-              </label>
-
-              <label style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'var(--bg-tertiary)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', cursor: 'pointer' }}>
-                <input type="checkbox" checked={assetToken} onChange={() => toggleAssetStatus('Access Card')} style={{ width: '20px', height: '20px' }} />
-                <div>
-                  <strong>RSA Security Hardware OTP Token</strong>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>ID: RSA-8472-F | Revoked MFA connections</div>
-                </div>
-              </label>
-
-              <label style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'var(--bg-tertiary)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', cursor: 'pointer' }}>
-                <input type="checkbox" checked={assetPhone} onChange={() => toggleAssetStatus('Headset')} style={{ width: '20px', height: '20px' }} />
-                <div>
-                  <strong>Corporate Mobile (iPhone SE)</strong>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>SN: NSG-PHN-201 | Sim-card retrieved and archived</div>
-                </div>
-              </label>
+              {employeeAssets.length === 0 ? (
+                <div style={{ padding: '12px', color: 'var(--text-muted)' }}>No assets assigned to this employee.</div>
+              ) : (
+                employeeAssets.map(asset => (
+                  <label key={asset.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'var(--bg-tertiary)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={asset.returnStatus === 'Signed'} onChange={() => toggleAssetStatus(asset.id)} style={{ width: '20px', height: '20px' }} />
+                    <div>
+                      <strong>{asset.name}</strong>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>SN: {asset.serialNumber || 'N/A'} | Tag: {asset.id} | Type: {asset.type}</div>
+                    </div>
+                  </label>
+                ))
+              )}
             </div>
           </div>
 
@@ -327,13 +468,31 @@ export function ExitFnFView() {
                 <div style={{ color: 'var(--accent-green)' }}>
                   <CheckCircle size={48} />
                   <h4 style={{ margin: '8px 0 0 0' }}>All Assets Returned</h4>
-                  <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>Final FnF and NOC dispatch channels unlocked.</span>
+                  <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', display: 'block', marginBottom: '16px' }}>Final FnF and NOC dispatch channels unlocked.</span>
+                  
+                  <button 
+                    onClick={() => setExitTab('fnf')}
+                    style={{
+                      background: 'var(--accent-green)',
+                      color: '#fff',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      fontSize: '12px',
+                      width: '100%',
+                      display: 'inline-block'
+                    }}
+                  >
+                    Apply FnF Payout Calculator
+                  </button>
                 </div>
               ) : (
                 <div style={{ color: '#fbbf24' }}>
                   <Lock size={48} />
                   <h4 style={{ margin: '8px 0 0 0' }}>F&amp;F Settlements Locked</h4>
-                  <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>You must check off all 3 assets as returned to unblock corporate clearance settlement files.</span>
+                  <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>You must check off all {employeeAssets.length} assets as returned to unblock corporate clearance settlement files.</span>
                 </div>
               )}
             </div>
@@ -350,37 +509,44 @@ export function ExitFnFView() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', margin: '16px 0' }}>
               <div>
                 <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '12px', display: 'block' }}>Accrued earned salary till LWD</label>
+                  <label style={{ fontSize: '12px', display: 'block' }}>Basic Salary</label>
                 </div>
-                <input type="number" value={earnedSalary} onChange={(e) => setEarnedSalary(Number(e.target.value))} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
+                <input type="number" value={basicSalary} onChange={(e) => setBasicSalary(Number(e.target.value))} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
               </div>
               
               <div>
                 <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '12px', display: 'block' }}>EL Encashment (Synced Leave Balance)</label>
+                  <label style={{ fontSize: '12px', display: 'block' }}>HRA</label>
                 </div>
-                <input type="text" readOnly value={`₹${elEncashment.toLocaleString()}`} style={{ width: '100%', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', padding: '8px', borderRadius: '6px' }} />
+                <input type="number" value={hra} onChange={(e) => setHra(Number(e.target.value))} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
               </div>
 
               <div>
                 <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '12px', display: 'block' }}>Reimbursements &amp; Expense claims</label>
+                  <label style={{ fontSize: '12px', display: 'block' }}>Allowances</label>
                 </div>
-                <input type="number" value={reimbursements} onChange={(e) => setReimbursements(Number(e.target.value))} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
+                <input type="number" value={allowances} onChange={(e) => setAllowances(Number(e.target.value))} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
               </div>
 
               <div>
                 <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '12px', display: 'block' }}>Gratuity Accumulation Payout</label>
+                  <label style={{ fontSize: '12px', display: 'block' }}>EPF</label>
                 </div>
-                <input type="number" value={gratuity} onChange={(e) => setGratuity(Number(e.target.value))} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
+                <input type="number" value={epf} onChange={(e) => setEpf(Number(e.target.value))} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
               </div>
 
               <div>
                 <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '12px', display: 'block' }}>Outstanding Loan Deduction (Payroll Loans)</label>
+                  <label style={{ fontSize: '12px', display: 'block' }}>TDS</label>
                 </div>
-                <input type="text" readOnly value={`- ₹${loanDeduction.toLocaleString()}`} style={{ width: '100%', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: 'red', padding: '8px', borderRadius: '6px', fontWeight: 'bold' }} />
+                <input type="number" value={tds} onChange={(e) => setTds(Number(e.target.value))} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
+              </div>
+
+              <div>
+                <div style={{ marginBottom: '8px' }}>
+                  <label style={{ fontSize: '12px', display: 'block' }}>LOP</label>
+                </div>
+                <input type="number" value={lop} onChange={(e) => setLop(Number(e.target.value))} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
               </div>
             </div>
 
@@ -396,11 +562,11 @@ export function ExitFnFView() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px', margin: '16px 0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span>Gross Additions:</span>
-                  <strong>₹{(earnedSalary + elEncashment + reimbursements + gratuity).toLocaleString()}</strong>
+                  <strong>₹{grossAdditions.toLocaleString()}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span>Total Deductions:</span>
-                  <strong style={{ color: 'red' }}>- ₹{loanDeduction.toLocaleString()}</strong>
+                  <strong style={{ color: 'red' }}>- ₹{totalDeductions.toLocaleString()}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyBetween: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '10px', fontSize: '16px', fontWeight: 'bold' }}>
                   <span>Net FnF Payout:</span>
@@ -427,7 +593,7 @@ export function ExitFnFView() {
                 }}
               >
                 {!assetsFullyReturned && <Lock size={14} />} 
-                {activeResignation.status === 'cleared' ? 'Settlement Finalized ✓' : 'Finalize FnF Settlement'}
+                {activeResignation.status === 'cleared' ? 'Settlement Finalized ✓' : 'Apply NOC'}
               </button>
             </div>
           )}
@@ -440,20 +606,21 @@ export function ExitFnFView() {
             <div style={{ border: '1px solid var(--border-color)', padding: '24px', borderRadius: '12px', backgroundColor: 'var(--bg-primary)', fontFamily: 'var(--font-mono)', fontSize: '12px', lineHeight: '1.6', color: 'var(--text-primary)' }}>
               <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '15px', marginBottom: '20px', letterSpacing: '1px' }}>NO OBJECTION CERTIFICATE</div>
               
-              <p>Date: {new Date().toLocaleDateString()}</p>
-              
-              <p>
-                This is to certify that <strong>{exitingEmp.name}</strong>, holding designation <strong>{exitingEmp.designation}</strong> in 
-                the <strong>{exitingEmp.department}</strong> department, has resigned from employment and is fully relieved of duties effective 
-                on last working date <strong>{activeResignation.LWD}</strong>.
-              </p>
+              <div ref={nocContentRef} contentEditable suppressContentEditableWarning style={{ outline: 'none', minHeight: '150px', padding: '16px', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-tertiary)', marginBottom: '40px' }}>
+                <p>Date: {new Date().toLocaleDateString()}</p>
+                <p>
+                  This is to certify that <strong>{exitingEmp.name}</strong>, holding designation <strong>{exitingEmp.designation}</strong> in 
+                  the <strong>{exitingEmp.department}</strong> department, has resigned from employment and is fully relieved of duties effective 
+                  on last working date <strong>{activeResignation.LWD}</strong>.
+                </p>
 
-              <p>
-                We confirm that the employee has completed all handovers, returned corporate physical properties, and cleared all full and final 
-                settlement ledgers (Net F&amp;F: ₹{totalFnFPayout.toLocaleString()}) without outstanding advances.
-              </p>
+                <p>
+                  We confirm that the employee has completed all handovers, returned corporate physical properties, and cleared all full and final 
+                  settlement ledgers (Net F&amp;F: ₹{totalFnFPayout.toLocaleString()}) without outstanding advances.
+                </p>
 
-              <p>We wish them outstanding success in all future professional endeavors.</p>
+                <p>We wish them outstanding success in all future professional endeavors.</p>
+              </div>
               
               <div style={{ marginTop: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                 <div>
@@ -461,41 +628,90 @@ export function ExitFnFView() {
                   <span style={{ color: 'var(--accent-green)', fontWeight: 'bold' }}>Assets &amp; FnF Cleared ✓</span>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <input
-                    type="text"
-                    value={hrSign}
-                    onChange={(e) => setHrSign(e.target.value)}
-                    required
-                    placeholder="Input Digital Sign..."
-                    style={{ background: 'none', border: 'none', borderBottom: '1px solid var(--border-color)', color: '#fff', fontSize: '13px', textAlign: 'right', outline: 'none', width: '180px', fontStyle: 'italic' }}
-                  />
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>Authorized HR Manager Signature</div>
+                  <SignatureInput value={hrSign} onChange={setHrSign} />
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', marginBottom: '16px' }}>Authorized HR Manager Signature</div>
+                  
+                  <button
+                    type="submit"
+                    disabled={!hrSign.trim()}
+                    style={{
+                      background: 'var(--accent-pink)',
+                      border: 'none',
+                      color: '#fff',
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      cursor: (!hrSign.trim()) ? 'not-allowed' : 'pointer',
+                      opacity: (!hrSign.trim()) ? 0.5 : 1,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontWeight: 'bold',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <Download size={14} /> Download PDF
+                  </button>
                 </div>
               </div>
             </div>
+          </form>
+        </div>
+      )}
 
-            <button
-              type="submit"
-              disabled={activeResignation.status !== 'cleared' || exitingEmp.status === 'inactive'}
-              style={{
-                marginTop: '16px',
-                width: '100%',
-                justifyContent: 'center',
-                backgroundColor: (activeResignation.status === 'cleared' && exitingEmp.status !== 'inactive') ? 'var(--accent-pink)' : 'rgba(255,255,255,0.05)',
-                color: (activeResignation.status === 'cleared' && exitingEmp.status !== 'inactive') ? '#fff' : 'var(--text-muted)',
-                cursor: (activeResignation.status === 'cleared' && exitingEmp.status !== 'inactive') ? 'pointer' : 'not-allowed',
-                border: (activeResignation.status === 'cleared' && exitingEmp.status !== 'inactive') ? 'none' : '1px solid var(--border-color)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px',
-                borderRadius: '8px',
-                fontWeight: 'bold'
-              }}
-            >
-              {activeResignation.status !== 'cleared' && <Lock size={14} />}
-              {exitingEmp.status === 'inactive' ? 'NOC Fully Dispatched & Session Revoked ✓' : 'Sign & Dispatch NOC Certificate'}
-            </button>
+      {exitTab === 'relieving' && (
+        <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
+          <form onSubmit={handleSignRelieving} className="card flex-2" style={{ borderLeft: '4px solid var(--accent-pink)', margin: 0, padding: '24px' }}>
+            <div style={{ border: '1px solid var(--border-color)', padding: '24px', borderRadius: '12px', backgroundColor: 'var(--bg-primary)', fontFamily: 'var(--font-mono)', fontSize: '12px', lineHeight: '1.6', color: 'var(--text-primary)' }}>
+              <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '15px', marginBottom: '20px', letterSpacing: '1px' }}>RELIEVING LETTER</div>
+              
+              <div ref={relievingContentRef} contentEditable suppressContentEditableWarning style={{ outline: 'none', minHeight: '150px', padding: '16px', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-tertiary)', marginBottom: '40px' }}>
+                <p>Date: {new Date().toLocaleDateString()}</p>
+                
+                <p>To,<br/><strong>{exitingEmp.name}</strong><br/>Emp ID: {exitingEmp.id}</p>
+                <p><strong>Subject: Relieving Letter</strong></p>
+                
+                <p>Dear {exitingEmp.name},</p>
+                <p style={{ textAlign: 'justify' }}>
+                  This has reference to your resignation letter dated <strong>{activeResignation.submissionDate || activeResignation.resignation_date}</strong>. We would like to inform you that your resignation has been accepted and you are being relieved from the services of the company effective from the closing of working hours on <strong>{activeResignation.LWD}</strong>.
+                </p>
+                
+                <p style={{ textAlign: 'justify' }}>
+                  Your full and final settlement has been processed successfully. We appreciate your contributions to HMNS Software Solution Pvt Ltd during your tenure and wish you the best for your future endeavors.
+                </p>
+                <p>Yours Sincerely,</p>
+              </div>
+              
+              <div style={{ marginTop: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                <div></div>
+                <div style={{ textAlign: 'right' }}>
+                  <SignatureInput value={relievingSign} onChange={setRelievingSign} />
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', marginBottom: '16px' }}>Authorized HR Manager Signature</div>
+                  
+                  <button
+                    type="submit"
+                    disabled={!relievingSign.trim()}
+                    style={{
+                      background: 'var(--accent-pink)',
+                      border: 'none',
+                      color: '#fff',
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      cursor: (!relievingSign.trim()) ? 'not-allowed' : 'pointer',
+                      opacity: (!relievingSign.trim()) ? 0.5 : 1,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontWeight: 'bold',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <Download size={14} /> Download PDF
+                  </button>
+                </div>
+              </div>
+            </div>
           </form>
         </div>
       )}
@@ -575,7 +791,7 @@ export function ExitFnFView() {
               </div>
 
               <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-tertiary)', border: '1px dashed var(--border-color)', padding: '12px', borderRadius: '8px', lineHeight: '1.4', marginTop: '4px' }}>
-                ℹ️ Default notice period is 30 days. Early relieving overrides will create immutable audit logs in the database.
+                ℹ️ Default notice period is 15 days. Early relieving overrides will create immutable audit logs in the database.
               </div>
             </div>
 

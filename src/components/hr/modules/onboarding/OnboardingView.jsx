@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, Edit } from 'lucide-react';
+import { Trash2, Edit, Users } from 'lucide-react';
 import { notify } from '../../utils/notify';
 import { generateOfferLetterPDF } from '../../../../utils/offerLetterGenerator';
 
@@ -57,11 +57,154 @@ export function OnboardingView({ queryParams, setQueryParams }) {
   const [requiresEsign, setRequiresEsign] = useState(false);
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
 
-  // Asset Allocation State
-  const [allocatingAsset, setAllocatingAsset] = useState(null); // task object
-  const [laptopModel, setLaptopModel] = useState('MacBook Pro M3 Max (16")');
-  const [serialNumber, setSerialNumber] = useState('NSG-HW-73942');
-  const [allocatedMonitors, setAllocatedMonitors] = useState('Dual 27" Dell UltraSharp 4K');
+  // Asset Provisioning State
+  const [employeeAssets, setEmployeeAssets] = useState([]);
+  const [newAssetType, setNewAssetType] = useState('');
+  const [newAssetName, setNewAssetName] = useState('');
+  const [newAssetSerial, setNewAssetSerial] = useState('');
+  const [isAssigningAsset, setIsAssigningAsset] = useState(false);
+
+  // Document Provisioning State
+  const [selectedDocInstance, setSelectedDocInstance] = useState(null);
+  const [employeeDocs, setEmployeeDocs] = useState([]);
+  const [newDocName, setNewDocName] = useState('');
+  const [newDocFile, setNewDocFile] = useState(null);
+  const [isAssigningDoc, setIsAssigningDoc] = useState(false);
+
+  useEffect(() => {
+    if (selectedDocInstance) {
+      let ignore = false;
+      setEmployeeDocs([]);
+      setNewDocName('');
+      setNewDocFile(null);
+      
+      const fetchDocs = async () => {
+        try {
+          const token = localStorage.getItem('nsg_jwt_token');
+          const res = await fetch(`/api/hr-portal/onboarding/documents/${selectedDocInstance.id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (!ignore) {
+              setEmployeeDocs(data);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch documents', err);
+        }
+      };
+      fetchDocs();
+      return () => { ignore = true; };
+    }
+  }, [selectedDocInstance]);
+
+  const handleAssignDoc = async (e) => {
+    e.preventDefault();
+    if (!selectedDocInstance) return;
+    if (!newDocFile) {
+        notify('Please select a file to upload', 'error');
+        return;
+    }
+    setIsAssigningDoc(true);
+    
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const formData = new FormData();
+      formData.append('name', newDocName);
+      formData.append('file', newDocFile);
+      
+      const res = await fetch(`/api/hr-portal/onboarding/documents/${selectedDocInstance.id}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData
+      });
+      if (res.ok) {
+        const addedDoc = await res.json();
+        setEmployeeDocs([...employeeDocs, addedDoc]);
+        setNewDocName('');
+        setNewDocFile(null);
+        notify('Document saved to database successfully', 'success');
+      } else {
+        notify('Failed to save document', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      notify('Failed to save document', 'error');
+    } finally {
+      setIsAssigningDoc(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedInstance) {
+      let ignore = false;
+      setEmployeeAssets([]);
+      setNewAssetType('');
+      setNewAssetName('');
+      setNewAssetSerial('');
+      const fetchAssets = async () => {
+        try {
+          const token = localStorage.getItem('nsg_jwt_token');
+          const res = await fetch(`/api/hr-portal/onboarding/assets/${selectedInstance.id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (!ignore) {
+              setEmployeeAssets(data);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch assets', err);
+        }
+      };
+      fetchAssets();
+      return () => { ignore = true; };
+    }
+  }, [selectedInstance]);
+
+  const handleAssignAsset = async (e) => {
+    e.preventDefault();
+    if (!selectedInstance) return;
+    setIsAssigningAsset(true);
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const generatedTag = 'NSG-' + newAssetType.substring(0, 3).toUpperCase() + '-' + Math.floor(1000 + Math.random() * 9000);
+      const payload = {
+        assetTag: generatedTag,
+        type: newAssetType,
+        name: newAssetName,
+        serialNumber: newAssetSerial,
+        condition: 'New'
+      };
+      const res = await fetch(`/api/hr-portal/onboarding/assets/${selectedInstance.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        const addedAsset = await res.json();
+        setEmployeeAssets([...employeeAssets, addedAsset]);
+        setNewAssetType('');
+        setNewAssetName('');
+        setNewAssetSerial('');
+        notify('Asset assigned successfully', 'success');
+      } else {
+        notify('Failed to assign asset', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      notify('Error assigning asset', 'error');
+    } finally {
+      setIsAssigningAsset(false);
+    }
+  };
 
   // E-Sign Document Preview State
   const [activeDocPreview, setActiveDocPreview] = useState(null); // request object
@@ -277,9 +420,8 @@ export function OnboardingView({ queryParams, setQueryParams }) {
         <div style={{ display: 'flex', gap: '16px' }}>
           {[
             { id: 'active', label: 'New Hires' },
-            { id: 'templates', label: 'Setup Checklists' },
-            { id: 'overdue', label: 'Overdue Tasks' },
-            { id: 'esign', label: 'Signed Documents' }
+            { id: 'templates', label: 'Asset Provided' },
+            { id: 'esign', label: 'Documents' }
           ].map(tab => (
             <button
               key={tab.id}
@@ -303,28 +445,7 @@ export function OnboardingView({ queryParams, setQueryParams }) {
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
 
 
-          {onboardingTab === 'templates' && (
-            <button
-              onClick={() => setIsAddTaskOpen(true)}
-              className="print-btn"
-              style={{
-                backgroundColor: 'var(--accent-pink)',
-                color: '#fff',
-                border: 'none',
-                padding: '8px 16px',
-                borderRadius: '10px',
-                fontSize: '13px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                boxShadow: 'var(--shadow-sm)'
-              }}
-            >
-              ➕ Add Task Flow
-            </button>
-          )}
+
         </div>
       </div>
 
@@ -375,24 +496,45 @@ export function OnboardingView({ queryParams, setQueryParams }) {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                  <div style={{ display: 'flex', gap: '4px', marginTop: '12px' }}>
                     <button
                       className="print-btn"
-                      style={{ width: '50%', justifyContent: 'center' }}
-                      onClick={() => setSelectedInstance(emp)}
+                      title="Open in Edit Employee Profile"
+                      style={{ flex: 'none', justifyContent: 'center', padding: '6px', fontSize: '11px', width: '32px' }}
+                      onClick={() => {
+                        const q = new URLSearchParams({
+                          empId: emp.id,
+                          subTab: 'editEmployee'
+                        });
+                        window.location.hash = `#/HR/employees?${q.toString()}`;
+                      }}
                     >
-                      View Checklist
+                      <Users size={14} />
                     </button>
                     <button
                       className="print-btn"
-                      style={{ width: '50%', justifyContent: 'center', backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none' }}
+                      style={{ flex: 1, justifyContent: 'center', padding: '6px', fontSize: '11px' }}
+                      onClick={() => setSelectedInstance(emp)}
+                    >
+                      Assets
+                    </button>
+                    <button
+                      className="print-btn"
+                      style={{ flex: 1, justifyContent: 'center', padding: '6px', fontSize: '11px' }}
+                      onClick={() => setSelectedDocInstance(emp)}
+                    >
+                      Docs
+                    </button>
+                    <button
+                      className="print-btn"
+                      style={{ flex: 1, justifyContent: 'center', padding: '6px', fontSize: '11px', backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none' }}
                       onClick={() => {
                         setOfferEmp(emp);
                         setOfferRefStr(`SS${new Date().getMonth()+1}${new Date().getFullYear().toString().slice(-2)}HYD${Math.floor(100 + Math.random() * 900)}`);
                         setShowOfferModal(true);
                       }}
                     >
-                      Offer Letter
+                      Offer
                     </button>
                   </div>
                 </div>
@@ -410,89 +552,42 @@ export function OnboardingView({ queryParams, setQueryParams }) {
       )}
 
       {onboardingTab === 'templates' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Active tasks in general template */}
-          <div className="table-container" style={{ margin: 0, width: '100%', overflowX: 'auto' }}>
-            <div className="pipeline-title" style={{ padding: '16px 16px 0 16px' }}>Corporate Onboarding General Template Task Roster</div>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th style={{ padding: '16px 24px' }}>Task Name</th>
-                  <th style={{ padding: '16px 24px' }}>Assigned to Role</th>
-                  <th style={{ padding: '16px 24px' }}>Due Day Offset</th>
-                  <th style={{ padding: '16px 24px' }}>Mandatory</th>
-                  <th style={{ padding: '16px 24px' }}>Requires E-Sign</th>
-                  <th style={{ padding: '16px 24px' }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {templates[0].tasks.map((tk, idx) => (
-                  <tr key={idx}>
-                    <td style={{ padding: '16px 24px' }}><strong>{tk.name}</strong></td>
-                    <td style={{ padding: '16px 24px' }}><span className="badge-pill bg-blue">{tk.role}</span></td>
-                    <td style={{ padding: '16px 24px' }}>Day +{tk.offset}</td>
-                    <td style={{ padding: '16px 24px' }}>{tk.mandatory ? 'Yes ✓' : 'Optional'}</td>
-                    <td style={{ padding: '16px 24px' }}>{tk.esign ? 'E-Sign Required' : 'No'}</td>
-                    <td style={{ padding: '16px 24px' }}>
-                      <button
-                        onClick={() => handleDeleteTemplateTask(tk.name)}
-                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {onboardingTab === 'overdue' && (
         <div className="table-container">
-          <div className="pipeline-title" style={{ padding: '16px 16px 0 16px' }}>Onboarding Overdue Escalations Watchdog</div>
+          <div className="pipeline-title" style={{ padding: '16px 16px 0 16px' }}>Asset Provisioning Status</div>
           <table className="data-table">
             <thead>
               <tr>
-                <th style={{ padding: '16px 24px' }}>Employee</th>
-                <th style={{ padding: '16px 24px' }}>Task Name</th>
-                <th style={{ padding: '16px 24px' }}>Assigned To Role</th>
-                <th style={{ padding: '16px 24px' }}>Due Date</th>
-                <th style={{ padding: '16px 24px' }}>Status</th>
-                <th style={{ padding: '16px 24px' }}>Action</th>
+                <th style={{ padding: '16px 24px' }}>Candidate Name</th>
+                <th style={{ padding: '16px 24px' }}>Employee ID</th>
+                <th style={{ padding: '16px 24px' }}>Designation</th>
+                <th style={{ padding: '16px 24px', textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {overdueTasks.map(t => {
-                const emp = db.employees.find(e => e.id === t.instance_id) || { name: 'Unknown' };
-                return (
-                  <tr key={t.id}>
-                    <td style={{ padding: '16px 24px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo} alt={emp.name} style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }}  />
-                        <strong>{emp.name}</strong>
-                      </div>
-                    </td>
-                    <td style={{ padding: '16px 24px' }}>{t.task_name}</td>
-                    <td style={{ padding: '16px 24px' }}><span className="badge-pill bg-pink">{t.assigned_to}</span></td>
-                    <td style={{ padding: '16px 24px' }}><span style={{ color: 'red', fontWeight: 'bold' }}>{t.due_date} (Overdue)</span></td>
-                    <td style={{ padding: '16px 24px' }}><span className="badge-pill danger">Overdue SLA</span></td>
-                    <td style={{ padding: '16px 24px' }}>
-                      <button
-                        className="print-btn"
-                        style={{ padding: '4px 8px', fontSize: '10px' }}
-                        onClick={() => handleSendOverdueReminder(t)}
-                      >
-                        Send Alert Reminder
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-              {overdueTasks.length === 0 && (
+              {activeProbationers.map(emp => (
+                <tr key={emp.id}>
+                  <td style={{ padding: '16px 24px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo} alt={emp.name} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }}  />
+                      <strong>{emp.name}</strong>
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 24px' }}><span className="code-span">{emp.emp_id}</span></td>
+                  <td style={{ padding: '16px 24px', color: 'var(--text-secondary)' }}>{emp.designation}</td>
+                  <td style={{ padding: '16px 24px', textAlign: 'right' }}>
+                    <button
+                      className="print-btn"
+                      style={{ padding: '6px 12px', fontSize: '12px' }}
+                      onClick={() => setSelectedInstance(emp)}
+                    >
+                      View Assets
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {activeProbationers.length === 0 && (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '16px', color: 'var(--text-muted)' }}>No onboarding tasks are currently overdue. SLA compliant ✓</td>
+                  <td colSpan={4} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>No active candidates found.</td>
                 </tr>
               )}
             </tbody>
@@ -502,193 +597,195 @@ export function OnboardingView({ queryParams, setQueryParams }) {
 
       {onboardingTab === 'esign' && (
         <div className="table-container">
-          <div className="pipeline-title" style={{ padding: '16px 16px 0 16px' }}>Digital Document E-Signature Secure Portal</div>
+          <div className="pipeline-title" style={{ padding: '16px 16px 0 16px' }}>Document Provisioning Status</div>
           <table className="data-table">
             <thead>
               <tr>
-                <th style={{ padding: '16px 24px' }}>Employee</th>
-                <th style={{ padding: '16px 24px' }}>Agreement Document Name</th>
-                <th style={{ padding: '16px 24px' }}>Sent Timestamp</th>
-                <th style={{ padding: '16px 24px' }}>Status</th>
-                <th style={{ padding: '16px 24px' }}>Actions</th>
-                <th style={{ padding: '16px 24px' }}>Manage</th>
+                <th style={{ padding: '16px 24px' }}>Candidate Name</th>
+                <th style={{ padding: '16px 24px' }}>Employee ID</th>
+                <th style={{ padding: '16px 24px' }}>Designation</th>
+                <th style={{ padding: '16px 24px', textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {esignRequests.map(req => {
-                const emp = db.employees.find(e => e.id === req.employee_id) || { name: 'Unknown' };
-                return (
-                  <tr key={req.id}>
-                    <td style={{ padding: '16px 24px' }}><strong>{emp.name}</strong></td>
-                    <td style={{ padding: '16px 24px' }}>
-                      <span 
-                        style={{ textDecoration: 'underline', color: 'var(--accent-pink)', cursor: req.status === 'pending' ? 'pointer' : 'default' }}
-                        onClick={() => req.status === 'pending' && setActiveDocPreview(req)}
-                      >
-                        {req.document_name}
-                      </span>
-                    </td>
-                    <td style={{ padding: '16px 24px', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>{new Date(req.sent_at).toLocaleString()}</td>
-                    <td style={{ padding: '16px 24px' }}>
-                      <span className={`badge-pill ${req.status === 'signed' ? 'badge-green' : 'badge-gold'}`}>
-                        {req.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '16px 24px' }}>
-                      {req.status === 'pending' ? (
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button
-                            className="print-btn"
-                            style={{ padding: '4px 8px', fontSize: '10px' }}
-                            onClick={() => notify(`Resent NDA document signature request to ${emp.name}`, 'info')}
-                          >
-                            Resend Link
-                          </button>
-                          <button
-                            className="print-btn"
-                            style={{ padding: '4px 8px', fontSize: '10px', backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none' }}
-                            onClick={() => {
-                              setActiveDocPreview(req);
-                              setTypedSignature(emp.name);
-                            }}
-                          >
-                            ✍️ Secure Sign
-                          </button>
-                        </div>
-                      ) : (
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Completed on {new Date(req.signed_at).toLocaleDateString()}</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '16px 24px' }}>
-                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        <button
-                          onClick={() => {
-                            setEditingEsign(req);
-                            setEditDocName(req.document_name);
-                            setEditEmpId(req.employee_id);
-                            
-                            // Format sent_at for datetime-local (YYYY-MM-DDTHH:MM local time representation)
-                            const dateObj = new Date(req.sent_at || Date.now());
-                            const tzOffset = dateObj.getTimezoneOffset() * 60000;
-                            const localISOTime = (new Date(dateObj - tzOffset)).toISOString().slice(0, 16);
-                            setEditSentAt(localISOTime);
-                            
-                            setEditStatus(req.status || 'pending');
-                          }}
-                          style={{ background: 'none', border: 'none', color: 'var(--accent-blue)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}
-                          title="Edit E-Sign Request"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteEsign(req.id)}
-                          style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}
-                          title="Void & Delete Request"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {activeProbationers.map(emp => (
+                <tr key={emp.id}>
+                  <td style={{ padding: '16px 24px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo} alt={emp.name} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }}  />
+                      <strong>{emp.name}</strong>
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 24px' }}><span className="code-span">{emp.emp_id}</span></td>
+                  <td style={{ padding: '16px 24px', color: 'var(--text-secondary)' }}>{emp.designation}</td>
+                  <td style={{ padding: '16px 24px', textAlign: 'right' }}>
+                    <button
+                      className="print-btn"
+                      style={{ padding: '6px 12px', fontSize: '12px' }}
+                      onClick={() => setSelectedDocInstance(emp)}
+                    >
+                      View Docs
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {activeProbationers.length === 0 && (
+                <tr>
+                  <td colSpan={4} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>No active candidates found.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       )}
 
-      {/* Onboarding instance detailed tasks checklist modal */}
-      {selectedInstance && (() => {
-        const empTasks = onboardingTasks.filter(t => t.instance_id === selectedInstance.id);
-        const hasEsign = esignRequests.some(r => r.employee_id === selectedInstance.id && r.status === 'pending');
-        
-        return (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-            <div className="card" style={{ width: '550px', maxHeight: 'calc(100vh - 80px)', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', flexShrink: 0 }}>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={selectedInstance.photo} alt={selectedInstance.name} style={{ width: '32px', height: '32px', borderRadius: '50%' }}  />
-                  <div>
-                    <h3 style={{ margin: 0, border: 'none', padding: 0 }}>Onboarding Checklist — {selectedInstance.name}</h3>
-                    <span className="code-span" style={{ fontSize: '10px' }}>{selectedInstance.emp_id}</span>
-                  </div>
-                </div>
-                <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '18px' }} onClick={() => setSelectedInstance(null)}>✕</button>
-              </div>
+      {/* 💻 ASSET PROVISIONING MODAL */}
+      {selectedInstance && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+          <div className="card" style={{ width: '600px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', maxHeight: '90vh', padding: 0, overflow: 'hidden', borderRadius: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', padding: '24px 24px 16px 24px' }}>
+              <h3 style={{ margin: 0, border: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                💻 Asset Provisioning — {selectedInstance.name}
+              </h3>
+              <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '18px' }} onClick={() => setSelectedInstance(null)}>✕</button>
+            </div>
 
-              <div className="custom-scroll" style={{ display: 'flex', flexDirection: 'column', gap: '12px', margin: '8px 0', overflowY: 'auto', flex: 1, paddingRight: '4px' }}>
-                {empTasks.map(t => (
-                  <div key={t.id} style={{ display: 'flex', alignItems: 'flex-start', justify: 'space-between', backgroundColor: 'var(--bg-tertiary)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                      <input
-                        type="checkbox"
-                        checked={t.status === 'completed'}
-                        onChange={() => handleToggleTask(t.id)}
-                        disabled={(t.requires_esign && hasEsign) || t.task_name.includes('Workstation Setup')}
-                        style={{ width: '18px', height: '18px', cursor: ((t.requires_esign && hasEsign) || t.task_name.includes('Workstation Setup')) ? 'not-allowed' : 'pointer' }}
-                      />
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: '600', textDecoration: t.status === 'completed' ? 'line-through' : 'none', color: t.status === 'completed' ? 'var(--text-muted)' : 'var(--text-primary)' }}>{t.task_name}</div>
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Assigned to: {t.assigned_to} | Due by: {t.due_date}</span>
+            <div className="custom-scroll" style={{ overflowY: 'auto', padding: '20px 24px 24px 24px', display: 'flex', flexDirection: 'column', gap: '20px', flex: 1, minHeight: 0 }}>
+              {/* List of currently assigned assets */}
+              <div>
+                <h4 style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '10px', textTransform: 'uppercase' }}>Currently Assigned Assets</h4>
+                {employeeAssets.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {employeeAssets.map(asset => (
+                      <div key={asset.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', backgroundColor: 'var(--bg-tertiary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <div>
+                          <div style={{ fontWeight: 'bold', fontSize: '13px', color: 'var(--text-primary)' }}>{asset.name} <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'normal' }}>({asset.type})</span></div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>SN: {asset.serialNumber || 'N/A'} | Tag: {asset.assetTag}</div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <span className="badge-pill bg-blue">{asset.returnStatus}</span>
+                        </div>
                       </div>
-                    </div>
-                    <div>
-                      {t.task_name.includes('Workstation Setup') ? (
-                        t.status === 'completed' ? (
-                          <span style={{ color: 'var(--accent-green)', fontSize: '11.5px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            💻 Configured ✓
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              setAllocatingAsset(t);
-                              setSerialNumber('NSG-HW-' + Math.floor(10000 + Math.random() * 90000));
-                            }}
-                            style={{ backgroundColor: 'rgba(59,130,246,0.1)', color: 'var(--accent-blue)', border: '1px solid var(--accent-blue)', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: '600' }}
-                          >
-                            💻 Allocate Asset
-                          </button>
-                        )
-                      ) : (
-                        t.requires_esign ? (
-                          hasEsign ? (
-                            <button
-                              onClick={() => { setOnboardingTab('esign'); setSelectedInstance(null); }}
-                              style={{ backgroundColor: 'rgba(236,72,153,0.1)', color: 'var(--accent-pink)', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}
-                            >
-                              Sign Needed
-                            </button>
-                          ) : (
-                            <span style={{ color: 'var(--accent-green)', fontSize: '11px', fontWeight: 'bold' }}>Signed ✓</span>
-                          )
-                        ) : (
-                          <span className={`badge-pill ${t.status === 'completed' ? 'badge-green' : 'badge-gold'}`}>{t.status}</span>
-                        )
-                      )}
-                    </div>
+                    ))}
                   </div>
-                ))}
-
-                {empTasks.some(t => t.requires_esign && t.status !== 'completed') && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(236,72,153,0.05)', border: '1px dashed var(--accent-pink)', padding: '10px', borderRadius: '8px', marginTop: '4px' }}>
-                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>NDA document must be e-signed to complete that task.</span>
-                    <button
-                      onClick={() => handleSendEsignRequest(selectedInstance)}
-                      style={{ backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}
-                    >
-                      Send E-Sign Request
-                    </button>
+                ) : (
+                  <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--bg-primary)', borderRadius: '8px', fontSize: '12px' }}>
+                    No assets assigned yet.
                   </div>
                 )}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '12px', flexShrink: 0 }}>
-                <button className="print-btn" onClick={() => setSelectedInstance(null)}>Close View</button>
+              {/* Form to assign a new asset */}
+              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
+                <h4 style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px', textTransform: 'uppercase' }}>Assign New Asset</h4>
+                <form onSubmit={handleAssignAsset} style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Asset Type</label>
+                    <input type="text" value={newAssetType} onChange={(e) => setNewAssetType(e.target.value)} required placeholder="e.g. Laptop, Monitor, Headset..." style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
+                  </div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Asset Name / Model</label>
+                    <input type="text" value={newAssetName} onChange={(e) => setNewAssetName(e.target.value)} required placeholder="e.g. MacBook Pro M3 16-inch" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Serial Number (Optional)</label>
+                    <input type="text" value={newAssetSerial} onChange={(e) => setNewAssetSerial(e.target.value)} placeholder="e.g. C02X123456" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+                    <button type="submit" disabled={isAssigningAsset} style={{ backgroundColor: 'var(--accent-blue)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: isAssigningAsset ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 'bold', opacity: isAssigningAsset ? 0.7 : 1 }}>
+                      {isAssigningAsset ? 'Assigning...' : 'Assign Asset'}
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           </div>
-        );
-      })()}
+        </div>
+      )}
+
+      {/* 📄 DOCUMENT PROVISIONING MODAL */}
+      {selectedDocInstance && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+          <div className="card" style={{ width: '600px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', maxHeight: '90vh', padding: 0, overflow: 'hidden', borderRadius: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', padding: '24px 24px 16px 24px' }}>
+              <h3 style={{ margin: 0, border: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                📄 Document Provisioning — {selectedDocInstance.name}
+              </h3>
+              <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '18px' }} onClick={() => setSelectedDocInstance(null)}>✕</button>
+            </div>
+
+            <div className="custom-scroll" style={{ overflowY: 'auto', padding: '20px 24px 24px 24px', display: 'flex', flexDirection: 'column', gap: '20px', flex: 1, minHeight: 0 }}>
+              {/* List of currently assigned docs */}
+              <div>
+                <h4 style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '10px', textTransform: 'uppercase' }}>Currently Assigned Documents</h4>
+                {employeeDocs.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {employeeDocs.map(doc => (
+                      <div key={doc.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', backgroundColor: 'var(--bg-tertiary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <div>
+                          <div style={{ fontWeight: 'bold', fontSize: '13px', color: 'var(--text-primary)' }}>{doc.name}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>File: {doc.link ? doc.link.split('\\\\').pop().split('/').pop() : 'Uploaded'}</div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span className="badge-pill bg-green">{doc.status}</span>
+                          {doc.link && doc.link !== 'N/A' && (
+                            <a 
+                              href={doc.link} 
+                              download={doc.original_filename || 'document'}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ 
+                                backgroundColor: 'var(--accent-blue)', 
+                                color: '#fff', 
+                                padding: '4px 8px', 
+                                borderRadius: '4px', 
+                                fontSize: '11px', 
+                                textDecoration: 'none',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              Download
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--bg-primary)', borderRadius: '8px', fontSize: '12px' }}>
+                    No documents assigned yet.
+                  </div>
+                )}
+              </div>
+
+              {/* Form to assign a new doc */}
+              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
+                <h4 style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px', textTransform: 'uppercase' }}>Assign New Document</h4>
+                <form onSubmit={handleAssignDoc} style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Document Name</label>
+                    <input type="text" value={newDocName} onChange={(e) => setNewDocName(e.target.value)} required placeholder="e.g. Aadhar Card Copy" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>File Upload</label>
+                    <input type="file" onChange={(e) => setNewDocFile(e.target.files[0])} required style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+                    <button type="submit" disabled={isAssigningDoc} style={{ backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: isAssigningDoc ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 'bold', opacity: isAssigningDoc ? 0.7 : 1 }}>
+                      {isAssigningDoc ? 'Uploading...' : 'Upload Document'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 📄 OFFER LETTER GENERATION OVERLAY */}
       {showOfferModal && offerEmp && (
@@ -743,73 +840,7 @@ export function OnboardingView({ queryParams, setQueryParams }) {
         </div>
       )}
 
-      {/* 💻 IT ASSET CUSTODY ALLOCATOR OVERLAY */}
-      {allocatingAsset && (() => {
-        const emp = db.employees.find(e => e.id === allocatingAsset.instance_id) || { name: 'Employee' };
-        return (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
-            <div className="card" style={{ width: '460px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', padding: '24px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-                <h3 style={{ margin: 0, border: 'none', padding: 0, color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  💻 Asset Configuration Custody
-                </h3>
-                <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px' }} onClick={() => setAllocatingAsset(null)}>✕</button>
-              </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
-                <div>
-                  <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Target Employee</span>
-                  <div style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--text-primary)' }}>{emp.name} ({emp.designation})</div>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Laptop Hardware Class</label>
-                  <select value={laptopModel} onChange={(e) => setLaptopModel(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px', outline: 'none' }}>
-                    <option value='MacBook Pro M3 Max (16")'>MacBook Pro M3 Max (16") - Space Black</option>
-                    <option value='MacBook Air M3 (15")'>MacBook Air M3 (15") - Midnight</option>
-                    <option value='Lenovo ThinkPad X1 Carbon Gen 12'>Lenovo ThinkPad X1 Carbon Gen 12 - Core Ultra 7</option>
-                    <option value='Dell XPS 15 9530 Developer Edition'>Dell XPS 15 9530 Developer Edition - Ubuntu LTS</option>
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Auto-Generated Serial Number</label>
-                  <input type="text" value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px', outline: 'none', fontFamily: 'var(--font-mono)' }} />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Secondary Display Monitor Allocation</label>
-                  <select value={allocatedMonitors} onChange={(e) => setAllocatedMonitors(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px', outline: 'none' }}>
-                    <option value='Dual 27" Dell UltraSharp 4K'>Dual 27" Dell UltraSharp 4K Display (Dual U2723QE)</option>
-                    <option value='Single 34" LG UltraWide QHD Curved'>Single 34" LG UltraWide QHD Curved Display (34WP65G)</option>
-                    <option value='No External Monitor - Single Laptop Console'>No External Monitor - Single Laptop Console</option>
-                  </select>
-                </div>
-
-                <div style={{ backgroundColor: 'rgba(59,130,246,0.05)', border: '1px dashed var(--accent-blue)', borderRadius: '10px', padding: '12px', fontSize: '11.5px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <strong>🔒 Simulated IT Setup Inductions:</strong>
-                  <span>Auto-enrolling MAC Address, provisioning Corporate LDAP, setting up SentinelOne Active Watchdog, and configuring VPN profile configs.</span>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '14px', marginTop: '4px' }}>
-                <button style={{ background: 'none', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }} onClick={() => setAllocatingAsset(null)}>Cancel</button>
-                <button 
-                  type="button"
-                  style={{ backgroundColor: 'var(--accent-blue)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}
-                  onClick={() => {
-                    handleToggleTask(allocatingAsset.id);
-                    notify(`IT equipment allocated: ${laptopModel} (${serialNumber}). LDAP provisioned.`, 'success');
-                    setAllocatingAsset(null);
-                  }}
-                >
-                  Allocate Hardware &amp; Close
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* 📄 INTERACTIVE DIGITAL E-SIGN CONTRACT STAMPER */}
       {activeDocPreview && (() => {
@@ -959,69 +990,7 @@ export function OnboardingView({ queryParams, setQueryParams }) {
         );
       })()}
 
-      {/* ➕ ADD TASK FLOW BUILDER MODAL */}
-      {isAddTaskOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
-          <form 
-            onSubmit={(e) => {
-              handleCreateTemplateTask(e);
-              setIsAddTaskOpen(false);
-            }} 
-            className="card" 
-            style={{ width: '460px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', padding: '24px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px', borderLeft: '4px solid var(--accent-pink)' }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-              <h3 style={{ margin: 0, border: 'none', padding: 0, color: 'var(--accent-pink)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                ➕ Add Task Flow Builder
-              </h3>
-              <button type="button" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px' }} onClick={() => setIsAddTaskOpen(false)}>✕</button>
-            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Task Description Name</label>
-                <input type="text" value={taskName} onChange={(e) => setTaskName(e.target.value)} required placeholder="Setup Slack logins..." style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Assigned To Role</label>
-                <select value={taskRole} onChange={(e) => setTaskRole(e.target.value)} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }}>
-                  <option value="Employee">Employee (ESS)</option>
-                  <option value="IT">IT Department</option>
-                  <option value="HR">HR Manager</option>
-                  <option value="TL">Team Lead (TL)</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Due Offset (Days from Joining)</label>
-                <input type="number" value={taskOffset} onChange={(e) => setTaskOffset(Number(e.target.value))} required min={0} max={30} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
-              </div>
-
-              <div style={{ display: 'flex', gap: '20px', marginTop: '6px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--text-secondary)' }}>
-                  <input type="checkbox" checked={isMandatory} onChange={(e) => setIsMandatory(e.target.checked)} style={{ width: '16px', height: '16px' }} />
-                  Mandatory Task
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer', color: 'var(--text-secondary)' }}>
-                  <input type="checkbox" checked={requiresEsign} onChange={(e) => setRequiresEsign(e.target.checked)} style={{ width: '16px', height: '16px' }} />
-                  Requires E-Sign
-                </label>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '14px', marginTop: '4px' }}>
-              <button type="button" style={{ background: 'none', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }} onClick={() => setIsAddTaskOpen(false)}>Cancel</button>
-              <button 
-                type="submit"
-                style={{ backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}
-              >
-                Add Task to Template
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
 
       {/* 📝 EDIT E-SIGN DOCUMENT MODAL */}
       {editingEsign && (

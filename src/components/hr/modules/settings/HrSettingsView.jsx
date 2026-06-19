@@ -173,9 +173,14 @@ export function HrSettingsView() {
       if (res.ok) {
         if (window.toast) window.toast.success(`${selectedDept} Schema saved successfully!`);
         else alert(`${selectedDept} Schema saved successfully!`);
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        if (window.toast) window.toast.error(`Failed to save schema: ${errorData.detail || res.statusText}`);
+        else alert(`Failed to save schema: ${errorData.detail || res.statusText}`);
       }
     } catch (err) {
       console.error(err);
+      if (window.toast) window.toast.error("Network error while saving schema");
     }
     setSchemaLoading(false);
   };

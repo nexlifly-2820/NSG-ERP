@@ -8,7 +8,7 @@ import HrSidebar from '../hr/HrSidebar';
 import TlSidebar from '../tl/TlSidebar';
 import EmployeeSidebar from '../employee/EmployeeSidebar';
 
-export default function Sidebar({ activeRole, activeTab, setActiveTab, currentUser, onLogout }) {
+export default function Sidebar({ activeRole, activeTab, setActiveTab, currentUser, onLogout, isOpen, onClose }) {
   const currentRoleColor = {
     CEO: '#f59e0b',
     HR: '#ec4899',
@@ -45,7 +45,7 @@ export default function Sidebar({ activeRole, activeTab, setActiveTab, currentUs
   };
 
   return (
-    <aside className="app-sidebar">
+    <aside className={`app-sidebar ${isOpen ? 'open' : ''}`}>
       {/* Brand Header */}
       <div className="sidebar-brand" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px', marginBottom: '24px' }}>
         <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src="/hmns-logo.png" alt="HMNS Software" style={{ width: '160px', height: 'auto', objectFit: 'contain', background: '#fff', padding: '6px 10px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}  />

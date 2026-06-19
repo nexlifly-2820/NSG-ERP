@@ -1456,7 +1456,7 @@ def get_reports_analytics(current_user: models.User = Depends(security.get_curre
     ]
 
     # ── 6. ATTRITION: resignations per month / total headcount ───────────
-    all_resignations = db.query(models.Resignation).offset(skip).limit(limit).all()
+    all_resignations = db.query(models.Resignation).filter(models.Resignation.deleted_at == None).offset(skip).limit(limit).all()
     resign_by_month = defaultdict(int)
     for r in all_resignations:
         m = MONTH_NAMES[r.resignation_date.month - 1]
@@ -2434,12 +2434,13 @@ def get_all_approvals(current_user: models.User = Depends(security.get_current_u
         })
 
     # 3. Resignations
-    resignations = db.query(models.Resignation).offset(skip).limit(limit).all()
+    resignations = db.query(models.Resignation).filter(models.Resignation.deleted_at == None).offset(skip).limit(limit).all()
     for r in resignations:
         emp = db.query(models.User).filter(models.User.id == r.user_id).first()
         status_label = 'Pending'
-        if r.status == 'approved': status_label = 'Approved'
-        elif r.status == 'rejected': status_label = 'Denied'
+        c_status = getattr(r, 'ceo_status', r.status)
+        if c_status == 'approved': status_label = 'Approved'
+        elif c_status == 'rejected': status_label = 'Denied'
         
         approvals.append({
             "id": f"RES-{r.id}",

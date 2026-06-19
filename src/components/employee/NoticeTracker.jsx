@@ -33,7 +33,7 @@ export default function NoticeTracker({ resignationData, onRequestEarlyRelief, e
     );
   }
 
-  const { submissionDate, lwdDate, daysServed = 8 } = resignationData;
+  const { submissionDate, lwdDate } = resignationData;
 
   // Calculate total notice period days dynamically
   const start = new Date(submissionDate);
@@ -44,6 +44,10 @@ export default function NoticeTracker({ resignationData, onRequestEarlyRelief, e
   const today = new Date();
   const diffTime = end - today;
   const remainingDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+
+  const daysServed = resignationData.daysServed !== undefined 
+    ? resignationData.daysServed 
+    : Math.max(0, Math.floor((today - start) / (1000 * 60 * 60 * 24)));
 
   const progressPercent = Math.min(100, Math.max(0, (daysServed / totalDays) * 100));
 

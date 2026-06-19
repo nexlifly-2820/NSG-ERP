@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 import DocCard from './DocCard';
-import { User, Mail, Home, Camera, Check, ChevronDown } from 'lucide-react';
+import { User, Mail, Home, Camera, Check, ChevronDown, Download } from 'lucide-react';
 import AvatarFallback from '../common/AvatarFallback';
 
 const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?name=Employee&background=6d28d9&color=fff&size=150';
@@ -25,6 +25,7 @@ export default function Profile({ currentUser }) {
 
 
   const [docs, setDocs] = useState(defaultDocs);
+  const [myAssets, setMyAssets] = useState([]);
   const [avatar, setAvatar] = useState(DEFAULT_AVATAR);
   const [isEditingDetails, setIsEditingDetails] = useState(false);
   const [dob, setDob] = useState('');
@@ -38,6 +39,9 @@ export default function Profile({ currentUser }) {
   const [showCropModal, setShowCropModal] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [expandedSection, setExpandedSection] = useState('photo');
+  const [newDocName, setNewDocName] = useState('');
+  const [newDocFile, setNewDocFile] = useState(null);
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
 
   // Fetch ALL profile data from backend on mount
   useEffect(() => {
@@ -71,6 +75,13 @@ export default function Profile({ currentUser }) {
             try { setDocs(JSON.parse(data.documents)); } catch {}
           }
           setProfileLoaded(true);
+        }
+
+        const assetRes = await fetch('/api/employee-portal/resignation/my-assets', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (assetRes.ok) {
+          setMyAssets(await assetRes.json());
         }
       } catch (err) {
         console.error('Failed to fetch profile', err);
@@ -479,10 +490,6 @@ export default function Profile({ currentUser }) {
               <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.manager || 'N/A'}</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Structural Grade</span>
-              <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.grade ? `Grade ${liveProfile.grade}` : 'N/A'}</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Office Location</span>
               <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.location || 'N/A'}</span>
             </div>
@@ -534,27 +541,153 @@ export default function Profile({ currentUser }) {
 
   const renderDocsSection = () => {
     return (
-      <>
-        <div className="card-header" style={{ marginBottom: '16px' }}>
-          <h3 style={{ fontSize: '15px', fontWeight: '700', margin: 0, color: 'var(--text-primary)' }}>Document Upload Section</h3>
-          <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
-            PAN, Aadhaar, and Degree certificates. Click on missing cards to simulate uploads.
-          </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div>
+          <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '12px', textTransform: 'uppercase' }}>Currently Assigned Documents</h4>
+          {docs.filter(d => d.status !== 'missing').length === 0 ? (
+            <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '16px', borderRadius: '8px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+              No documents assigned yet.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {docs.filter(d => d.status !== 'missing').map((doc, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-secondary)', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>{doc.docType || doc.name}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ color: 'var(--accent-green)', fontSize: '12px', fontWeight: 'bold' }}>Uploaded</span>
+                    <button 
+                      onClick={() => {
+                        const fileHref = doc.link || doc.fileUrl;
+                        const docLabel = doc.docType || doc.name || 'Document';
+                        if (fileHref) {
+                          const element = document.createElement("a");
+                          element.href = fileHref;
+                          element.download = doc.original_filename || doc.fileName || `${docLabel.replace(/\\s+/g, '_')}_Document`;
+                          element.target = "_blank";
+                          document.body.appendChild(element);
+                          element.click();
+                          document.body.removeChild(element);
+                          showToast(`Downloaded ${doc.original_filename || doc.fileName || docLabel}`);
+                        } else {
+                          const element = document.createElement("a");
+                          const file = new Blob([`Simulated document content for: ${docLabel}`], {type: 'text/plain'});
+                          element.href = URL.createObjectURL(file);
+                          element.download = `${docLabel.replace(/\\s+/g, '_')}_Document.txt`;
+                          document.body.appendChild(element);
+                          element.click();
+                          document.body.removeChild(element);
+                          showToast(`Downloaded ${docLabel}`);
+                        }
+                      }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center' }}
+                      title="Download Document"
+                    >
+                      <Download size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="doc-cards-grid">
-          {docs.map((doc) => (
-            <DocCard 
-              key={doc.id}
-              docType={doc.docType}
-              status={doc.status}
-              uploadedAt={doc.uploadedAt}
-              onUpload={(fileName) => handleUploadDoc(doc.id, fileName)}
-              onSimulateVerify={(status) => handleSimulateVerifyDoc(doc.id, status)}
-            />
-          ))}
+        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '24px' }}>
+          <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '16px', textTransform: 'uppercase' }}>Assign New Document</h4>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Document Name</label>
+              <input 
+                type="text" 
+                value={newDocName}
+                onChange={(e) => setNewDocName(e.target.value)}
+                placeholder="e.g. Aadhar Card Copy" 
+                style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: '8px', outline: 'none', fontSize: '13px' }} 
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>File Upload</label>
+              <input 
+                type="file" 
+                id="newDocFileInput"
+                onChange={(e) => setNewDocFile(e.target.files[0])}
+                style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: '8px', outline: 'none', fontSize: '13px' }} 
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+              <button 
+                disabled={isUploadingDoc}
+                onClick={async () => {
+                  if (newDocName && newDocFile) {
+                    setIsUploadingDoc(true);
+                    const formData = new FormData();
+                    formData.append('name', newDocName);
+                    formData.append('file', newDocFile);
+                    
+                    try {
+                      const token = localStorage.getItem('nsg_jwt_token');
+                      const res = await fetch('/api/employee-portal/profile/upload-document', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData
+                      });
+                      
+                      if (res.ok) {
+                        const data = await res.json();
+                        setDocs(data.documents);
+                        showToast('Document uploaded successfully & saved to DB ✓');
+                        setNewDocName('');
+                        setNewDocFile(null);
+                        const fileInput = document.getElementById('newDocFileInput');
+                        if (fileInput) fileInput.value = '';
+                      } else {
+                        showToast('Failed to upload document to server');
+                      }
+                    } catch (e) {
+                      console.error(e);
+                      showToast('Network error uploading document');
+                    } finally {
+                      setIsUploadingDoc(false);
+                    }
+                  } else {
+                    alert('Please provide a document name and file.');
+                  }
+                }}
+                style={{ backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}
+              >
+                Upload Document
+              </button>
+            </div>
+          </div>
         </div>
-      </>
+
+        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '24px', marginTop: '24px' }}>
+          <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '12px', textTransform: 'uppercase' }}>Assigned Corporate Assets</h4>
+          {myAssets.length === 0 ? (
+            <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '16px', borderRadius: '8px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+              No assets assigned yet.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {myAssets.map((asset, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-secondary)', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>{asset.name} <span style={{ color: 'var(--text-muted)', fontWeight: 'normal', fontSize: '12px' }}>({asset.type})</span></div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>SN: {asset.serialNumber || 'N/A'} | Tag: {asset.id}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ backgroundColor: '#3b82f6', color: '#fff', padding: '4px 12px', borderRadius: '12px', fontSize: '11px', fontWeight: 'bold' }}>{asset.returnStatus || 'Issued'}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     );
   };
 

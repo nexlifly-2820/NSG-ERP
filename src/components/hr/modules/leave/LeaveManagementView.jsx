@@ -282,7 +282,7 @@ export function LeaveManagementView() {
           <h1>Leave Management</h1>
           <p>Oversee company leave accruals policies, check team calendar overlapping alerts, and approve leaves.</p>
         </div>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
           {activeTab === 'history' && (
             <button 
               onClick={handleDownloadPDF}
@@ -302,7 +302,8 @@ export function LeaveManagementView() {
                 backgroundColor: activeTab === 'balances' ? 'var(--bg-primary)' : 'transparent',
                 color: activeTab === 'balances' ? 'var(--text-primary)' : 'var(--text-muted)',
                 border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '13px',
-                boxShadow: activeTab === 'balances' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
+                boxShadow: activeTab === 'balances' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                whiteSpace: 'nowrap'
               }}
             >
               Balances
@@ -313,7 +314,8 @@ export function LeaveManagementView() {
                 backgroundColor: activeTab === 'history' ? 'var(--bg-primary)' : 'transparent',
                 color: activeTab === 'history' ? 'var(--text-primary)' : 'var(--text-muted)',
                 border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '13px',
-                boxShadow: activeTab === 'history' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
+                boxShadow: activeTab === 'history' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                whiteSpace: 'nowrap'
               }}
             >
               Leave History
@@ -335,7 +337,8 @@ export function LeaveManagementView() {
                   fontWeight: '600',
                   padding: '12px 24px',
                   borderRadius: '12px',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
                 }}
               >
                 ➕ Apply Leave (On Behalf)
@@ -356,7 +359,8 @@ export function LeaveManagementView() {
                   fontWeight: '600',
                   padding: '12px 24px',
                   borderRadius: '12px',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
                 }}
               >
                 <span>🔔 Manage Leave Requests</span>
@@ -371,7 +375,8 @@ export function LeaveManagementView() {
                     alignItems: 'center', 
                     justifyContent: 'center', 
                     fontSize: '11px', 
-                    fontWeight: 'bold' 
+                    fontWeight: 'bold',
+                    flexShrink: 0
                   }}>
                     {pendingRequests.length}
                   </span>
