@@ -814,7 +814,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
 
       <div className="dashboard-row-grid" style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
         {/* Directory Tables */}
-        <div className={styles.tableContainer} style={{ flex: 1, margin: 0 }}>
+        <div className={styles.tableContainer} style={{ flex: 1, minWidth: 0, margin: 0 }}>
           <table className={styles.premiumTable}>
             <thead>
               <tr>
