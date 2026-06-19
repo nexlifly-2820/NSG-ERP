@@ -1,6 +1,86 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CheckCircle, Lock, Edit, X, Download } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
+
+const SignatureInput = ({ value, onChange }) => {
+  const canvasRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [signType, setSignType] = useState('canvas');
+
+  const isImage = value && value.startsWith('data:image/');
+
+  const startDrawing = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    setIsDrawing(true);
+  };
+
+  const draw = (e) => {
+    if (!isDrawing) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  const stopDrawing = () => {
+    if (!isDrawing) return;
+    setIsDrawing(false);
+    const canvas = canvasRef.current;
+    if (canvas) {
+      onChange(canvas.toDataURL());
+    }
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    onChange('');
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => onChange(ev.target.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+      <div style={{ display: 'flex', gap: '8px', fontSize: '11px', color: 'var(--text-muted)' }}>
+        <button type="button" onClick={() => { setSignType('canvas'); onChange(''); }} style={{ background: signType === 'canvas' ? 'var(--accent-pink)' : 'transparent', color: signType === 'canvas' ? '#fff' : 'inherit', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer' }}>Draw</button>
+        <button type="button" onClick={() => { setSignType('upload'); onChange(''); }} style={{ background: signType === 'upload' ? 'var(--accent-pink)' : 'transparent', color: signType === 'upload' ? '#fff' : 'inherit', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer' }}>Upload</button>
+      </div>
+      {signType === 'canvas' && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+          <canvas ref={canvasRef} width={180} height={60} onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing} style={{ border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'crosshair', background: '#fff' }} />
+          <button type="button" onClick={clearCanvas} style={{ fontSize: '10px', background: 'none', border: 'none', color: 'var(--accent-pink)', cursor: 'pointer' }}>Clear</button>
+        </div>
+      )}
+      {signType === 'upload' && (
+        <input type="file" accept="image/*" onChange={handleFileUpload} style={{ fontSize: '11px', width: '180px', color: 'var(--text-muted)' }} />
+      )}
+    </div>
+  );
+};
 
 export function ExitFnFView() {
   const [exitTab, setExitTab] = useState('resignations'); // resignations | assets | fnf | noc
@@ -9,6 +89,8 @@ export function ExitFnFView() {
   const [hrSign, setHrSign] = useState('');
   const [relievingSign, setRelievingSign] = useState('');
   const [isCalibrateOpen, setIsCalibrateOpen] = useState(false);
+  const nocContentRef = useRef(null);
+  const relievingContentRef = useRef(null);
 
   // Live data states
   const [resignations, setResignations] = useState([]);
@@ -170,17 +252,7 @@ export function ExitFnFView() {
       <div style="padding: 40px; background: white; color: black; font-family: monospace; font-size: 14px; line-height: 1.6; width: 700px; box-sizing: border-box; margin: 0 auto; text-align: justify;">
         <img src="/hmns-logo.png" style="width: 100%; height: auto; max-height: 100px; object-fit: contain; margin-bottom: 20px;" crossorigin="anonymous" />
         <div style="text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 30px; letter-spacing: 1px;">NO OBJECTION CERTIFICATE</div>
-        <p>Date: ${new Date().toLocaleDateString()}</p>
-        <p>
-          This is to certify that <strong>${exitingEmp.name}</strong>, holding designation <strong>${exitingEmp.designation}</strong> in 
-          the <strong>${exitingEmp.department}</strong> department, has resigned from employment and is fully relieved of duties effective 
-          on last working date <strong>${activeResignation.LWD}</strong>.
-        </p>
-        <p>
-          We confirm that the employee has completed all handovers, returned corporate physical properties, and cleared all full and final 
-          settlement ledgers (Net F&F: ₹${totalFnFPayout.toLocaleString()}) without outstanding advances.
-        </p>
-        <p>We wish them outstanding success in all future professional endeavors.</p>
+        ${nocContentRef.current ? nocContentRef.current.innerHTML : ''}
         
         <div style="margin-top: 60px; display: flex; justify-content: space-between; align-items: flex-end;">
           <div>
@@ -188,7 +260,7 @@ export function ExitFnFView() {
             <span style="color: green; font-weight: bold;">Assets & FnF Cleared ✓</span>
           </div>
           <div style="text-align: right;">
-            <div style="font-style: italic; font-size: 16px; margin-bottom: 4px; font-weight: bold;">${hrSign}</div>
+            ${hrSign.startsWith('data:image/') ? `<img src="${hrSign}" style="max-height: 40px; max-width: 180px; object-fit: contain; margin-bottom: 4px;" />` : `<div style="font-style: italic; font-size: 16px; margin-bottom: 4px; font-weight: bold;">${hrSign}</div>`}
             <div style="font-size: 12px; color: #666; border-top: 1px solid #ccc; padding-top: 4px;">Authorized HR Manager Signature</div>
           </div>
         </div>
@@ -223,22 +295,11 @@ export function ExitFnFView() {
       <div style="padding: 40px; background: white; color: black; font-family: monospace; font-size: 14px; line-height: 1.6; width: 700px; box-sizing: border-box; margin: 0 auto; text-align: justify;">
         <img src="/hmns-logo.png" style="width: 100%; height: auto; max-height: 100px; object-fit: contain; margin-bottom: 20px;" crossorigin="anonymous" />
         <div style="text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 30px; letter-spacing: 1px;">RELIEVING LETTER</div>
-        <p>Date: ${new Date().toLocaleDateString()}</p>
-        <p>To,</p>
-        <p><strong>${exitingEmp.name}</strong><br />Emp ID: ${exitingEmp.id}</p>
-        <p><strong>Subject: Relieving Letter</strong></p>
-        <p>Dear ${exitingEmp.name},</p>
-        <p>
-          This has reference to your resignation letter dated <strong>${activeResignation.submissionDate}</strong>. We would like to inform you that your resignation has been accepted and you are being relieved from the services of the company effective from the closing of working hours on <strong>${activeResignation.LWD}</strong>.
-        </p>
-        <p>
-          Your full and final settlement has been processed successfully. We appreciate your contributions to HMNS Software Solution Pvt Ltd during your tenure and wish you the best for your future endeavors.
-        </p>
-        <p>Yours Sincerely,</p>
+        ${relievingContentRef.current ? relievingContentRef.current.innerHTML : ''}
         <div style="margin-top: 40px; display: flex; justify-content: space-between; align-items: flex-end;">
           <div></div>
           <div style="text-align: right;">
-            <div style="font-style: italic; font-size: 16px; margin-bottom: 4px; font-weight: bold;">${relievingSign}</div>
+            ${relievingSign.startsWith('data:image/') ? `<img src="${relievingSign}" style="max-height: 40px; max-width: 180px; object-fit: contain; margin-bottom: 4px;" />` : `<div style="font-style: italic; font-size: 16px; margin-bottom: 4px; font-weight: bold;">${relievingSign}</div>`}
             <div style="font-size: 12px; color: #666; border-top: 1px solid #ccc; padding-top: 4px;">Authorized HR Manager Signature</div>
           </div>
         </div>
@@ -545,20 +606,21 @@ export function ExitFnFView() {
             <div style={{ border: '1px solid var(--border-color)', padding: '24px', borderRadius: '12px', backgroundColor: 'var(--bg-primary)', fontFamily: 'var(--font-mono)', fontSize: '12px', lineHeight: '1.6', color: 'var(--text-primary)' }}>
               <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '15px', marginBottom: '20px', letterSpacing: '1px' }}>NO OBJECTION CERTIFICATE</div>
               
-              <p>Date: {new Date().toLocaleDateString()}</p>
-              
-              <p>
-                This is to certify that <strong>{exitingEmp.name}</strong>, holding designation <strong>{exitingEmp.designation}</strong> in 
-                the <strong>{exitingEmp.department}</strong> department, has resigned from employment and is fully relieved of duties effective 
-                on last working date <strong>{activeResignation.LWD}</strong>.
-              </p>
+              <div ref={nocContentRef} contentEditable suppressContentEditableWarning style={{ outline: 'none', minHeight: '150px', padding: '16px', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-tertiary)', marginBottom: '40px' }}>
+                <p>Date: {new Date().toLocaleDateString()}</p>
+                <p>
+                  This is to certify that <strong>{exitingEmp.name}</strong>, holding designation <strong>{exitingEmp.designation}</strong> in 
+                  the <strong>{exitingEmp.department}</strong> department, has resigned from employment and is fully relieved of duties effective 
+                  on last working date <strong>{activeResignation.LWD}</strong>.
+                </p>
 
-              <p>
-                We confirm that the employee has completed all handovers, returned corporate physical properties, and cleared all full and final 
-                settlement ledgers (Net F&amp;F: ₹{totalFnFPayout.toLocaleString()}) without outstanding advances.
-              </p>
+                <p>
+                  We confirm that the employee has completed all handovers, returned corporate physical properties, and cleared all full and final 
+                  settlement ledgers (Net F&amp;F: ₹{totalFnFPayout.toLocaleString()}) without outstanding advances.
+                </p>
 
-              <p>We wish them outstanding success in all future professional endeavors.</p>
+                <p>We wish them outstanding success in all future professional endeavors.</p>
+              </div>
               
               <div style={{ marginTop: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                 <div>
@@ -566,14 +628,7 @@ export function ExitFnFView() {
                   <span style={{ color: 'var(--accent-green)', fontWeight: 'bold' }}>Assets &amp; FnF Cleared ✓</span>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <input
-                    type="text"
-                    value={hrSign}
-                    onChange={(e) => setHrSign(e.target.value)}
-                    required
-                    placeholder="Input Digital Sign..."
-                    style={{ background: 'none', border: 'none', borderBottom: '1px solid var(--border-color)', color: '#fff', fontSize: '13px', textAlign: 'right', outline: 'none', width: '180px', fontStyle: 'italic' }}
-                  />
+                  <SignatureInput value={hrSign} onChange={setHrSign} />
                   <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', marginBottom: '16px' }}>Authorized HR Manager Signature</div>
                   
                   <button
@@ -610,34 +665,27 @@ export function ExitFnFView() {
             <div style={{ border: '1px solid var(--border-color)', padding: '24px', borderRadius: '12px', backgroundColor: 'var(--bg-primary)', fontFamily: 'var(--font-mono)', fontSize: '12px', lineHeight: '1.6', color: 'var(--text-primary)' }}>
               <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '15px', marginBottom: '20px', letterSpacing: '1px' }}>RELIEVING LETTER</div>
               
-              <p>Date: {new Date().toLocaleDateString()}</p>
-              
-              <p>To,<br/><strong>{exitingEmp.name}</strong><br/>Emp ID: {exitingEmp.id}</p>
-              <p><strong>Subject: Relieving Letter</strong></p>
-              
-              <p>Dear {exitingEmp.name},</p>
-              
-              <p style={{ textAlign: 'justify' }}>
-                This has reference to your resignation letter dated <strong>{activeResignation.submissionDate}</strong>. We would like to inform you that your resignation has been accepted and you are being relieved from the services of the company effective from the closing of working hours on <strong>{activeResignation.LWD}</strong>.
-              </p>
-              
-              <p style={{ textAlign: 'justify' }}>
-                Your full and final settlement has been processed successfully. We appreciate your contributions to HMNS Software Solution Pvt Ltd during your tenure and wish you the best for your future endeavors.
-              </p>
-              
-              <p>Yours Sincerely,</p>
+              <div ref={relievingContentRef} contentEditable suppressContentEditableWarning style={{ outline: 'none', minHeight: '150px', padding: '16px', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-tertiary)', marginBottom: '40px' }}>
+                <p>Date: {new Date().toLocaleDateString()}</p>
+                
+                <p>To,<br/><strong>{exitingEmp.name}</strong><br/>Emp ID: {exitingEmp.id}</p>
+                <p><strong>Subject: Relieving Letter</strong></p>
+                
+                <p>Dear {exitingEmp.name},</p>
+                <p style={{ textAlign: 'justify' }}>
+                  This has reference to your resignation letter dated <strong>{activeResignation.submissionDate || activeResignation.resignation_date}</strong>. We would like to inform you that your resignation has been accepted and you are being relieved from the services of the company effective from the closing of working hours on <strong>{activeResignation.LWD}</strong>.
+                </p>
+                
+                <p style={{ textAlign: 'justify' }}>
+                  Your full and final settlement has been processed successfully. We appreciate your contributions to HMNS Software Solution Pvt Ltd during your tenure and wish you the best for your future endeavors.
+                </p>
+                <p>Yours Sincerely,</p>
+              </div>
               
               <div style={{ marginTop: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                 <div></div>
                 <div style={{ textAlign: 'right' }}>
-                  <input
-                    type="text"
-                    value={relievingSign}
-                    onChange={(e) => setRelievingSign(e.target.value)}
-                    required
-                    placeholder="Input Digital Sign..."
-                    style={{ background: 'none', border: 'none', borderBottom: '1px solid var(--border-color)', color: '#fff', fontSize: '13px', textAlign: 'right', outline: 'none', width: '180px', fontStyle: 'italic' }}
-                  />
+                  <SignatureInput value={relievingSign} onChange={setRelievingSign} />
                   <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px', marginBottom: '16px' }}>Authorized HR Manager Signature</div>
                   
                   <button
