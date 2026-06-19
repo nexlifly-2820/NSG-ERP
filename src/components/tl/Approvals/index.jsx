@@ -25,7 +25,7 @@ const Approvals = () => {
   };
 
   const { data: rawLeaves = [], mutate: mutateLeaves } = useSWR('/api/team-lead/leaves/pending', fetcher);
-  const leaves = rawLeaves.map(r => ({
+  const leaves = Array.isArray(rawLeaves) ? rawLeaves.map(r => ({
     id: r.id,
     employee: getEmpName(r.user_id || r.employee_id),
     employee_id: r.user_id || r.employee_id,
@@ -35,20 +35,20 @@ const Approvals = () => {
     reason: r.reason,
     status: r.status,
     overlapWarning: null
-  }));
+  })) : [];
 
   const { data: rawWfhs = [], mutate: mutateWfhs } = useSWR('/api/team-lead/wfh/pending', fetcher);
-  const wfhs = rawWfhs.map(r => ({
+  const wfhs = Array.isArray(rawWfhs) ? rawWfhs.map(r => ({
     id: r.id,
     employee: getEmpName(r.user_id),
     date: `${r.from_date} – ${r.to_date}`,
     reason: r.reason,
     status: r.status,
     locationVerified: true
-  }));
+  })) : [];
 
   const { data: rawExpenses = [], mutate: mutateExpenses } = useSWR('/api/team-lead/expenses/pending', fetcher);
-  const expenses = rawExpenses.map(c => {
+  const expenses = Array.isArray(rawExpenses) ? rawExpenses.map(c => {
     const empId = c.user_id || c.employee_id;
     return {
       id: c.id,
@@ -61,7 +61,7 @@ const Approvals = () => {
       receiptName: c.receipt_url || c.receiptName || 'receipt.pdf',
       status: c.tl_approval || 'pending'
     };
-  });
+  }) : [];
 
   const [selectedId, setSelectedId] = useState(null);
 

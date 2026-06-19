@@ -4,10 +4,13 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import styles from './approvedTimesheets.module.css';
 import '../../../employee/pagination.css'; 
+import ManageApprovals from './ManageApprovals';
 
 export function ApprovedTimesheetsView() {
   const [timesheets, setTimesheets] = useState([]);
   const [selectedLog, setSelectedLog] = useState(null);
+  const [isManagingApprovals, setIsManagingApprovals] = useState(false);
+  const [userRole, setUserRole] = useState(null);
 
   // Date defaults
   const today = new Date();
@@ -47,7 +50,16 @@ export function ApprovedTimesheetsView() {
 
   useEffect(() => {
     fetchApprovedTimesheets();
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setUserRole(payload.role || null);
+      }
+    } catch (e) { console.error(e); }
   }, []);
+
+  const isCEO = window.location.hash.toLowerCase().includes('/ceo/');
 
   // Extract dynamic unique names
   const uniqueEmployees = [...new Set(timesheets.map(ts => ts.employee_name))].sort();
@@ -136,7 +148,7 @@ export function ApprovedTimesheetsView() {
       doc.text(filterText.replace(/ \| $/, ''), 40, 85);
 
       // Table Data
-      const tableColumn = ["Employee", "Date", "Project", "Task", "Hours", "Approved By (TL)"];
+      const tableColumn = ["Employee", "Date", "Project", "Task", "Hours", "Approved By"];
       const tableRows = [];
 
       filteredTimesheets.forEach(log => {
@@ -146,7 +158,7 @@ export function ApprovedTimesheetsView() {
           log.project,
           log.task,
           `${log.hours}h`,
-          log.approved_by_name
+          `${log.approved_by_name}\n(${log.approved_by_role === 'tl' ? 'Team Lead' : log.approved_by_role === 'hr' ? 'HR' : log.approved_by_role === 'ceo' ? 'CEO' : 'Role Unknown'})`
         ];
         tableRows.push(rowData);
       });
@@ -190,6 +202,13 @@ export function ApprovedTimesheetsView() {
     img.onerror = renderPDF; // Render anyway if image fails
   };
 
+  if (isManagingApprovals) {
+    return <ManageApprovals onBack={() => {
+      setIsManagingApprovals(false);
+      fetchApprovedTimesheets(); // Refresh main list after returning
+    }} />;
+  }
+
   return (
     <div className={styles.container}>
       <div className={styles.mainContent}>
@@ -197,9 +216,20 @@ export function ApprovedTimesheetsView() {
           <div className={styles.cardHeader} style={{flexDirection: 'column', alignItems: 'stretch', gap: '24px'}}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
               <h2 className={styles.cardTitle}>Approved Timesheets Master Log</h2>
-              <button className={styles.downloadButton} onClick={exportToPDF}>
-                <Download size={16} /> Download PDF
-              </button>
+              <div style={{display: 'flex', gap: '12px'}}>
+                {!isCEO && (
+                  <button 
+                    className={styles.downloadButton} 
+                    style={{background: 'white', color: '#ec4899', border: '1px solid #ec4899'}}
+                    onClick={() => setIsManagingApprovals(true)}
+                  >
+                    <Check size={16} /> Manage Approvals
+                  </button>
+                )}
+                <button className={styles.downloadButton} onClick={exportToPDF}>
+                  <Download size={16} /> Download PDF
+                </button>
+              </div>
             </div>
             
             <div className={styles.filterBar}>
@@ -276,7 +306,7 @@ export function ApprovedTimesheetsView() {
                   value={filterTL}
                   onChange={e => setFilterTL(e.target.value)}
                 >
-                  <option value="All">All Team Leaders</option>
+                  <option value="All">All Approvers</option>
                   {uniqueTLs.map(tl => <option key={tl} value={tl}>{tl}</option>)}
                 </select>
               </div>
@@ -292,7 +322,7 @@ export function ApprovedTimesheetsView() {
                   <th style={{width: '15%'}}>Project</th>
                   <th style={{width: '20%'}}>Task</th>
                   <th style={{width: '10%', textAlign: 'center'}}>Hours</th>
-                  <th style={{width: '10%', textAlign: 'center'}}>Approved By (TL)</th>
+                  <th style={{width: '10%', textAlign: 'center'}}>Approved By</th>
                   <th style={{width: '10%', textAlign: 'center'}}>Action</th>
                 </tr>
               </thead>
@@ -320,9 +350,14 @@ export function ApprovedTimesheetsView() {
                       <span className={styles.hoursBadge}>{log.hours}h</span>
                     </td>
                     <td style={{textAlign: 'center'}}>
-                      <span className={styles.tlBadge} title="Team Leader">
-                        <Check size={14} color="#10b981" />
-                        {log.approved_by_name}
+                      <span className={styles.tlBadge} style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px'}} title="Approver">
+                        <div style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
+                          <Check size={14} color="#10b981" />
+                          <span>{log.approved_by_name}</span>
+                        </div>
+                        {log.approved_by_role === 'tl' && <div style={{fontSize: '10.5px', color: '#64748b', fontWeight: 600, letterSpacing: '0.02em'}}>(Team Lead)</div>}
+                        {log.approved_by_role === 'hr' && <div style={{fontSize: '10.5px', color: '#64748b', fontWeight: 600, letterSpacing: '0.02em'}}>(HR)</div>}
+                        {log.approved_by_role === 'ceo' && <div style={{fontSize: '10.5px', color: '#64748b', fontWeight: 600, letterSpacing: '0.02em'}}>(CEO)</div>}
                       </span>
                     </td>
                     <td style={{textAlign: 'center'}}>

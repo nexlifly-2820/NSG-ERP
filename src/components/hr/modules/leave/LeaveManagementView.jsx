@@ -23,6 +23,8 @@ export function LeaveManagementView() {
 
   useEffect(() => { fetchData(); }, []);
 
+  const isCEO = window.location.hash.toLowerCase().includes('/ceo/');
+
   const [isRequestOpen, setIsRequestOpen] = useState(false);
   const [denyingId, setDenyingId] = useState(null);
   const [denyComment, setDenyComment] = useState('');
@@ -318,61 +320,65 @@ export function LeaveManagementView() {
             </button>
           </div>
 
-          <button 
-            className="print-btn" 
-            onClick={() => setIsApplyOnBehalfOpen(true)}
-            style={{ 
-              backgroundColor: 'transparent',
-              color: 'var(--accent-pink)',
-              border: '1px dashed var(--accent-pink)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontWeight: '600',
-              padding: '12px 24px',
-              borderRadius: '12px',
-              cursor: 'pointer'
-            }}
-          >
-            ➕ Apply Leave (On Behalf)
-          </button>
+          {!isCEO && (
+            <>
+              <button 
+                className="print-btn" 
+                onClick={() => setIsApplyOnBehalfOpen(true)}
+                style={{ 
+                  backgroundColor: 'transparent',
+                  color: 'var(--accent-pink)',
+                  border: '1px dashed var(--accent-pink)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontWeight: '600',
+                  padding: '12px 24px',
+                  borderRadius: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                ➕ Apply Leave (On Behalf)
+              </button>
 
-          <button 
-            className="print-btn" 
-            onClick={() => setIsRequestOpen(true)}
-            style={{ 
-              position: 'relative',
-              backgroundColor: 'var(--accent-pink)',
-              color: '#fff',
-              border: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              boxShadow: 'var(--shadow-sm)',
-              fontWeight: '600',
-              padding: '12px 24px',
-              borderRadius: '12px',
-              cursor: 'pointer'
-            }}
-          >
-            <span>🔔 Manage Leave Requests</span>
-            {pendingRequests.length > 0 && (
-              <span style={{ 
-                backgroundColor: '#fff', 
-                color: 'var(--accent-pink)', 
-                borderRadius: '50%', 
-                width: '18px', 
-                height: '18px', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                fontSize: '11px', 
-                fontWeight: 'bold' 
-              }}>
-                {pendingRequests.length}
-              </span>
-            )}
-          </button>
+              <button 
+                className="print-btn" 
+                onClick={() => setIsRequestOpen(true)}
+                style={{ 
+                  position: 'relative',
+                  backgroundColor: 'var(--accent-pink)',
+                  color: '#fff',
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: 'var(--shadow-sm)',
+                  fontWeight: '600',
+                  padding: '12px 24px',
+                  borderRadius: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                <span>🔔 Manage Leave Requests</span>
+                {pendingRequests.length > 0 && (
+                  <span style={{ 
+                    backgroundColor: '#fff', 
+                    color: 'var(--accent-pink)', 
+                    borderRadius: '50%', 
+                    width: '18px', 
+                    height: '18px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    fontSize: '11px', 
+                    fontWeight: 'bold' 
+                  }}>
+                    {pendingRequests.length}
+                  </span>
+                )}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -389,7 +395,9 @@ export function LeaveManagementView() {
                   <th style={{ padding: '16px 24px', textAlign: 'left', backgroundColor: 'var(--bg-primary)', color: '#64748b', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)' }}>SL Balance</th>
                   <th style={{ padding: '16px 24px', textAlign: 'left', backgroundColor: 'var(--bg-primary)', color: '#64748b', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)' }}>EL Balance</th>
                   <th style={{ padding: '16px 24px', textAlign: 'left', backgroundColor: 'var(--bg-primary)', color: '#64748b', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)' }}>Maternity</th>
-                                    <th style={{ padding: '16px 24px', textAlign: 'left', backgroundColor: 'var(--bg-primary)', color: '#64748b', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)' }}>Action</th>
+                  {!isCEO && (
+                    <th style={{ padding: '16px 24px', textAlign: 'left', backgroundColor: 'var(--bg-primary)', color: '#64748b', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-color)' }}>Action</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -410,18 +418,20 @@ export function LeaveManagementView() {
                       <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9', color: '#475569', fontSize: '14px', fontWeight: '500' }}>{b.SL}</td>
                       <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9', color: '#475569', fontSize: '14px', fontWeight: '500' }}>{b.EL}</td>
                       <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9', color: '#475569', fontSize: '14px', fontWeight: '500' }}>{b.Maternity}</td>
-                          <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9' }}>
-                        <button
-                          onClick={() => setEditingBalance({ ...b })}
-                          style={{
-                            background: '#f8fafc', border: '1px solid #e2e8f0', color: 'var(--accent-pink)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '600', transition: 'all 0.2s'
-                          }}
-                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--accent-pink)'; e.currentTarget.style.color = '#fff'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.color = 'var(--accent-pink)'; }}
-                        >
-                          ✏️ Edit
-                        </button>
-                      </td>
+                      {!isCEO && (
+                        <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9' }}>
+                          <button
+                            onClick={() => { setEditingBalance({ ...b }); setIsApplyOnBehalfOpen(false); setIsRequestOpen(false); }}
+                            style={{
+                              background: '#f8fafc', border: '1px solid #e2e8f0', color: 'var(--accent-pink)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '600', transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--accent-pink)'; e.currentTarget.style.color = '#fff'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.color = 'var(--accent-pink)'; }}
+                          >
+                            ✏️ Edit
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

@@ -66,16 +66,20 @@ export default function EmployeeDashboard({ setActiveTab, currentUser }) {
   const handleClockIn = async () => {
     setClockBusy(true);
     let mode = "office";
-    let lat = 12.9716;
-    let lng = 77.5946;
+    let lat = null;
+    let lng = null;
 
     if (navigator.geolocation) {
       try {
-        const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 3000 }));
+        const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }));
         lat = pos.coords.latitude;
         lng = pos.coords.longitude;
-        if (Math.abs(lat - 12.9716) > 0.05 || Math.abs(lng - 77.5946) > 0.05) mode = "wfh";
-      } catch (e) { mode = "wfh"; }
+      } catch (e) { 
+        console.warn("Geolocation failed or timed out:", e);
+        mode = "wfh"; 
+      }
+    } else {
+      mode = "wfh";
     }
     
     try {

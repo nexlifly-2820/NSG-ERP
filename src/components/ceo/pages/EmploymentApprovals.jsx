@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import styles from '../../tl/Approvals/approvals.module.css';
-import { Calendar, FileText, HelpCircle, UserMinus, Package, AlertTriangle, MapPin, Check, X, Clock } from 'lucide-react';
+import { Calendar, FileText, HelpCircle, Home, Package, AlertTriangle, MapPin, Check, X, Clock } from 'lucide-react';
 
 const EmploymentApprovals = () => {
   const [activeTab, setActiveTab] = useState('leave');
@@ -20,32 +20,79 @@ const EmploymentApprovals = () => {
     setSelectedId(null);
   };
 
+  const token = localStorage.getItem('nsg_jwt_token');
+  const fetcher = (url) => fetch(url, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.json());
+
+  const { data: approvalsData = {}, mutate } = useSWR('/api/ceo-portal/approvals/pending', fetcher);
+  const allLeaveRequests = Array.isArray(approvalsData.leaveRequests) ? approvalsData.leaveRequests : [];
+
   const handleAction = async (id, actionType) => {
-    const actionTxt = actionType === 'approve' ? 'Approved' : 'Rejected';
-    setToast({ message: `Request ${actionTxt} Successfully!`, type: actionType === 'approve' ? 'success' : 'error' });
-    if (selectedId === id) setSelectedId(null);
+    try {
+      const actionTxt = actionType === 'approve' ? 'Approved' : 'Rejected';
+      
+      if (activeTab === 'leave' || activeTab === 'wfh') {
+        const action = actionType === 'approve' ? 'approve' : 'reject';
+        await fetch(`/api/ceo-portal/leaves/${id}/${action}`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        mutate();
+      } else if (activeTab === 'help' || activeTab === 'assets') {
+        const action = actionType === 'approve' ? 'approve' : 'reject';
+        await fetch(`/api/ceo-portal/tickets/${id}/${action}`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        mutate();
+      }
+      
+      setToast({ message: `Request ${actionTxt} Successfully!`, type: actionType === 'approve' ? 'success' : 'error' });
+      if (selectedId === id) setSelectedId(null);
+    } catch (err) {
+      console.error(err);
+      setToast({ message: `Action failed`, type: 'error' });
+    }
   };
 
   // Mock Data
-  const leaves = [
-    { id: 1, employee: 'prasad', type: 'Casual Leave', days: 2, dates: '2026-06-25 – 2026-06-26', reason: 'Personal work', status: 'pending' },
-    { id: 2, employee: 'vivek1', type: 'Sick Leave', days: 1, dates: '2026-06-20 – 2026-06-20', reason: 'Fever', status: 'pending', overlapWarning: 'Conflicts with project deadline' }
-  ];
+  const leaves = allLeaveRequests.filter(l => l.leave_type !== 'WFH').map(l => ({
+    id: l.id,
+    employee: l.employee_name,
+    type: l.leave_type === 'CL' ? 'Casual Leave' : l.leave_type === 'SL' ? 'Sick Leave' : l.leave_type === 'EL' ? 'Earned Leave' : l.leave_type === 'CompOff' ? 'Comp Off' : l.leave_type,
+    days: l.days,
+    dates: `${l.from_date} – ${l.to_date}`,
+    reason: l.reason,
+    status: l.status,
+    overlapWarning: null
+  }));
 
+  const allHelpRequests = Array.isArray(approvalsData.helpRequests) ? approvalsData.helpRequests : [];
+  const allAssetRequests = Array.isArray(approvalsData.assetRequests) ? approvalsData.assetRequests : [];
 
+  const helpRequests = allHelpRequests.map(h => ({
+    id: h.id,
+    employee: h.employee_name,
+    issueType: h.issue_type,
+    description: h.description,
+    date: h.created_at ? h.created_at.split('T')[0] : 'N/A'
+  }));
 
-  const helpRequests = [
-    { id: 1, employee: 'vivek2', issueType: 'Hardware', description: 'Need a new monitor, current one is flickering.', date: '2026-06-18' },
-    { id: 2, employee: 'vivek1', issueType: 'HR Policy', description: 'Clarification regarding maternity leave policy.', date: '2026-06-17' }
-  ];
+  const wfhRequests = allLeaveRequests.filter(l => l.leave_type === 'WFH').map(l => ({
+    id: l.id,
+    employee: l.employee_name,
+    fromDate: l.from_date,
+    toDate: l.to_date,
+    reason: l.reason,
+    status: l.status
+  }));
 
-  const resignations = [
-    { id: 1, employee: 'John Doe', lastDay: '2026-07-15', reason: 'Better opportunity', noticePeriod: '30 Days' }
-  ];
-
-  const assetRequests = [
-    { id: 1, employee: 'prasad', assetType: 'MacBook Pro M3', reason: 'Need better performance for Docker builds', cost: '$2000' }
-  ];
+  const assetRequests = allAssetRequests.map(a => ({
+    id: a.id,
+    employee: a.employee_name,
+    assetType: a.asset_type,
+    reason: a.reason,
+    cost: 'N/A'
+  }));
 
   let currentList = [];
   let selectedItem = null;
@@ -56,9 +103,9 @@ const EmploymentApprovals = () => {
   } else if (activeTab === 'help') {
     currentList = helpRequests;
     selectedItem = helpRequests.find(h => h.id === selectedId);
-  } else if (activeTab === 'resignation') {
-    currentList = resignations;
-    selectedItem = resignations.find(r => r.id === selectedId);
+  } else if (activeTab === 'wfh') {
+    currentList = wfhRequests;
+    selectedItem = wfhRequests.find(r => r.id === selectedId);
   } else if (activeTab === 'assets') {
     currentList = assetRequests;
     selectedItem = assetRequests.find(a => a.id === selectedId);
@@ -111,19 +158,19 @@ const EmploymentApprovals = () => {
     </>
   );
 
-  const renderResignationDetails = (item) => (
+  const renderWfhDetails = (item) => (
     <>
       <div className={styles.detailHeader}>
         <h2 style={{ fontSize: '20px', margin: '0 0 8px 0', color: '#0f172a' }}>{item.employee}</h2>
-        <span style={{ color: '#ef4444', fontSize: '14px', fontWeight: '600' }}>Resignation Submitted</span>
+        <span style={{ color: '#8b5cf6', fontSize: '14px', fontWeight: '600' }}>Work From Home Request</span>
       </div>
       <div className={styles.detailSection}>
-        <span className={styles.detailLabel}>Notice Period</span>
-        <div className={styles.detailValue}>{item.noticePeriod}</div>
+        <span className={styles.detailLabel}>From Date</span>
+        <div className={styles.detailValue}>{item.fromDate}</div>
       </div>
       <div className={styles.detailSection}>
-        <span className={styles.detailLabel}>Proposed Last Day</span>
-        <div className={styles.detailValue} style={{ color: '#ef4444', fontWeight: 'bold' }}>{item.lastDay}</div>
+        <span className={styles.detailLabel}>To Date</span>
+        <div className={styles.detailValue}>{item.toDate}</div>
       </div>
       <div className={styles.detailSection}>
         <span className={styles.detailLabel}>Reason</span>
@@ -159,8 +206,8 @@ const EmploymentApprovals = () => {
         <button className={`${styles.tabBtn} ${activeTab === 'help' ? styles.tabBtnActive : ''}`} onClick={() => handleTabChange('help')}>
           <HelpCircle size={16} /> Help {helpRequests.length > 0 && <span className={styles.badge}>{helpRequests.length}</span>}
         </button>
-        <button className={`${styles.tabBtn} ${activeTab === 'resignation' ? styles.tabBtnActive : ''}`} onClick={() => handleTabChange('resignation')}>
-          <UserMinus size={16} /> Resignation {resignations.length > 0 && <span className={styles.badge}>{resignations.length}</span>}
+        <button className={`${styles.tabBtn} ${activeTab === 'wfh' ? styles.tabBtnActive : ''}`} onClick={() => handleTabChange('wfh')}>
+          <Home size={16} /> Work From Home {wfhRequests.length > 0 && <span className={styles.badge}>{wfhRequests.length}</span>}
         </button>
         <button className={`${styles.tabBtn} ${activeTab === 'assets' ? styles.tabBtnActive : ''}`} onClick={() => handleTabChange('assets')}>
           <Package size={16} /> Asset Requests {assetRequests.length > 0 && <span className={styles.badge}>{assetRequests.length}</span>}
@@ -190,7 +237,7 @@ const EmploymentApprovals = () => {
                 <div className={styles.itemDesc}>
                   {activeTab === 'leave' && `${item.type} (${item.days} days)`}
                   {activeTab === 'help' && `${item.issueType}`}
-                  {activeTab === 'resignation' && `Last Day: ${item.lastDay}`}
+                  {activeTab === 'wfh' && `Dates: ${item.fromDate} - ${item.toDate}`}
                   {activeTab === 'assets' && `${item.assetType}`}
                 </div>
                 
@@ -213,7 +260,7 @@ const EmploymentApprovals = () => {
             <div>
               {activeTab === 'leave' && renderLeaveDetails(selectedItem)}
               {activeTab === 'help' && renderHelpDetails(selectedItem)}
-              {activeTab === 'resignation' && renderResignationDetails(selectedItem)}
+              {activeTab === 'wfh' && renderWfhDetails(selectedItem)}
               {activeTab === 'assets' && renderAssetDetails(selectedItem)}
               
               <div className={styles.bigActionRow}>

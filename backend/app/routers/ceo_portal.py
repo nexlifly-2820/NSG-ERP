@@ -673,6 +673,7 @@ def get_pending_approvals(current_user: models.User = Depends(security.get_curre
     claims = db.query(models.ExpenseClaim).filter(models.ExpenseClaim.status == "pending").offset(skip).limit(limit).all()
     leaves = db.query(models.LeaveRequest).filter(models.LeaveRequest.status == "pending").offset(skip).limit(limit).all()
     loans = db.query(models.Loan).filter(models.Loan.status == "active", models.Loan.outstanding_balance > 0).offset(skip).limit(limit).all()
+    tickets = db.query(models.SupportTicket).filter(models.SupportTicket.status.in_(["open", "Open", "pending", "Pending"])).offset(skip).limit(limit).all()
     
     enriched_payroll = []
     for p in payroll:
@@ -736,12 +737,78 @@ def get_pending_approvals(current_user: models.User = Depends(security.get_curre
             "status": ln.status
         })
 
+    enriched_help = []
+    enriched_assets = []
+    for t in tickets:
+        emp = db.query(models.User).filter(models.User.id == t.user_id).first()
+        emp_name = emp.name if emp else f"User #{t.user_id}"
+        if t.category == "asset_request":
+            enriched_assets.append({
+                "id": t.id,
+                "user_id": t.user_id,
+                "employee_name": emp_name,
+                "asset_type": t.title,
+                "reason": t.description,
+                "priority": t.priority,
+                "status": t.status,
+                "created_at": t.created_at.isoformat() if t.created_at else None
+            })
+        else:
+            enriched_help.append({
+                "id": t.id,
+                "user_id": t.user_id,
+                "employee_name": emp_name,
+                "issue_type": t.category or t.title,
+                "description": t.description,
+                "priority": t.priority,
+                "status": t.status,
+                "created_at": t.created_at.isoformat() if t.created_at else None
+            })
+
     return {
         "payrollRuns": enriched_payroll,
         "expenseClaims": enriched_claims,
         "leaveRequests": enriched_leaves,
-        "loans": enriched_loans
+        "loans": enriched_loans,
+        "helpRequests": enriched_help,
+        "assetRequests": enriched_assets
     }
+
+@router.post("/tickets/{id}/approve")
+def approve_ticket_ceo(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_ceo_role(current_user)
+    ticket = db.query(models.SupportTicket).filter(models.SupportTicket.id == id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found.")
+    
+    ticket.status = "Resolved"
+    db_notify = models.Notification(
+        user_id=ticket.user_id,
+        message=f"Your request '{ticket.title}' has been approved/resolved by the CEO.",
+        type="success"
+    )
+    db.add(db_notify)
+    db.commit()
+    db.refresh(ticket)
+    return {"status": "success", "ticket_id": ticket.id}
+
+@router.post("/tickets/{id}/reject")
+def reject_ticket_ceo(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_ceo_role(current_user)
+    ticket = db.query(models.SupportTicket).filter(models.SupportTicket.id == id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found.")
+    
+    ticket.status = "Rejected"
+    db_notify = models.Notification(
+        user_id=ticket.user_id,
+        message=f"Your request '{ticket.title}' has been rejected by the CEO.",
+        type="danger"
+    )
+    db.add(db_notify)
+    db.commit()
+    db.refresh(ticket)
+    return {"status": "success", "ticket_id": ticket.id}
 
 @router.post("/payroll/runs/{id}/sign-checker", response_model=PayrollRunResponse)
 def sign_payroll_checker(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):

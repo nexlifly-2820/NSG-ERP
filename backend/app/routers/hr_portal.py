@@ -1402,6 +1402,7 @@ class ApprovedTimesheetResponse(BaseModel):
     status: str
     employee_name: str
     approved_by_name: Optional[str] = None
+    approved_by_role: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -1437,7 +1438,8 @@ def get_approved_timesheets(current_user: models.User = Depends(security.get_cur
             hours=ts.hours,
             status=ts.status,
             employee_name=emp.name,
-            approved_by_name=mgr.name if mgr else "Unknown TL"
+            approved_by_name=mgr.name if mgr else "Unknown",
+            approved_by_role=mgr.role if mgr else ""
         )
         res.append(r)
     return res

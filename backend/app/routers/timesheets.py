@@ -318,6 +318,7 @@ def approve_timesheet(
         
     timesheet.status = "approved"
     timesheet.rejection_comment = None
+    timesheet.manager_id = current_user.id
     
     # Notify employee
     notification = models.Notification(
@@ -355,6 +356,7 @@ def reject_timesheet(
         
     timesheet.status = "rejected"
     timesheet.rejection_comment = req.comment
+    timesheet.manager_id = current_user.id
     
     # Notify employee
     notification = models.Notification(
