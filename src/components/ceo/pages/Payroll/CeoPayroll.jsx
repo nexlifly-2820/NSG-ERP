@@ -1,10 +1,34 @@
-import React, { useState, useEffect } from 'react';
-import { Loader, CheckCircle, Search, AlertCircle, FileText, IndianRupee, History, DollarSign, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Loader, CheckCircle, Search, AlertCircle, FileText, IndianRupee, History, DollarSign, X, Download } from 'lucide-react';
+import html2pdf from 'html2pdf.js';
 import jsPDF from 'jspdf';
 import { generatePayslipPDF } from '../../../../utils/pdfGenerator';
 import './CeoPayroll.css';
 
 export default function CeoPayroll() {
+  const payslipContentRef = useRef(null);
+
+  // Helper for Number to Words
+  const numberToWords = (num) => {
+    if (num === 0) return 'Zero';
+    const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    const inWords = (n) => {
+        let str = '';
+        if (n > 99) { str += a[Math.floor(n / 100)] + ' Hundred '; n %= 100; }
+        if (n > 19) { str += b[Math.floor(n / 10)] + ' '; n %= 10; }
+        if (n > 0) str += a[n] + ' ';
+        return str;
+    };
+    let words = '';
+    if (num >= 10000000) { words += inWords(Math.floor(num / 10000000)) + 'Crore '; num %= 10000000; }
+    if (num >= 100000) { words += inWords(Math.floor(num / 100000)) + 'Lakh '; num %= 100000; }
+    if (num >= 1000) { words += inWords(Math.floor(num / 1000)) + 'Thousand '; num %= 1000; }
+    if (num > 0) words += inWords(num);
+    let finalStr = words.trim() + ' Rupees only';
+    return finalStr.charAt(0).toUpperCase() + finalStr.slice(1).toLowerCase();
+  };
+
   const [activeTab, setActiveTab] = useState('pending'); // pending or history
   const [month, setMonth] = useState(new Date().getMonth() + 1); // 1-indexed month
   const [year, setYear] = useState(new Date().getFullYear());
@@ -26,6 +50,7 @@ export default function CeoPayroll() {
   const [arrearDays, setArrearDays] = useState('');
   const [lopDays, setLopDays] = useState('');
   const [lopDaysReversed, setLopDaysReversed] = useState('');
+  const [letterheadUrl, setLetterheadUrl] = useState('/hmns-logo.png');
   
   // Notification State
   const [notification, setNotification] = useState(null);
@@ -103,7 +128,30 @@ export default function CeoPayroll() {
     setArrearDays('');
     setLopDays('');
     setLopDaysReversed('');
+    setLetterheadUrl('/hmns-logo.png');
     setShowModal(true);
+  };
+
+  const handleLetterheadUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => setLetterheadUrl(event.target.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleHtmlTemplateUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (payslipContentRef.current) {
+          payslipContentRef.current.innerHTML = event.target.result;
+        }
+      };
+      reader.readAsText(file);
+    }
   };
 
   const processPayment = async () => {
@@ -137,9 +185,29 @@ export default function CeoPayroll() {
       });
 
       if (res.ok) {
-        showNotification('Payroll processed successfully!');
-        setShowModal(false);
-        fetchPending(); // refresh list
+        if (payslipContentRef.current) {
+          const opt = {
+            margin: 0.5,
+            filename: `Payslip_${selectedUser.employee_name}_${month}_${year}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+          };
+          html2pdf().set(opt).from(payslipContentRef.current).save().then(() => {
+            showNotification('Payroll processed and Payslip downloaded!');
+            setShowModal(false);
+            fetchPending();
+          }).catch(err => {
+            console.error(err);
+            showNotification('Payroll processed but PDF generation failed.', 'error');
+            setShowModal(false);
+            fetchPending();
+          });
+        } else {
+          showNotification('Payroll processed successfully!');
+          setShowModal(false);
+          fetchPending();
+        }
       } else {
         showNotification('Failed to process payroll', 'error');
       }
@@ -465,97 +533,262 @@ export default function CeoPayroll() {
 
       {/* Payment Modal */}
       {showModal && selectedUser && (
-        <div className="ceo-modal-overlay">
-          <div className="ceo-modal">
+        <div className="ceo-modal-overlay" style={{ alignItems: 'flex-start', paddingTop: '40px', overflowY: 'auto' }}>
+          <div className="ceo-modal" style={{ width: '1100px', maxWidth: '95vw', display: 'flex', flexDirection: 'column' }}>
             <div className="ceo-modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <h3>Confirm Payment</h3>
-                <p>For {selectedUser.employee_name}</p>
+                <h3>Confirm Payment & Payslip Review</h3>
+                <p>For {selectedUser.employee_name} ({selectedUser.role.toUpperCase()})</p>
               </div>
               <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 0, marginTop: '2px' }}>
                 <X size={20} />
               </button>
             </div>
-            <div className="ceo-modal-body">
-              <div className="payment-summary">
-                <span>Net Payable:</span>
-                <span className="net-pay-large">₹{Math.round(selectedUser.net).toLocaleString()}</span>
-              </div>
+            
+            <div className="ceo-modal-body" style={{ display: 'flex', gap: '24px', padding: '24px' }}>
               
-              <div className="form-group">
-                <label>Payment Method</label>
-                <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
-                  <option>Bank Transfer</option>
-                  <option>Cheque</option>
-                  <option>Cash</option>
-                  <option>UPI</option>
-                </select>
+              {/* Left Column: Configuration */}
+              <div style={{ flex: '0 0 320px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div className="payment-summary">
+                  <span>Net Payable:</span>
+                  <span className="net-pay-large">₹{Math.round(selectedUser.net).toLocaleString()}</span>
+                </div>
+                
+                <div className="form-group">
+                  <label>Payment Method</label>
+                  <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} style={{ width: '100%' }}>
+                    <option>Bank Transfer</option>
+                    <option>Cheque</option>
+                    <option>Cash</option>
+                    <option>UPI</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Transaction Reference ID</label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. UTR123456789" 
+                    value={transactionRef}
+                    onChange={e => setTransactionRef(e.target.value)}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Payment Date</label>
+                  <input 
+                    type="date" 
+                    value={paymentDate}
+                    max={new Date().toISOString().split('T')[0]}
+                    onChange={e => setPaymentDate(e.target.value)}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+
+                <hr style={{ margin: '8px 0', border: '1px solid #e2e8f0' }} />
+                <h4 style={{ margin: '0 0 4px', fontSize: '14px', color: '#334155' }}>Payslip Overrides</h4>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label>Worked Days</label>
+                    <input type="number" placeholder="e.g. 22" value={workedDays} onChange={e => setWorkedDays(e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label>Arrear Days</label>
+                    <input type="number" value={arrearDays} onChange={e => setArrearDays(e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label>LOP Days</label>
+                    <input type="number" value={lopDays} onChange={e => setLopDays(e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label>LOP Reversed</label>
+                    <input type="number" value={lopDaysReversed} onChange={e => setLopDaysReversed(e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginTop: '12px' }}>
+                  <label>Upload Letterhead (Logo)</label>
+                  <input type="file" accept="image/*" onChange={handleLetterheadUpload} style={{ width: '100%', fontSize: '13px' }} />
+                </div>
+
+                <div className="form-group" style={{ marginTop: '12px' }}>
+                  <label>Upload Custom Payslip Format (Any File)</label>
+                  <input type="file" onChange={handleHtmlTemplateUpload} style={{ width: '100%', fontSize: '13px' }} />
+                </div>
+
+                <div style={{ marginTop: 'auto', paddingTop: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button className="btn-confirm" onClick={processPayment} disabled={loading} style={{ width: '100%', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    {loading ? 'Processing...' : <><Download size={16} /> Process & Download PDF</>}
+                  </button>
+                  <button className="btn-cancel" onClick={() => setShowModal(false)} style={{ width: '100%', padding: '12px' }}>Cancel</button>
+                </div>
               </div>
 
-              <div className="form-group">
-                <label>Transaction Reference ID (Optional)</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. UTR123456789" 
-                  value={transactionRef}
-                  onChange={e => setTransactionRef(e.target.value)}
-                />
+              {/* Right Column: Live PDF WYSIWYG Editor */}
+              <div style={{ flex: '1', backgroundColor: '#e2e8f0', padding: '24px', borderRadius: '8px', overflowY: 'auto', maxHeight: '70vh', display: 'flex', justifyContent: 'center' }}>
+                <div 
+                  ref={payslipContentRef}
+                  contentEditable
+                  suppressContentEditableWarning
+                  style={{ width: '210mm', minHeight: '297mm', backgroundColor: '#fff', padding: '20mm', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', fontFamily: 'Times New Roman, Times, serif', fontSize: '13px', color: '#000', outline: 'none' }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', borderBottom: '2px solid #4CAF50', paddingBottom: '16px', marginBottom: '24px' }}>
+                    <img src={letterheadUrl} alt="Logo" style={{ maxHeight: '60px', objectFit: 'contain', marginBottom: '12px' }} crossorigin="anonymous" />
+                  </div>
+                  
+                  <div style={{ textAlign: 'center', fontSize: '16px', fontWeight: 'bold', textDecoration: 'underline', marginBottom: '24px' }}>
+                    Pay slip for the month of {new Date(year, month - 1).toLocaleString('default', { month: 'long' })} {year}
+                  </div>
+
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '24px', border: '1px solid #000' }}>
+                    <tbody>
+                      <tr>
+                        <td style={{ padding: '6px', border: '1px solid #000', width: '25%' }}><strong>Employee Code:</strong></td>
+                        <td style={{ padding: '6px', border: '1px solid #000', width: '25%' }}>{selectedUser.employee_id || 'N/A'}</td>
+                        <td style={{ padding: '6px', border: '1px solid #000', width: '25%' }}><strong>PF Number:</strong></td>
+                        <td style={{ padding: '6px', border: '1px solid #000', width: '25%' }}>{selectedUser.pf_number || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}><strong>Employee Name:</strong></td>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}>{selectedUser.employee_name}</td>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}><strong>UAN:</strong></td>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}>{selectedUser.uan || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}><strong>Designation:</strong></td>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}>{selectedUser.role.toUpperCase()}</td>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}><strong>ESI Number:</strong></td>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}>{selectedUser.esi_number || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}><strong>Location:</strong></td>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}>{selectedUser.location || 'N/A'}</td>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}><strong>PAN:</strong></td>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}>{selectedUser.pan_number || 'N/A'}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '24px', border: '1px solid #000' }}>
+                    <tbody>
+                      <tr>
+                        <td style={{ padding: '6px', border: '1px solid #000', width: '25%' }}><strong>DOJ:</strong></td>
+                        <td style={{ padding: '6px', border: '1px solid #000', width: '25%' }}>{selectedUser.doj || 'N/A'}</td>
+                        <td style={{ padding: '6px', border: '1px solid #000', width: '25%' }}><strong>Arrear Days:</strong></td>
+                        <td style={{ padding: '6px', border: '1px solid #000', width: '25%' }}>{parseFloat(arrearDays || 0).toFixed(2)}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}><strong>Days In Month:</strong></td>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}>22</td>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}><strong>LOP Days:</strong></td>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}>{parseFloat(lopDays || 0).toFixed(2)}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}><strong>Worked Days:</strong></td>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}>{workedDays || 22}</td>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}><strong>LOP Days Reversed:</strong></td>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}>{parseFloat(lopDaysReversed || 0).toFixed(2)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '24px', border: '1px solid #000', textAlign: 'right' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ padding: '8px', border: '1px solid #000', textAlign: 'left', width: '30%' }}>Earnings</th>
+                        <th style={{ padding: '8px', border: '1px solid #000', width: '20%' }}>Actual</th>
+                        <th style={{ padding: '8px', border: '1px solid #000', width: '20%' }}>Earned</th>
+                        <th style={{ padding: '8px', border: '1px solid #000', width: '30%' }}>Deductions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style={{ padding: '8px', border: '1px solid #000', textAlign: 'left', verticalAlign: 'top' }}>
+                          {selectedUser.basic > 0 && <div style={{ marginBottom: '4px' }}>Basic Salary</div>}
+                          {selectedUser.hra > 0 && <div style={{ marginBottom: '4px' }}>HRA</div>}
+                          {selectedUser.allowances > 0 && <div style={{ marginBottom: '4px' }}>Allowances</div>}
+                          {selectedUser.basic === 0 && selectedUser.hra === 0 && <div style={{ marginBottom: '4px' }}>Stipend / Basic</div>}
+                        </td>
+                        <td style={{ padding: '8px', border: '1px solid #000', verticalAlign: 'top' }}>
+                          {selectedUser.basic > 0 && <div style={{ marginBottom: '4px' }}>{selectedUser.basic.toFixed(2)}</div>}
+                          {selectedUser.hra > 0 && <div style={{ marginBottom: '4px' }}>{selectedUser.hra.toFixed(2)}</div>}
+                          {selectedUser.allowances > 0 && <div style={{ marginBottom: '4px' }}>{selectedUser.allowances.toFixed(2)}</div>}
+                          {selectedUser.basic === 0 && selectedUser.hra === 0 && <div style={{ marginBottom: '4px' }}>{selectedUser.net.toFixed(2)}</div>}
+                        </td>
+                        <td style={{ padding: '8px', border: '1px solid #000', verticalAlign: 'top' }}>
+                          {selectedUser.basic > 0 && <div style={{ marginBottom: '4px' }}>{selectedUser.basic.toFixed(2)}</div>}
+                          {selectedUser.hra > 0 && <div style={{ marginBottom: '4px' }}>{selectedUser.hra.toFixed(2)}</div>}
+                          {selectedUser.allowances > 0 && <div style={{ marginBottom: '4px' }}>{selectedUser.allowances.toFixed(2)}</div>}
+                          {selectedUser.basic === 0 && selectedUser.hra === 0 && <div style={{ marginBottom: '4px' }}>{selectedUser.net.toFixed(2)}</div>}
+                        </td>
+                        <td style={{ padding: '8px', border: '1px solid #000', verticalAlign: 'top' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{ textAlign: 'left' }}>EPF</span>
+                            <span>{selectedUser.epf.toFixed(2)}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{ textAlign: 'left' }}>TDS</span>
+                            <span>{selectedUser.tds.toFixed(2)}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{ textAlign: 'left' }}>LOP</span>
+                            <span>{selectedUser.lop.toFixed(2)}</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '8px', border: '1px solid #000', textAlign: 'left' }}><strong>Totals:</strong></td>
+                        <td style={{ padding: '8px', border: '1px solid #000' }}><strong>{(selectedUser.basic + selectedUser.hra + selectedUser.allowances || selectedUser.net).toFixed(2)}</strong></td>
+                        <td style={{ padding: '8px', border: '1px solid #000' }}><strong>{(selectedUser.basic + selectedUser.hra + selectedUser.allowances || selectedUser.net).toFixed(2)}</strong></td>
+                        <td style={{ padding: '8px', border: '1px solid #000' }}><strong>{(selectedUser.epf + selectedUser.tds + selectedUser.lop).toFixed(2)}</strong></td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <div style={{ border: '1px solid #000', padding: '12px', marginBottom: '24px' }}>
+                    <div style={{ fontSize: '14px', marginBottom: '8px' }}><strong>Net Pay: ₹{Math.round(selectedUser.net).toLocaleString()}</strong></div>
+                    <div><strong>NET PAY IN Words: </strong> {numberToWords(Math.round(selectedUser.net))}</div>
+                  </div>
+
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '40px', border: '1px solid #000' }}>
+                    <tbody>
+                      <tr>
+                        <td style={{ padding: '6px', border: '1px solid #000', width: '25%' }}><strong>Payment Mode:</strong></td>
+                        <td style={{ padding: '6px', border: '1px solid #000', width: '25%' }}>{paymentMethod || 'Bank Transfer'}</td>
+                        <td style={{ padding: '6px', border: '1px solid #000', width: '25%' }}><strong>Payment Date:</strong></td>
+                        <td style={{ padding: '6px', border: '1px solid #000', width: '25%' }}>{new Date(paymentDate).toLocaleDateString()}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}><strong>Bank Name:</strong></td>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}>{selectedUser.bank_name || 'N/A'}</td>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}><strong>Account Number:</strong></td>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}>{selectedUser.account_number || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}><strong>IFSC:</strong></td>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}>{'N/A'}</td>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}></td>
+                        <td style={{ padding: '6px', border: '1px solid #000' }}></td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '80px' }}>
+                    <div style={{ border: '2px solid #4CAF50', padding: '12px 24px', fontSize: '16px', fontWeight: 'bold' }}>
+                      UTR: <span style={{ fontWeight: 'normal', marginLeft: '12px' }}>{transactionRef || '                         '}</span>
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: 'center', fontSize: '11px', color: '#666', borderTop: '1px solid #ccc', paddingTop: '12px' }}>
+                    <div>workzone, 5th Floor, Cabin#1&4, PlotNo.63, Phase-1, Kavurihills, Madhapur-500033</div>
+                    <div style={{ color: 'blue', marginTop: '4px' }}>www.hmnssoftware.com &nbsp;&nbsp;&nbsp;&nbsp; hr@hmnssoftware.in</div>
+                  </div>
+
+                </div>
               </div>
 
-              <div className="form-group">
-                <label>Payment Date</label>
-                <input 
-                  type="date" 
-                  value={paymentDate}
-                  max={new Date().toISOString().split('T')[0]}
-                  onChange={e => setPaymentDate(e.target.value)}
-                />
-              </div>
-
-              <hr style={{ margin: '15px 0', border: '1px solid #eee' }} />
-              <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#555' }}>Payslip Details (For PDF)</h4>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div className="form-group">
-                  <label>Worked Days</label>
-                  <input 
-                    type="number" 
-                    placeholder="e.g. 22" 
-                    value={workedDays}
-                    onChange={e => setWorkedDays(e.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Arrear Days</label>
-                  <input 
-                    type="number" 
-                    value={arrearDays}
-                    onChange={e => setArrearDays(e.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>LOP Days</label>
-                  <input 
-                    type="number" 
-                    value={lopDays}
-                    onChange={e => setLopDays(e.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>LOP Days Reversed</label>
-                  <input 
-                    type="number" 
-                    value={lopDaysReversed}
-                    onChange={e => setLopDaysReversed(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="ceo-modal-footer">
-              <button className="btn-cancel" onClick={() => setShowModal(false)}>Cancel</button>
-              <button className="btn-confirm" onClick={processPayment}>
-                {loading ? 'Processing...' : 'Confirm Payment'}
-              </button>
             </div>
           </div>
         </div>
