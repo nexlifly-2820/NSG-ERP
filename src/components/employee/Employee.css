@@ -227,8 +227,8 @@
   color: rgba(255,255,255,0.7);
 }
 .emp-quick-btn:hover {
-  background: var(--emp-bg-card-hover);
-  border-color: rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.25);
   color: #fff;
 }
 
