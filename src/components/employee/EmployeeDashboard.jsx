@@ -195,10 +195,12 @@ export default function EmployeeDashboard({ setActiveTab, currentUser }) {
     fetchAll();
   }, [token]);
 
-  // ── Tasks for this employee ───────────────────────────────────────
   const myTasks = dbData.tasks;
   const openTasks = myTasks.filter(t => t.status !== 'done');
   const doneTasks = myTasks.filter(t => t.status === 'done');
+
+  const [taskPage, setTaskPage] = useState(1);
+  const tasksPerPage = 5;
 
   // ── Leave balance ─────────────────────────────────────────────────
   const myLeave = dbData.leaveBalances;
@@ -411,13 +413,13 @@ export default function EmployeeDashboard({ setActiveTab, currentUser }) {
                   </button>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '4px' }} className="emp-scrollable-area">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '380px', overflowY: 'auto', paddingRight: '4px' }} className="emp-scrollable-area">
                   {openTasks.length === 0 && (
                     <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)', fontSize: 13 }}>
                       🎉 No open tasks — great job!
                     </div>
                   )}
-                  {openTasks.map(task => (
+                  {openTasks.slice((taskPage - 1) * tasksPerPage, taskPage * tasksPerPage).map(task => (
                     <div key={task.id} className="emp-task-row">
                       <span className={`emp-priority ${priorityClass(task.priority)}`}>{task.priority}</span>
                       <div style={{ flex: 1 }}>
@@ -429,9 +431,30 @@ export default function EmployeeDashboard({ setActiveTab, currentUser }) {
                       <span className="emp-status-chip" style={statusStyle(task.status)}>{task.status.replace('-', ' ')}</span>
                     </div>
                   ))}
-                  {doneTasks.length > 0 && (
+                  
+                  {openTasks.length > tasksPerPage && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
+                      <button 
+                        onClick={() => setTaskPage(p => Math.max(1, p - 1))}
+                        disabled={taskPage === 1}
+                        style={{ background: 'none', border: '1px solid var(--border-color)', borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: taskPage === 1 ? 'not-allowed' : 'pointer', color: 'var(--text-primary)', opacity: taskPage === 1 ? 0.5 : 1 }}
+                      >
+                        ← Prev
+                      </button>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Page {taskPage} of {Math.ceil(openTasks.length / tasksPerPage)}</span>
+                      <button 
+                        onClick={() => setTaskPage(p => Math.min(Math.ceil(openTasks.length / tasksPerPage), p + 1))}
+                        disabled={taskPage === Math.ceil(openTasks.length / tasksPerPage)}
+                        style={{ background: 'none', border: '1px solid var(--border-color)', borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: taskPage === Math.ceil(openTasks.length / tasksPerPage) ? 'not-allowed' : 'pointer', color: 'var(--text-primary)', opacity: taskPage === Math.ceil(openTasks.length / tasksPerPage) ? 0.5 : 1 }}
+                      >
+                        Next →
+                      </button>
+                    </div>
+                  )}
+
+                  {doneTasks.length > 0 && taskPage === 1 && (
                     <div style={{ marginTop: 12 }}>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8, fontWeight: 700 }}>✅ Completed</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8, fontWeight: 700 }}>✅ Completed (Recent)</div>
                       {doneTasks.slice(0,2).map(task => (
                         <div key={task.id} className="emp-task-row" style={{ opacity: 0.5 }}>
                           <span className={`emp-priority ${priorityClass(task.priority)}`}>{task.priority}</span>

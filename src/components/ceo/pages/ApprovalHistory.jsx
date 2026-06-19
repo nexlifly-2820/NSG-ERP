@@ -35,7 +35,7 @@ const ApprovalHistory = ({ queryParams, setQueryParams, currentUser }) => {
         </button>
       </div>
 
-      <div style={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', minHeight: '600px', overflow: 'hidden' }}>
+      <div>
         {activeTab === 'timesheets' && <ApprovedTimesheetsView queryParams={queryParams} setQueryParams={setQueryParams} currentUser={currentUser} />}
         {activeTab === 'leaves' && <LeaveManagementView queryParams={queryParams} setQueryParams={setQueryParams} currentUser={currentUser} />}
         {activeTab === 'attendance' && <AttendanceRegisterView queryParams={queryParams} setQueryParams={setQueryParams} currentUser={currentUser} />}

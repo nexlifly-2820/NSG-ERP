@@ -110,7 +110,13 @@ export function HrSettingsView() {
       const res = await fetch('/api/hr-portal/departments', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) setDepartments(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setDepartments(data);
+        if (data.length > 0 && !data.some(d => d.name === "IT")) {
+          setSelectedDept(data[0].name);
+        }
+      }
     } catch (err) { console.error(err); }
   };
 
@@ -281,81 +287,7 @@ export function HrSettingsView() {
     <div className="component-container">
       <div className="component-header">
         <div>
-          <h1>HR Settings &amp; Holiday Calendar</h1>
-          <p>Tweak carryover leave policies, manage official holiday timelines, and configure GPS geofencing.</p>
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        {/* Leave Policies */}
-        <div className="card flex-1" style={{ borderLeft: '4px solid var(--accent-pink)', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', minWidth: '300px' }}>
-          <h3>Leave Policies Quick Config</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-            {leavePolicies.map(p => (
-              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>{p.type} Policy:</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <input 
-                    type="number" 
-                    value={p.max_balance} 
-                    onChange={(e) => handlePolicyChange(p.id, e.target.value)}
-                    style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '6px', borderRadius: '4px', width: '60px', textAlign: 'right' }}
-                  />
-                  <span style={{ color: 'var(--text-muted)' }}>days Max</span>
-                </div>
-              </div>
-            ))}
-            <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="print-btn" onClick={handleSavePolicies} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', cursor: 'pointer', borderRadius: '6px' }}>
-                <Save size={16} /> Save Policies
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Holidays */}
-        <div className="card flex-1" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', minWidth: '350px' }}>
-          <h3>Holiday Calendar Roster</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
-            <div style={{ maxHeight: '200px', overflowY: 'auto', paddingRight: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {holidays.map(h => (
-                <div key={h.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', backgroundColor: 'var(--bg-primary)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                  <span style={{ fontWeight: '500' }}>{h.name}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>{h.date}</span>
-                    <button onClick={() => handleDeleteHoliday(h.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px' }}>
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ display: 'flex', gap: '8px', marginTop: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-              <input 
-                type="text" 
-                placeholder="Holiday Name" 
-                value={newHoliday.name}
-                onChange={e => setNewHoliday({...newHoliday, name: e.target.value})}
-                style={{ flex: 1, backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}
-              />
-              <input 
-                type="date" 
-                value={newHoliday.date}
-                onChange={e => setNewHoliday({...newHoliday, date: e.target.value})}
-                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}
-              />
-              <button onClick={handleAddHoliday} style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '8px', borderRadius: '6px', cursor: 'pointer' }}>
-                <Plus size={16} />
-              </button>
-            </div>
-            
-            <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="print-btn" onClick={handleSaveHolidays} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', cursor: 'pointer', borderRadius: '6px' }}>
-                <Save size={16} /> Save Calendar
-              </button>
-            </div>
-          </div>
+          <h1>HR Settings</h1>
         </div>
       </div>
 
@@ -369,7 +301,7 @@ export function HrSettingsView() {
               <select 
                 value={selectedDept} 
                 onChange={(e) => setSelectedDept(e.target.value)}
-                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '6px 12px', borderRadius: '4px' }}
+                style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '8px 14px', borderRadius: '6px', outline: 'none', cursor: 'pointer' }}
               >
                 {departments.map(d => (
                   <option key={d.id} value={d.name}>{d.name}</option>
@@ -412,7 +344,7 @@ export function HrSettingsView() {
                 placeholder="e.g. Deal Value" 
                 value={newField.label}
                 onChange={e => setNewField({...newField, label: e.target.value, name: e.target.value.toLowerCase().replace(/\s+/g, '_')})}
-                style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}
+                style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '10px 14px', borderRadius: '6px', outline: 'none' }}
               />
             </div>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -422,7 +354,7 @@ export function HrSettingsView() {
                 placeholder="deal_value" 
                 value={newField.name}
                 onChange={e => setNewField({...newField, name: e.target.value})}
-                style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}
+                style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '10px 14px', borderRadius: '6px', outline: 'none' }}
               />
             </div>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -430,7 +362,7 @@ export function HrSettingsView() {
               <select 
                 value={newField.type}
                 onChange={e => setNewField({...newField, type: e.target.value})}
-                style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}
+                style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '10px 14px', borderRadius: '6px', outline: 'none' }}
               >
                 <option value="text">Text</option>
                 <option value="number">Number</option>
@@ -440,7 +372,7 @@ export function HrSettingsView() {
                 <option value="file">File / Image Upload</option>
               </select>
             </div>
-            <button onClick={handleAddField} style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', height: '37px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button onClick={handleAddField} style={{ backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '0 20px', borderRadius: '6px', cursor: 'pointer', height: '42px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500', transition: 'background-color 0.2s' }}>
               <Plus size={16} /> Add Field
             </button>
           </div>
@@ -458,90 +390,7 @@ export function HrSettingsView() {
         </div>
       </div>
 
-      {/* GPS Geofencing Settings */}
-      <div className="card" style={{ borderLeft: '4px solid #10b981', width: '100%', marginTop: '24px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', boxSizing: 'border-box' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-          <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)', border: 'none', padding: 0 }}>
-            <MapPin size={20} style={{ color: '#10b981' }} /> GPS Geofencing Configuration
-          </h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <label style={{ fontSize: '13px', fontWeight: '500', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)' }}>
-              <input
-                type="checkbox"
-                checked={geofence.enabled}
-                onChange={(e) => setGeofence(prev => ({ ...prev, enabled: e.target.checked }))}
-                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-              />
-              Enforce Geofencing
-            </label>
-          </div>
-        </div>
 
-        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px', lineHeight: '1.5' }}>
-          Restrict employees from clocking in for "Office" mode unless they are physically present within the defined perimeter. WFH requests are not restricted.
-        </p>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Office Latitude</label>
-            <input
-              type="number"
-              step="any"
-              style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px', borderRadius: '8px', fontSize: '13px', outline: 'none' }}
-              value={geofence.latitude}
-              onChange={(e) => setGeofence(prev => ({ ...prev, latitude: parseFloat(e.target.value) || 0 }))}
-              placeholder="e.g. 12.9716"
-              disabled={!geofence.enabled}
-            />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Office Longitude</label>
-            <input
-              type="number"
-              step="any"
-              style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px', borderRadius: '8px', fontSize: '13px', outline: 'none' }}
-              value={geofence.longitude}
-              onChange={(e) => setGeofence(prev => ({ ...prev, longitude: parseFloat(e.target.value) || 0 }))}
-              placeholder="e.g. 77.5946"
-              disabled={!geofence.enabled}
-            />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Allowed Radius (Meters)</label>
-            <input
-              type="number"
-              style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px', borderRadius: '8px', fontSize: '13px', outline: 'none' }}
-              value={geofence.radius}
-              onChange={(e) => setGeofence(prev => ({ ...prev, radius: parseInt(e.target.value, 10) || 0 }))}
-              placeholder="e.g. 100"
-              disabled={!geofence.enabled}
-            />
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', alignItems: 'center' }}>
-          <button
-            onClick={handleLocateOffice}
-            className="print-btn"
-            disabled={!geofence.enabled || gpsLoading}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', fontSize: '13px', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', cursor: geofence.enabled && !gpsLoading ? 'pointer' : 'not-allowed', opacity: geofence.enabled ? 1 : 0.5 }}
-          >
-            {gpsLoading ? <Loader size={16} className="att-spin" /> : <Building2 size={16} />}
-            {gpsLoading ? 'Fetching GPS...' : 'Use My Current Location'}
-          </button>
-
-          <button
-            onClick={handleSaveGeofence}
-            className="print-btn"
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 20px', fontSize: '13px', backgroundColor: '#10b981', color: '#fff', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
-          >
-            {saveSuccess ? <CheckCircle2 size={16} /> : <RefreshCw size={16} />}
-            {saveSuccess ? 'Saved Settings!' : 'Save Geofence Settings'}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
