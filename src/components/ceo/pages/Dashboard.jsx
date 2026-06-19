@@ -23,6 +23,12 @@ export default function Dashboard() {
   const [approvalsList, setApprovalsList] = useState([]);
   const [escalationsList, setEscalationsList] = useState([]);
   const [selectedApprovals, setSelectedApprovals] = useState(new Set());
+  const [approvalPage, setApprovalPage] = useState(1);
+  const approvalsPerPage = 5;
+  const [escalationPage, setEscalationPage] = useState(1);
+  const escalationsPerPage = 5;
+  const [heatmapPage, setHeatmapPage] = useState(1);
+  const heatmapPerPage = 5;
   
   // Heatmap state
   const heatmapDepts = ["Sales", "Engineering", "Marketing", "HR", "Finance"];
@@ -394,7 +400,7 @@ export default function Dashboard() {
             )}
           </div>
           
-          <div style={{ overflowY: 'auto', flex: 1 }}>
+          <div style={{ overflowY: 'auto', flex: 1, minHeight: '350px' }}>
             {approvalsList.length === 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--ceo-text-muted)' }}>
                 <CheckCircle size={48} color="var(--ceo-success)" style={{ opacity: 0.2, marginBottom: '16px' }} />
@@ -414,7 +420,7 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {approvalsList.map(item => (
+                  {approvalsList.slice((approvalPage - 1) * approvalsPerPage, approvalPage * approvalsPerPage).map(item => (
                     <tr key={item.id} style={{ background: selectedApprovals.has(item.id) ? 'var(--ceo-hover)' : '' }}>
                       <td>
                         <input type="checkbox" checked={selectedApprovals.has(item.id)} onChange={() => toggleApproval(item.id)} />
@@ -439,6 +445,21 @@ export default function Dashboard() {
               </table>
             )}
           </div>
+          {approvalsList.length > approvalsPerPage && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '12px', borderTop: '1px solid var(--ceo-border)', gap: '16px' }}>
+              <button 
+                disabled={approvalPage === 1}
+                onClick={() => setApprovalPage(p => p - 1)}
+                className="ceo-btn" style={{ padding: '4px 12px', opacity: approvalPage === 1 ? 0.5 : 1 }}
+              >Prev</button>
+              <span className="ceo-typography-meta">Page {approvalPage} of {Math.ceil(approvalsList.length / approvalsPerPage)}</span>
+              <button 
+                disabled={approvalPage === Math.ceil(approvalsList.length / approvalsPerPage)}
+                onClick={() => setApprovalPage(p => p + 1)}
+                className="ceo-btn" style={{ padding: '4px 12px', opacity: approvalPage === Math.ceil(approvalsList.length / approvalsPerPage) ? 0.5 : 1 }}
+              >Next</button>
+            </div>
+          )}
         </div>
 
         {/* ZONE: ESCALATION PANEL */}
@@ -456,14 +477,14 @@ export default function Dashboard() {
               </button>
             </div>
           </div>
-          <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
+          <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto', flex: 1, minHeight: '350px' }}>
             {escalationsList.length === 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--ceo-text-muted)', opacity: 0.5 }}>
                 <CheckCircle size={36} color="var(--ceo-success)" style={{ marginBottom: '8px' }} />
                 <div style={{ fontSize: '13px' }}>No active blockages reported.</div>
               </div>
             ) : (
-              escalationsList.map(esc => (
+              escalationsList.slice((escalationPage - 1) * escalationsPerPage, escalationPage * escalationsPerPage).map(esc => (
                 <div key={esc.id} style={{ 
                   padding: '16px', 
                   background: esc.severity === 'CRITICAL' ? '#FEF2F2' : esc.severity === 'HIGH' ? '#FFFBEB' : '#F8FAFC',
@@ -489,6 +510,21 @@ export default function Dashboard() {
               ))
             )}
           </div>
+          {escalationsList.length > escalationsPerPage && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '12px', borderTop: '1px solid var(--ceo-border)', gap: '16px' }}>
+              <button 
+                disabled={escalationPage === 1}
+                onClick={() => setEscalationPage(p => p - 1)}
+                className="ceo-btn" style={{ padding: '4px 12px', opacity: escalationPage === 1 ? 0.5 : 1 }}
+              >Prev</button>
+              <span className="ceo-typography-meta">Page {escalationPage} of {Math.ceil(escalationsList.length / escalationsPerPage)}</span>
+              <button 
+                disabled={escalationPage === Math.ceil(escalationsList.length / escalationsPerPage)}
+                onClick={() => setEscalationPage(p => p + 1)}
+                className="ceo-btn" style={{ padding: '4px 12px', opacity: escalationPage === Math.ceil(escalationsList.length / escalationsPerPage) ? 0.5 : 1 }}
+              >Next</button>
+            </div>
+          )}
         </div>
 
         {/* ZONE: ATTENDANCE HEATMAP */}
@@ -510,7 +546,7 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-          <div style={{ padding: '0 0 32px 0', overflowX: 'auto' }}>
+          <div style={{ padding: '0 0 12px 0', overflowX: 'auto', minHeight: '350px' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
               <thead>
                 <tr>
@@ -526,7 +562,9 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {heatmapDepts.map((dept, dIdx) => (
+                {heatmapDepts.slice((heatmapPage - 1) * heatmapPerPage, heatmapPage * heatmapPerPage).map((dept, idx) => {
+                  const dIdx = (heatmapPage - 1) * heatmapPerPage + idx;
+                  return (
                   <tr key={dept} style={{ transition: 'background 0.2s ease', borderBottom: '1px solid var(--ceo-border)' }}
                       onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--ceo-hover)'}
                       onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
@@ -571,10 +609,25 @@ export default function Dashboard() {
                       </td>
                     ))}
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>
+          {heatmapDepts.length > heatmapPerPage && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '12px', borderTop: '1px solid var(--ceo-border)', gap: '16px' }}>
+              <button 
+                disabled={heatmapPage === 1}
+                onClick={() => setHeatmapPage(p => p - 1)}
+                className="ceo-btn" style={{ padding: '4px 12px', opacity: heatmapPage === 1 ? 0.5 : 1 }}
+              >Prev</button>
+              <span className="ceo-typography-meta">Page {heatmapPage} of {Math.ceil(heatmapDepts.length / heatmapPerPage)}</span>
+              <button 
+                disabled={heatmapPage === Math.ceil(heatmapDepts.length / heatmapPerPage)}
+                onClick={() => setHeatmapPage(p => p + 1)}
+                className="ceo-btn" style={{ padding: '4px 12px', opacity: heatmapPage === Math.ceil(heatmapDepts.length / heatmapPerPage) ? 0.5 : 1 }}
+              >Next</button>
+            </div>
+          )}
         </div>
 
       </div>

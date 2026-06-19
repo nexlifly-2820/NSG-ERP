@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Filter, Download, XCircle, Mail, Phone, Award, UserPlus, FileText, CalendarDays, Users, Building, ShieldCheck, TrendingUp } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import '../CEO.css';
 
 
@@ -244,27 +246,42 @@ export default function People() {
     }
   };
 
-  const handleDownload = (filename) => {
+  const handleExportPDF = () => {
     if (filteredEmployees.length === 0) {
       alert("No data to export");
       return;
     }
-    const headers = ["Employee ID", "Name", "Email", "Department", "Designation", "System Role", "Status", "Join Date"];
-    const csvContent = [
-      headers.join(","),
-      ...filteredEmployees.map(emp => [
-        emp.id,
-        `"${emp.name}"`,
-        emp.email,
-        `"${emp.dept}"`,
-        `"${emp.role}"`,
-        emp.sysRole,
-        emp.status,
-        emp.joinDate
-      ].join(","))
-    ].join("\n");
+    const doc = new jsPDF('landscape');
+    
+    doc.setFontSize(18);
+    doc.text("Employees Export", 14, 22);
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const headers = [["Employee ID", "Name", "Email", "Department", "Designation", "System Role", "Status", "Join Date"]];
+    const data = filteredEmployees.map(emp => [
+      emp.id,
+      emp.name,
+      emp.email,
+      emp.dept,
+      emp.role,
+      emp.sysRole,
+      emp.status,
+      emp.joinDate
+    ]);
+
+    doc.autoTable({
+      startY: 30,
+      head: headers,
+      body: data,
+    });
+
+    doc.save('employees_export.pdf');
+  };
+
+  const handleDownload = (filename) => {
+    // Keep this for document downloads inside full profile modal
+    if (filteredEmployees.length === 0) return;
+    const csvContent = "Sample Document Download";
+    const blob = new Blob([csvContent], { type: 'text/plain;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -374,7 +391,7 @@ export default function People() {
 
             <div style={{ flex: 1 }}></div>
             
-            <button onClick={() => handleDownload('employees_export.csv')} className="ceo-btn" style={{ height: '40px', fontSize: '13px', fontWeight: 600, background: '#FFF' }}><Download size={16} /> Export CSV</button>
+            <button onClick={handleExportPDF} className="ceo-btn" style={{ height: '40px', fontSize: '13px', fontWeight: 600, background: '#FFF' }}><Download size={16} /> Export PDF</button>
             <button onClick={() => setIsAddModalOpen(true)} className="ceo-btn ceo-btn-primary" style={{ height: '40px', fontSize: '13px', fontWeight: 600 }}><UserPlus size={16} /> Add Employee</button>
           </div>
 

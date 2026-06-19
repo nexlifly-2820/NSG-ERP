@@ -254,6 +254,36 @@ export function OnboardingView({ queryParams, setQueryParams }) {
     setShowOfferPreviewModal(true);
   };
 
+  const handleOfferTemplateUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      
+      if (file.type === 'application/pdf') {
+        reader.onload = (event) => {
+          if (offerPreviewRef.current) {
+            offerPreviewRef.current.innerHTML = `<iframe src="${event.target.result}" width="100%" height="1000px" style="border: none;"></iframe>`;
+          }
+        };
+        reader.readAsDataURL(file);
+      } else if (file.type.startsWith('image/')) {
+        reader.onload = (event) => {
+          if (offerPreviewRef.current) {
+            offerPreviewRef.current.innerHTML = `<div style="text-align: center;"><img src="${event.target.result}" style="max-width: 100%;" /></div>`;
+          }
+        };
+        reader.readAsDataURL(file);
+      } else {
+        reader.onload = (event) => {
+          if (offerPreviewRef.current) {
+            offerPreviewRef.current.innerHTML = event.target.result;
+          }
+        };
+        reader.readAsText(file);
+      }
+    }
+  };
+
   const handleDownloadEditedOffer = async () => {
     try {
       const data = {
@@ -944,7 +974,13 @@ export function OnboardingView({ queryParams, setQueryParams }) {
               <h3 style={{ color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 ✏️ Edit Offer Letter
               </h3>
-              <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px' }} onClick={() => setShowOfferPreviewModal(false)}>✕</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                  <label style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase' }}>Upload Custom Format (Any File)</label>
+                  <input type="file" onChange={handleOfferTemplateUpload} style={{ fontSize: '12px', maxWidth: '200px', backgroundColor: 'var(--bg-primary)', padding: '4px', borderRadius: '4px', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
+                </div>
+                <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px' }} onClick={() => setShowOfferPreviewModal(false)}>✕</button>
+              </div>
             </div>
 
             <div className="custom-scroll" style={{ flex: 1, overflowY: 'auto', backgroundColor: '#e5e7eb', padding: '20px', borderRadius: '8px', display: 'flex', justifyContent: 'center' }}>
