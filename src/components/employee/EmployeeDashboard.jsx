@@ -295,8 +295,12 @@ export default function EmployeeDashboard({ setActiveTab, currentUser }) {
                 )}
               </button>
             </div>
+            <button className="emp-quick-btn" onClick={() => setActiveTab('profile')}>👤 Profile</button>
+            {!hideTimesheet && (
+              <button className="emp-quick-btn" onClick={() => setActiveTab('timesheet')}>⏱️ Timesheet</button>
+            )}
             <button className="emp-quick-btn" onClick={() => setActiveTab('leave')}>🌴 Request Leave</button>
-            {!hideHolidaysExpensesPerfMsg ? (
+            {!hideHolidaysExpensesPerfMsg && (
               <button className="emp-quick-btn" onClick={() => setActiveTab('messaging')}>💬 Messages
                 {myChannels.length > 0 && (
                   <span style={{ background: '#ef4444', color: '#fff', borderRadius: '10px', padding: '1px 6px', fontSize: '9px', fontWeight: '700' }}>
@@ -304,10 +308,6 @@ export default function EmployeeDashboard({ setActiveTab, currentUser }) {
                   </span>
                 )}
               </button>
-            ) : (
-              !hideTimesheet && (
-                <button className="emp-quick-btn" onClick={() => setActiveTab('timesheet')}>⏱️ Timesheets</button>
-              )
             )}
           </div>
         </div>
@@ -550,49 +550,7 @@ export default function EmployeeDashboard({ setActiveTab, currentUser }) {
                 </div>
               </div>
 
-              {/* ── Quick links ── */}
-              <div className="emp-card">
-                <div className="emp-section-header" style={{ marginBottom: 14 }}>
-                  <div className="emp-section-header__left">
-                    <span style={{ fontSize: 16 }}>🚀</span>
-                    <span className="emp-section-header__title">Quick Access</span>
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  {[
-                    { label: 'My Timesheet', icon: '⏱️', tab: 'timesheet' },
-                    { label: 'Payslips', icon: '💰', tab: 'payroll' },
-                    { label: 'Leave Request', icon: '🌴', tab: 'leave' },
-                    { label: 'My Assets', icon: '💻', tab: 'assets' },
-                    { label: 'Profile', icon: '👤', tab: 'profile' },
-                    { label: 'Messaging', icon: '💬', tab: 'messaging' },
-                  ].map(item => (
-                    <button
-                      key={item.tab}
-                      onClick={() => setActiveTab(item.tab)}
-                      style={{
-                        padding: '10px 14px',
-                        background: 'var(--bg-primary)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: 10,
-                        color: 'var(--text-primary)',
-                        fontSize: 12,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        transition: 'all 0.15s',
-                        textAlign: 'left'
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-tertiary)'; e.currentTarget.style.borderColor = 'var(--text-muted)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-primary)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }}
-                    >
-                      <span style={{ fontSize: 16 }}>{item.icon}</span> {item.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+
             </div>
           )}
         </div>
