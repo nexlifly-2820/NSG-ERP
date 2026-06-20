@@ -7,7 +7,6 @@ const Projects = lazy(() => import('./Projects/projects.index'));
 const Tasks = lazy(() => import('./Tasks/index'));
 const Attendance = lazy(() => import('./Attendance/TeamAttendance'));
 const Timesheets = lazy(() => import('./Timesheets/index'));
-const Reports = lazy(() => import('./Reports/index'));
 const Escalations = lazy(() => import('./Escalations/index'));
 const Approvals = lazy(() => import('./Approvals/index'));
 const MessagingAndMeet = lazy(() => import('./Messaging & Meet/messages.module.index'));
@@ -47,9 +46,6 @@ export default function Tl({ activeTab, setActiveTab, currentUser }) {
         {activeTab === 'approvals' && (
           <ErrorBoundary><Approvals /></ErrorBoundary>
         )}
-        {activeTab === 'reports' && (
-          <ErrorBoundary><Reports /></ErrorBoundary>
-        )}
         {activeTab === 'escalations' && (
           <ErrorBoundary><Escalations /></ErrorBoundary>
         )}
@@ -64,7 +60,7 @@ export default function Tl({ activeTab, setActiveTab, currentUser }) {
         )}
       </Suspense>
       
-      {activeTab !== 'dashboard' && activeTab !== 'team' && activeTab !== 'projects' && activeTab !== 'tasks' && activeTab !== 'attendance' && activeTab !== 'timesheets' && activeTab !== 'approvals' && activeTab !== 'reports' && activeTab !== 'escalations' && activeTab !== 'messaging' && activeTab !== 'performance' && activeTab !== 'holidays' && (
+      {activeTab !== 'dashboard' && activeTab !== 'team' && activeTab !== 'projects' && activeTab !== 'tasks' && activeTab !== 'attendance' && activeTab !== 'timesheets' && activeTab !== 'approvals' && activeTab !== 'escalations' && activeTab !== 'messaging' && activeTab !== 'performance' && activeTab !== 'holidays' && (
         <>
           <div className="component-header">
             <div>

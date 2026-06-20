@@ -172,6 +172,7 @@ class EscalationResponse(BaseModel):
     severity: str
     ceo_viewed: bool
     resolved: bool
+    rejected: bool = False
     dependencies: Optional[str]
     description: Optional[str]
 

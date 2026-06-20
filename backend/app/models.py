@@ -419,6 +419,7 @@ class Escalation(Base):
     severity = Column(String, default="Medium")  # Medium, High, Critical
     ceo_viewed = Column(Boolean, default=False)
     resolved = Column(Boolean, default=False)
+    rejected = Column(Boolean, default=False)
     dependencies = Column(String, nullable=True)  # Comma-separated dependencies list
     description = Column(Text, nullable=True)
 

@@ -466,8 +466,7 @@ const Dashboard = ({ setActiveTab, setSelectedChatUser }) => {
             </div>
           </div>
 
-          {/* Middle Row: Action Center */}
-          <div className={styles.actionRowGrid}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
             {/* Pending Approvals */}
             <div className={styles.widgetCard}>
               <div className={styles.widgetHeader}>
@@ -476,7 +475,7 @@ const Dashboard = ({ setActiveTab, setSelectedChatUser }) => {
                   Pending Approvals
                 </div>
               </div>
-              <div className={styles.badgeList}>
+              <div className={styles.badgeList} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px', flexDirection: 'unset' }}>
                 <div className={styles.badgeItem} onClick={() => setCurrentView('leave')} style={{ cursor: 'pointer' }}>
                   <div className={styles.badgeInfo}>
                     <div className={`${styles.badgeIcon} ${styles.purple}`}>
@@ -506,31 +505,6 @@ const Dashboard = ({ setActiveTab, setSelectedChatUser }) => {
                   </div>
                   <span className={`${styles.badgeCount} ${pendingApprovals.wfhRequests === 0 ? styles.zero : ''}`}>{pendingApprovals.wfhRequests}</span>
                 </div>
-              </div>
-            </div>
-
-            {/* Today's Absent Alert */}
-            <div className={styles.widgetCard}>
-              <div className={styles.widgetHeader}>
-                <div className={styles.widgetTitle}>
-                  <AlertCircle size={20} style={{ color: '#ef4444' }} />
-                  Today's Absent Alert
-                </div>
-              </div>
-              <div className={styles.alertList}>
-                {pendingDetails.absentAlerts.map(alert => (
-                  <div key={alert.id} className={styles.alertCard} onClick={() => { setCurrentView('absent'); setExpandedItem(alert.id); }} style={{ cursor: 'pointer' }}>
-                    <div className={styles.alertAvatar}>{alert.initials}</div>
-                    <div className={styles.alertInfo}>
-                      <h4 className={styles.alertName} style={{ margin: 0 }}>{alert.name}</h4>
-                    </div>
-                  </div>
-                ))}
-                {pendingDetails.absentAlerts.length === 0 && (
-                  <div style={{ textAlign: 'center', color: '#94a3b8', padding: '20px 0', fontSize: '14px' }}>
-                    No absentees today.
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -579,57 +553,6 @@ const Dashboard = ({ setActiveTab, setSelectedChatUser }) => {
             )}
           </div>
         </div>
-
-        {/* RIGHT COLUMN: Sidebar */}
-        <div className={styles.rightSidebar}>
-          {/* Sprint Status */}
-          <div className={styles.widgetCard}>
-            <div className={styles.widgetHeader}>
-              <div className={styles.widgetTitle}>
-                <Activity size={20} className={styles.widgetIcon} />
-                Sprint Status
-              </div>
-            </div>
-            <div className={styles.sprintContent}>
-              <div className={styles.progressRingContainer}>
-                <svg className={styles.progressRingSvg} viewBox="0 0 140 140">
-                  <circle className={styles.progressRingTrack} cx="70" cy="70" r={radius} />
-                  <circle className={styles.progressRingFill} cx="70" cy="70" r={radius} style={{ strokeDasharray: circumference, strokeDashoffset }} />
-                </svg>
-                <div className={styles.progressRingCenter}>
-                  <span className={styles.progressPoints}>{sprintData.pointsCompleted}</span>
-                  <span className={styles.progressLabel}>/ {sprintData.pointsTotal} pts</span>
-                </div>
-              </div>
-              <div className={styles.sprintDetails}>
-                <h3 className={styles.sprintName}>{sprintData.name}</h3>
-                <div className={styles.velocityTrend}>
-                  <TrendingUp size={16} />
-                  {sprintData.velocityTrend}
-                </div>
-                <div className={styles.taskCounters}>
-                  <div className={styles.taskCountItem}>
-                    <span className={styles.taskCountNum}>{sprintData.tasks.todo}</span>
-                    <span className={styles.taskCountLabel}>To Do</span>
-                  </div>
-                  <div className={styles.taskCountItem}>
-                    <span className={styles.taskCountNum}>{sprintData.tasks.inProgress}</span>
-                    <span className={styles.taskCountLabel}>In Progress</span>
-                  </div>
-                  <div className={`${styles.taskCountItem} ${styles.blocked}`}>
-                    <span className={styles.taskCountNum}>{sprintData.tasks.blocked}</span>
-                    <span className={styles.taskCountLabel}>Blocked</span>
-                  </div>
-                  <div className={styles.taskCountItem}>
-                    <span className={styles.taskCountNum}>{sprintData.tasks.done}</span>
-                    <span className={styles.taskCountLabel}>Done</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
       </div>
     </div>
   );

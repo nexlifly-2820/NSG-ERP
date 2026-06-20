@@ -265,8 +265,10 @@ class EscalationResponse(BaseModel):
     severity: str
     ceo_viewed: bool
     resolved: bool
+    rejected: bool = False
     dependencies: Optional[str]
     description: Optional[str]
+    tl_name: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -997,14 +999,51 @@ def reject_leave_ceo(id: int, current_user: models.User = Depends(security.get_c
 def get_escalations(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
     
-    # Mark viewed by CEO
     escalations = db.query(models.Escalation).offset(skip).limit(limit).all()
+    result = []
     for esc in escalations:
-        if not esc.ceo_viewed:
-            esc.ceo_viewed = True
-            
+        esc_dict = {
+            "id": esc.id,
+            "user_id": esc.user_id,
+            "title": esc.title,
+            "task_link": esc.task_link,
+            "submitted_at": esc.submitted_at,
+            "severity": esc.severity,
+            "ceo_viewed": esc.ceo_viewed,
+            "resolved": esc.resolved,
+            "rejected": esc.rejected,
+            "dependencies": esc.dependencies,
+            "description": esc.description,
+            "tl_name": esc.user.name if esc.user else "Unknown TL"
+        }
+        result.append(esc_dict)
+    return result
+
+@router.post("/projects/escalations/{id}/acknowledge", response_model=EscalationResponse)
+def acknowledge_escalation_ceo(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_ceo_role(current_user)
+    esc = db.query(models.Escalation).filter(models.Escalation.id == id).first()
+    if not esc:
+        raise HTTPException(status_code=404, detail="Escalation not found.")
+        
+    esc.ceo_viewed = True
     db.commit()
-    return escalations
+    db.refresh(esc)
+    esc_dict = {
+        "id": esc.id,
+        "user_id": esc.user_id,
+        "title": esc.title,
+        "task_link": esc.task_link,
+        "submitted_at": esc.submitted_at,
+        "severity": esc.severity,
+        "ceo_viewed": esc.ceo_viewed,
+        "resolved": esc.resolved,
+        "rejected": esc.rejected,
+        "dependencies": esc.dependencies,
+        "description": esc.description,
+        "tl_name": esc.user.name if esc.user else "Unknown TL"
+    }
+    return esc_dict
 
 @router.post("/projects/escalations/{id}/resolve", response_model=EscalationResponse)
 def resolve_escalation_ceo(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -1018,16 +1057,32 @@ def resolve_escalation_ceo(id: int, current_user: models.User = Depends(security
     db.refresh(esc)
     return esc
 
-@router.delete("/projects/escalations/{id}")
-def delete_escalation_ceo(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+@router.post("/projects/escalations/{id}/reject", response_model=EscalationResponse)
+def reject_escalation_ceo(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
     esc = db.query(models.Escalation).filter(models.Escalation.id == id).first()
     if not esc:
         raise HTTPException(status_code=404, detail="Escalation not found.")
         
-    db.delete(esc)
+    esc.rejected = True
+    esc.resolved = False
     db.commit()
-    return {"status": "success", "message": "Escalation deleted."}
+    db.refresh(esc)
+    esc_dict = {
+        "id": esc.id,
+        "user_id": esc.user_id,
+        "title": esc.title,
+        "task_link": esc.task_link,
+        "submitted_at": esc.submitted_at,
+        "severity": esc.severity,
+        "ceo_viewed": esc.ceo_viewed,
+        "resolved": esc.resolved,
+        "rejected": esc.rejected,
+        "dependencies": esc.dependencies,
+        "description": esc.description,
+        "tl_name": esc.user.name if esc.user else "Unknown TL"
+    }
+    return esc_dict
 
 # 5. Configs & Audit Trails
 @router.get("/audit-trail", response_model=List[AuditLogResponse])

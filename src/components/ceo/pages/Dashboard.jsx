@@ -137,7 +137,9 @@ export default function Dashboard() {
           severity: esc.severity || "MEDIUM",
           module: esc.dependencies || "System",
           msg: esc.title,
-          time: escTime
+          time: escTime,
+          tl_name: esc.tl_name,
+          ceo_viewed: esc.ceo_viewed
         };
       });
 
@@ -245,11 +247,25 @@ export default function Dashboard() {
     }
   };
 
-  const handleDeleteEscalation = async (escId, dbId) => {
-    if (!window.confirm("Are you sure you want to delete this escalation permanently?")) return;
+  const handleAcknowledgeEscalation = async (escId, dbId) => {
     try {
-      const res = await fetch(`/api/ceo-portal/projects/escalations/${dbId}`, {
-        method: 'DELETE',
+      const res = await fetch(`/api/ceo-portal/projects/escalations/${dbId}/acknowledge`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setEscalationsList(prev => prev.map(e => e.id === escId ? { ...e, ceo_viewed: true } : e));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDismissEscalation = async (escId, dbId) => {
+    if (!window.confirm("Are you sure you want to reject this escalation?")) return;
+    try {
+      const res = await fetch(`/api/ceo-portal/projects/escalations/${dbId}/reject`, {
+        method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -501,16 +517,20 @@ export default function Dashboard() {
                     </div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                       <span className="ceo-typography-meta"><Clock size={12} style={{ display: 'inline', marginRight: '4px' }}/>{esc.time}</span>
+                      {!esc.ceo_viewed && (
+                        <button className="ceo-btn" style={{ padding: '2px 8px', fontSize: '11px', background: 'var(--ceo-primary)', color: '#FFF', border: 'none' }} onClick={() => handleAcknowledgeEscalation(esc.id, esc.id.replace('E-', ''))}>Acknowledge</button>
+                      )}
                       <button className="ceo-btn" style={{ padding: '2px 8px', fontSize: '11px', background: 'var(--ceo-success)', color: '#FFF', border: 'none' }} onClick={() => handleResolveEscalation(esc.id, esc.id.replace('E-', ''))}>Resolve</button>
-                      <button className="ceo-btn" style={{ padding: '2px 8px', fontSize: '11px', background: 'var(--ceo-danger)', color: '#FFF', border: 'none' }} onClick={() => handleDeleteEscalation(esc.id, esc.id.replace('E-', ''))}>Delete</button>
+                      <button className="ceo-btn" style={{ padding: '2px 8px', fontSize: '11px', background: 'var(--ceo-danger)', color: '#FFF', border: 'none', opacity: 0.8 }} onClick={() => handleDismissEscalation(esc.id, esc.id.replace('E-', ''))}>Reject</button>
                     </div>
                   </div>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ceo-text-secondary)', marginBottom: '4px' }}>Raised by: {esc.tl_name}</div>
                   <div className="ceo-typography-body" style={{ fontWeight: 500, color: 'var(--ceo-text-primary)' }}>{esc.msg}</div>
                 </div>
               ))
             )}
           </div>
-          {escalationsList.length > escalationsPerPage && (
+          {escalationsList.length > 0 && (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '12px', borderTop: '1px solid var(--ceo-border)', gap: '16px' }}>
               <button 
                 disabled={escalationPage === 1}

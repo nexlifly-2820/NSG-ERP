@@ -948,7 +948,6 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', paddingLeft: '8px', paddingRight: '8px' }}>
             <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ceo-text-muted)', letterSpacing: '0.5px' }}>CHANNELS</div>
-            <button onClick={() => setIsCreateChannelOpen(true)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--ceo-text-secondary)' }}><Plus size={14} /></button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '24px' }}>
             {myChannels.map(chan => (
