@@ -1,13 +1,8 @@
-import sqlite3
-conn = sqlite3.connect('nsg_erp.db')
-cursor = conn.cursor()
-cursor.execute("SELECT sql FROM sqlite_master WHERE name='announcements';")
-print('announcements table:', cursor.fetchone())
-cursor.execute("SELECT sql FROM sqlite_master WHERE name='announcement_reads';")
-print('announcement_reads table:', cursor.fetchone())
-cursor.execute("SELECT * FROM announcements;")
-rows = cursor.fetchall()
-print(f'Existing announcements: {len(rows)}')
-for r in rows:
-    print(r)
-conn.close()
+from app.database import SessionLocal
+from app import models
+
+db = SessionLocal()
+tickets = db.query(models.SupportTicket).filter(models.SupportTicket.category == 'asset_request').all()
+print("TICKETS:", len(tickets))
+for t in tickets:
+    print(t.id, t.title, t.description, t.status)

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { FileText, Clock, CheckCircle, XCircle } from 'lucide-react';
 
 export default function AssetRequestForm({ onRequestSubmit, requests }) {
-  const [assetType, setAssetType] = useState('Laptop');
+  const [assetType, setAssetType] = useState('');
   const [reason, setReason] = useState('');
   const [urgency, setUrgency] = useState('Medium');
   const [validationError, setValidationError] = useState('');
@@ -11,8 +11,8 @@ export default function AssetRequestForm({ onRequestSubmit, requests }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (reason.trim().length < 10) {
-      setValidationError('Reason must be at least 10 characters long.');
+    if (reason.trim().length === 0) {
+      setValidationError('Description is required.');
       return;
     }
     
@@ -35,7 +35,7 @@ export default function AssetRequestForm({ onRequestSubmit, requests }) {
 
   const handleReasonChange = (val) => {
     setReason(val);
-    if (val.trim().length >= 10) {
+    if (val.trim().length > 0) {
       setValidationError('');
     }
   };
@@ -109,9 +109,12 @@ export default function AssetRequestForm({ onRequestSubmit, requests }) {
             <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>
               Asset Type
             </label>
-            <select
+            <input
+              type="text"
               value={assetType}
               onChange={(e) => setAssetType(e.target.value)}
+              required
+              placeholder="e.g. Laptop, Monitor, Headset..."
               style={{
                 padding: '8px 10px',
                 borderRadius: '6px',
@@ -119,18 +122,9 @@ export default function AssetRequestForm({ onRequestSubmit, requests }) {
                 backgroundColor: 'var(--bg-primary)',
                 color: 'var(--text-primary)',
                 fontSize: '12px',
-                outline: 'none',
-                cursor: 'pointer'
+                outline: 'none'
               }}
-            >
-              <option value="Laptop">Laptop</option>
-              <option value="External Monitor">External Monitor</option>
-              <option value="Mouse/Keyboard">Mouse/Keyboard</option>
-              <option value="Headset">Headset</option>
-              <option value="Mobile Phone">Mobile Phone</option>
-              <option value="Charging Adapter">Charging Adapter</option>
-              <option value="Other">Other</option>
-            </select>
+            />
           </div>
 
           {/* Urgency Badge Radios */}
@@ -169,7 +163,7 @@ export default function AssetRequestForm({ onRequestSubmit, requests }) {
           {/* Reason Description */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>
-              Business Justification / Reason (min 10 chars)
+              Description
             </label>
             <textarea
               value={reason}
@@ -217,83 +211,11 @@ export default function AssetRequestForm({ onRequestSubmit, requests }) {
               height: '40px'
             }}
           >
-            {isSubmitting ? 'Submitting...' : 'Submit for TL Approval'}
+            {isSubmitting ? 'Submitting...' : 'Submit Request'}
           </button>
         </form>
       </div>
 
-      {/* My Requests List Card */}
-      {requests.length > 0 && (
-        <div
-          style={{
-            backgroundColor: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '12px',
-            padding: '20px',
-            boxShadow: 'var(--shadow-sm)'
-          }}
-        >
-          <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <FileText size={14} />
-            <span>My Asset Requisitions ({requests.length})</span>
-          </h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {requests.map((req) => (
-              <div 
-                key={req.id}
-                style={{
-                  padding: '10px 0',
-                  borderBottom: '1px solid var(--border-color)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: '12px'
-                }}
-              >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '12px', fontWeight: '700', fontFamily: 'monospace', color: 'var(--text-primary)' }}>
-                      {req.id}
-                    </span>
-                    <span 
-                      style={{ 
-                        fontSize: '10px', // Urgency badge Typography: 10px / 700
-                        fontWeight: '700', 
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        backgroundColor: getUrgencyBg(req.urgency),
-                        color: getUrgencyColor(req.urgency)
-                      }}
-                    >
-                      {req.urgency}
-                    </span>
-                  </div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    Item: {req.assetType} | Requested: {req.createdAt}
-                  </span>
-                  <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.4', wordBreak: 'break-word' }}>
-                    {req.reason}
-                  </p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                  {req.status === 'Pending' && <Clock size={12} style={{ color: getStatusColor(req.status) }} />}
-                  {req.status === 'Approved' && <CheckCircle size={12} style={{ color: getStatusColor(req.status) }} />}
-                  {req.status === 'Rejected' && <XCircle size={12} style={{ color: getStatusColor(req.status) }} />}
-                  <span 
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: '700',
-                      color: getStatusColor(req.status)
-                    }}
-                  >
-                    {req.status}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

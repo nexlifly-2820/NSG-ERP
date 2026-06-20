@@ -125,6 +125,10 @@ export default function AssetNoc({ issuedAssets, onSignNoc, hasResigned }) {
     setActiveNoc(null);
   };
 
+  if (!issuedAssets || issuedAssets.length === 0) {
+    return null;
+  }
+
   return (
     <div
       style={{
