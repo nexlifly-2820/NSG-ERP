@@ -1,7 +1,13 @@
 import requests
-import json
 
-# We need a token to test the API. Let's find one or bypass auth temporarily.
-# Or better, just check what `curl` does. 
-# Actually, I can just create a temporary endpoint to test or check `ceo_portal.py` for errors.
-# Let's inspect `ceo_portal.py` again.
+token_res = requests.post("http://127.0.0.1:8000/auth/login", data={"username": "vivek1@hnms.com", "password": "password"})
+token = token_res.json()["access_token"]
+
+res = requests.post("http://127.0.0.1:8000/api/employee-portal/assets/request", json={
+    "asset_type": "Laptop",
+    "reason": "kjdskljv",
+    "urgency": "Medium"
+}, headers={"Authorization": f"Bearer {token}"})
+
+print(res.status_code)
+print(res.json())

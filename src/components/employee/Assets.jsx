@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import AssetRequestForm from './AssetRequestForm';
-import AssetNoc from './AssetNoc';
-import { Briefcase, Laptop, CreditCard, Headphones, ShieldAlert } from 'lucide-react';
+import { Briefcase, Laptop, CreditCard, Headphones, ShieldAlert, FileText } from 'lucide-react';
 
 export default function Assets({ currentUser }) {
   const EMPLOYEE_ID = currentUser?.id || 102;
@@ -10,9 +9,11 @@ export default function Assets({ currentUser }) {
   const [issuedAssets, setIssuedAssets] = useState([]);
   const [toast, setToast] = useState(null);
 
-  const [hasResigned, setHasResigned] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [activeTab, setActiveTab] = useState('request'); // 'request', 'assets', 'noc'
+  
+  const [requestPage, setRequestPage] = useState(1);
+  const requestsPerPage = 3;
 
   const fetchData = async () => {
     try {
@@ -29,8 +30,10 @@ export default function Assets({ currentUser }) {
       });
       if (reqRes.ok) {
         const reqData = await reqRes.json();
-        setRequests(reqData.map(r => ({
-          id: `REQ-${r.id}`,
+        const items = reqData.items || reqData || []; // Handle both array and object responses
+        const safeItems = Array.isArray(items) ? items : [];
+        setRequests(safeItems.map(r => ({
+          id: r.id,
           originalId: r.id,
           assetType: r.asset_type,
           reason: r.reason,
@@ -73,7 +76,7 @@ export default function Assets({ currentUser }) {
         body: JSON.stringify({ asset_type: newReq.assetType, reason: newReq.reason, urgency: newReq.urgency || 'Low' })
       });
       if (res.ok) {
-        showToast(`Request for ${newReq.assetType} submitted for TL approval.`);
+        showToast(`Request for ${newReq.assetType} submitted successfully.`);
         fetchData(); // Refresh from DB
       } else {
         showToast('Failed to submit asset request');
@@ -81,37 +84,6 @@ export default function Assets({ currentUser }) {
     } catch (e) {
       console.error(e);
       showToast('Network error submitting request');
-    }
-  };
-
-  const handleSignNoc = async (assetId, assetType, signatureData) => {
-    try {
-      const token = localStorage.getItem('nsg_jwt_token');
-      const res = await fetch(`/api/employee-portal/assets/sign-noc/${assetId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ signature_data: signatureData })
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const today = new Date().toLocaleDateString();
-        // Update local state from DB response
-        setIssuedAssets((prev) =>
-          prev.map((asset) =>
-            asset.id === assetId
-              ? { ...asset, returnStatus: data.returnStatus, signedDate: data.signedDate || today }
-              : asset
-          )
-        );
-        showToast(`NOC signed for ${assetType} — saved to database ✓`);
-      } else {
-        const err = await res.json();
-        showToast(err.detail || 'Failed to sign NOC');
-      }
-    } catch (e) {
-      console.error('Error signing NOC:', e);
-      showToast('Network error — please try again');
     }
   };
 
@@ -304,82 +276,77 @@ export default function Assets({ currentUser }) {
                 height: '100%'
               }}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <h3 style={{ fontSize: '15px', fontWeight: '700', margin: 0, color: 'var(--text-primary)' }}>
-                  My Issued Assets List
-                </h3>
-                <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)' }}>
-                  View all corporate hardware items assigned to your profile.
-                </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
+                <FileText size={18} />
+                <h3 style={{ fontSize: '15px', fontWeight: '700', margin: 0 }}>My Asset Requisitions ({requests.length})</h3>
               </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {issuedAssets.map((asset) => (
-                  <div
-                    key={asset.id}
-                    className={`asset-issued-item ${hasResigned && asset.returnStatus !== 'Signed' ? 'unreturned-resigned' : ''}`}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
-                      <div
-                        style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '6px',
-                          backgroundColor: 'var(--bg-tertiary)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'var(--text-secondary)'
-                        }}
-                      >
-                        {getAssetIcon(asset.type)}
+              <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+                {requests.length === 0 && (
+                  <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                    No asset requests found.
+                  </div>
+                )}
+                {requests.slice((requestPage - 1) * requestsPerPage, requestPage * requestsPerPage).map((req, index) => (
+                  <div key={req.id} style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    padding: '16px 0',
+                    borderBottom: index !== requests.length - 1 ? '1px solid var(--border-subtle)' : 'none'
+                  }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)' }}>REQ-{req.id}</span>
+                        <span style={{ 
+                          fontSize: '11px', 
+                          fontWeight: '600',
+                          padding: '2px 8px', 
+                          borderRadius: '12px',
+                          backgroundColor: req.priority?.toLowerCase() === 'high' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+                          color: req.priority?.toLowerCase() === 'high' ? '#ef4444' : '#3b82f6',
+                        }}>
+                          {req.priority || 'medium'}
+                        </span>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '12px', fontWeight: '700', fontFamily: 'monospace', color: 'var(--text-primary)' }}>
-                            {asset.assetTag}
-                          </span>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                            {asset.type}
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '10px', fontFamily: 'monospace', color: 'var(--text-muted)' }}>
-                            S/N: {asset.serialNumber}
-                          </span>
-                          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                            Condition: {asset.condition}
-                          </span>
-                        </div>
-                      </div>
+                      <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                        Item: {req.assetType} | Requested: {req.createdAt}
+                      </span>
+                      <span style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
+                        {req.reason}
+                      </span>
                     </div>
-
-                    <span
-                      style={{
-                        fontSize: '11px',
+                    <div>
+                      <span style={{
+                        fontSize: '13px',
                         fontWeight: '700',
-                        color: asset.returnStatus === 'Signed'
-                          ? 'hsl(150, 70%, 50%)'
-                          : (hasResigned ? 'hsl(0, 70%, 55%)' : 'hsl(35, 90%, 60%)')
-                      }}
-                    >
-                      {asset.returnStatus}
-                    </span>
+                        color: req.status === 'Resolved' || req.status === 'resolved' || req.status === 'approved' || req.status === 'Approved'
+                          ? '#f59e0b'
+                          : req.status === 'Rejected' || req.status === 'rejected' ? '#ef4444' : '#f59e0b'
+                      }}>
+                        {req.status === 'CEO Approved' ? 'Resolved' : req.status === 'Approved' ? 'Resolved' : req.status}
+                      </span>
+                    </div>
                   </div>
                 ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
+                  <button 
+                    onClick={() => setRequestPage(p => Math.max(1, p - 1))}
+                    disabled={requestPage === 1}
+                    style={{ background: 'none', border: '1px solid var(--border-color)', borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: requestPage === 1 ? 'not-allowed' : 'pointer', color: 'var(--text-primary)', opacity: requestPage === 1 ? 0.5 : 1 }}
+                  >
+                    ← Prev
+                  </button>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Page {requestPage} of {Math.max(1, Math.ceil(requests.length / requestsPerPage))}</span>
+                  <button 
+                    onClick={() => setRequestPage(p => Math.min(Math.max(1, Math.ceil(requests.length / requestsPerPage)), p + 1))}
+                    disabled={requestPage === Math.max(1, Math.ceil(requests.length / requestsPerPage))}
+                    style={{ background: 'none', border: '1px solid var(--border-color)', borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: requestPage === Math.max(1, Math.ceil(requests.length / requestsPerPage)) ? 'not-allowed' : 'pointer', color: 'var(--text-primary)', opacity: requestPage === Math.max(1, Math.ceil(requests.length / requestsPerPage)) ? 0.5 : 1 }}
+                  >
+                    Next →
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Bottom Section: Handover NOC list */}
-        {(!isMobile || activeTab === 'noc') && (
-          <div className="area-noc">
-            <AssetNoc
-              issuedAssets={issuedAssets}
-              onSignNoc={handleSignNoc}
-              hasResigned={hasResigned}
-            />
           </div>
         )}
 

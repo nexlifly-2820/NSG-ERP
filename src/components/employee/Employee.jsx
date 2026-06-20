@@ -4,7 +4,6 @@ import ErrorBoundary from '../common/ErrorBoundary';
 const Expenses = lazy(() => import('./Expenses'));
 const Profile = lazy(() => import('./Profile'));
 const Resignation = lazy(() => import('./Resignation'));
-const Help = lazy(() => import('./Help'));
 const Assets = lazy(() => import('./Assets'));
 const Messaging = lazy(() => import('./Messaging'));
 const Attendance = lazy(() => import('./Attendance'));
@@ -51,8 +50,6 @@ export default function Employee({ activeTab, navigateTo, currentUser }) {
         return <Profile currentUser={currentUser} />;
       case 'resignation':
         return <Resignation currentUser={currentUser} />;
-      case 'help':
-        return <Help currentUser={currentUser} />;
       case 'assets':
         return <Assets currentUser={currentUser} />;
       case 'messaging':

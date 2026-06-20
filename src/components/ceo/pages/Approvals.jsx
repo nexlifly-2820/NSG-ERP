@@ -22,7 +22,7 @@ const THEME = {
   warning: '#F59E0B'       
 };
 
-const TABS = ['All', 'Payroll', 'Budget', 'Resignation', 'Policy', 'Promotions', 'Claim Expenses', 'History'];
+const TABS = ['All', 'Payroll', 'Budget', 'Resignation', 'Policy', 'Promotions', 'Claim Expenses', 'Asset Requests', 'History'];
 
 // ==========================================
 // COMPONENTS ARCHITECTURE (AS PER SPEC)
@@ -305,6 +305,7 @@ const ApprovalTable = ({ data, activeTab, selectedIds, onToggleCheck, onToggleAl
                       <option value="Policy">Policy</option>
                       <option value="Promotions">Promotions</option>
                       <option value="Claim Expenses">Claim Expenses</option>
+                      <option value="Asset Requests">Asset Requests</option>
                     </select>
                   </div>
 
@@ -568,6 +569,15 @@ export default function ApprovalsPage() {
         });
         if (!res.ok) throw new Error(`Failed to ${action} promotion.`);
         window.showToast(isApprove ? '✅ Promotion approved! Employee notified.' : '❌ Promotion rejected. Employee notified.', isApprove ? 'success' : 'error');
+      } else if (item.id.startsWith('AST-')) {
+        const ticketId = item.ticketId;
+        const endpoint = `/api/ceo-portal/tickets/${ticketId}/${action}`;
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error(`Failed to ${action} asset request.`);
+        window.showToast(`Asset request ${isApprove ? 'approved' : 'rejected'} successfully.`, isApprove ? 'success' : 'error');
       }
 
       await fetchApprovals();

@@ -998,6 +998,16 @@ def create_asset_request(req: AssetRequestCreate, current_user: models.User = De
         status="open"
     )
     db.add(ticket)
+    
+    # Notify HR and CEO
+    ceo_hr_users = db.query(models.User).filter(models.User.role.in_(["ceo", "hr"])).all()
+    for user in ceo_hr_users:
+        db.add(models.Notification(
+            user_id=user.id,
+            message=f"{current_user.name} has requested a new asset ({req.asset_type}).",
+            type="info"
+        ))
+
     db.commit()
     db.refresh(ticket)
     return {"id": ticket.id, "asset_type": ticket.title, "reason": ticket.description, "urgency": ticket.priority, "status": ticket.status, "created_at": ticket.created_at}

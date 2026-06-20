@@ -2092,6 +2092,17 @@ def resolve_ticket(id: int, current_user: models.User = Depends(security.get_cur
     db.refresh(t)
     return {"status": "success"}
 
+@router.post("/tickets/{id}/reject")
+def reject_ticket_hr(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_hr_role(current_user)
+    t = db.query(models.SupportTicket).filter(models.SupportTicket.id == id).first()
+    if not t:
+        raise HTTPException(status_code=404, detail="Ticket not found.")
+    t.status = "Rejected"
+    db.commit()
+    db.refresh(t)
+    return {"status": "success"}
+
 # ─── Department Schema Builder ──────────────────────────────────────────────
 
 class SchemaField(BaseModel):
@@ -3021,6 +3032,8 @@ class TicketResponse(BaseModel):
 
 @router.get("/tickets", response_model=List[TicketResponse])
 def list_support_tickets(
+    skip: int = 0,
+    limit: int = 100,
     current_user: models.User = Depends(security.get_current_user),
     db: Session = Depends(database.get_db)
 ):

@@ -784,10 +784,14 @@ def approve_ticket_ceo(id: int, current_user: models.User = Depends(security.get
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found.")
     
-    ticket.status = "Resolved"
+    if ticket.category == "asset_request":
+        ticket.status = "CEO Approved"
+    else:
+        ticket.status = "Resolved"
+        
     db_notify = models.Notification(
         user_id=ticket.user_id,
-        message=f"Your request '{ticket.title}' has been approved/resolved by the CEO.",
+        message=f"Your request '{ticket.title}' has been approved by the CEO.",
         type="success"
     )
     db.add(db_notify)
@@ -802,7 +806,11 @@ def reject_ticket_ceo(id: int, current_user: models.User = Depends(security.get_
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found.")
     
-    ticket.status = "Rejected"
+    if ticket.category == "asset_request":
+        ticket.status = "CEO Rejected"
+    else:
+        ticket.status = "Rejected"
+        
     db_notify = models.Notification(
         user_id=ticket.user_id,
         message=f"Your request '{ticket.title}' has been rejected by the CEO.",
@@ -2458,6 +2466,29 @@ def get_all_approvals(current_user: models.User = Depends(security.get_current_u
             "amount": "-",
             "status": status_label,
             "resignationId": r.id,
+            "rawItem": None
+        })
+        
+    # 3.5 Asset Requests
+    asset_tickets = db.query(models.SupportTicket).filter(models.SupportTicket.category == 'asset_request').all()
+    for t in asset_tickets:
+        emp = db.query(models.User).filter(models.User.id == t.user_id).first()
+        status_label = 'Pending'
+        if t.status in ['Resolved', 'approved', 'CEO Approved']: status_label = 'Approved'
+        elif t.status in ['Rejected', 'rejected', 'CEO Rejected']: status_label = 'Denied'
+        
+        approvals.append({
+            "id": f"AST-{t.id}",
+            "type": "Asset Requests",
+            "requestedBy": emp.name if emp else f"User #{t.user_id}",
+            "dept": getattr(emp, 'department', 'Unknown') if emp else 'Unknown',
+            "urgency": "Normal",
+            "submittedAt": str(t.created_at).split('.')[0] if t.created_at else "Recent",
+            "amount": "-",
+            "status": status_label,
+            "ticketId": t.id,
+            "description": t.description,
+            "category": t.title,
             "rawItem": None
         })
         

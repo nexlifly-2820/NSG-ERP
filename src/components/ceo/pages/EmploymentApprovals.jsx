@@ -213,9 +213,6 @@ const EmploymentApprovals = () => {
         <button className={`${styles.tabBtn} ${activeTab === 'wfh' ? styles.tabBtnActive : ''}`} onClick={() => handleTabChange('wfh')}>
           <Home size={16} /> Work From Home {wfhRequests.length > 0 && <span className={styles.badge}>{wfhRequests.length}</span>}
         </button>
-        <button className={`${styles.tabBtn} ${activeTab === 'assets' ? styles.tabBtnActive : ''}`} onClick={() => handleTabChange('assets')}>
-          <Package size={16} /> Asset Requests {assetRequests.length > 0 && <span className={styles.badge}>{assetRequests.length}</span>}
-        </button>
       </div>
 
       {/* 2-PANE LAYOUT */}
