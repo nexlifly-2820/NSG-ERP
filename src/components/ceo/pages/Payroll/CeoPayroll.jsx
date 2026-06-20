@@ -121,6 +121,10 @@ export default function CeoPayroll() {
   };
 
   const openPaymentModal = (user) => {
+    if (!user.basic || user.basic <= 0) {
+      showNotification('Basic salary is mandatory to process payment.', 'error');
+      return;
+    }
     setSelectedUser(user);
     setTransactionRef('');
     setPaymentMethod('Bank Transfer');
@@ -202,29 +206,9 @@ export default function CeoPayroll() {
       });
 
       if (res.ok) {
-        if (payslipContentRef.current) {
-          const opt = {
-            margin: 0.5,
-            filename: `Payslip_${selectedUser.employee_name}_${month}_${year}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-          };
-          html2pdf().set(opt).from(payslipContentRef.current).save().then(() => {
-            showNotification('Payroll processed and Payslip downloaded!');
-            setShowModal(false);
-            fetchPending();
-          }).catch(err => {
-            console.error(err);
-            showNotification('Payroll processed but PDF generation failed.', 'error');
-            setShowModal(false);
-            fetchPending();
-          });
-        } else {
-          showNotification('Payroll processed successfully!');
-          setShowModal(false);
-          fetchPending();
-        }
+        showNotification('Payroll processed successfully!');
+        setShowModal(false);
+        fetchPending();
       } else {
         showNotification('Failed to process payroll', 'error');
       }
@@ -237,6 +221,13 @@ export default function CeoPayroll() {
   };
   const processAllPending = async () => {
     if (pendingRecords.length === 0) return;
+
+    const missingBasic = pendingRecords.filter(r => !r.basic || r.basic <= 0);
+    if (missingBasic.length > 0) {
+      showNotification(`Basic salary is mandatory. Missing for: ${missingBasic.map(m => m.employee_name).join(', ')}`, 'error');
+      return;
+    }
+
     if (!window.confirm(`Are you sure you want to process payroll for all ${pendingRecords.length} pending employees?`)) return;
 
     setLoading(true);
@@ -516,6 +507,7 @@ export default function CeoPayroll() {
                   <tr>
                   <th>Employee</th>
                   <th>Month/Year</th>
+                  <th>Payment Date</th>
                   <th>Payment Method</th>
                   <th>Transaction Ref</th>
                   <th>Net Paid</th>
@@ -637,7 +629,7 @@ export default function CeoPayroll() {
 
                 <div style={{ marginTop: 'auto', paddingTop: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <button className="btn-confirm" onClick={processPayment} disabled={loading} style={{ width: '100%', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                    {loading ? 'Processing...' : <><Download size={16} /> Process & Download PDF</>}
+                    {loading ? 'Processing...' : 'Process to Pay'}
                   </button>
                   <button className="btn-cancel" onClick={() => setShowModal(false)} style={{ width: '100%', padding: '12px' }}>Cancel</button>
                 </div>

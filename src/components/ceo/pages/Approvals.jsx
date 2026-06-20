@@ -66,7 +66,7 @@ const ConfirmActionModal = ({ isOpen, actionType, item, onClose, onConfirm }) =>
   )
 }
 
-const ApprovalDetailDrawer = ({ approval, onClose, onAction }) => {
+const ApprovalDetailDrawer = ({ approval, onClose, onAction, activeTab }) => {
   if (!approval) return null;
   return (
     <div style={{ gridArea: 'drawer', background: THEME.bgSurface, borderLeft: `1px solid ${THEME.border}`, display: 'flex', flexDirection: 'column', height: '100%', borderRadius: '0 12px 12px 0' }}>
@@ -141,6 +141,7 @@ const ApprovalDetailDrawer = ({ approval, onClose, onAction }) => {
       </div>
 
       {/* Footer Actions */}
+      {activeTab !== 'History' && (
       <div style={{ padding: '24px', borderTop: `1px solid ${THEME.border}`, background: THEME.bgBase, borderRadius: '0 0 12px 0' }}>
         <div style={{ marginBottom: '16px' }}>
           <label style={{ display: 'block', fontSize: '13px', color: THEME.textMuted, marginBottom: '8px', fontWeight: 600 }}>Add Comment (Optional)</label>
@@ -154,7 +155,8 @@ const ApprovalDetailDrawer = ({ approval, onClose, onAction }) => {
           <button onClick={() => onAction('Deny', approval)} style={{ flex: 1, padding: '12px', background: 'transparent', border: `1px solid ${THEME.danger}`, color: THEME.danger, borderRadius: '8px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>Deny</button>
           <button onClick={() => onAction('Approve', approval)} style={{ flex: 2, padding: '12px', background: THEME.primary, border: 'none', color: '#FFF', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', boxShadow: `0 4px 12px ${THEME.primary}40` }}>Approve</button>
         </div>
-      </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -215,7 +217,7 @@ const ApprovalRow = ({ item, isSelected, isChecked, onSelect, onToggleCheck, act
               style={{ padding: '4px 10px', background: THEME.primary, color: '#FFF', border: 'none', borderRadius: '4px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
               onClick={(e) => { e.stopPropagation(); onSelect(item); }}
             >
-              Review <ArrowRight size={14} />
+              {activeTab === 'History' ? 'View' : 'Review'} <ArrowRight size={14} />
             </button>
           )}
         </div>
@@ -232,6 +234,11 @@ const ApprovalTable = ({ data, activeTab, selectedIds, onToggleCheck, onToggleAl
     submittedBy: 'All',
     id: ''
   });
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, filterState, searchQuery]);
 
   let filtered = data.filter(a => {
     const isPending = !['Approved', 'Denied'].includes(a.status);
@@ -261,6 +268,10 @@ const ApprovalTable = ({ data, activeTab, selectedIds, onToggleCheck, onToggleAl
       a.requestedBy.toLowerCase().includes(q)
     );
   }
+
+  const ITEMS_PER_PAGE = 10;
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginatedList = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const isAllChecked = filtered.length > 0 && selectedIds.size === filtered.length;
 
@@ -381,7 +392,7 @@ const ApprovalTable = ({ data, activeTab, selectedIds, onToggleCheck, onToggleAl
               </tr>
           </thead>
           <tbody>
-            {filtered.map(item => {
+            {paginatedList.map(item => {
               return (
                 <ApprovalRow 
                   key={item.id} 
@@ -396,9 +407,26 @@ const ApprovalTable = ({ data, activeTab, selectedIds, onToggleCheck, onToggleAl
             })}
           </tbody>
         </table>
-        {filtered.length === 0 && (
+        {paginatedList.length === 0 && (
           <div style={{ padding: '48px', textAlign: 'center', color: THEME.textMuted }}>
             {activeTab === 'History' ? 'No approval history found.' : 'No pending approvals found.'}
+          </div>
+        )}
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '16px' }}>
+            <button 
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              style={{ padding: '6px 16px', fontSize: '13px', fontWeight: 500, border: '1px solid #e2e8f0', borderRadius: '6px', background: currentPage === 1 ? '#f8fafc' : '#fff', color: currentPage === 1 ? '#94a3b8' : '#334155', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}
+            >Previous</button>
+            <span style={{ padding: '4px 12px', fontSize: '14px', fontWeight: 500, color: '#475569' }}>
+              Page {currentPage} of {totalPages}
+            </span>
+            <button 
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              style={{ padding: '6px 16px', fontSize: '13px', fontWeight: 500, border: '1px solid #e2e8f0', borderRadius: '6px', background: currentPage === totalPages ? '#f8fafc' : '#fff', color: currentPage === totalPages ? '#94a3b8' : '#334155', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}
+            >Next</button>
           </div>
         )}
       </div>
@@ -708,6 +736,7 @@ export default function ApprovalsPage() {
           approval={selectedApproval} 
           onClose={() => setSelectedApproval(null)} 
           onAction={openConfirmModal}
+          activeTab={activeTab}
         />
 
       </div>
