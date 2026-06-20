@@ -22,7 +22,7 @@ const THEME = {
   warning: '#F59E0B'       
 };
 
-const TABS = ['All', 'Payroll', 'Budget', 'Resignation', 'Policy', 'Promotions', 'Claim Expenses', 'Asset Requests', 'History'];
+const TABS = ['All', 'Payroll', 'Resignation', 'Promotions', 'Claim Expenses', 'Asset Requests', 'History'];
 
 // ==========================================
 // COMPONENTS ARCHITECTURE (AS PER SPEC)
@@ -498,7 +498,8 @@ export default function ApprovalsPage() {
     if (!item) return;
 
     try {
-      if (item.id.startsWith('PAY-')) {
+      const idStr = String(item.id);
+      if (idStr.startsWith('PAY-')) {
         const runId = item.payrollRunId;
         if (isApprove) {
           const res = await fetch(`/api/ceo-portal/payroll/runs/${runId}/transfer-bank`, {
@@ -516,7 +517,7 @@ export default function ApprovalsPage() {
           if (!res.ok) throw new Error('Failed to reject payroll run.');
           window.showToast('Payroll ledger rejected and sent back to HR.', 'error');
         }
-      } else if (item.id.startsWith('RES-')) {
+      } else if (idStr.startsWith('RES-')) {
         const resignId = item.resignationId;
         const endpoint = `/api/hr-portal/exits/resignations/${resignId}/${action}`;
         const res = await fetch(endpoint, {
@@ -529,7 +530,7 @@ export default function ApprovalsPage() {
           : (item.type === 'Resignation Withdraw' ? 'Resignation withdrawal rejected.' : 'Resignation request rejected.'),
           isApprove ? 'success' : 'error'
         );
-      } else if (item.id.startsWith('BUD-')) {
+      } else if (idStr.startsWith('BUD-')) {
         const budgetId = item.budgetId;
         const endpoint = `/api/ceo-portal/finance/budgets/${budgetId}/${action}`;
         const res = await fetch(endpoint, {
@@ -538,7 +539,7 @@ export default function ApprovalsPage() {
         });
         if (!res.ok) throw new Error(`Failed to ${action} budget.`);
         window.showToast(`Budget request ${isApprove ? 'approved' : 'rejected'} successfully.`, isApprove ? 'success' : 'error');
-      } else if (item.id.startsWith('POL-')) {
+      } else if (idStr.startsWith('POL-')) {
         const policyId = item.policyId;
         const endpoint = `/api/ceo-portal/policies/${policyId}/${action}`;
         const res = await fetch(endpoint, {
@@ -547,7 +548,7 @@ export default function ApprovalsPage() {
         });
         if (!res.ok) throw new Error(`Failed to ${action} policy.`);
         window.showToast(`Company policy ${isApprove ? 'approved' : 'rejected'} successfully.`, isApprove ? 'success' : 'error');
-      } else if (item.id.startsWith('EXP-')) {
+      } else if (idStr.startsWith('EXP-')) {
         const expenseId = item.expenseId;
         const endpoint = `/api/ceo-portal/expenses/${expenseId}/${action}`;
         const res = await fetch(endpoint, {
@@ -569,7 +570,7 @@ export default function ApprovalsPage() {
         });
         if (!res.ok) throw new Error(`Failed to ${action} promotion.`);
         window.showToast(isApprove ? '✅ Promotion approved! Employee notified.' : '❌ Promotion rejected. Employee notified.', isApprove ? 'success' : 'error');
-      } else if (item.id.startsWith('AST-')) {
+      } else if (idStr.startsWith('AST-')) {
         const ticketId = item.ticketId;
         const endpoint = `/api/ceo-portal/tickets/${ticketId}/${action}`;
         const res = await fetch(endpoint, {

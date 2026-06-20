@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, UserPlus, LogOut, Briefcase, CheckCircle } from 'lucide-react';
+import { AlertTriangle, UserPlus, LogOut, Briefcase, ClipboardList } from 'lucide-react';
 import styles from './HrDashboard.module.css';
 
 export function HrDashboardView() {
@@ -9,7 +9,9 @@ export function HrDashboardView() {
     activeCandidates: 0,
     unresolvedGrievances: 0
   });
-  const [probationList, setProbationList] = useState([]);
+  const [pendingApprovals, setPendingApprovals] = useState([]);
+  const [approvalsPage, setApprovalsPage] = useState(1);
+  const APPROVALS_PER_PAGE = 5;
   const [criticalAlerts, setCriticalAlerts] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [assetRequests, setAssetRequests] = useState([]);
@@ -110,9 +112,9 @@ export function HrDashboardView() {
         const metricsRes = await fetch('/api/hr-portal/dashboard/metrics', { headers });
         if (metricsRes.ok) setMetrics(await metricsRes.json());
 
-        // Fetch employees for probation list
-        const empRes = await fetch('/api/hr-portal/dashboard/onboarding-progress', { headers });
-        if (empRes.ok) setProbationList(await empRes.json());
+        // Fetch pending approvals
+        const pendingRes = await fetch('/api/hr-portal/dashboard/pending-approvals', { headers });
+        if (pendingRes.ok) setPendingApprovals(await pendingRes.json());
 
         // Fetch tickets for alerts list
         const alertsRes = await fetch('/api/hr-portal/dashboard/sla-watchdog', { headers });
@@ -201,58 +203,69 @@ export function HrDashboardView() {
               <span className={styles.metricSub}>Candidates in ATS screening</span>
             </div>
 
-            <div className={styles.metricCard} style={{ borderLeft: '4px solid #ef4444' }}>
-              <div className={styles.metricHeader}>
-                <span className={styles.metricTitle}>Grievance Watchdog</span>
-                <div className={styles.metricIcon} style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
-                  <AlertTriangle size={18} />
-                </div>
-              </div>
-              <span className={styles.metricValue}>{metrics.unresolvedGrievances}</span>
-              <span className={styles.metricSub}>Warnings awaiting acknowledgment</span>
-            </div>
+
           </div>
 
           {/* Middle Row: Progress and Alerts */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
             
-            {/* New Joiners Checklist Progress */}
+            {/* Pending Approvals Widget */}
             <div className={styles.widgetCard}>
               <div className={styles.widgetHeader}>
                 <div className={styles.widgetTitle}>
-                  <CheckCircle size={20} className={styles.widgetIcon} />
-                  New Joiners Checklist Progress
+                  <ClipboardList size={20} className={styles.widgetIcon} />
+                  Pending Approvals
+                </div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)', padding: '2px 8px', borderRadius: '12px' }}>
+                  {pendingApprovals.length} Requests
                 </div>
               </div>
               <div className={styles.listContainer}>
-                {probationList.map(joiner => (
-                  <div key={joiner.employee_id} className={styles.listItem}>
-                    <div className={styles.itemIcon} style={{ backgroundColor: '#ec4899' }}>
-                      {joiner.name.charAt(0)}
+                {pendingApprovals.slice((approvalsPage - 1) * APPROVALS_PER_PAGE, approvalsPage * APPROVALS_PER_PAGE).map(item => (
+                  <div key={item.id} className={styles.listItem} style={{ cursor: 'pointer', transition: 'all 0.2s' }} onClick={() => window.location.hash = item.url.replace('/#', '')}>
+                    <div className={styles.itemIcon} style={{ backgroundColor: item.type === 'Leave' ? '#3b82f6' : item.type === 'Resignation' ? '#ef4444' : item.type === 'Timesheet' ? '#f59e0b' : item.type === 'Attendance' ? '#8b5cf6' : '#ec4899', fontSize: '16px' }}>
+                      {item.type === 'Leave' ? '🌴' : item.type === 'Resignation' ? '🚪' : item.type === 'Timesheet' ? '⏱️' : item.type === 'Attendance' ? '📍' : '📦'}
                     </div>
                     <div className={styles.itemContent}>
-                      <span className={styles.itemName}>{joiner.name}</span>
-                      <span className={styles.itemDesc}>{joiner.designation || 'New Hire'} — Joined {joiner.join_date}</span>
+                      <span className={styles.itemName}>{item.title}</span>
+                      <span className={styles.itemDesc}>{item.employee} — {new Date(item.date).toLocaleDateString()}</span>
                     </div>
                     <div className={styles.itemRight}>
-                      <span className={`${styles.badge} ${joiner.total_tasks > 0 && joiner.completed_tasks === joiner.total_tasks ? styles.badgeSuccess : styles.badgeWarning}`}>
-                        {joiner.total_tasks > 0 ? `${joiner.completed_tasks}/${joiner.total_tasks} Tasks Done` : 'No Tasks Assigned'}
+                      <span className={`${styles.badge} ${styles.badgeWarning}`}>
+                        Review Action
                       </span>
-                      {joiner.total_tasks > 0 && (
-                        <div style={{ width: '100px', height: '6px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                          <div style={{ width: `${(joiner.completed_tasks/joiner.total_tasks)*100}%`, height: '100%', backgroundColor: '#ec4899' }}></div>
-                        </div>
-                      )}
                     </div>
                   </div>
                 ))}
-                {probationList.length === 0 && (
+                {pendingApprovals.length === 0 && (
                   <div style={{ textAlign: 'center', color: '#94a3b8', padding: '20px 0', fontSize: '14px' }}>
-                    No new joiners in checklist.
+                    No pending approvals. You are all caught up!
                   </div>
                 )}
               </div>
+              {pendingApprovals.length > APPROVALS_PER_PAGE && (
+                <div style={{ padding: '12px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <button 
+                    disabled={approvalsPage === 1} 
+                    onClick={() => setApprovalsPage(p => p - 1)}
+                    style={{ padding: '6px 12px', fontSize: '13px', background: approvalsPage === 1 ? '#f1f5f9' : '#fff', color: approvalsPage === 1 ? '#94a3b8' : '#0f172a', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: approvalsPage === 1 ? 'not-allowed' : 'pointer' }}
+                  >
+                    Previous
+                  </button>
+                  <span style={{ fontSize: '13px', color: '#64748b' }}>
+                    Page {approvalsPage} of {Math.ceil(pendingApprovals.length / APPROVALS_PER_PAGE)}
+                  </span>
+                  <button 
+                    disabled={approvalsPage >= Math.ceil(pendingApprovals.length / APPROVALS_PER_PAGE)} 
+                    onClick={() => setApprovalsPage(p => p + 1)}
+                    style={{ padding: '6px 12px', fontSize: '13px', background: approvalsPage >= Math.ceil(pendingApprovals.length / APPROVALS_PER_PAGE) ? '#f1f5f9' : '#fff', color: approvalsPage >= Math.ceil(pendingApprovals.length / APPROVALS_PER_PAGE) ? '#94a3b8' : '#0f172a', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: approvalsPage >= Math.ceil(pendingApprovals.length / APPROVALS_PER_PAGE) ? 'not-allowed' : 'pointer' }}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </div>
+
 
             {/* Asset Requests Card */}
             <div className={styles.widgetCard}>

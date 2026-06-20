@@ -10,7 +10,12 @@ export function AppraisalsView() {
   const [selectedEmpId, setSelectedEmpId] = useState(104);
 
   const token = localStorage.getItem('nsg_jwt_token');
-  const fetcher = (url) => fetch(url, { headers: { Authorization: `Bearer ${token}` } }).then(res => res.json());
+  const fetcher = async (url) => {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.detail || 'API request failed');
+    return json;
+  };
 
   const { data: employees = [], mutate: mutateEmployees } = useSWR('/api/hr-portal/employees', fetcher);
   const { data: appraisalCycles = [], mutate: mutateCycles } = useSWR('/api/hr-portal/appraisal-cycles', fetcher);
@@ -18,7 +23,13 @@ export function AppraisalsView() {
   const { data: scorecards = [], mutate: mutateScorecards } = useSWR('/api/hr-portal/appraisal-scorecards', fetcher);
   const { data: promotionTracker = [], mutate: mutatePromotions } = useSWR('/api/hr-portal/promotions', fetcher);
 
-  const emp = employees.find(e => e.id === selectedEmpId) || { name: 'Staff', grade: 1, designation: 'Developer', ctc: 300000 };
+  const safeEmployees = Array.isArray(employees) ? employees : [];
+  const safeCycles = Array.isArray(appraisalCycles) ? appraisalCycles : [];
+  const safeProposals = Array.isArray(incrementProposals) ? incrementProposals : [];
+  const safeScorecards = Array.isArray(scorecards) ? scorecards : [];
+  const safePromotions = Array.isArray(promotionTracker) ? promotionTracker : [];
+
+  const emp = safeEmployees.find(e => e.id === selectedEmpId) || { name: 'Staff', grade: 1, designation: 'Developer', ctc: 300000 };
   
   // Base current CTC calculation simulation
   const currentAnnualCTC = emp.ctc || 300000;
@@ -54,6 +65,7 @@ export function AppraisalsView() {
 
   // Promotion modal states
   const [isProposePromoOpen, setIsProposePromoOpen] = useState(false);
+  const [promoEmpId, setPromoEmpId] = useState('');
   const [promoEmpName, setPromoEmpName] = useState('');
   const [promoCurrentTitle, setPromoCurrentTitle] = useState('');
   const [promoProposedTitle, setPromoProposedTitle] = useState('');
@@ -163,17 +175,18 @@ export function AppraisalsView() {
 
   const handleProposePromotion = async (e) => {
     e.preventDefault();
-    if (!promoEmpName.trim() || !promoCurrentTitle.trim() || !promoProposedTitle.trim()) return;
+    if (!promoEmpId || !promoEmpName.trim() || !promoCurrentTitle.trim() || !promoProposedTitle.trim()) return;
     const token = localStorage.getItem('nsg_jwt_token');
     try {
       const res = await fetch('/api/hr-portal/promotions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ name: promoEmpName, current: promoCurrentTitle, proposed: promoProposedTitle })
+        body: JSON.stringify({ employee_id: Number(promoEmpId), name: promoEmpName, current: promoCurrentTitle, proposed: promoProposedTitle })
       });
       if (res.ok) {
         const saved = await res.json();
         mutatePromotions();
+        setPromoEmpId('');
         setPromoEmpName('');
         setPromoCurrentTitle('');
         setPromoProposedTitle('');
@@ -244,7 +257,7 @@ export function AppraisalsView() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', margin: '16px 0' }}>
               <label style={{ fontSize: '11px', display: 'block', marginBottom: '8px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', letterSpacing: '0.5px' }}>Target Employee</label>
               <select value={selectedEmpId} onChange={(e) => { setSelectedEmpId(Number(e.target.value)); }} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}>
-                {employees.map(e => (
+                {safeEmployees.map(e => (
                   <option key={e.id} value={e.id}>{e.name} ({e.designation})</option>
                 ))}
               </select>
@@ -610,10 +623,10 @@ export function AppraisalsView() {
               </tr>
             </thead>
             <tbody>
-              {promotionTracker.length === 0 && (
+              {safePromotions.length === 0 && (
                 <tr><td colSpan={4} style={{ padding: '32px 40px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No promotions proposed yet. Click "🏅 Propose Promotion" to begin.</td></tr>
               )}
-              {promotionTracker.map((pr, idx) => {
+              {safePromotions.map((pr, idx) => {
                 const isPending = pr.status === 'pending_ceo';
                 const isApproved = pr.status === 'approved_by_ceo';
                 const badgeStyle = isPending
@@ -655,12 +668,33 @@ export function AppraisalsView() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Employee Full Name</label>
-                <input type="text" value={promoEmpName} onChange={e => setPromoEmpName(e.target.value)} required placeholder="e.g. Rahul Sharma" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Select Employee</label>
+                <select 
+                  value={promoEmpId} 
+                  onChange={e => {
+                    const id = e.target.value;
+                    setPromoEmpId(id);
+                    const selEmp = employees.find(emp => emp.id == id);
+                    if (selEmp) {
+                      setPromoEmpName(selEmp.name);
+                      setPromoCurrentTitle(selEmp.designation);
+                    } else {
+                      setPromoEmpName('');
+                      setPromoCurrentTitle('');
+                    }
+                  }} 
+                  required 
+                  style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }}
+                >
+                  <option value="" disabled>Select Employee...</option>
+                  {safeEmployees.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.name} ({emp.designation})</option>
+                  ))}
+                </select>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Current Title / Designation</label>
-                <input type="text" value={promoCurrentTitle} onChange={e => setPromoCurrentTitle(e.target.value)} required placeholder="e.g. Junior Developer" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
+                <input type="text" value={promoCurrentTitle} readOnly placeholder="e.g. Junior Developer" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', padding: '10px 12px', borderRadius: '8px', outline: 'none', cursor: 'not-allowed' }} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Proposed New Designation</label>

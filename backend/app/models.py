@@ -702,6 +702,7 @@ class Promotion(Base):
     __tablename__ = "promotions"
 
     id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     name = Column(String, nullable=False)
     current = Column(String, nullable=False)
     proposed = Column(String, nullable=False)

@@ -282,45 +282,18 @@ export function LeaveManagementView() {
           <h1>Leave Management</h1>
           <p>Oversee company leave accruals policies, check team calendar overlapping alerts, and approve leaves.</p>
         </div>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {activeTab === 'history' && (
             <button 
               onClick={handleDownloadPDF}
               style={{
                 backgroundColor: '#ffffff', color: '#0f172a', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '8px',
-                fontWeight: '600', padding: '12px 24px', borderRadius: '12px', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                fontWeight: '600', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', fontSize: '13px'
               }}
             >
               📥 Download PDF
             </button>
           )}
-
-          <div style={{ display: 'flex', backgroundColor: 'var(--bg-secondary)', borderRadius: '12px', padding: '4px', border: '1px solid var(--border-color)' }}>
-            <button 
-              onClick={() => setActiveTab('balances')}
-              style={{
-                backgroundColor: activeTab === 'balances' ? 'var(--bg-primary)' : 'transparent',
-                color: activeTab === 'balances' ? 'var(--text-primary)' : 'var(--text-muted)',
-                border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '13px',
-                boxShadow: activeTab === 'balances' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              Balances
-            </button>
-            <button 
-              onClick={() => { setActiveTab('history'); setCurrentPage(1); }}
-              style={{
-                backgroundColor: activeTab === 'history' ? 'var(--bg-primary)' : 'transparent',
-                color: activeTab === 'history' ? 'var(--text-primary)' : 'var(--text-muted)',
-                border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '13px',
-                boxShadow: activeTab === 'history' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              Leave History
-            </button>
-          </div>
 
           {!isCEO && (
             <>
@@ -335,10 +308,12 @@ export function LeaveManagementView() {
                   alignItems: 'center',
                   gap: '8px',
                   fontWeight: '600',
-                  padding: '12px 24px',
-                  borderRadius: '12px',
+                  padding: '10px 20px',
+                  borderRadius: '8px',
                   cursor: 'pointer',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  fontSize: '13px',
+                  transition: 'all 0.2s'
                 }}
               >
                 ➕ Apply Leave (On Behalf)
@@ -357,10 +332,12 @@ export function LeaveManagementView() {
                   gap: '8px',
                   boxShadow: 'var(--shadow-sm)',
                   fontWeight: '600',
-                  padding: '12px 24px',
-                  borderRadius: '12px',
+                  padding: '10px 20px',
+                  borderRadius: '8px',
                   cursor: 'pointer',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  fontSize: '13px',
+                  transition: 'all 0.2s'
                 }}
               >
                 <span>🔔 Manage Leave Requests</span>
@@ -369,12 +346,12 @@ export function LeaveManagementView() {
                     backgroundColor: '#fff', 
                     color: 'var(--accent-pink)', 
                     borderRadius: '50%', 
-                    width: '18px', 
-                    height: '18px', 
+                    width: '20px', 
+                    height: '20px', 
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'center', 
-                    fontSize: '11px', 
+                    fontSize: '12px', 
                     fontWeight: 'bold',
                     flexShrink: 0
                   }}>
@@ -384,6 +361,37 @@ export function LeaveManagementView() {
               </button>
             </>
           )}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', marginBottom: '24px', width: '100%' }}>
+        <div style={{ display: 'inline-flex', backgroundColor: '#f1f5f9', borderRadius: '10px', padding: '4px', border: '1px solid #e2e8f0', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)' }}>
+          <button 
+            onClick={() => setActiveTab('balances')}
+            style={{
+              backgroundColor: activeTab === 'balances' ? '#ffffff' : 'transparent',
+              color: activeTab === 'balances' ? '#0f172a' : '#64748b',
+              border: 'none', padding: '8px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '13px',
+              boxShadow: activeTab === 'balances' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.2s'
+            }}
+          >
+            Balances
+          </button>
+          <button 
+            onClick={() => { setActiveTab('history'); setCurrentPage(1); }}
+            style={{
+              backgroundColor: activeTab === 'history' ? '#ffffff' : 'transparent',
+              color: activeTab === 'history' ? '#0f172a' : '#64748b',
+              border: 'none', padding: '8px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '13px',
+              boxShadow: activeTab === 'history' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.2s'
+            }}
+          >
+            Leave History
+          </button>
         </div>
       </div>
 

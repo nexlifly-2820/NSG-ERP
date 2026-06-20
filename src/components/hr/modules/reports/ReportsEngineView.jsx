@@ -71,9 +71,7 @@ export function ReportsEngineView() {
 
   const TABS = [
     { id: 'overview', label: '📊 Overview' },
-    { id: 'payroll', label: '💰 Payroll' },
     { id: 'leave', label: '🌴 Leave' },
-    { id: 'compliance', label: '📋 Compliance' },
     { id: 'workforce', label: '👥 Workforce' },
   ];
 
@@ -82,7 +80,7 @@ export function ReportsEngineView() {
       <div className="component-header">
         <div>
           <h1>Reports & BI Engine</h1>
-          <p>Live analytics from real HR data — payroll, leave, compliance, and workforce insights.</p>
+          <p>Live analytics from real HR data — leave and workforce insights.</p>
         </div>
       </div>
 
@@ -137,44 +135,6 @@ export function ReportsEngineView() {
         </div>
       )}
 
-      {/* ── PAYROLL ── */}
-      {activeReport === 'payroll' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-            <StatCard title="Total Payslips Issued" value={rd.totalPayslips || 0} sub="Across all periods" color="#60a5fa" icon="📄" />
-            <StatCard title="Total Net Payout" value={`₹${(rd.totalNetPayout || 0).toLocaleString('en-IN')}`} sub="From last approved run" color="#10b981" icon="💰" />
-            <StatCard title="Pending Proposals" value={rd.pendingProposals || 0} sub="Awaiting CEO approval" color="#fbbf24" icon="⏳" />
-          </div>
-
-          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 12, padding: 24, overflowX: 'auto' }}>
-            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 16 }}>💰 Payslip Log</div>
-            {!rd.payslipLogs || rd.payslipLogs.length === 0 ? (
-              <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>No payslips generated yet. Run payroll from Payroll Builder.</div>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    {['Employee', 'Period', 'Gross', 'Deductions', 'Net Pay'].map(h => (
-                      <th key={h} style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 11, textTransform: 'uppercase' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rd.payslipLogs.map((p, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{p.employee_name}</td>
-                      <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{p.period}</td>
-                      <td style={{ padding: '12px 16px' }}>₹{p.gross.toLocaleString('en-IN')}</td>
-                      <td style={{ padding: '12px 16px', color: '#f87171' }}>-₹{p.deductions.toLocaleString('en-IN')}</td>
-                      <td style={{ padding: '12px 16px', color: '#10b981', fontWeight: 700 }}>₹{p.net_pay.toLocaleString('en-IN')}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* ── LEAVE ── */}
       {activeReport === 'leave' && (
@@ -223,51 +183,6 @@ export function ReportsEngineView() {
         </div>
       )}
 
-      {/* ── COMPLIANCE ── */}
-      {activeReport === 'compliance' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-            <StatCard title="Quiz Passed" value={rd.quizPassed || 0} sub={`of ${rd.totalHeadcount || 0} employees`} color="#10b981" icon="✅" />
-            <StatCard title="Not Attempted" value={rd.notAttempted || 0} sub="Never opened quiz" color="#f87171" icon="❌" />
-            <StatCard title="Compliance Rate" value={`${rd.complianceRate || 0}%`} sub="Induction gate unlock rate" color="#60a5fa" icon="🔓" />
-          </div>
-
-          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 12, padding: 24 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 16 }}>📋 Employee Compliance Status</div>
-            {!rd.employeeCompliance ? null : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    {['Employee', 'Modules Done', 'Quiz Score', 'Gate Status'].map(h => (
-                      <th key={h} style={{ padding: '10px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: 11, textTransform: 'uppercase' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rd.employeeCompliance.map((emp, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: 600 }}>{emp.employee_name}</td>
-                      <td style={{ padding: '12px 16px' }}>{emp.modules_done} / 2</td>
-                      <td style={{ padding: '12px 16px', fontWeight: 700, color: emp.passed ? '#10b981' : '#fbbf24' }}>
-                        {emp.quiz_score !== null ? `${emp.quiz_score}%` : 'Not attempted'}
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-                          background: emp.passed ? 'rgba(16,185,129,0.1)' : 'rgba(251,191,36,0.1)',
-                          color: emp.passed ? '#10b981' : '#fbbf24',
-                          border: `1px solid ${emp.passed ? 'rgba(16,185,129,0.4)' : 'rgba(251,191,36,0.4)'}`
-                        }}>
-                          {emp.passed ? '🔓 Unlocked' : '🔒 Locked'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* ── WORKFORCE ── */}
       {activeReport === 'workforce' && (

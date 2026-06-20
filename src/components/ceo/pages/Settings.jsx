@@ -3,6 +3,8 @@ import {
   ShieldAlert, History, Bell, Settings as SettingsIcon, Users, 
   Search, Download, CheckCircle, Save, Globe, Zap, CheckSquare, Square
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import '../CEO.css';
 
 // ==========================================
@@ -267,6 +269,86 @@ export default function Settings() {
     setHasUnsavedChanges(true);
   };
 
+  const handleDownloadPDF = () => {
+    alert('Generating Audit Logs PDF report...');
+    
+    const doc = new jsPDF('landscape', 'pt', 'a4');
+    
+    const img = new Image();
+    img.src = '/hmns-logo.png';
+    
+    img.onload = () => {
+      // Premium White Header
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, doc.internal.pageSize.getWidth(), 100, 'F');
+      
+      const imgRatio = img.width / img.height;
+      const logoHeight = 45;
+      const logoWidth = logoHeight * imgRatio;
+      doc.addImage(img, 'PNG', 40, 25, logoWidth, logoHeight);
+      
+      doc.setDrawColor(226, 232, 240); // slate-200
+      doc.setLineWidth(1);
+      doc.line(40, 90, doc.internal.pageSize.getWidth() - 40, 90);
+      
+      doc.setFontSize(22);
+      doc.setTextColor(15, 23, 42); // slate-900
+      doc.setFont('helvetica', 'bold');
+      doc.text('IMMUTABLE AUDIT TRAIL', doc.internal.pageSize.getWidth() - 40, 45, { align: 'right' });
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139); // slate-500
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Filter: ${auditFilter}`, doc.internal.pageSize.getWidth() - 40, 65, { align: 'right' });
+      doc.text(`Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, doc.internal.pageSize.getWidth() - 40, 80, { align: 'right' });
+
+      const tableHeaders = ['Timestamp', 'User', 'Action', 'Module', 'Details'];
+      const tableBody = filteredAuditLogs.map(log => {
+        return [`${log.timestampDate} ${log.timestampTime}`, log.user, log.action, log.module, log.details];
+      });
+
+      autoTable(doc, {
+        startY: 110,
+        head: [tableHeaders],
+        body: tableBody,
+        theme: 'plain',
+        styles: { font: 'helvetica', cellPadding: { top: 8, bottom: 8, left: 6, right: 6 }, lineColor: [226, 232, 240], lineWidth: { bottom: 0.5 }, minCellHeight: 25 },
+        headStyles: { fillColor: [248, 250, 252], textColor: [15, 23, 42], fontSize: 9, fontStyle: 'bold', halign: 'left', valign: 'middle', lineWidth: { top: 0.5, bottom: 0.5 }, lineColor: [203, 213, 225] },
+        bodyStyles: { fontSize: 9, halign: 'left', valign: 'middle', textColor: [71, 85, 105] },
+        columnStyles: { 
+          0: { fontStyle: 'bold', textColor: [15, 23, 42], cellWidth: 90 },
+          1: { cellWidth: 120 },
+          2: { cellWidth: 80 },
+          3: { cellWidth: 70 },
+          4: { cellWidth: 380 }
+        },
+        didParseCell: function (data) {
+          if (data.section === 'body' && data.column.index === 2) {
+            const val = data.cell.raw;
+            if (val.includes('APPROVED')) { data.cell.styles.textColor = [22, 163, 74]; data.cell.styles.fontStyle = 'bold'; }
+            else if (val.includes('REJECTED') || val.includes('ESCALATION')) { data.cell.styles.textColor = [220, 38, 38]; data.cell.styles.fontStyle = 'bold'; }
+            else if (val.includes('EXPORT') || val.includes('CHANGED')) { data.cell.styles.textColor = [217, 119, 6]; data.cell.styles.fontStyle = 'bold'; }
+            else { data.cell.styles.textColor = [37, 99, 235]; data.cell.styles.fontStyle = 'bold'; }
+          }
+        },
+        margin: { top: 110, left: 40, right: 40 }
+      });
+
+      const finalY = doc.lastAutoTable?.finalY || 110;
+      doc.setFontSize(9);
+      doc.setTextColor(148, 163, 184);
+      doc.setFont('helvetica', 'normal');
+      
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.getWidth() - 40, doc.internal.pageSize.getHeight() - 20, { align: 'right' });
+      }
+
+      doc.save(`Audit_Logs_${new Date().toISOString().split('T')[0]}.pdf`);
+    };
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', paddingBottom: '32px', position: 'relative' }}>
       
@@ -345,69 +427,75 @@ export default function Settings() {
                     <Search size={16} color="var(--ceo-text-muted)" style={{ position: 'absolute', left: '12px', top: '11px' }} />
                     <input type="text" className="ceo-form-input" placeholder="Search by user, action, or module..." style={{ paddingLeft: '38px', height: '38px', background: '#FFF', width: '100%' }} value={auditSearch} onChange={e => setAuditSearch(e.target.value)} />
                   </div>
-                  <button className="ceo-btn" style={{ height: '38px', padding: '0 16px', display: 'flex', gap: '8px', background: '#FFF', border: '1px solid var(--ceo-border)' }}><Download size={16} /> Export</button>
+                  <button onClick={handleDownloadPDF} className="ceo-btn" style={{ height: '38px', padding: '0 16px', display: 'flex', gap: '8px', background: '#FFF', border: '1px solid var(--ceo-border)', cursor: 'pointer', fontWeight: 600, color: 'var(--ceo-text-main)', transition: 'all 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.borderColor = '#cbd5e1'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#FFF'; e.currentTarget.style.borderColor = 'var(--ceo-border)'; }}><Download size={16} /> Export</button>
                 </div>
               </div>
-              <div className="ceo-command-content" style={{ padding: 0, overflowY: 'auto' }}>
-                <table className="ceo-erp-table">
-                  <thead>
-                    <tr>
-                      <th>Timestamp</th>
-                      <th>User</th>
-                      <th>Action</th>
-                      <th>Module</th>
-                      <th>Details (Old → New)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredAuditLogs.length > 0 ? (
-                      filteredAuditLogs.map(log => {
-                        const isDanger = log.action.includes('REJECTED') || log.action.includes('ESCALATION');
-                        const isSuccess = log.action.includes('APPROVED');
-                        const isWarning = log.action.includes('EXPORT') || log.action.includes('CHANGED');
-                        
-                        const badgeColor = isDanger ? 'var(--ceo-danger)' : isSuccess ? 'var(--ceo-success)' : isWarning ? 'var(--ceo-warning)' : 'var(--ceo-primary)';
-                        const badgeBg = isDanger ? '#FEF2F2' : isSuccess ? '#F0FDF4' : isWarning ? '#FEFCE8' : '#EFF6FF';
-                        
-                        return (
-                          <tr key={log.id} style={{ height: '56px' }}>
-                            <td style={{ padding: '0 24px' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <span style={{ fontWeight: 600, fontSize: '13px' }}>{log.timestampDate}</span>
-                                <span style={{ color: 'var(--ceo-text-muted)', fontSize: '11px' }}>{log.timestampTime}</span>
-                              </div>
-                            </td>
-                            <td>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <div style={{ width: '24px', height: '24px', borderRadius: '12px', background: 'var(--ceo-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>
-                                  {log.user.charAt(0)}
-                                </div>
-                                <span style={{ fontWeight: 600 }}>{log.user}</span>
-                              </div>
-                            </td>
-                            <td>
-                              <span style={{ 
-                                background: badgeBg, color: badgeColor, border: `1px solid ${badgeColor}40`,
-                                padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px'
-                              }}>
-                                {log.action}
-                              </span>
-                            </td>
-                            <td style={{ fontWeight: 500, color: 'var(--ceo-text-secondary)' }}>{log.module}</td>
-                            <td style={{ paddingRight: '24px' }}><span style={{ fontSize: '13px', color: 'var(--ceo-text-secondary)' }}>{log.details}</span></td>
-                          </tr>
-                        );
-                      })
-                    ) : (
-                      <tr>
-                        <td colSpan="5" style={{ textAlign: 'center', padding: '48px', color: 'var(--ceo-text-muted)' }}>
-                          <History size={32} style={{ opacity: 0.2, margin: '0 auto 12px auto' }} />
-                          <div>No audit logs found matching the current filters.</div>
-                        </td>
+              <div className="ceo-command-content" style={{ padding: '0 24px 24px 24px', overflowY: 'auto' }}>
+                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)', overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ width: '15%', padding: '16px 24px', textAlign: 'left', color: '#64748b', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Timestamp</th>
+                        <th style={{ width: '18%', padding: '16px 24px', textAlign: 'left', color: '#64748b', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>User</th>
+                        <th style={{ width: '20%', padding: '16px 24px', textAlign: 'left', color: '#64748b', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Action</th>
+                        <th style={{ width: '12%', padding: '16px 24px', textAlign: 'left', color: '#64748b', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Module</th>
+                        <th style={{ width: '35%', padding: '16px 24px', textAlign: 'left', color: '#64748b', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Details (Old → New)</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {filteredAuditLogs.length > 0 ? (
+                        filteredAuditLogs.map((log, idx) => {
+                          const isDanger = log.action.includes('REJECTED') || log.action.includes('ESCALATION');
+                          const isSuccess = log.action.includes('APPROVED');
+                          const isWarning = log.action.includes('EXPORT') || log.action.includes('CHANGED');
+                          
+                          const badgeColor = isDanger ? '#dc2626' : isSuccess ? '#059669' : isWarning ? '#d97706' : '#2563eb';
+                          const badgeBg = isDanger ? '#fef2f2' : isSuccess ? '#ecfdf5' : isWarning ? '#fffbeb' : '#eff6ff';
+                          const badgeBorder = isDanger ? '#fecaca' : isSuccess ? '#a7f3d0' : isWarning ? '#fde68a' : '#bfdbfe';
+                          const dotColor = isDanger ? '#ef4444' : isSuccess ? '#10b981' : isWarning ? '#f59e0b' : '#3b82f6';
+                          
+                          return (
+                            <tr key={log.id} style={{ transition: 'all 0.2s', backgroundColor: '#ffffff', borderBottom: '1px solid #f1f5f9' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.05)'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#ffffff'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
+                              <td style={{ padding: '20px 24px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  <span style={{ fontWeight: 600, fontSize: '13px', color: '#0f172a' }}>{log.timestampDate}</span>
+                                  <span style={{ color: '#64748b', fontSize: '12px' }}>{log.timestampTime}</span>
+                                </div>
+                              </td>
+                              <td style={{ padding: '20px 24px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                  <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(log.user)}&background=random`; }} src={`https://ui-avatars.com/api/?name=${encodeURIComponent(log.user)}&background=random`} alt={log.user} style={{ width: '36px', height: '36px', borderRadius: '50%', border: '2px solid #fff', boxShadow: '0 2px 4px rgba(0,0,0,0.08)' }} />
+                                  <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '14px' }}>{log.user}</span>
+                                </div>
+                              </td>
+                              <td style={{ padding: '20px 24px' }}>
+                                <span style={{ 
+                                  padding: '6px 14px', borderRadius: '999px', fontSize: '12px', fontWeight: '700', letterSpacing: '0.03em', display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                  backgroundColor: badgeBg, color: badgeColor, border: `1px solid ${badgeBorder}` 
+                                }}>
+                                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: dotColor }}></span>
+                                  {log.action}
+                                </span>
+                              </td>
+                              <td style={{ padding: '20px 24px', fontWeight: 600, color: '#475569', fontSize: '13px' }}>{log.module}</td>
+                              <td style={{ padding: '20px 24px' }}>
+                                <span style={{ fontSize: '13px', color: '#334155', lineHeight: '1.6', display: 'block', wordWrap: 'break-word', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{log.details}</span>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan="5" style={{ padding: '48px', textAlign: 'center', color: '#94a3b8' }}>
+                            <History size={48} style={{ opacity: 0.2, margin: '0 auto 16px auto', color: '#64748b' }} />
+                            <div style={{ fontSize: '16px', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>No Audit Logs Found</div>
+                            <div style={{ fontSize: '14px' }}>Adjust your filters to see more results.</div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
