@@ -14,6 +14,10 @@ const TeamDirectory = () => {
   const [skills, setSkills] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Calendar State
+  const [calMonth, setCalMonth] = useState(new Date().getMonth());
+  const [calYear, setCalYear] = useState(new Date().getFullYear());
+
   React.useEffect(() => {
     const fetchData = async () => {
       try {
@@ -98,8 +102,7 @@ const TeamDirectory = () => {
     }
   });
 
-  const currentDate = new Date();
-  const currentMonthEvents = calendarEvents.filter(e => e.month === currentDate.getMonth() && e.year === currentDate.getFullYear());
+  const currentMonthEvents = calendarEvents.filter(e => e.month === calMonth && e.year === calYear);
 
   // Calculate if there are overlapping leaves on any given day this month
   const hasOverlap = React.useMemo(() => {
@@ -162,12 +165,6 @@ const TeamDirectory = () => {
           onClick={() => setActiveView('calendar')}
         >
           <CalendarDays size={16} /> Availability
-        </button>
-        <button 
-          className={`${styles.navTab} ${activeView === 'skills' ? styles.activeTab : ''}`}
-          onClick={() => setActiveView('skills')}
-        >
-          <Lightbulb size={16} /> Skill Matrix
         </button>
       </div>
 
@@ -259,7 +256,30 @@ const TeamDirectory = () => {
         {/* View 2: Team Availability Calendar */}
         {activeView === 'calendar' && (
           <div>
-            <div className={styles.sectionTitle}>{currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })} Availability Tracker</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div className={styles.sectionTitle} style={{ margin: 0 }}>Availability Tracker</div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <select 
+                  value={calMonth} 
+                  onChange={(e) => setCalMonth(Number(e.target.value))}
+                  style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', outline: 'none', color: 'var(--text-primary)', cursor: 'pointer' }}
+                >
+                  {Array.from({length: 12}).map((_, i) => (
+                    <option key={i} value={i}>{new Date(2000, i, 1).toLocaleString('default', { month: 'long' })}</option>
+                  ))}
+                </select>
+                <select 
+                  value={calYear} 
+                  onChange={(e) => setCalYear(Number(e.target.value))}
+                  style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', outline: 'none', color: 'var(--text-primary)', cursor: 'pointer' }}
+                >
+                  {Array.from({length: 5}).map((_, i) => {
+                    const y = new Date().getFullYear() - 2 + i;
+                    return <option key={y} value={y}>{y}</option>;
+                  })}
+                </select>
+              </div>
+            </div>
             
             {hasOverlap && (
               <div className={styles.overlapWarning}>
@@ -272,10 +292,10 @@ const TeamDirectory = () => {
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
                 <div key={d} className={styles.calHeader}>{d}</div>
               ))}
-              {Array.from({ length: new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate() }).map((_, i) => {
+              {Array.from({ length: new Date(calYear, calMonth + 1, 0).getDate() }).map((_, i) => {
                 const day = i + 1;
                 const events = currentMonthEvents.filter(e => e.day === day);
-                const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
+                const firstDayOfMonth = new Date(calYear, calMonth, 1).getDay();
                 const isOffset = i === 0 ? { gridColumnStart: firstDayOfMonth + 1 } : {};
                 
                 return (
@@ -321,37 +341,6 @@ const TeamDirectory = () => {
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* View 4: Skill Matrix Table */}
-        {activeView === 'skills' && (
-          <div>
-            <div className={styles.sectionTitle}>Team Skill Matrix Overview</div>
-            <table className={styles.matrixTable}>
-              <thead>
-                <tr>
-                  <th>Employee</th>
-                  <th>React</th>
-                  <th>Node.js</th>
-                  <th>AWS</th>
-                  <th>Python</th>
-                  <th>SQL</th>
-                </tr>
-              </thead>
-              <tbody>
-                {skillMatrix.map((emp, i) => (
-                  <tr key={i}>
-                    <td style={{ fontWeight: 600 }}>{emp.name}</td>
-                    <td>{renderDots(emp.React)}</td>
-                    <td>{renderDots(emp.Node)}</td>
-                    <td>{renderDots(emp.AWS)}</td>
-                    <td>{renderDots(emp.Python)}</td>
-                    <td>{renderDots(emp.SQL)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
         )}
 

@@ -11,6 +11,8 @@ const Escalations = () => {
     dependencies: '',
     severity: 'Medium'
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   const token = localStorage.getItem('nsg_jwt_token');
 
@@ -183,7 +185,7 @@ const Escalations = () => {
                     </td>
                   </tr>
                 ) : (
-                  escalations.map(esc => (
+                  escalations.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(esc => (
                     <tr key={esc.id}>
                       <td style={{ fontWeight: 600, fontSize: '13px', lineHeight: '1.4' }}>{esc.title}</td>
                       <td><a href="#" className={styles.taskLink}>{esc.task_link || esc.taskLink}</a></td>
@@ -202,14 +204,18 @@ const Escalations = () => {
                         )}
                       </td>
                       <td>
-                        {esc.resolved ? (
+                        {esc.rejected ? (
+                          <span className={`${styles.badge}`} style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5' }}>REJECTED</span>
+                        ) : esc.resolved ? (
                           <span className={`${styles.badge} ${styles.badgeResolved}`}><CheckCircle2 size={10}/> RESOLVED</span>
                         ) : (
-                          <span className={`${styles.badge} ${styles.badgeCritical}`} style={{ background: '#fef2f2', color: '#dc2626' }}>ACTIVE</span>
+                          <span className={`${styles.badge} ${styles.badgeCritical}`} style={{ background: '#fdf4ff', color: '#c026d3' }}>ACTIVE</span>
                         )}
                       </td>
                       <td>
-                        {!esc.resolved ? (
+                        {esc.rejected ? (
+                           <span style={{ fontSize: '12px', color: 'var(--text-light)', fontWeight: '600' }}>—</span>
+                        ) : !esc.resolved ? (
                           <button 
                             onClick={() => handleResolve(esc.id)}
                             className={styles.actionBtn}
@@ -226,6 +232,21 @@ const Escalations = () => {
               </tbody>
             </table>
           </div>
+          {escalations.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '16px', borderTop: '1px solid var(--border)', gap: '16px' }}>
+              <button 
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => p - 1)}
+                style={{ padding: '6px 16px', borderRadius: '6px', background: currentPage === 1 ? '#f1f5f9' : '#fff', border: '1px solid #e2e8f0', color: currentPage === 1 ? '#94a3b8' : '#334155', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', fontWeight: '600', fontSize: '13px' }}
+              >Prev</button>
+              <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>Page {currentPage} of {Math.ceil(escalations.length / itemsPerPage)}</span>
+              <button 
+                disabled={currentPage === Math.ceil(escalations.length / itemsPerPage)}
+                onClick={() => setCurrentPage(p => p + 1)}
+                style={{ padding: '6px 16px', borderRadius: '6px', background: currentPage === Math.ceil(escalations.length / itemsPerPage) ? '#f1f5f9' : '#fff', border: '1px solid #e2e8f0', color: currentPage === Math.ceil(escalations.length / itemsPerPage) ? '#94a3b8' : '#334155', cursor: currentPage === Math.ceil(escalations.length / itemsPerPage) ? 'not-allowed' : 'pointer', fontWeight: '600', fontSize: '13px' }}
+              >Next</button>
+            </div>
+          )}
         </div>
 
 

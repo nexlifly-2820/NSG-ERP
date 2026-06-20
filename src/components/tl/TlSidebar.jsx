@@ -10,7 +10,6 @@ export default function TlSidebar({ activeTab, setActiveTab }) {
   const isPerformanceActive = activeTab === 'performance';
   const isAttendanceActive = activeTab === 'attendance';
   const isTimesheetsActive = activeTab === 'timesheets';
-  const isReportsActive = activeTab === 'reports';
   const isEscalationsActive = activeTab === 'escalations';
   const isMessagingActive = activeTab === 'messaging';
   const isHolidaysActive = activeTab === 'holidays';
@@ -133,19 +132,6 @@ export default function TlSidebar({ activeTab, setActiveTab }) {
       >
         <Clock size={18} />
         <span>Timesheets</span>
-      </button>
-
-      <button
-        className={`nav-link ${isReportsActive ? 'active' : ''}`}
-        onClick={() => setActiveTab('reports')}
-        style={isReportsActive ? { 
-          color: '#3b82f6',
-          borderLeftColor: '#3b82f6',
-          backgroundColor: 'rgba(59, 130, 246, 0.05)' 
-        } : {}}
-      >
-        <FileText size={18} />
-        <span>Reports</span>
       </button>
 
       <button
