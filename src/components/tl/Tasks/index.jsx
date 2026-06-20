@@ -28,9 +28,7 @@ export default function Tasks({ currentUser }) {
       const parsed = JSON.parse(local);
       if (parsed.length > 0) return parsed;
     }
-    return [
-      { id: 1, sprintId: 'SPR-43', name: 'Sprint 43', goal: 'Alpha Release', start: '', end: '', sp: 40, status: 'Planning' }
-    ];
+    return [];
   })();
 
   const [taskTitle, setTaskTitle] = useState('');
@@ -432,7 +430,7 @@ export default function Tasks({ currentUser }) {
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Story Points</label>
-                <input type="number" className={styles.formInput} placeholder="e.g. 3, 5, 8" value={taskPoints} onChange={(e) => setTaskPoints(e.target.value)} />
+                <input type="text" className={styles.formInput} placeholder="e.g. 3, 5, 8" value={taskPoints} onChange={(e) => setTaskPoints(e.target.value.replace(/\D/g, ''))} />
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Priority</label>
@@ -461,7 +459,6 @@ export default function Tasks({ currentUser }) {
                 <label className={styles.formLabel}>Sprint ID</label>
                 <select className={styles.formSelect} value={taskSprint} onChange={(e) => setTaskSprint(e.target.value)}>
                   <option value="">Select Sprint ID...</option>
-                  <option value="Backlog">Backlog</option>
                   {(() => {
                     const filteredSprints = taskProjectId
                       ? savedSprints.filter(s => s.project_id === taskProjectId)

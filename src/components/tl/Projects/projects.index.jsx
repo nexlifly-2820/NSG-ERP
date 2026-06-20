@@ -14,7 +14,7 @@ const Projects = () => {
   const [activeFilter, setActiveFilter] = useState('All');
 
   // Sprint Config States
-  const [sprintName, setSprintName] = useState('Sprint 43');
+  const [sprintName, setSprintName] = useState('');
   const [sprintGoal, setSprintGoal] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -50,11 +50,7 @@ const Projects = () => {
   const [savedSprints, setSavedSprints] = useState(() => {
     const local = localStorage.getItem('nsg_saved_sprints');
     if (local) return JSON.parse(local);
-    const defaults = [
-      { id: 1, sprintId: 'SPR-43', name: 'Sprint 43', goal: 'Alpha Release', start: '', end: '', sp: 40, status: 'Planning' }
-    ];
-    localStorage.setItem('nsg_saved_sprints', JSON.stringify(defaults));
-    return defaults;
+    return [];
   });
   const [selectedSprintFilter, setSelectedSprintFilter] = useState('All');
 
@@ -78,12 +74,8 @@ const Projects = () => {
             setSavedSprints(sprints);
             localStorage.setItem('nsg_saved_sprints', JSON.stringify(sprints));
           } else {
-            // Seed default if empty
-            const defaults = [
-              { id: 1, sprintId: 'SPR-43', name: 'Sprint 43', goal: 'Alpha Release', start: '', end: '', sp: 40, status: 'Planning' }
-            ];
-            setSavedSprints(defaults);
-            localStorage.setItem('nsg_saved_sprints', JSON.stringify(defaults));
+            setSavedSprints([]);
+            localStorage.setItem('nsg_saved_sprints', JSON.stringify([]));
           }
         }
       } catch (err) {
@@ -542,7 +534,7 @@ const Projects = () => {
                 </div>
                 <div className={styles.formGroup}>
                   <label style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>Story Points Target</label>
-                  <input type="number" placeholder="e.g. 40" value={spTarget} onChange={(e) => setSpTarget(parseInt(e.target.value) || 0)} />
+                  <input type="text" placeholder="e.g. 40" value={spTarget} onChange={(e) => setSpTarget(e.target.value.replace(/\D/g, ''))} />
                 </div>
 
                 {/* Sprint Backlog Section */}
@@ -1239,7 +1231,7 @@ const Projects = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontWeight: 700, fontSize: '13px', color: '#0f172a', marginBottom: '6px' }}>Story Points</label>
-                <input type="number" defaultValue={selectedTaskDetails.points} style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', color: '#0f172a', background: '#f8fafc' }} />
+                <input type="text" defaultValue={selectedTaskDetails.points} onChange={(e) => e.target.value = e.target.value.replace(/\D/g, '')} style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', color: '#0f172a', background: '#f8fafc' }} />
               </div>
               <div>
                 <label style={{ display: 'block', fontWeight: 700, fontSize: '13px', color: '#0f172a', marginBottom: '6px' }}>Priority</label>
