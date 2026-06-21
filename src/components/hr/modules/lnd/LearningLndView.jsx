@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Check, Lock, AlertCircle, Pencil, Trash2, Plus } from 'lucide-react';
+import { useCompany } from '../../../common/CompanyContext';
 
 const DEFAULT_QUIZ_QUESTIONS = [];
 
 export function LearningLndView() {
+  const { companyName } = useCompany();
   const [db, setDb] = useState({
     quizQuestions: [],
     trainingTracks: [],
@@ -562,7 +564,7 @@ export function LearningLndView() {
             </thead>
             <tbody>
               <tr>
-                <td style={{ padding: '16px 40px' }}><strong>HMNS Corporate Inductions (L1)</strong></td>
+                <td style={{ padding: '16px 40px' }}><strong>{companyName || 'HMNS'} Corporate Inductions (L1)</strong></td>
                 <td style={{ padding: '16px 40px' }}><span style={{ color: 'var(--accent-green)', fontWeight: 'bold' }}>Mandatory ✓</span></td>
                 <td style={{ padding: '16px 40px' }}><span style={{ color: 'var(--accent-green)', fontWeight: 'bold' }}>Mandatory ✓</span></td>
                 <td style={{ padding: '16px 40px' }}><span style={{ color: 'var(--accent-green)', fontWeight: 'bold' }}>Mandatory ✓</span></td>

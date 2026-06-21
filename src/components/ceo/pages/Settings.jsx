@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useCompany } from '../../common/CompanyContext';
 import '../CEO.css';
 
 // ==========================================
@@ -32,6 +33,7 @@ const initialRbac = {
 // COMPONENT
 // ==========================================
 export default function Settings() {
+  const { companyLogo } = useCompany();
   const [activeCategory, setActiveCategory] = useState('security');
   
   // RBAC State
@@ -275,7 +277,8 @@ export default function Settings() {
     const doc = new jsPDF('landscape', 'pt', 'a4');
     
     const img = new Image();
-    img.src = '/hmns-logo.png';
+    img.crossOrigin = "Anonymous";
+    img.src = companyLogo || '/hmns-logo.png';
     
     img.onload = () => {
       // Premium White Header

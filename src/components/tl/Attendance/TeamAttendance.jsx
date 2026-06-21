@@ -3,6 +3,7 @@ import styles from './attendance.module.css';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useCompany } from '../../common/CompanyContext';
 
 const monthsList = [
   { value: 0, label: 'January' },
@@ -118,7 +119,7 @@ const SplitView = ({ data, title, onBack, onDismiss, type }) => {
 };
 
 const TeamAttendance = ({ onBack }) => {
-
+  const { companyLogo } = useCompany();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth()); // current month
   const [selectedYear, setSelectedYear] = useState(2026);
   const [viewMode, setViewMode] = useState('monthly');
@@ -555,7 +556,8 @@ const TeamAttendance = ({ onBack }) => {
     const monthLabel = monthsList.find(m => m.value === selectedMonth)?.label || 'Month';
     
     const img = new Image();
-    img.src = '/hmns-logo.png';
+    img.crossOrigin = "Anonymous";
+    img.src = companyLogo || '/hmns-logo.png';
     
     img.onload = () => {
       // Premium White Header

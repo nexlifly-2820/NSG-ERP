@@ -677,25 +677,34 @@ def transition_candidate_to_employee(id: int, current_user: models.User = Depend
     cand.stage = "joined"
     
     # Calculate employee serial number
+    setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == "emp_id_prefix").first()
+    prefix = setting.value if setting and setting.value else "nsg"
+    
     max_serial = 100
     for u in db.query(models.User).all():
-        if u.emp_id and u.emp_id.startswith("NSG-0"):
+        if u.emp_id and u.emp_id.lower().startswith(f"{prefix.lower()}-"):
             try:
-                num = int(u.emp_id.split("-0")[-1])
+                # Splitting by '-' to get the number part reliably
+                num_str = u.emp_id.split("-")[-1]
+                num = int(num_str)
                 if num > max_serial:
                     max_serial = num
             except ValueError:
                 pass
-    emp_id = f"NSG-0{max_serial + 1}"
+    
+    # Format with leading zero if less than 1000 (e.g. 0101, 08009)
+    next_num = max_serial + 1
+    emp_id = f"{prefix}-{str(next_num).zfill(4)}"
     
     # Auto setup dates
     today = date.today()
     probation_end = date.fromordinal(today.toordinal() + 30) # 1 month
     
     # Initial documents list & CTC
-    offer = db.query(models.JobOffer).filter(models.JobOffer.candidate_id == cand.id).first()
-    init_ctc = offer.gross_ctc if offer else 300000.0
-    init_base = offer.basic_pay if offer else 15625.0
+    # Initial documents list & CTC
+    offer = db.query(models.JobOffer).filter(models.JobOffer.candidate_name == cand.name).first()
+    init_ctc = offer.salary_offered if offer else 300000.0
+    init_base = init_ctc * 0.4 if offer else 15625.0
     
     initial_docs_dict = {
         "docs_list": [],
@@ -712,6 +721,7 @@ def transition_candidate_to_employee(id: int, current_user: models.User = Depend
         name=cand.name,
         email=cand.email,
         hashed_password=default_pwd,
+        plain_password=default_pwd_plain,
         role="employee",
         department="Engineering",
         designation=cand.role,
@@ -1140,26 +1150,7 @@ def update_employee(id: int, req: EmployeeUpdateRequest, current_user: models.Us
     db.refresh(emp)
     return emp
 
-@router.post("/employees/{id}/reset-password", status_code=status.HTTP_200_OK)
-def reset_employee_password(id: int, req: PasswordResetRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
-    verify_hr_role(current_user)
-    emp = db.query(models.User).filter(models.User.id == id).first()
-    if not emp:
-        raise HTTPException(status_code=404, detail="Employee not found.")
-    
-    hashed = security.hash_password(req.new_password)
-    emp.hashed_password = hashed
-    
-    db_log = models.AuditLog(
-        initiator_id=current_user.name,
-        module="Employees",
-        record_id=id,
-        action_type="password_reset",
-        change_diff=json.dumps({"info": "HR reset employee password"})
-    )
-    db.add(db_log)
-    db.commit()
-    return {"status": "success", "message": "Password successfully reset."}
+
 
 @router.post("/employees/{id}/documents/upload", response_model=EmployeeResponse)
 def upload_employee_document(id: int, req: DocumentUploadRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):

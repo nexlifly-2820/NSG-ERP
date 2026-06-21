@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import styles from './projects.module.css';
 import { Briefcase, Calendar, Users, ListTodo, KanbanSquare, GitCommit, Search, Plus, Play, MoreVertical, Flag, Clock, X, HelpCircle, Eye, CheckCircle, AlertCircle, ChevronRight, AlertTriangle, Menu, CheckSquare, Paperclip, MessageSquare, User, Tag, Info, Lock, ChevronDown, XCircle, GitPullRequest, Edit, Trash2 } from 'lucide-react';
-
+import { useCompany } from '../../common/CompanyContext';
 
 const Projects = () => {
+  const { companyName } = useCompany();
   const [activeProject, setActiveProject] = useState(null);
   const [activeView, setActiveView] = useState('board'); // board, create_sprint, kanban, timeline
 
@@ -1523,7 +1524,7 @@ const Projects = () => {
                 <div className={styles.mMetaList}>
                   <div className={styles.mMetaRow}>
                     <div className={styles.mMetaLabel}><KanbanSquare size={14} /> Project Name</div>
-                    <div className={styles.mMetaValueBox}>HMNS ERP Platform</div>
+                    <div className={styles.mMetaValueBox}>{activeProject?.name || `${companyName || 'HMNS'} ERP Platform`}</div>
                   </div>
                   <div className={styles.mMetaRow}>
                     <div className={styles.mMetaLabel}><Menu size={14} /> Task Name</div>

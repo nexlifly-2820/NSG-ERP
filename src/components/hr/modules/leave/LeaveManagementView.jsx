@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useCompany } from '../../../common/CompanyContext';
 
 export function LeaveManagementView() {
+  const { companyLogo } = useCompany();
   const [employees, setEmployees] = useState([]);
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [leaveBalances, setLeaveBalances] = useState([]);
@@ -205,7 +207,8 @@ export function LeaveManagementView() {
     const monthName = new Date(selectedYear, selectedMonth).toLocaleString('default', { month: 'long' });
     
     const img = new Image();
-    img.src = '/hmns-logo.png';
+    img.crossOrigin = "Anonymous";
+    img.src = companyLogo || '/hmns-logo.png';
     
     img.onload = () => {
       // Premium White Header

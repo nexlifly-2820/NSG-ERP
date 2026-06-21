@@ -102,3 +102,29 @@ def logout(response: Response, current_user: models.User = Depends(security.get_
 @router.get("/me", response_model=UserResponse)
 def read_users_me(current_user: models.User = Depends(security.get_current_user)):
     return current_user
+
+class CompanyConfigResponse(BaseModel):
+    company_name: Optional[str] = "HMNS Software"
+    company_logo: Optional[str] = "/hmns-logo.png"
+    emp_id_prefix: Optional[str] = "nsg"
+
+@router.get("/company-config", response_model=CompanyConfigResponse)
+def get_company_config(db: Session = Depends(database.get_db)):
+    company_name = db.query(models.SystemSetting).filter(models.SystemSetting.key == "company_name").first()
+    company_logo = db.query(models.SystemSetting).filter(models.SystemSetting.key == "company_logo").first()
+    emp_id_prefix = db.query(models.SystemSetting).filter(models.SystemSetting.key == "emp_id_prefix").first()
+    
+    name_val = company_name.value if company_name else "HMNS Software"
+    
+    logo_val = company_logo.value if company_logo else "/hmns-logo.png"
+    # The logo value saved in CEO portal is typically the file path like /api/files/...
+    # But wait, looking at CompanySetup.jsx, if it's saved via configs it's just the URL path.
+    # Let's ensure it has the correct prefix or use it as is.
+    
+    prefix_val = emp_id_prefix.value if emp_id_prefix else "nsg"
+    
+    return {
+        "company_name": name_val,
+        "company_logo": logo_val,
+        "emp_id_prefix": prefix_val
+    }

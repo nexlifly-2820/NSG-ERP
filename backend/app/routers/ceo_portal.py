@@ -38,6 +38,7 @@ class UserCreateRequest(BaseModel):
     join_date: date
     status: Optional[str] = "probation"
     shift_timing: Optional[str] = None
+    emp_id: Optional[str] = None
 
 class UserCreateResponse(BaseModel):
     user_id: int
@@ -62,6 +63,7 @@ class UserDetailResponse(BaseModel):
     phone: Optional[str] = None
     manager_id: Optional[int] = None
     documents: Optional[str] = None
+    plain_password: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -403,16 +405,19 @@ def create_user_by_ceo(req: UserCreateRequest, current_user: models.User = Depen
         raise HTTPException(status_code=400, detail="A user with this email already exists.")
         
     # Calculate emp_id
-    max_serial = 100
-    for u in db.query(models.User).all():
-        if u.emp_id and u.emp_id.startswith("NSG-0"):
-            try:
-                num = int(u.emp_id.split("-0")[-1])
-                if num > max_serial:
-                    max_serial = num
-            except ValueError:
-                pass
-    emp_id = f"NSG-0{max_serial + 1}"
+    if hasattr(req, 'emp_id') and req.emp_id:
+        emp_id = req.emp_id
+    else:
+        max_serial = 100
+        for u in db.query(models.User).all():
+            if u.emp_id and u.emp_id.startswith("NSG-0"):
+                try:
+                    num = int(u.emp_id.split("-0")[-1])
+                    if num > max_serial:
+                        max_serial = num
+                except ValueError:
+                    pass
+        emp_id = f"NSG-0{max_serial + 1}"
     
     # Generate temporary password
     import string, random
@@ -432,7 +437,8 @@ def create_user_by_ceo(req: UserCreateRequest, current_user: models.User = Depen
         status=req.status,
         emp_id=emp_id,
         is_active=True,
-        shift_timing=req.shift_timing
+        shift_timing=req.shift_timing,
+        plain_password=temp_pwd_plain
     )
     db.add(db_user)
     db.commit()
@@ -486,6 +492,8 @@ def reset_user_password_by_ceo(user_id: int, req: PasswordResetRequest, current_
         
     hashed_pwd = security.hash_password(req.new_password)
     db_user.hashed_password = hashed_pwd
+    db_user.plain_password = req.new_password
+    
     db.commit()
     
     return {"message": "Password updated successfully."}

@@ -4,9 +4,11 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import styles from './approvedTimesheets.module.css';
 import '../../../employee/pagination.css'; 
+import { useCompany } from '../../../common/CompanyContext';
 import ManageApprovals from './ManageApprovals';
 
 export function ApprovedTimesheetsView() {
+  const { companyName, companyLogo } = useCompany();
   const [timesheets, setTimesheets] = useState([]);
   const [selectedLog, setSelectedLog] = useState(null);
   const [isManagingApprovals, setIsManagingApprovals] = useState(false);
@@ -99,7 +101,8 @@ export function ApprovedTimesheetsView() {
     const doc = new jsPDF('landscape', 'pt', 'a4');
     
     const img = new Image();
-    img.src = '/hmns-logo.png';
+    img.crossOrigin = "Anonymous";
+    img.src = companyLogo || '/hmns-logo.png';
     
     const renderPDF = () => {
       // Premium White Header
@@ -116,7 +119,7 @@ export function ApprovedTimesheetsView() {
         // Fallback if image fails to load
         doc.setFontSize(20);
         doc.setTextColor(15, 23, 42);
-        doc.text('HMNS Software Solution', 40, 50);
+        doc.text(companyName, 40, 50);
       }
       
       // Divider Line

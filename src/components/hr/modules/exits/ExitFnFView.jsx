@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CheckCircle, Lock, Edit, X, Download } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
+import { useCompany } from '../../../common/CompanyContext';
 
 const SignatureInput = ({ value, onChange }) => {
   const canvasRef = useRef(null);
@@ -83,6 +84,7 @@ const SignatureInput = ({ value, onChange }) => {
 };
 
 export function ExitFnFView() {
+  const { companyName, companyLogo } = useCompany();
   const [exitTab, setExitTab] = useState('resignations'); // resignations | assets | fnf | noc
   const [selectedResignId, setSelectedResignId] = useState(1);
   const [relievingDate, setRelievingDate] = useState('2026-06-20');
@@ -285,13 +287,13 @@ export function ExitFnFView() {
 
     const htmlContent = `
       <div style="padding: 40px; background: white; color: black; font-family: monospace; font-size: 14px; line-height: 1.6; width: 700px; box-sizing: border-box; margin: 0 auto; text-align: justify;">
-        <img src="/hmns-logo.png" style="width: 100%; height: auto; max-height: 100px; object-fit: contain; margin-bottom: 20px;" crossorigin="anonymous" />
+        <img src="${companyLogo || '/hmns-logo.png'}" style="width: 100%; height: auto; max-height: 100px; object-fit: contain; margin-bottom: 20px;" crossorigin="anonymous" />
         <div style="text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 30px; letter-spacing: 1px;">NO OBJECTION CERTIFICATE</div>
         ${nocContentRef.current ? nocContentRef.current.innerHTML : ''}
         
         <div style="margin-top: 60px; display: flex; justify-content: space-between; align-items: flex-end;">
           <div>
-            <div>System Checked: HMNS ERP Failsafe</div>
+            <div>System Checked: {companyName || 'HMNS'} ERP Failsafe</div>
             <span style="color: green; font-weight: bold;">Assets & FnF Cleared ✓</span>
           </div>
           <div style="text-align: right;">
@@ -328,7 +330,7 @@ export function ExitFnFView() {
 
     const htmlContent = `
       <div style="padding: 40px; background: white; color: black; font-family: monospace; font-size: 14px; line-height: 1.6; width: 700px; box-sizing: border-box; margin: 0 auto; text-align: justify;">
-        <img src="/hmns-logo.png" style="width: 100%; height: auto; max-height: 100px; object-fit: contain; margin-bottom: 20px;" crossorigin="anonymous" />
+        <img src="${companyLogo || '/hmns-logo.png'}" style="width: 100%; height: auto; max-height: 100px; object-fit: contain; margin-bottom: 20px;" crossorigin="anonymous" />
         <div style="text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 30px; letter-spacing: 1px;">RELIEVING LETTER</div>
         ${relievingContentRef.current ? relievingContentRef.current.innerHTML : ''}
         <div style="margin-top: 40px; display: flex; justify-content: space-between; align-items: flex-end;">
@@ -687,7 +689,7 @@ export function ExitFnFView() {
               
               <div style={{ marginTop: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                 <div>
-                  <div>System Checked: HMNS ERP Failsafe</div>
+                  <div>System Checked: {companyName || 'HMNS'} ERP Failsafe</div>
                   <span style={{ color: 'var(--accent-green)', fontWeight: 'bold' }}>Assets &amp; FnF Cleared ✓</span>
                 </div>
                 <div style={{ textAlign: 'right' }}>
@@ -746,7 +748,7 @@ export function ExitFnFView() {
                 </p>
                 
                 <p style={{ textAlign: 'justify' }}>
-                  Your full and final settlement has been processed successfully. We appreciate your contributions to HMNS Software Solution Pvt Ltd during your tenure and wish you the best for your future endeavors.
+                  Your full and final settlement has been processed successfully. We appreciate your contributions to {companyName || 'HMNS Software Solution Pvt Ltd'} during your tenure and wish you the best for your future endeavors.
                 </p>
                 <p>Yours Sincerely,</p>
               </div>

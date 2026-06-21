@@ -3,9 +3,11 @@ import useSWR from 'swr';
 import { Target, CheckCircle, Award, UserCheck, Download, Search, Filter } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useCompany } from '../common/CompanyContext';
 import './Performance.css';
 
 export default function Performance({ currentUser }) {
+  const { companyName, companyLogo } = useCompany();
   const token = localStorage.getItem('nsg_jwt_token');
   const [acknowledging, setAcknowledging] = useState(null);
 
@@ -79,7 +81,8 @@ export default function Performance({ currentUser }) {
     const doc = new jsPDF('landscape', 'pt', 'a4');
     
     const img = new Image();
-    img.src = '/hmns-logo.png';
+    img.crossOrigin = "Anonymous";
+    img.src = companyLogo || '/hmns-logo.png';
     
     const renderPDF = () => {
       // Premium White Header
@@ -94,7 +97,7 @@ export default function Performance({ currentUser }) {
       } catch (e) {
         doc.setFontSize(20);
         doc.setTextColor(15, 23, 42);
-        doc.text('HMNS Software Solution', 40, 50);
+        doc.text(companyName, 40, 50);
       }
       
       // Divider Line

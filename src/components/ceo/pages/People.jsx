@@ -1,20 +1,22 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, Download, XCircle, Mail, Phone, Award, UserPlus, FileText, CalendarDays, Users, Building, ShieldCheck, TrendingUp } from 'lucide-react';
+import { Search, Filter, Download, XCircle, Mail, Phone, Award, UserPlus, FileText, CalendarDays, Users, Building, ShieldCheck, TrendingUp, Eye, EyeOff } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import '../CEO.css';
+import { useCompany } from '../../common/CompanyContext';
 
 
 
 
 export default function People() {
+  const { companyName, companyLogo, empIdPrefix } = useCompany();
   const [employees, setEmployees] = useState([]);
   const [selectedEmp, setSelectedEmp] = useState(null);
   const [activeTab, setActiveTab] = useState('Info');
   
   // Add Employee Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newEmp, setNewEmp] = useState({ name: '', dept: '', role: '', email: '', phone: '', status: 'Active', sysRole: 'employee', shift: '' });
+  const [newEmp, setNewEmp] = useState({ name: '', empIdInput: '', dept: '', role: '', email: '', phone: '', status: 'Active', sysRole: 'employee', shift: '' });
 
   // Full Profile & Messaging State
   const [isFullProfileOpen, setIsFullProfileOpen] = useState(false);
@@ -26,6 +28,7 @@ export default function People() {
   const [editEmpData, setEditEmpData] = useState(null);
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
   const [newPassword, setNewPassword] = useState('');
+  const [showOldPassword, setShowOldPassword] = useState(false);
   const [updating, setUpdating] = useState(false);
 
   // Filters
@@ -132,6 +135,7 @@ export default function People() {
         body: JSON.stringify({
           name: newEmp.name,
           email: newEmp.email,
+          emp_id: newEmp.empIdInput ? `${empIdPrefix}-${newEmp.empIdInput}` : null,
           department: newEmp.dept,
           designation: newEmp.role,
           role: newEmp.sysRole,
@@ -152,7 +156,7 @@ export default function People() {
       alert(`User ${result.name} successfully added!\n\nRole: ${result.role}\nEmail: ${result.email}\nTemporary Password: ${result.temporary_password}\n\nPlease share these credentials.`);
       
       setIsAddModalOpen(false);
-      setNewEmp({ name: '', dept: '', role: '', email: '', phone: '', status: 'Active', sysRole: 'employee', shift: '' });
+      setNewEmp({ name: '', empIdInput: '', dept: '', role: '', email: '', phone: '', status: 'Active', sysRole: 'employee', shift: '' });
       
       // Reload employees
       const res = await fetch('/api/ceo-portal/users', { headers: { 'Authorization': `Bearer ${token}` } });
@@ -235,6 +239,11 @@ export default function People() {
         const err = await res.json();
         throw new Error(err.detail || 'Failed to reset password');
       }
+      // Update local state
+      const updatedEmp = { ...selectedEmp, plain_password: newPassword };
+      setSelectedEmp(updatedEmp);
+      setEmployees(prev => prev.map(e => e.dbId === selectedEmp.dbId ? updatedEmp : e));
+      
       setIsResetPasswordOpen(false);
       setNewPassword('');
       alert('Password reset successfully.');
@@ -279,28 +288,36 @@ export default function People() {
     }
     const doc = new jsPDF('landscape');
     
-    doc.setFontSize(18);
-    doc.text("Employees Export", 14, 22);
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.src = companyLogo || '/hmns-logo.png';
+    img.onload = () => {
+      doc.addImage(img, 'PNG', 14, 10, 30, 10);
+      doc.setFontSize(18);
+      doc.text(`${companyName || 'HMNS'} - Employees Export`, 14, 30);
 
-    const headers = [["Employee ID", "Name", "Email", "Department", "Designation", "System Role", "Status", "Join Date"]];
-    const data = filteredEmployees.map(emp => [
-      emp.id,
-      emp.name,
-      emp.email,
-      emp.dept,
-      emp.role,
-      emp.sysRole,
-      emp.status,
-      emp.joinDate
-    ]);
+      const headers = [["Employee ID", "Name", "Email", "Department", "Designation", "System Role", "Status", "Join Date"]];
+      const data = filteredEmployees.map(emp => [
+        emp.id,
+        emp.name,
+        emp.email,
+        emp.dept,
+        emp.role,
+        emp.sysRole,
+        emp.status,
+        emp.joinDate
+      ]);
 
-    doc.autoTable({
-      startY: 30,
-      head: headers,
-      body: data,
-    });
+      doc.autoTable({
+        startY: 38,
+        head: headers,
+        body: data,
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [236, 72, 153] },
+      });
 
-    doc.save('employees_export.pdf');
+      doc.save('employees_export.pdf');
+    };
   };
 
   const handleDownload = (filename) => {
@@ -550,6 +567,18 @@ export default function People() {
                         </div>
                       </div>
                     </div>
+
+
+                    <div style={{ background: '#FFF', padding: '16px', borderRadius: '8px', border: '1px solid var(--ceo-border)', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ceo-text-muted)', marginBottom: '12px', letterSpacing: '0.5px' }}>ADMIN ACTIONS</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <button onClick={() => setIsResetPasswordOpen(true)} className="ceo-btn" style={{ fontWeight: 700, color: 'var(--ceo-danger)', border: '1px solid var(--ceo-danger)', width: '100%', padding: '10px' }}>Manage Password</button>
+                        <button onClick={() => { setEditEmpData({...selectedEmp}); setIsEditProfileOpen(true); }} className="ceo-btn" style={{ fontWeight: 700, width: '100%', padding: '10px' }}>Edit Profile</button>
+                        <button onClick={handleDeleteEmployee} disabled={updating} className="ceo-btn" style={{ fontWeight: 700, color: '#FFF', background: 'var(--ceo-danger)', border: '1px solid var(--ceo-danger)', width: '100%', padding: '10px' }}>
+                          {updating ? 'Deleting...' : 'Delete Employee'}
+                        </button>
+                      </div>
+                    </div>
                   </>
                 )}
 
@@ -643,6 +672,15 @@ export default function People() {
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>FULL NAME *</label>
                 <input required value={newEmp.name} onChange={e => setNewEmp({...newEmp, name: e.target.value})} className="ceo-form-input" style={{ width: '100%', padding: '12px' }} placeholder="e.g. Rahul Sharma" />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>EMPLOYEE ID</label>
+                <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#fff', border: '1px solid var(--ceo-border)', borderRadius: '8px', overflow: 'hidden' }}>
+                  <div style={{ padding: '12px 14px', backgroundColor: '#f8fafc', borderRight: '1px solid var(--ceo-border)', color: 'var(--ceo-text-muted)', fontWeight: 700 }}>
+                    {empIdPrefix}-
+                  </div>
+                  <input type="text" value={newEmp.empIdInput} onChange={(e) => setNewEmp({...newEmp, empIdInput: e.target.value})} placeholder="Auto-gen if blank" style={{ flex: 1, border: 'none', padding: '12px 14px', outline: 'none', fontSize: '14px' }} />
+                </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
@@ -754,17 +792,6 @@ export default function People() {
                 </table>
               </div>
 
-              {/* Admin Actions */}
-              <div style={{ background: '#FFF', padding: '24px', borderRadius: '12px', border: '1px solid var(--ceo-border)' }}>
-                <h3 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '16px' }}>ADMIN ACTIONS</h3>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <button onClick={() => { setEditEmpData({...selectedEmp}); setIsEditProfileOpen(true); }} className="ceo-btn" style={{ fontWeight: 700 }}>Edit Profile</button>
-                  <button onClick={() => setIsResetPasswordOpen(true)} className="ceo-btn" style={{ fontWeight: 700, color: 'var(--ceo-danger)', border: '1px solid var(--ceo-danger)' }}>Reset Password</button>
-                  <button onClick={handleDeleteEmployee} disabled={updating} className="ceo-btn" style={{ fontWeight: 700, color: '#FFF', background: 'var(--ceo-danger)', border: '1px solid var(--ceo-danger)' }}>
-                    {updating ? 'Deleting...' : 'Delete Employee'}
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -898,7 +925,26 @@ export default function People() {
               <p style={{ fontSize: '14px', color: 'var(--ceo-text-secondary)', lineHeight: 1.5 }}>
                 You are about to force reset the password for <strong>{selectedEmp.name}</strong>.
               </p>
-              <div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '4px' }}>OLD PASSWORD</label>
+                <div style={{ position: 'relative' }}>
+                  <input 
+                    type={showOldPassword ? "text" : "password"} 
+                    value={showOldPassword ? (selectedEmp.plain_password || "Not Available") : "••••••••"}
+                    readOnly
+                    className="ceo-form-input"
+                    style={{ width: '100%', padding: '12px', paddingRight: '40px', cursor: 'not-allowed', background: 'var(--ceo-bg-secondary)' }} 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowOldPassword(!showOldPassword)}
+                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ceo-text-muted)' }}
+                  >
+                    {showOldPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+              <div style={{ marginTop: '8px' }}>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>NEW PASSWORD *</label>
                 <input required type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="ceo-form-input" style={{ width: '100%', padding: '12px' }} placeholder="Enter new password" />
               </div>

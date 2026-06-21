@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useCompany } from '../common/CompanyContext';
 import './Employee.css';
 
 const DEFAULT_QUIZ_QUESTIONS = [
@@ -17,11 +18,20 @@ const MODULES = [
 const CURRENT_EMPLOYEE_ID = 102;
 
 export default function Learning({ currentUser }) {
+  const { companyName } = useCompany();
   const employeeId = currentUser?.id || CURRENT_EMPLOYEE_ID;
   const employeeName = currentUser?.name || 'Jane Smith';
 
   // Fallback to defaults since there is no backend endpoint for custom questions yet
-  const QUIZ_QUESTIONS = DEFAULT_QUIZ_QUESTIONS;
+  const QUIZ_QUESTIONS = DEFAULT_QUIZ_QUESTIONS.map(q => ({
+    ...q,
+    question: q.question.replace('HMNS', companyName || 'HMNS')
+  }));
+
+  const modulesWithCompany = MODULES.map(m => ({
+    ...m,
+    title: m.title.replace('HMNS', companyName || 'HMNS')
+  }));
 
   const [progress, setProgress] = useState({ completed_modules: 0, quiz_score: 0, passed: false });
   const [completedModules, setCompletedModules] = useState(new Set());
@@ -149,7 +159,7 @@ export default function Learning({ currentUser }) {
               ? `Compliance Gate Unlocked ✓ — Score: ${progress.quiz_score}%`
               : allModulesDone
               ? 'All modules done! You can now take the quiz.'
-              : `Modules completed: ${completedModules.size} / ${MODULES.length}`}
+              : `Modules completed: ${completedModules.size} / ${modulesWithCompany.length}`}
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
             {lockGateUnlocked
@@ -175,16 +185,16 @@ export default function Learning({ currentUser }) {
         <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Mandatory · All Departments</div>
         {/* Progress bar */}
         <div style={{ flex: 1, height: 6, background: 'var(--bg-primary)', borderRadius: 10, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${(completedModules.size / MODULES.length) * 100}%`, background: GREEN, transition: 'width 0.4s ease', borderRadius: 10 }} />
+          <div style={{ height: '100%', width: `${(completedModules.size / modulesWithCompany.length) * 100}%`, background: GREEN, transition: 'width 0.4s ease', borderRadius: 10 }} />
         </div>
-        <div style={{ fontSize: 12, fontWeight: 700, color: GREEN }}>{completedModules.size}/{MODULES.length}</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: GREEN }}>{completedModules.size}/{modulesWithCompany.length}</div>
       </div>
 
       {/* ── Module Cards ── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
-        {MODULES.map((mod, idx) => {
+        {modulesWithCompany.map((mod, idx) => {
           const done = completedModules.has(mod.id);
-          const locked = idx > 0 && !completedModules.has(MODULES[idx - 1].id);
+          const locked = idx > 0 && !completedModules.has(modulesWithCompany[idx - 1].id);
           return (
             <div key={mod.id} style={{
               padding: '20px 24px',
@@ -272,7 +282,7 @@ export default function Learning({ currentUser }) {
               <p style={{ margin: '0 0 10px', fontWeight: 700, color: 'var(--text-primary)' }}>📖 Module Content</p>
               {activeModule.id === 1 ? (
                 <>
-                  <p>Welcome to NSG. Our core values are <strong>Integrity, Innovation, and Inclusion</strong>. Every employee is expected to:</p>
+                  <p>Welcome to {companyName || 'NSG'}. Our core values are <strong>Integrity, Innovation, and Inclusion</strong>. Every employee is expected to:</p>
                   <ul style={{ paddingLeft: 18, marginTop: 8 }}>
                     <li>Treat all colleagues with respect and professionalism</li>
                     <li>Report any unethical behavior to HR immediately</li>
@@ -283,7 +293,7 @@ export default function Learning({ currentUser }) {
                 </>
               ) : (
                 <>
-                  <p>NSG follows strict IT security and data governance policies:</p>
+                  <p>{companyName || 'NSG'} follows strict IT security and data governance policies:</p>
                   <ul style={{ paddingLeft: 18, marginTop: 8 }}>
                     <li>All company data is confidential and must not be shared externally</li>
                     <li>Use only company-approved tools for work-related tasks</li>

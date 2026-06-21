@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Shield, Key, Mail, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { useCompany } from '../common/CompanyContext';
 
 export default function Login({ onLoginSuccess }) {
   const [email, setEmail] = useState('');
@@ -7,6 +8,7 @@ export default function Login({ onLoginSuccess }) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { companyName, companyLogo } = useCompany();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -78,10 +80,10 @@ export default function Login({ onLoginSuccess }) {
       }}>
         {/* Brand Header */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center' }}>
-          <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src="/hmns-logo.png" alt="HMNS Software" style={{ width: '240px', height: 'auto', objectFit: 'contain', background: '#fff', padding: '10px 16px', borderRadius: '12px', boxShadow: '0 4px 16px rgba(0,0,0,0.06)', border: '1px solid #f1f5f9' }}  />
+          <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&background=random`; }} src={companyLogo} alt={companyName} style={{ width: '240px', height: 'auto', maxHeight: '100px', objectFit: 'contain', background: '#fff', padding: '10px 16px', borderRadius: '12px', boxShadow: '0 4px 16px rgba(0,0,0,0.06)', border: '1px solid #f1f5f9' }}  />
           <div>
             <h1 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.4px' }}>
-              HMNS ERP Portal
+              {companyName} Portal
             </h1>
             <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0', fontWeight: '400' }}>
               Secure Single Sign-On Gateway

@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { Calendar, FileText, ArrowRight } from 'lucide-react';
 import { notify } from '../../utils/notify';
+import { useCompany } from '../../../common/CompanyContext';
 
 export function RecruitmentView({ queryParams, setQueryParams }) {
+  const { companyName } = useCompany();
   const subTab = queryParams?.get('subTab') || '';
   const showScheduler = subTab === 'schedule';
   const setShowScheduler = (val) => setQueryParams({ subTab: val ? 'schedule' : '' }); // Toggle scheduler
@@ -558,7 +560,7 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
               <h3 style={{ margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '18px' }}>
-                <span style={{ fontSize: '20px' }}>🧠</span> HMNS AI Resume Analyzer &amp; Parser
+                <span style={{ fontSize: '20px' }}>🧠</span> {companyName || 'HMNS'} AI Resume Analyzer &amp; Parser
               </h3>
               <button style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '16px' }} onClick={() => setShowAnalyzer(false)}>✕</button>
             </div>
@@ -611,7 +613,7 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
 
                   {/* AI Recommendation */}
                   <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.03)', border: '1px dashed var(--accent-blue)', borderRadius: '10px', padding: '16px' }}>
-                    <h5 style={{ margin: '0 0 8px 0', fontSize: '12px', textTransform: 'uppercase', color: 'var(--accent-blue)', fontWeight: 'bold' }}>HMNS AI Recommendation &amp; Summary</h5>
+                    <h5 style={{ margin: '0 0 8px 0', fontSize: '12px', textTransform: 'uppercase', color: 'var(--accent-blue)', fontWeight: 'bold' }}>{companyName || 'HMNS'} AI Recommendation &amp; Summary</h5>
                     <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6', fontStyle: 'italic' }}>
                       "{analysis.recommendation}"
                     </p>
@@ -631,7 +633,7 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
                   <div style={{ padding: '40px 0', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
                     <div style={{ border: '4px solid var(--border-color)', borderTopColor: 'var(--accent-pink)', borderRadius: '50%', width: '48px', height: '48px', animation: 'spin 1s linear infinite' }} />
                     <div>
-                      <h4 style={{ margin: 0, color: 'var(--text-primary)' }}>HMNS Engine Parsing Resume</h4>
+                      <h4 style={{ margin: 0, color: 'var(--text-primary)' }}>{companyName || 'HMNS'} Engine Parsing Resume</h4>
                       <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{analysisStatus}</p>
                     </div>
                   </div>
@@ -682,7 +684,7 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
 
                     {/* AI Recommendation */}
                     <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.03)', border: '1px dashed var(--accent-blue)', borderRadius: '10px', padding: '16px' }}>
-                      <h5 style={{ margin: '0 0 8px 0', fontSize: '12px', textTransform: 'uppercase', color: 'var(--accent-blue)', fontWeight: 'bold' }}>HMNS AI Recommendation &amp; Summary</h5>
+                      <h5 style={{ margin: '0 0 8px 0', fontSize: '12px', textTransform: 'uppercase', color: 'var(--accent-blue)', fontWeight: 'bold' }}>{companyName || 'HMNS'} AI Recommendation &amp; Summary</h5>
                       <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6', fontStyle: 'italic' }}>
                         "{parsedResult.recommendation}"
                       </p>

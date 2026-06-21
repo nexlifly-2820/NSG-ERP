@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { CalendarDays, Filter, Download, CalendarCheck } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useCompany } from '../../common/CompanyContext';
 import styles from './teamHistory.module.css'; 
 import '../../employee/pagination.css'; 
 
 const TeamTimesheetsHistory = () => {
+  const { companyName, companyLogo } = useCompany();
   const [timesheets, setTimesheets] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
 
@@ -79,7 +81,8 @@ const TeamTimesheetsHistory = () => {
     const doc = new jsPDF('landscape', 'pt', 'a4');
     
     const img = new Image();
-    img.src = '/hmns-logo.png';
+    img.crossOrigin = "Anonymous";
+    img.src = companyLogo || '/hmns-logo.png';
     
     const renderPDF = () => {
       // Premium White Header
@@ -94,7 +97,7 @@ const TeamTimesheetsHistory = () => {
       } catch (e) {
         doc.setFontSize(20);
         doc.setTextColor(15, 23, 42);
-        doc.text('HMNS Software Solution', 40, 50);
+        doc.text(companyName, 40, 50);
       }
       
       // Divider Line

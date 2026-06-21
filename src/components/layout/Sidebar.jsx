@@ -3,12 +3,15 @@ import {
   Shield, Users, Award, Briefcase, 
   Settings, LogOut
 } from 'lucide-react';
+import { useCompany } from '../common/CompanyContext';
 import CeoSidebar from '../ceo/CeoSidebar';
 import HrSidebar from '../hr/HrSidebar';
 import TlSidebar from '../tl/TlSidebar';
 import EmployeeSidebar from '../employee/EmployeeSidebar';
 
 export default function Sidebar({ activeRole, activeTab, setActiveTab, currentUser, onLogout, isOpen, onClose }) {
+  const { companyName, companyLogo } = useCompany();
+
   const currentRoleColor = {
     CEO: '#f59e0b',
     HR: '#ec4899',
@@ -48,7 +51,7 @@ export default function Sidebar({ activeRole, activeTab, setActiveTab, currentUs
     <aside className={`app-sidebar ${isOpen ? 'open' : ''}`}>
       {/* Brand Header */}
       <div className="sidebar-brand" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px', marginBottom: '24px' }}>
-        <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src="/hmns-logo.png" alt="HMNS Software" style={{ width: '160px', height: 'auto', objectFit: 'contain', background: '#fff', padding: '6px 10px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}  />
+        <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&background=random`; }} src={companyLogo} alt={companyName} style={{ width: '160px', height: 'auto', maxHeight: '50px', objectFit: 'contain', background: '#fff', padding: '6px 10px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}  />
         <span style={{ color: currentRoleColor, fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', paddingLeft: '4px', marginTop: '2px' }}>{roleLabel}</span>
       </div>
 

@@ -5,8 +5,10 @@ import { notify } from '../../utils/notify';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import styles from './employeeRegistry.module.css';
+import { useCompany } from '../../../common/CompanyContext';
 
 export function EmployeeRegistryView({ queryParams, setQueryParams }) {
+  const { companyName, companyLogo, empIdPrefix } = useCompany();
   const [db, onUpdateDb] = useState({ employees: [], auditLogs: [], trainingProgress: [], onboardingTasks: [], leaveBalances: [], attendanceLogs: [], payslips: [] });
 
   const [search, setSearch] = useState('');
@@ -87,12 +89,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
   const [editIfscCode, setEditIfscCode] = useState('');
   const [editBankBranch, setEditBankBranch] = useState('');
 
-  // Reset Password States
-  const [showResetModal, setShowResetModal] = useState(false);
-  const [showOldPassword, setShowOldPassword] = useState(false);
-  const [updatedPasswords, setUpdatedPasswords] = useState({});
-  const [resetEmp, setResetEmp] = useState(null);
-  const [newPassword, setNewPassword] = useState('');
+
 
   // Assets State
   const [employeeAssets, setEmployeeAssets] = useState([]);
@@ -207,7 +204,8 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
     const doc = new jsPDF('landscape', 'pt', 'a4');
     
     const img = new Image();
-    img.src = '/hmns-logo.png';
+    img.crossOrigin = "Anonymous";
+    img.src = companyLogo || '/hmns-logo.png';
     
     const renderPDF = () => {
       // Premium White Header
@@ -222,7 +220,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
       } catch (e) {
         doc.setFontSize(20);
         doc.setTextColor(15, 23, 42);
-        doc.text('HMNS Software Solution', 40, 50);
+        doc.text(companyName, 40, 50);
       }
       
       // Divider Line
@@ -349,7 +347,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
         },
         body: JSON.stringify({
           name: newName,
-          emp_id: newEmpId || null,
+          emp_id: newEmpId ? `${empIdPrefix}-${newEmpId}` : null,
           email: newEmail,
           department: newDept,
           designation: newRole,
@@ -431,6 +429,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
       });
 
       setNewName('');
+      setNewEmpId('');
       setNewEmail('');
       setNewPhotoFile(null);
       setNewPhoto('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&fit=crop&q=80');
@@ -590,41 +589,6 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
     }
   };
 
-  const handleResetPassword = async (e) => {
-    e.preventDefault();
-    if (!newPassword.trim()) {
-      notify('Please enter a valid password.', 'warning');
-      return;
-    }
-    const token = localStorage.getItem('nsg_jwt_token');
-    try {
-      const res = await fetch(`/api/hr-portal/employees/${resetEmp.id}/reset-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ new_password: newPassword })
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || 'Failed to reset employee password.');
-      }
-      setUpdatedPasswords(prev => ({ ...prev, [resetEmp.id]: newPassword }));
-      setShowResetModal(false);
-      setResetEmp(null);
-      setNewPassword('');
-      notify('Employee password successfully updated / reset!');
-    } catch (err) {
-      notify(`Error: ${err.message}`, 'error');
-    }
-  };
-
-  const openResetModal = (emp) => {
-    setResetEmp(emp);
-    setNewPassword('');
-    setShowResetModal(true);
-  };
 
   const openEditModal = (emp) => {
     setEditEmp(emp);
@@ -865,9 +829,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                       <button title="Edit Employee" onClick={() => openEditModal(emp)} className={`${styles.actionBtn} ${styles.edit}`}>
                         <Edit3 size={14} />
                       </button>
-                      <button title="Reset Password" onClick={() => openResetModal(emp)} className={`${styles.actionBtn} ${styles.reset}`}>
-                        <Lock size={14} />
-                      </button>
+
                       <button title="Delete Employee" onClick={() => handleDeleteEmployee(emp.id)} className={`${styles.actionBtn} ${styles.delete}`}>
                         <Trash2 size={14} />
                       </button>
@@ -1146,7 +1108,12 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
               
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>EMPLOYEE ID</label>
-                <input type="text" value={newEmpId} onChange={(e) => setNewEmpId(e.target.value)} placeholder="Auto-generated if left blank" style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px' }} />
+                <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
+                  <div style={{ padding: '10px 12px', backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-color)', color: 'var(--text-muted)', fontWeight: 'bold' }}>
+                    {empIdPrefix}-
+                  </div>
+                  <input type="text" value={newEmpId} onChange={(e) => setNewEmpId(e.target.value)} placeholder="Auto-gen if blank" style={{ flex: 1, backgroundColor: 'transparent', border: 'none', color: '#fff', padding: '10px 12px', outline: 'none' }} />
+                </div>
               </div>
               
               <div>

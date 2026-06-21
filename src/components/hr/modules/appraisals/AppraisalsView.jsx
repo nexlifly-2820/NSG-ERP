@@ -4,8 +4,10 @@ import { notify } from '../../utils/notify';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Download, Search, Filter } from 'lucide-react';
+import { useCompany } from '../../../common/CompanyContext';
 
 export function AppraisalsView() {
+  const { companyName, companyLogo } = useCompany();
   const [appraisalTab, setAppraisalTab] = useState('proposals'); // proposals | cycles | scorecards | promotions
   const [selectedEmpId, setSelectedEmpId] = useState('');
 
@@ -358,7 +360,8 @@ export function AppraisalsView() {
           const doc = new jsPDF('landscape', 'pt', 'a4');
           
           const img = new Image();
-          img.src = '/hmns-logo.png';
+          img.crossOrigin = "Anonymous";
+          img.src = companyLogo || '/hmns-logo.png';
           
           const renderPDF = () => {
             // Premium White Header
@@ -373,7 +376,7 @@ export function AppraisalsView() {
             } catch (e) {
               doc.setFontSize(20);
               doc.setTextColor(15, 23, 42);
-              doc.text('HMNS Software Solution', 40, 50);
+              doc.text(companyName, 40, 50);
             }
             
             // Divider Line
