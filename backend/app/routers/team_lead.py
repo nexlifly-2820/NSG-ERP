@@ -542,6 +542,9 @@ def reassign_task(id: int, req: ReassignRequest, current_user: models.User = Dep
         
     task.user_id = req.new_assignee_id
     
+    if task.status and task.status.lower() in ['blocked', 'reject']:
+        task.status = 'assignee'
+    
     notification = models.Notification(
         user_id=task.user_id,
         message=f"You have been assigned a new task: '{task.title}'.",

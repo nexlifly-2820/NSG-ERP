@@ -1202,7 +1202,47 @@ export default function Tasks({ currentUser }) {
                   </div>
                 )}
               </div>
+
+              {/* Status Notes and Attachments */}
+              {(() => {
+                let customData = {};
+                try {
+                  customData = viewTaskData.custom_data ? JSON.parse(viewTaskData.custom_data) : {};
+                } catch(e) {}
+                
+                const statusNotes = customData.status_notes || {};
+                const statusAtts = customData.status_attachments || {};
+                const statusesWithData = [...new Set([...Object.keys(statusNotes), ...Object.keys(statusAtts)])];
+
+                if (statusesWithData.length === 0) return null;
+
+                return (
+                  <div style={{ marginTop: '24px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                    <h3 style={{ fontSize: '14px', color: 'var(--text-main)', marginBottom: '16px', textTransform: 'uppercase' }}>Status Notes & Attachments</h3>
+                    {statusesWithData.map(status => (
+                      <div key={status} style={{ marginBottom: '16px' }}>
+                        <h4 style={{ fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '8px' }}>{status} Status</h4>
+                        {statusNotes[status] && (
+                          <div style={{ fontSize: '14px', color: 'var(--text-main)', background: 'var(--bg-secondary)', padding: '12px', borderRadius: '6px', marginBottom: '8px', whiteSpace: 'pre-wrap' }}>
+                            {statusNotes[status]}
+                          </div>
+                        )}
+                        {statusAtts[status] && statusAtts[status].length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                            {statusAtts[status].map((att, idx) => (
+                              <a key={idx} href={att.file_url} target="_blank" rel="noreferrer" style={{ fontSize: '13px', color: 'var(--brand-main)', background: '#f0fdf4', padding: '6px 12px', borderRadius: '4px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid #bbf7d0' }}>
+                                📄 {att.filename}
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
               
+
               <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
                 <button onClick={() => setViewModalOpen(false)} style={{ backgroundColor: 'var(--primary)', color: '#fff', border: 'none', padding: '8px 24px', borderRadius: '4px', cursor: 'pointer', fontWeight: 500 }}>
                   Close
