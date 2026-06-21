@@ -1,10 +1,15 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import './OrgChart.css';
 import AvatarFallback from '../common/AvatarFallback';
+import { ZoomIn, ZoomOut, RefreshCcw } from 'lucide-react';
 
 export default function OrgChart({ currentUser }) {
   const token = localStorage.getItem('nsg_jwt_token');
+  const [zoom, setZoom] = useState(1);
+  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2));
+  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.3));
+  const handleResetZoom = () => setZoom(1);
 
   const fetcher = (url) => 
     fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
@@ -86,7 +91,7 @@ export default function OrgChart({ currentUser }) {
   const renderSingleCard = (node) => (
     <div className={`org-node ${node.role.toLowerCase().includes('ceo') ? 'ceo-node' : node.role.toLowerCase().includes('hr') ? 'hr-node' : node.role.toLowerCase().includes('tl') || node.role.toLowerCase().includes('team lead') ? 'tl-node' : 'emp-node'}`}>
       {node.photo && !node.photo.includes('unsplash') ? (
-        <img src={`http://localhost:8000${node.photo}`} alt={node.name} className="org-avatar" onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(node.name)}&background=random`; }} />
+        <img src={`${node.photo}`} alt={node.name} className="org-avatar" onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(node.name)}&background=random`; }} />
       ) : (
         <AvatarFallback src={node.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(node.name)}&background=random`} alt={node.name} className="org-avatar" />
       )}
@@ -133,17 +138,32 @@ export default function OrgChart({ currentUser }) {
   };
 
   return (
-    <div className="org-chart-container">
-      <div className="org-chart-wrapper">
-        <div className="org-chart-header">
-          <h2>Organization Chart</h2>
-          <p>Explore the reporting structure and team hierarchies across the company.</p>
-        </div>
+    <div style={{ position: 'relative', height: '100%' }}>
+      {/* Zoom Controls */}
+      <div style={{ position: 'absolute', top: '20px', right: '20px', display: 'flex', gap: '8px', background: '#fff', padding: '8px', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', zIndex: 50 }}>
+        <button onClick={handleZoomOut} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569' }} title="Zoom Out" onMouseOver={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#0f172a'; }} onMouseOut={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#475569'; }}>
+          <ZoomOut size={20} />
+        </button>
+        <button onClick={handleResetZoom} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569' }} title="Reset Zoom" onMouseOver={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#0f172a'; }} onMouseOut={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#475569'; }}>
+          <RefreshCcw size={20} />
+        </button>
+        <button onClick={handleZoomIn} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#475569' }} title="Zoom In" onMouseOver={(e) => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#0f172a'; }} onMouseOut={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#475569'; }}>
+          <ZoomIn size={20} />
+        </button>
+      </div>
 
-        <div className="tree">
-          <ul>
-            {treeData.map(root => renderNode(root))}
-          </ul>
+      <div className="org-chart-container">
+        <div className="org-chart-wrapper">
+          <div className="org-chart-header">
+            <h2>Organization Chart</h2>
+            <p>Explore the reporting structure and team hierarchies across the company.</p>
+          </div>
+
+          <div className="tree" style={{ zoom: zoom, padding: '40px 0' }}>
+            <ul>
+              {treeData.map(root => renderNode(root))}
+            </ul>
+          </div>
         </div>
       </div>
     </div>

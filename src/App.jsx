@@ -101,7 +101,7 @@ export default function App() {
     };
 
     fetchProfile();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionTick]);
 
   const handleLoginSuccess = () => {
@@ -111,7 +111,7 @@ export default function App() {
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
-    } catch(e) {}
+    } catch (e) { }
     setUser(null);
     window.location.hash = '';
   };
@@ -127,13 +127,13 @@ export default function App() {
 
   // Authorization check for routes — compare both sides as lowercase
   const routeRoleLower = route.role.toLowerCase();
-  const userRoleLower  = (user?.role || '').toLowerCase();
+  const userRoleLower = (user?.role || '').toLowerCase();
 
   const isAuthorized = (() => {
     if (!user) return true; // not logged in yet, let the early return handle it
     if (userRoleLower === 'admin' || userRoleLower === 'ceo') return true;
-    if (userRoleLower === 'hr')  return ['hr', 'tl', 'employee'].includes(routeRoleLower);
-    if (userRoleLower === 'tl')  return ['tl', 'employee'].includes(routeRoleLower);
+    if (userRoleLower === 'hr') return ['hr', 'tl', 'employee'].includes(routeRoleLower);
+    if (userRoleLower === 'tl') return ['tl', 'employee'].includes(routeRoleLower);
     return routeRoleLower === 'employee';
   })();
 
@@ -142,7 +142,7 @@ export default function App() {
     if (user && !isAuthorized) {
       navigateTo(roleToRoute(user.role), 'dashboard');
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route.role, user, isAuthorized]);
 
   const renderActiveComponent = () => {
@@ -161,11 +161,11 @@ export default function App() {
 
     // Normalise to uppercase for matching
     switch (route.role.toUpperCase()) {
-      case 'CEO':      return <Ceo {...props} />;
-      case 'HR':       return <Hr {...props} />;
-      case 'TL':       return <Tl {...props} />;
+      case 'CEO': return <Ceo {...props} />;
+      case 'HR': return <Hr {...props} />;
+      case 'TL': return <Tl {...props} />;
       case 'EMPLOYEE': return <Employee {...props} navigateTo={navigateTo} />;
-      default:         return <Employee {...props} navigateTo={navigateTo} />;
+      default: return <Employee {...props} navigateTo={navigateTo} />;
     }
   };
 
@@ -200,10 +200,10 @@ export default function App() {
       <ToastProvider>
         <div className="app-container">
           {/* Sidebar Panel */}
-          <Sidebar 
-            activeRole={route.role} 
-            activeTab={route.tab} 
-            setActiveTab={(tab) => { navigateTo(route.role, tab); setIsMobileSidebarOpen(false); }} 
+          <Sidebar
+            activeRole={route.role}
+            activeTab={route.tab}
+            setActiveTab={(tab) => { navigateTo(route.role, tab); setIsMobileSidebarOpen(false); }}
             currentUser={user}
             onLogout={handleLogout}
             isOpen={isMobileSidebarOpen}
@@ -211,7 +211,7 @@ export default function App() {
           />
 
           {/* Mobile Sidebar Overlay */}
-          <div 
+          <div
             className={`sidebar-overlay ${isMobileSidebarOpen ? 'open' : ''}`}
             onClick={() => setIsMobileSidebarOpen(false)}
           />
@@ -219,9 +219,9 @@ export default function App() {
           {/* Main Panel Viewport */}
           <main className="main-content">
             {/* Header Navigation */}
-            <Navbar 
-              activeRole={route.role} 
-              setActiveRole={(role) => { navigateTo(role, 'dashboard'); setIsMobileSidebarOpen(false); }} 
+            <Navbar
+              activeRole={route.role}
+              setActiveRole={(role) => { navigateTo(role, 'dashboard'); setIsMobileSidebarOpen(false); }}
               navigateTo={navigateTo}
               currentUser={user}
               onLogout={handleLogout}

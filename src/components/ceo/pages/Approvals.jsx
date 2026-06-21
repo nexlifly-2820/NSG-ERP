@@ -22,7 +22,7 @@ const THEME = {
   warning: '#F59E0B'       
 };
 
-const TABS = ['All', 'Payroll', 'Resignation', 'Hike Appraisals', 'Promotions', 'Claim Expenses', 'Asset Requests', 'History'];
+const TABS = ['All', 'Leave', 'Work From Home', 'Resignation', 'Hike Appraisals', 'Promotions', 'Claim Expenses', 'Asset Requests', 'History'];
 
 // ==========================================
 // COMPONENTS ARCHITECTURE (AS PER SPEC)
@@ -32,7 +32,7 @@ const ConfirmActionModal = ({ isOpen, actionType, item, onClose, onConfirm }) =>
   if (!isOpen) return null;
   const isApprove = actionType === 'Approve';
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }} onClick={(e) => { if(e.target === e.currentTarget) onClose(); }}>
       <div style={{ background: THEME.bgSurface, padding: '32px', borderRadius: '16px', width: '420px', border: `1px solid ${THEME.border}`, color: THEME.textMain, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}>
          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
            {isApprove ? <CheckCircle size={24} color={THEME.primary} /> : <XCircle size={24} color={THEME.danger} />}
@@ -310,7 +310,8 @@ const ApprovalTable = ({ data, activeTab, selectedIds, onToggleCheck, onToggleAl
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', border: `1px solid ${THEME.borderLight}`, outline: 'none' }}
                     >
                       <option value="All">All Types</option>
-                      <option value="Payroll">Payroll</option>
+                      <option value="Leave">Leave</option>
+                      <option value="Work From Home">Work From Home</option>
                       <option value="Budget">Budget</option>
                       <option value="Resignation">Resignation</option>
                       <option value="Policy">Policy</option>
@@ -577,6 +578,15 @@ export default function ApprovalsPage() {
         });
         if (!res.ok) throw new Error(`Failed to ${action} policy.`);
         window.showToast(`Company policy ${isApprove ? 'approved' : 'rejected'} successfully.`, isApprove ? 'success' : 'error');
+      } else if (idStr.startsWith('LEV-')) {
+        const leaveId = item.leaveId;
+        const endpoint = `/api/ceo-portal/leaves/${leaveId}/${action}`;
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error(`Failed to ${action} leave request.`);
+        window.showToast(`${item.type} request ${isApprove ? 'approved' : 'rejected'} successfully.`, isApprove ? 'success' : 'error');
       } else if (idStr.startsWith('EXP-')) {
         const expenseId = item.expenseId;
         const endpoint = `/api/ceo-portal/expenses/${expenseId}/${action}`;
@@ -693,7 +703,7 @@ export default function ApprovalsPage() {
       }}>
         
         {/* TABS */}
-        <div style={{ gridArea: 'filter', display: 'flex', gap: '8px', borderBottom: `1px solid ${THEME.border}`, paddingBottom: '0' }}>
+        <div style={{ gridArea: 'filter', display: 'flex', gap: '8px', borderBottom: `1px solid ${THEME.border}`, paddingBottom: '0', overflowX: 'auto', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
           {TABS.map(tab => (
             <button
               key={tab}
@@ -707,6 +717,7 @@ export default function ApprovalsPage() {
                 borderRadius: '8px 8px 0 0',
                 fontWeight: 600,
                 fontSize: '14px',
+                whiteSpace: 'nowrap',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 marginBottom: '-1px'

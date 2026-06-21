@@ -447,7 +447,7 @@ export default function People() {
                     >
                       <td style={{ padding: '16px 20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                          <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '40px', height: '40px', borderRadius: '20px', border: '1px solid var(--ceo-border)' }}  />
+                          <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo ? `${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '40px', height: '40px', borderRadius: '20px', border: '1px solid var(--ceo-border)' }}  />
                           <div>
                             <div style={{ fontWeight: 700, color: 'var(--ceo-text-primary)' }}>{emp.name}</div>
                             <div style={{ fontSize: '11px', color: 'var(--ceo-text-muted)', fontWeight: 600, marginTop: '2px' }}>{emp.id}</div>
@@ -772,7 +772,7 @@ export default function People() {
 
       {/* SEND MESSAGE MODAL */}
       {isMessageOpen && selectedEmp && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }} onClick={(e) => { if (e.target === e.currentTarget) { setIsMessageOpen(false) } }}>
           <div style={{ background: '#FFF', width: '500px', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', overflow: 'hidden', display: 'flex', flexDirection: 'column', animation: 'fadeIn 0.2s ease-out' }}>
             <div style={{ padding: '24px', borderBottom: '1px solid var(--ceo-divider)', background: '#F8FAFC', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--ceo-text-primary)' }}>Message {selectedEmp.name}</div>
@@ -888,7 +888,7 @@ export default function People() {
 
       {/* RESET PASSWORD MODAL */}
       {isResetPasswordOpen && selectedEmp && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }} onClick={(e) => { if (e.target === e.currentTarget) { setIsResetPasswordOpen(false) } }}>
           <div style={{ background: '#FFF', width: '400px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', overflow: 'hidden', animation: 'fadeIn 0.2s ease-out' }}>
             <div style={{ padding: '24px', borderBottom: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC' }}>
               <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--ceo-danger)' }}>Reset Password</div>

@@ -494,7 +494,7 @@ export function LearningLndView() {
 
       {/* ── QUIZ QUESTION MODAL ── */}
       {isQuizModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }} onClick={(e) => { if (e.target === e.currentTarget) { { setIsQuizModalOpen(false); setEditingQuestion(null); } } } }>
           <form onSubmit={handleSaveQ} className="card" style={{ width: 520, maxHeight: 'calc(100vh - 60px)', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderLeft: '4px solid #6366f1', padding: 24, borderRadius: 16, display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: 12 }}>
               <h3 style={{ margin: 0, border: 'none', padding: 0, color: '#a78bfa', fontSize: 15 }}>
@@ -584,7 +584,7 @@ export function LearningLndView() {
 
       {/* ⚙️ TRACK BUILDER / EDITOR MODAL */}
       {isBuilderOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }} onClick={(e) => { if (e.target === e.currentTarget) { { setIsBuilderOpen(false); setEditingTrack(null); } } } }>
           <form
             onSubmit={handleSaveTrack}
             className="card"

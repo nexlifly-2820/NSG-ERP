@@ -145,7 +145,8 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
         body: formData
       });
       if (res.ok) {
-        window.location.reload();
+        const data = await res.json();
+        window.dispatchEvent(new CustomEvent('dp_updated', { detail: data.url }));
       }
     } catch(e) {}
   };
@@ -935,7 +936,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
               <MessageSquare size={20} color="var(--ceo-primary)" /> Team Chat
             </h2>
             <label style={{ cursor: 'pointer', position: 'relative' }} title="Change Profile Picture">
-              <AvatarFallback  src={currentUser?.photo ? `http://localhost:8000${currentUser.photo}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(empName)}`} alt="You" style={{ width: '36px', height: '36px', borderRadius: '18px', objectFit: 'cover', border: '2px solid var(--ceo-border)' }}  />
+              <AvatarFallback  src={currentUser?.photo ? `${currentUser.photo}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(empName)}`} alt="You" style={{ width: '36px', height: '36px', borderRadius: '18px', objectFit: 'cover', border: '2px solid var(--ceo-border)' }}  />
               <div style={{ position: 'absolute', bottom: -2, right: -2, background: 'var(--ceo-primary)', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #FFF' }}>
                 <Camera size={10} color="#FFF" />
               </div>
@@ -998,7 +999,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
                   }}
                 >
                   <div style={{ position: 'relative' }}>
-                    <AvatarFallback  src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}`)} alt={emp.name} style={{ width: '24px', height: '24px', borderRadius: '12px', objectFit: 'cover' }}  />
+                    <AvatarFallback  src={emp.photo ? `${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}`)} alt={emp.name} style={{ width: '24px', height: '24px', borderRadius: '12px', objectFit: 'cover' }}  />
                     <div style={{ position: 'absolute', bottom: -2, right: -2, width: '8px', height: '8px', borderRadius: '4px', background: emp.status === 'Active' ? 'var(--ceo-success)' : 'var(--ceo-warning)', border: '2px solid #FFF' }}></div>
                   </div>
                   <div style={{ flex: 1 }}>{emp.name}</div>
@@ -1161,7 +1162,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
                 >
                   {(() => {
                     const senderEmp = employees.find(e => e.name === msg.sender);
-                    const senderAvatar = senderEmp?.photo ? `http://localhost:8000${senderEmp.photo}` : (msg.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender)}`);
+                    const senderAvatar = senderEmp?.photo ? `${senderEmp.photo}` : (msg.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(msg.sender)}`);
                     return <AvatarFallback src={senderAvatar} alt={msg.sender} style={{ width: '36px', height: '36px', borderRadius: '18px', border: '1px solid var(--tl-border)', flexShrink: 0, objectFit: 'cover' }}  />;
                   })()}
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMsgMe ? 'flex-end' : 'flex-start', maxWidth: '70%' }}>
@@ -1225,13 +1226,13 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
                             {msg.attachment_url && (
                               <div style={{ marginBottom: '4px' }}>
                                 {msg.attachment_type === 'image' ? (
-                                  <AvatarFallback  src={`http://localhost:8000${msg.attachment_url}`} alt="attachment" style={{ maxWidth: '250px', maxHeight: '250px', borderRadius: '8px', objectFit: 'cover', cursor: 'pointer' }} onClick={() => setLightboxMedia({ url: `http://localhost:8000${msg.attachment_url}`, type: msg.attachment_type })} />
+                                  <AvatarFallback  src={`${msg.attachment_url}`} alt="attachment" style={{ maxWidth: '250px', maxHeight: '250px', borderRadius: '8px', objectFit: 'cover', cursor: 'pointer' }} onClick={() => setLightboxMedia({ url: `${msg.attachment_url}`, type: msg.attachment_type })} />
                                 ) : msg.attachment_type === 'video' ? (
-                                  <video src={`http://localhost:8000${msg.attachment_url}`} style={{ maxWidth: '250px', maxHeight: '250px', borderRadius: '8px', cursor: 'pointer' }} controls={false} onClick={() => setLightboxMedia({ url: `http://localhost:8000${msg.attachment_url}`, type: msg.attachment_type })} />
+                                  <video src={`${msg.attachment_url}`} style={{ maxWidth: '250px', maxHeight: '250px', borderRadius: '8px', cursor: 'pointer' }} controls={false} onClick={() => setLightboxMedia({ url: `${msg.attachment_url}`, type: msg.attachment_type })} />
                                 ) : (
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: isMsgMe ? 'rgba(255,255,255,0.2)' : '#F1F5F9', borderRadius: '8px', textDecoration: 'none', color: 'inherit' }}>
                                     <Paperclip size={16} />
-                                    <a href={`http://localhost:8000${msg.attachment_url}`} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }} onClick={(e) => e.stopPropagation()}>Download File</a>
+                                    <a href={`${msg.attachment_url}`} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }} onClick={(e) => e.stopPropagation()}>Download File</a>
                                   </div>
                                 )}
                               </div>
@@ -1325,7 +1326,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
                        setInputVal(prev => prev.replace(/@\w*$/, `@${emp.name.replace(/\s+/g, '')} `));
                        setShowMentionsPopup(false);
                     }} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--ceo-divider)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <AvatarFallback  src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}`)} alt="" style={{ width: '20px', height: '20px', borderRadius: '10px' }}  />
+                      <AvatarFallback  src={emp.photo ? `${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}`)} alt="" style={{ width: '20px', height: '20px', borderRadius: '10px' }}  />
                       <span style={{ fontSize: '13px', fontWeight: 600 }}>{emp.name}</span>
                     </div>
                   ))}
@@ -1411,7 +1412,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
                         <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-muted)', marginBottom: '12px' }}>IMAGES</div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                           {images.map(m => (
-                             <AvatarFallback key={m.id}  src={`http://localhost:8000${m.attachment_url}`} alt="media" style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '8px', cursor: 'pointer' }} onClick={() => setLightboxMedia({ url: `http://localhost:8000${m.attachment_url}`, type: 'image' })} />
+                             <AvatarFallback key={m.id}  src={`${m.attachment_url}`} alt="media" style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '8px', cursor: 'pointer' }} onClick={() => setLightboxMedia({ url: `${m.attachment_url}`, type: 'image' })} />
                           ))}
                         </div>
                       </div>
@@ -1423,7 +1424,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
                           {others.map(m => (
                              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: '#F8FAFC', border: '1px solid var(--ceo-border)', borderRadius: '8px' }}>
                                 <Paperclip size={16} color="var(--ceo-text-muted)" />
-                                <a href={`http://localhost:8000${m.attachment_url}`} target="_blank" rel="noreferrer" style={{ fontSize: '13px', color: 'var(--ceo-primary)', textDecoration: 'none', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.attachment_url.split('/').pop()}</a>
+                                <a href={`${m.attachment_url}`} target="_blank" rel="noreferrer" style={{ fontSize: '13px', color: 'var(--ceo-primary)', textDecoration: 'none', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.attachment_url.split('/').pop()}</a>
                              </div>
                           ))}
                         </div>
@@ -1569,7 +1570,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
                       </>
                     ) : (
                       <>
-                        <AvatarFallback  src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }}  />
+                        <AvatarFallback  src={emp.photo ? `${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }}  />
                         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 40%)' }}></div>
                       </>
                     )}
@@ -1600,7 +1601,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
                     return (
                       <div key={id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <AvatarFallback  src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '36px', height: '36px', borderRadius: '18px' }}  />
+                          <AvatarFallback  src={emp.photo ? `${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '36px', height: '36px', borderRadius: '18px' }}  />
                           <div style={{ color: '#F8FAFC', fontSize: '14px', fontWeight: 600 }}>{emp.name} {emp.isMe && '(You)'}</div>
                         </div>
                         {emp.isMe ? (callScreenMic ? <Mic size={16} color="#10B981" /> : <MicOff size={16} color="#EF4444" />) : <Mic size={16} color="#10B981" />}
@@ -1618,7 +1619,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
                     return (
                       <div key={id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', opacity: 0.5 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <AvatarFallback  src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '36px', height: '36px', borderRadius: '18px', filter: 'grayscale(100%)' }}  />
+                          <AvatarFallback  src={emp.photo ? `${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '36px', height: '36px', borderRadius: '18px', filter: 'grayscale(100%)' }}  />
                           <div style={{ color: '#F8FAFC', fontSize: '14px', fontWeight: 600 }}>{emp.name}</div>
                         </div>
                         <div style={{ color: '#94A3B8', fontSize: '12px', fontWeight: 600 }}>Offline</div>
@@ -1700,7 +1701,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
                           }
                         }}
                       />
-                      <AvatarFallback  src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '24px', height: '24px', borderRadius: '12px' }}  />
+                      <AvatarFallback  src={emp.photo ? `${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '24px', height: '24px', borderRadius: '12px' }}  />
                       <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}>{emp.name}</span>
                     </label>
                   ))}
@@ -1717,7 +1718,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
 
       {/* Edit Channel Modal */}
       {isEditChannelOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }} onClick={(e) => { if (e.target === e.currentTarget) { setIsEditChannelOpen(false) } }}>
           <div style={{ background: '#FFF', width: '400px', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
             <div style={{ padding: '20px', borderBottom: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--ceo-text-primary)' }}>Edit Channel Name</h3>
@@ -1773,7 +1774,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
                 return (
                   <div key={emp.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid var(--ceo-border)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <AvatarFallback  src={emp.photo ? `http://localhost:8000${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '32px', height: '32px', borderRadius: '16px' }}  />
+                      <AvatarFallback  src={emp.photo ? `${emp.photo}` : (emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name || "User")}&background=random`)} alt={emp.name} style={{ width: '32px', height: '32px', borderRadius: '16px' }}  />
                       <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}>{emp.name} {emp.isMe && '(You)'}</div>
                     </div>
                     <button 
@@ -1952,7 +1953,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
               {(currentChannel.members || []).map(empId => {
                 const emp = employees.find(e => String(e.id) === String(empId) || e.id === empId);
                 const name = emp ? emp.name : (empId === 'ceo' ? 'Employee' : (empId === 'hr' ? 'HR Manager' : `Emp #${empId}`));
-                const avatar = emp?.photo ? `http://localhost:8000${emp.photo}` : (emp?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`);
+                const avatar = emp?.photo ? `${emp.photo}` : (emp?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`);
                 return (
                   <div key={empId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1987,7 +1988,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
 
     
       {forwardMessageModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={(e) => { if (e.target === e.currentTarget) { setForwardMessageModal(null) } }}>
           <div style={{ background: '#FFF', width: '400px', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
             <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800 }}>Forward Message To...</h3>
             <div style={{ fontSize: '13px', color: 'var(--ceo-text-muted)', background: '#F8FAFC', padding: '12px', borderRadius: '8px', border: '1px solid var(--ceo-border)', fontStyle: 'italic' }}>
@@ -2004,7 +2005,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ceo-text-muted)', marginTop: '8px' }}>DIRECT MESSAGES</div>
                {(typeof employees !== 'undefined' ? employees : []).filter(e => !e.isMe).map(e => (
                   <button key={"fwd-dm-"+e.id} onClick={() => executeForwardMessage("dm-"+e.id)} style={{ padding: '10px 12px', textAlign: 'left', background: 'transparent', border: '1px solid var(--ceo-border)', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: 'var(--ceo-text-primary)' }}>
-                    <img src={e.photo ? "http://localhost:8000"+e.photo : (e.avatar || "https://ui-avatars.com/api/?name="+e.name.replace(' ', '+'))} alt="" style={{width: '24px', height: '24px', borderRadius: '12px', objectFit: 'cover'}} onError={(ev)=>{ev.target.onerror=null;ev.target.src="https://ui-avatars.com/api/?name="+e.name.replace(' ', '+');}} /> {e.name}
+                    <img src={e.photo ? e.photo : (e.avatar || "https://ui-avatars.com/api/?name="+e.name.replace(' ', '+'))} alt="" style={{width: '24px', height: '24px', borderRadius: '12px', objectFit: 'cover'}} onError={(ev)=>{ev.target.onerror=null;ev.target.src="https://ui-avatars.com/api/?name="+e.name.replace(' ', '+');}} /> {e.name}
                   </button>
                ))}
             </div>

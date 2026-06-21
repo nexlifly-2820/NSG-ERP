@@ -17,7 +17,6 @@ const Vendors = lazy(() => import('./pages/Vendors'));
 const DocumentVault = lazy(() => import('./pages/DocumentVault'));
 const CeoPayroll = lazy(() => import('./pages/Payroll/CeoPayroll'));
 const OrgChart = lazy(() => import('../employee/OrgChart'));
-const EmploymentApprovals = lazy(() => import('./pages/EmploymentApprovals'));
 const ApprovalHistory = lazy(() => import('./pages/ApprovalHistory'));
 
 export default function Ceo({ activeTab, queryParams, setQueryParams, currentUser }) {
@@ -46,7 +45,6 @@ export default function Ceo({ activeTab, queryParams, setQueryParams, currentUse
       case 'vault': return <ErrorBoundary><DocumentVault {...props} /></ErrorBoundary>;
       case 'payroll': return <ErrorBoundary><CeoPayroll {...props} /></ErrorBoundary>;
       case 'orgChart': return <ErrorBoundary><OrgChart {...props} /></ErrorBoundary>;
-      case 'employmentApprovals': return <ErrorBoundary><EmploymentApprovals {...props} /></ErrorBoundary>;
       case 'approvalHistory': return <ErrorBoundary><ApprovalHistory {...props} /></ErrorBoundary>;
       default: return <ErrorBoundary><Dashboard {...props} /></ErrorBoundary>;
     }

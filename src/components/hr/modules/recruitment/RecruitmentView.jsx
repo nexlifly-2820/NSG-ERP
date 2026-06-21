@@ -483,7 +483,7 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
 
       {/* Popups Scheduler */}
       {showScheduler && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={(e) => { if (e.target === e.currentTarget) { setShowScheduler(false) } }}>
           <form onSubmit={handleScheduleInterview} className="card" style={{ width: '400px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
             <h3>📅 Schedule Video Interview</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', margin: '16px 0' }}>
@@ -513,7 +513,7 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
 
       {/* Popups Offer Forms */}
       {showOfferForm && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={(e) => { if (e.target === e.currentTarget) { setShowOfferForm(false) } }}>
           <form onSubmit={handleCreateOffer} className="card" style={{ width: '420px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
             <h3>📄 Propose CTC Offer Structure</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', margin: '16px 0' }}>
@@ -547,7 +547,7 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
 
       {/* Popups AI Resume Analyzer */}
       {showAnalyzer && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={(e) => { if (e.target === e.currentTarget) { setShowAnalyzer(false) } }}>
           <style>{`
             @keyframes spin {
               0% { transform: rotate(0deg); }
