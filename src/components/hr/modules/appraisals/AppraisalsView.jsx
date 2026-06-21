@@ -108,28 +108,26 @@ export function AppraisalsView() {
     };
 
     const token = localStorage.getItem('nsg_jwt_token');
-    if (token) {
-      try {
-        const response = await fetch('/api/hr-portal/increment-proposals', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(newProposal)
-        });
-        if (response.ok) {
-          const saved = await response.json();
-          mutateProposals();
-          mutateEmployees();
-          notify(`Increment proposal of ${incrementPct}% submitted to CEO approvals queue.`);
-        } else {
-          notify(`Failed to submit increment proposal.`, 'error');
-        }
-      } catch (err) {
-        console.error("Failed to post increment proposal", err);
+    try {
+      const response = await fetch('/api/hr-portal/increment-proposals', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(newProposal)
+      });
+      if (response.ok) {
+        const saved = await response.json();
+        mutateProposals();
+        mutateEmployees();
+        notify(`Increment proposal of ${incrementPct}% submitted to CEO approvals queue.`);
+      } else {
         notify(`Failed to submit increment proposal.`, 'error');
       }
+    } catch (err) {
+      console.error("Failed to post increment proposal", err);
+      notify(`Failed to submit increment proposal.`, 'error');
     }
   };
 
