@@ -40,6 +40,7 @@ class UserProfileResponse(BaseModel):
     status: Optional[str] = None
     manager: Optional[str] = None
     shift_timing: Optional[str] = None
+    presence_status: Optional[str] = "offline"
 
     class Config:
         from_attributes = True
@@ -235,8 +236,42 @@ class TaskStatusUpdateRequest(BaseModel):
 def get_team_members(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     verify_manager_role(current_user)
     users = db.query(models.User).filter(models.User.manager_id == current_user.id).all()
+    today = date.today()
     for u in users:
         u.manager = current_user.name
+        u.presence_status = "offline"
+        
+        # Check leave requests
+        leave = db.query(models.LeaveRequest).filter(
+            models.LeaveRequest.user_id == u.id,
+            models.LeaveRequest.status == "approved",
+            models.LeaveRequest.from_date <= today,
+            models.LeaveRequest.to_date >= today
+        ).first()
+        
+        if leave:
+            if leave.leave_type == "WFH":
+                u.presence_status = "wfh"
+            else:
+                u.presence_status = "on_leave"
+        else:
+            # Check attendance
+            att = db.query(models.Attendance).filter(
+                models.Attendance.user_id == u.id, 
+                models.Attendance.date == today
+            ).first()
+            if att:
+                if att.work_mode == "wfh":
+                    u.presence_status = "wfh"
+                elif att.status == "leave":
+                    u.presence_status = "on_leave"
+                elif att.status == "absent":
+                    u.presence_status = "absent"
+                elif att.clock_out is not None:
+                    u.presence_status = "offline"
+                else:
+                    u.presence_status = "online"
+                    
     return users
 
 @router.get("/team-availability", response_model=List[LeaveRequestResponse])

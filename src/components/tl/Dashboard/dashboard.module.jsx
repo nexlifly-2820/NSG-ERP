@@ -17,8 +17,8 @@ const Dashboard = ({ setActiveTab, setSelectedChatUser }) => {
   const [currentView, setCurrentView] = useState('main');
   const [expandedItem, setExpandedItem] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, listKey: '', id: null, action: '' });
-  const [showAllTeam, setShowAllTeam] = useState(false);
-  const [showAllWorkload, setShowAllWorkload] = useState(false);
+  const [teamPage, setTeamPage] = useState(0);
+  const [workloadPage, setWorkloadPage] = useState(0);
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
@@ -77,7 +77,7 @@ const Dashboard = ({ setActiveTab, setSelectedChatUser }) => {
           id: m.id,
           name: m.name,
           initials: m.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase(),
-          status: m.status === 'active' ? 'online' : m.status === 'on_leave' ? 'on_leave' : 'offline',
+          status: m.presence_status || 'offline',
           role: m.designation || 'Team Member'
         })));
       }
@@ -395,21 +395,57 @@ const Dashboard = ({ setActiveTab, setSelectedChatUser }) => {
               <div className={styles.widgetHeader}>
                 <div className={styles.widgetTitle}>
                   <Users size={20} className={styles.widgetIcon} />
-                  Team Presence
+                  Attendance
                 </div>
-                <button onClick={() => setShowAllTeam(!showAllTeam)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}>
-                  {showAllTeam ? 'Show less' : 'View all team'}
-                </button>
+                {sortedTeamMembers.length > 4 && (
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <button 
+                      onClick={() => setTeamPage(Math.max(0, teamPage - 1))} 
+                      disabled={teamPage === 0}
+                      style={{ 
+                        background: teamPage === 0 ? '#f8fafc' : '#ffffff', 
+                        border: '1px solid #e2e8f0', 
+                        color: teamPage === 0 ? '#94a3b8' : 'var(--text-primary)', 
+                        cursor: teamPage === 0 ? 'default' : 'pointer', 
+                        padding: '4px 12px', 
+                        fontSize: '13px', 
+                        fontWeight: 600,
+                        borderRadius: '6px'
+                      }}
+                    >
+                      Prev
+                    </button>
+                    <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                      Page {teamPage + 1} of {Math.ceil(sortedTeamMembers.length / 4)}
+                    </span>
+                    <button 
+                      onClick={() => setTeamPage(Math.min(Math.ceil(sortedTeamMembers.length / 4) - 1, teamPage + 1))} 
+                      disabled={teamPage >= Math.ceil(sortedTeamMembers.length / 4) - 1}
+                      style={{ 
+                        background: teamPage >= Math.ceil(sortedTeamMembers.length / 4) - 1 ? '#f8fafc' : '#ffffff', 
+                        border: '1px solid #e2e8f0', 
+                        color: teamPage >= Math.ceil(sortedTeamMembers.length / 4) - 1 ? '#94a3b8' : 'var(--text-primary)', 
+                        cursor: teamPage >= Math.ceil(sortedTeamMembers.length / 4) - 1 ? 'default' : 'pointer', 
+                        padding: '4px 12px', 
+                        fontSize: '13px', 
+                        fontWeight: 600,
+                        borderRadius: '6px'
+                      }}
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
               </div>
               <div className={styles.avatarGrid}>
-                {(showAllTeam ? sortedTeamMembers : sortedTeamMembers.slice(0, 4)).map(member => {
+                {sortedTeamMembers.slice(teamPage * 4, (teamPage + 1) * 4).map(member => {
                   let statusClass = '';
                   switch(member.status) {
                     case 'online': statusClass = styles.statusOnline; break;
                     case 'wfh': statusClass = styles.statusWfh; break;
                     case 'on_leave': statusClass = styles.statusLeave; break;
                     case 'absent': statusClass = styles.statusAbsent; break;
-                    default: statusClass = styles.statusOffline;
+                    case 'offline': default: statusClass = styles.statusOffline; break;
                   }
                   return (
                     <div key={member.id} className={styles.avatarWrapper} style={{ cursor: 'pointer', transition: 'transform 0.2s ease' }}
@@ -431,6 +467,13 @@ const Dashboard = ({ setActiveTab, setSelectedChatUser }) => {
                   );
                 })}
               </div>
+              <div className={styles.legendContainer}>
+                <div className={styles.legendItem}><div className={`${styles.legendDot} ${styles.statusOnline}`}></div> Online</div>
+                <div className={styles.legendItem}><div className={`${styles.legendDot} ${styles.statusWfh}`}></div> WFH</div>
+                <div className={styles.legendItem}><div className={`${styles.legendDot} ${styles.statusLeave}`}></div> On Leave</div>
+                <div className={styles.legendItem}><div className={`${styles.legendDot} ${styles.statusAbsent}`}></div> Absent</div>
+                <div className={styles.legendItem}><div className={`${styles.legendDot} ${styles.statusOffline}`}></div> Offline</div>
+              </div>
             </div>
 
             {/* Team Workload */}
@@ -440,12 +483,48 @@ const Dashboard = ({ setActiveTab, setSelectedChatUser }) => {
                   <Activity size={20} className={styles.widgetIcon} />
                   Team Workload
                 </div>
-                <button onClick={() => setShowAllWorkload(!showAllWorkload)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}>
-                  {showAllWorkload ? 'Show less' : 'View all team'}
-                </button>
+                {teamWorkload.length > 4 && (
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <button 
+                      onClick={() => setWorkloadPage(Math.max(0, workloadPage - 1))} 
+                      disabled={workloadPage === 0}
+                      style={{ 
+                        background: workloadPage === 0 ? '#f8fafc' : '#ffffff', 
+                        border: '1px solid #e2e8f0', 
+                        color: workloadPage === 0 ? '#94a3b8' : 'var(--text-primary)', 
+                        cursor: workloadPage === 0 ? 'default' : 'pointer', 
+                        padding: '4px 12px', 
+                        fontSize: '13px', 
+                        fontWeight: 600,
+                        borderRadius: '6px'
+                      }}
+                    >
+                      Prev
+                    </button>
+                    <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                      Page {workloadPage + 1} of {Math.ceil(teamWorkload.length / 4)}
+                    </span>
+                    <button 
+                      onClick={() => setWorkloadPage(Math.min(Math.ceil(teamWorkload.length / 4) - 1, workloadPage + 1))} 
+                      disabled={workloadPage >= Math.ceil(teamWorkload.length / 4) - 1}
+                      style={{ 
+                        background: workloadPage >= Math.ceil(teamWorkload.length / 4) - 1 ? '#f8fafc' : '#ffffff', 
+                        border: '1px solid #e2e8f0', 
+                        color: workloadPage >= Math.ceil(teamWorkload.length / 4) - 1 ? '#94a3b8' : 'var(--text-primary)', 
+                        cursor: workloadPage >= Math.ceil(teamWorkload.length / 4) - 1 ? 'default' : 'pointer', 
+                        padding: '4px 12px', 
+                        fontSize: '13px', 
+                        fontWeight: 600,
+                        borderRadius: '6px'
+                      }}
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
               </div>
               <div className={styles.workloadList}>
-                {(showAllWorkload ? teamWorkload : teamWorkload.slice(0, 4)).map(member => {
+                {teamWorkload.slice(workloadPage * 4, (workloadPage + 1) * 4).map(member => {
                   let loadClass = styles.low;
                   if (member.load > 80) loadClass = styles.high;
                   else if (member.load > 50) loadClass = styles.medium;
