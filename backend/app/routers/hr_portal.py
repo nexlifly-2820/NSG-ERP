@@ -2015,7 +2015,7 @@ def create_increment_proposal(req: IncrementProposalCreate, current_user: models
         increment_pct=req.increment_pct,
         performance_band=req.performance_band,
         effective_date=req.effective_date,
-        status=req.status
+        status="pending_ceo"
     )
     db.add(proposal)
     db.commit()

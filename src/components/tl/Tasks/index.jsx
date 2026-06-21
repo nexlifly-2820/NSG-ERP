@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import useSWR from 'swr';
 import AvatarFallback from '../../common/AvatarFallback';
 import styles from './tasks.module.css';
-import { PlusSquare, List, XCircle, GitPullRequest, Edit, UserPlus, RotateCcw, Check, X, Eye } from 'lucide-react';
+import { PlusSquare, List, XCircle, GitPullRequest, Edit, UserPlus, RotateCcw, Check, X, Eye, Trash2 } from 'lucide-react';
 
 export default function Tasks({ currentUser }) {
   const [activeView, setActiveView] = useState('create'); // 'create', 'list', 'rejected', 'pr'
@@ -11,6 +11,7 @@ export default function Tasks({ currentUser }) {
   const [groupBy, setGroupBy] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -64,6 +65,11 @@ export default function Tasks({ currentUser }) {
   const [reassignModalOpen, setReassignModalOpen] = useState(false);
   const [reassignTaskId, setReassignTaskId] = useState(null);
   const [reassignAssigneeId, setReassignAssigneeId] = useState('');
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState(null);
+
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [viewTaskData, setViewTaskData] = useState(null);
 
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectTaskId, setRejectTaskId] = useState(null);
@@ -185,6 +191,39 @@ export default function Tasks({ currentUser }) {
     } catch (err) { console.error(err); }
   };
 
+  const confirmDelete = (taskId) => {
+    setTaskToDelete(taskId);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteTask = async () => {
+    if (!taskToDelete) return;
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch(`/api/team-lead/tasks/${taskToDelete}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        if (window.toast) window.toast.success("Task deleted successfully!");
+        else alert("Task deleted successfully!");
+        mutateTasks();
+      } else {
+        const data = await res.json();
+        if (window.toast) window.toast.error(data.detail || "Failed to delete task");
+        else alert(data.detail || "Failed to delete task");
+      }
+    } catch (err) { console.error(err); } finally {
+      setDeleteModalOpen(false);
+      setTaskToDelete(null);
+    }
+  };
+
+  const handleViewTask = (task) => {
+    setViewTaskData(task);
+    setViewModalOpen(true);
+  };
+
   const handleAcceptRequest = async (taskId, currentCustomData, currentStatus) => {
     // REJECT → Approve → Reassign
     if (currentStatus === 'blocked') {
@@ -283,6 +322,7 @@ export default function Tasks({ currentUser }) {
       alert("Please enter a task title, select an assignee, select a project, and select a sprint ID");
       return;
     }
+    setLoading(true);
     const priorityVal = taskPriority.toLowerCase();
     let currentCustom = {};
     if (editingTaskId) {
@@ -358,6 +398,8 @@ export default function Tasks({ currentUser }) {
     } catch (e) { 
       console.error(e);
       alert("An error occurred: " + e.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -479,7 +521,7 @@ export default function Tasks({ currentUser }) {
       <div className={styles.viewContainer}>
         {activeView === 'create' && (
           <div>
-            <div className={styles.sectionTitle}>Create New Task</div>
+            <div className={styles.sectionTitle}>{editingTaskId ? "Edit Task" : "Create New Task"}</div>
             <div className={styles.formGrid}>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Task Title</label>
@@ -826,8 +868,14 @@ export default function Tasks({ currentUser }) {
                 </div>
               )}
               <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
-                {!editingTaskId && (
-                  <button className={styles.submitBtn} style={{ marginTop: 0 }} onClick={handleCreateTask}>Create Task</button>
+                {!editingTaskId ? (
+                  <button className={styles.submitBtn} style={{ marginTop: 0 }} onClick={handleCreateTask} disabled={loading}>
+                    {loading ? 'Processing...' : 'Create Task'}
+                  </button>
+                ) : (
+                  <button className={styles.submitBtn} style={{ marginTop: 0 }} onClick={handleCreateTask} disabled={loading}>
+                    {loading ? 'Processing...' : 'Save Changes'}
+                  </button>
                 )}
                 {editingTaskId && (
                   <button
@@ -973,7 +1021,9 @@ export default function Tasks({ currentUser }) {
                         <td>{task.due}</td>
                         <td>
                           <div className={styles.actionGroup}>
-                            <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => handleEditTask(task)}><Eye size={12}/> View</button>
+                            <button className={`${styles.actionBtn} ${styles.primary}`} onClick={() => handleViewTask(task)}><Eye size={12}/> View</button>
+                            <button className={`${styles.actionBtn} ${styles.warning}`} onClick={() => handleEditTask(task)}><Edit size={12}/> Edit</button>
+                            <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => confirmDelete(task.id)}><Trash2 size={12}/> Delete</button>
                             {activeView === 'pr' ? (
                               <>
                                 <button className={`${styles.actionBtn} ${styles.success}`} onClick={() => handleApprovePr(task.id)}><Check size={12}/> Approve</button>
@@ -1078,6 +1128,84 @@ export default function Tasks({ currentUser }) {
                 </button>
                 <button onClick={submitRejectPr} style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>
                   Reject PR
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {deleteModalOpen && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ backgroundColor: 'var(--bg-primary)', padding: '24px', borderRadius: '8px', width: '400px', border: '1px solid var(--border-color)' }}>
+              <h3 style={{ marginTop: 0, marginBottom: '16px', color: '#ef4444' }}>Confirm Deletion</h3>
+              <p style={{ color: 'var(--text-secondary)' }}>Are you sure you want to delete this task? This action cannot be undone.</p>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end' }}>
+                <button onClick={() => { setDeleteModalOpen(false); setTaskToDelete(null); }} style={{ backgroundColor: 'transparent', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>
+                  Cancel
+                </button>
+                <button onClick={handleDeleteTask} style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}>
+                  Confirm Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {viewModalOpen && viewTaskData && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+            <div style={{ backgroundColor: 'var(--bg-primary)', padding: '24px', borderRadius: '8px', width: '600px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--text-main)' }}>Task Details</h2>
+                <button onClick={() => setViewModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}><X size={24} /></button>
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Title</label>
+                  <div style={{ fontSize: '16px', fontWeight: 500, color: 'var(--text-main)', marginTop: '4px' }}>{viewTaskData.title}</div>
+                </div>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Project</label>
+                    <div style={{ fontSize: '14px', color: 'var(--text-main)', marginTop: '4px' }}>{viewTaskData.project}</div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Status</label>
+                    <div style={{ fontSize: '14px', color: 'var(--text-main)', marginTop: '4px' }}>{viewTaskData.status}</div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Assignee</label>
+                    <div style={{ fontSize: '14px', color: 'var(--text-main)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <AvatarFallback name={viewTaskData.assignee} size="24px" />
+                      {viewTaskData.assignee}
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Priority & Points</label>
+                    <div style={{ fontSize: '14px', color: 'var(--text-main)', marginTop: '4px' }}>{viewTaskData.priority} / {viewTaskData.points} SP</div>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Due Date</label>
+                  <div style={{ fontSize: '14px', color: 'var(--text-main)', marginTop: '4px' }}>{viewTaskData.due}</div>
+                </div>
+
+                {viewTaskData.description && (
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Description</label>
+                    <div style={{ fontSize: '14px', color: 'var(--text-main)', marginTop: '4px', whiteSpace: 'pre-wrap', backgroundColor: 'var(--bg-secondary)', padding: '12px', borderRadius: '6px' }}>{viewTaskData.description}</div>
+                  </div>
+                )}
+              </div>
+              
+              <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                <button onClick={() => setViewModalOpen(false)} style={{ backgroundColor: 'var(--primary)', color: '#fff', border: 'none', padding: '8px 24px', borderRadius: '4px', cursor: 'pointer', fontWeight: 500 }}>
+                  Close
                 </button>
               </div>
             </div>

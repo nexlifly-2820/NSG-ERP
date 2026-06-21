@@ -22,7 +22,7 @@ const THEME = {
   warning: '#F59E0B'       
 };
 
-const TABS = ['All', 'Payroll', 'Resignation', 'Promotions', 'Claim Expenses', 'Asset Requests', 'History'];
+const TABS = ['All', 'Payroll', 'Resignation', 'Hike Appraisals', 'Promotions', 'Claim Expenses', 'Asset Requests', 'History'];
 
 // ==========================================
 // COMPONENTS ARCHITECTURE (AS PER SPEC)
@@ -315,6 +315,7 @@ const ApprovalTable = ({ data, activeTab, selectedIds, onToggleCheck, onToggleAl
                       <option value="Resignation">Resignation</option>
                       <option value="Policy">Policy</option>
                       <option value="Promotions">Promotions</option>
+                      <option value="Hike Appraisals">Hike Appraisals</option>
                       <option value="Claim Expenses">Claim Expenses</option>
                       <option value="Asset Requests">Asset Requests</option>
                     </select>
@@ -607,6 +608,15 @@ export default function ApprovalsPage() {
         });
         if (!res.ok) throw new Error(`Failed to ${action} asset request.`);
         window.showToast(`Asset request ${isApprove ? 'approved' : 'rejected'} successfully.`, isApprove ? 'success' : 'error');
+      } else if (idStr.startsWith('INC-')) {
+        const incrementId = item.incrementId;
+        const endpoint = `/api/ceo-portal/increments/${incrementId}/${action}`;
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error(`Failed to ${action} increment proposal.`);
+        window.showToast(isApprove ? '✅ CTC Hike Approved! Payroll has been updated.' : '❌ CTC Hike Rejected.', isApprove ? 'success' : 'error');
       }
 
       await fetchApprovals();

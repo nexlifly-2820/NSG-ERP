@@ -1700,11 +1700,12 @@ def get_pending_payrolls(month: int, year: int, current_user: models.User = Depe
             continue
             
         # Extract base salary from documents JSON or default to 0
-        base = 0.0
+        base = 15625.0
         if u.documents:
             try:
                 docs = json.loads(u.documents) if isinstance(u.documents, str) else u.documents
-                base = float(docs.get("base_salary", 0.0))
+                if isinstance(docs, dict) and "base_salary" in docs:
+                    base = float(docs["base_salary"])
             except Exception:
                 pass
         
@@ -2695,7 +2696,80 @@ def get_all_approvals(current_user: models.User = Depends(security.get_current_u
             "status": pr.status
         })
 
+    # Fetch Increment Proposals
+    increments = db.query(models.IncrementProposal).offset(skip).limit(limit).all()
+    for inc in increments:
+        emp = db.query(models.User).filter(models.User.id == inc.employee_id).first()
+        status_label = 'Pending'
+        if inc.status == 'approved_by_ceo': status_label = 'Approved'
+        elif inc.status == 'rejected_by_ceo': status_label = 'Denied'
+        
+        approvals.append({
+            "id": f"INC-{inc.id}",
+            "type": "Hike Appraisals",
+            "requestedBy": emp.name if emp else f"User #{inc.employee_id}",
+            "dept": emp.department if emp else "Unknown",
+            "urgency": "High",
+            "submittedAt": str(inc.effective_date) if inc.effective_date else "Recent",
+            "amount": f"₹{inc.current_ctc:,} ➔ ₹{inc.proposed_ctc:,}",
+            "status": status_label,
+            "incrementId": inc.id,
+            "category": f"Performance Band: {inc.performance_band}",
+            "description": f"Proposed {inc.increment_pct}% Increment",
+            "rawItem": None
+        })
+
     return {"approvals": approvals, "promotions": promo_list}
+
+@router.post("/increments/{id}/approve")
+def approve_increment(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_ceo_role(current_user)
+    inc = db.query(models.IncrementProposal).filter(models.IncrementProposal.id == id).first()
+    if inc and inc.status == "pending_ceo":
+        inc.status = "approved_by_ceo"
+        
+        # Update user's ctc and base_salary
+        user = db.query(models.User).filter(models.User.id == inc.employee_id).first()
+        if user:
+            docs = {}
+            if user.documents:
+                try:
+                    parsed = json.loads(user.documents) if isinstance(user.documents, str) else user.documents
+                    if isinstance(parsed, dict):
+                        docs = parsed
+                except Exception:
+                    pass
+            docs["ctc"] = inc.proposed_ctc
+            docs["base_salary"] = inc.proposed_ctc / 19.2
+            user.documents = json.dumps(docs)
+            
+        db_log = models.AuditLog(
+            initiator_id=current_user.name,
+            module="Hike Appraisals",
+            record_id=inc.id,
+            action_type="approve",
+            change_diff=json.dumps({"status": "approved", "updated_ctc": inc.proposed_ctc})
+        )
+        db.add(db_log)
+        db.commit()
+    return {"status": "success"}
+
+@router.post("/increments/{id}/reject")
+def reject_increment(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_ceo_role(current_user)
+    inc = db.query(models.IncrementProposal).filter(models.IncrementProposal.id == id).first()
+    if inc and inc.status == "pending_ceo":
+        inc.status = "rejected_by_ceo"
+        db_log = models.AuditLog(
+            initiator_id=current_user.name,
+            module="Hike Appraisals",
+            record_id=inc.id,
+            action_type="reject",
+            change_diff=json.dumps({"status": "rejected"})
+        )
+        db.add(db_log)
+        db.commit()
+    return {"status": "success"}
 
 @router.post("/policies/{id}/approve")
 def approve_policy(id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):

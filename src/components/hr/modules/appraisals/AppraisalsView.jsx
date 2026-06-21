@@ -29,10 +29,13 @@ export function AppraisalsView() {
   const safeScorecards = Array.isArray(scorecards) ? scorecards : [];
   const safePromotions = Array.isArray(promotionTracker) ? promotionTracker : [];
 
-  const emp = safeEmployees.find(e => e.id === selectedEmpId) || { name: 'Staff', grade: 1, designation: 'Developer', ctc: 300000 };
+  const emp = safeEmployees.find(e => e.id === selectedEmpId) || { name: 'Staff', grade: 1, designation: 'Developer' };
   
   // Base current CTC calculation simulation
-  const currentAnnualCTC = emp.ctc || 300000;
+  const parseDocs = (docsStr) => {
+    try { return docsStr ? JSON.parse(docsStr) : {}; } catch { return {}; }
+  };
+  const currentAnnualCTC = parseDocs(emp.documents).ctc || 300000;
 
   const [proposedCTC, setProposedCTC] = useState(() => Math.round(currentAnnualCTC * 1.10));
   const [incrementPct, setIncrementPct] = useState(10);
@@ -46,10 +49,9 @@ export function AppraisalsView() {
 
   // Sync values when the selected employee changes
   useEffect(() => {
-    const annual = emp.ctc || 300000;
     setIncrementPct(10);
-    setProposedCTC(Math.round(annual * 1.10));
-  }, [selectedEmpId, emp.ctc]);
+    setProposedCTC(Math.round(currentAnnualCTC * 1.10));
+  }, [selectedEmpId, currentAnnualCTC]);
 
 
 
@@ -110,6 +112,7 @@ export function AppraisalsView() {
         if (response.ok) {
           const saved = await response.json();
           mutateProposals();
+          mutateEmployees();
         }
       } catch (err) {
         console.error("Failed to post increment proposal", err);
