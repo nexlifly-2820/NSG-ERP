@@ -22,7 +22,6 @@ const DEFAULT_ITEMS = [
   { id: 'vault', label: 'Document Vault', icon: <Lock size={18} /> },
   { id: 'payroll', label: 'Payroll', icon: <DollarSign size={18} /> },
   { id: 'orgChart', label: 'Org Chart', icon: <Network size={18} /> },
-  { id: 'employmentApprovals', label: 'Employment Approvals', icon: <CheckSquare size={18} /> },
   { id: 'approvalHistory', label: 'Approval History', icon: <Box size={18} /> },
 ];
 

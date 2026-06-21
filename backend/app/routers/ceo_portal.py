@@ -2640,6 +2640,31 @@ def get_all_approvals(current_user: models.User = Depends(security.get_current_u
             "rawItem": None
         })
         
+    # 6. Leaves and WFH
+    leaves = db.query(models.LeaveRequest).offset(skip).limit(limit).all()
+    for l in leaves:
+        emp = db.query(models.User).filter(models.User.id == l.user_id).first()
+        status_label = 'Pending'
+        if l.status == 'approved': status_label = 'Approved'
+        elif l.status == 'rejected': status_label = 'Denied'
+        
+        is_wfh = l.leave_type == 'WFH'
+        
+        approvals.append({
+            "id": f"LEV-{l.id}",
+            "type": "Work From Home" if is_wfh else "Leave",
+            "requestedBy": emp.name if emp else f"User #{l.user_id}",
+            "dept": emp.department if emp else "Unknown",
+            "urgency": "Normal",
+            "submittedAt": str(l.created_at).split('.')[0] if l.created_at else "Recent",
+            "amount": f"{l.days} days" if not is_wfh else "-",
+            "status": status_label,
+            "leaveId": l.id,
+            "category": l.leave_type,
+            "description": f"{l.from_date} to {l.to_date} - {l.reason}",
+            "rawItem": None
+        })
+
     # Append Audit Trails to all items
     for item in approvals:
         numeric_id = None
