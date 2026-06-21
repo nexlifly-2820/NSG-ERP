@@ -265,7 +265,7 @@ export function AppraisalsView() {
 
       {appraisalTab === 'proposals' && (
         <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
-          <form onSubmit={handleProposeIncrement} className="card flex-2" style={{ borderLeft: '4px solid var(--accent-pink)', margin: 0 }}>
+          <form className="card flex-2" style={{ borderLeft: '4px solid var(--accent-pink)', margin: 0 }}>
             <h3>CTC Projections Worksheet</h3>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', margin: '16px 0' }}>
@@ -294,7 +294,6 @@ export function AppraisalsView() {
                     type="number"
                     value={proposedCTC}
                     onChange={(e) => handleCTCChange(Number(e.target.value))}
-                    required
                     style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}
                   />
                 </div>
@@ -304,7 +303,6 @@ export function AppraisalsView() {
                     type="number"
                     value={incrementPct}
                     onChange={(e) => handlePctChange(Number(e.target.value))}
-                    required
                     step="0.1"
                     style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}
                   />
@@ -323,7 +321,7 @@ export function AppraisalsView() {
               </div>
             </div>
 
-            <button type="submit" className="strategic-list-item" style={{ width: '100%', justifyContent: 'center', backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+            <button type="button" onClick={handleProposeIncrement} className="strategic-list-item" style={{ width: '100%', justifyContent: 'center', backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
               Propose CTC Increment &amp; Submit
             </button>
           </form>
