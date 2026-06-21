@@ -1,0 +1,181 @@
+﻿{
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\hr\\modules\\timesheets\\ApprovedTimesheetsView.jsx":  [
+                                                                                                                                          "Line 102: img.src = \u0027/hmns-logo.png\u0027;",
+                                                                                                                                          "Line 119: doc.text(\u0027HMNS Software Solution\u0027, 40, 50);"
+                                                                                                                                      ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\utils\\pdfGenerator.js":  [
+                                                                                                 "Line 48: const base64Logo = await getBase64ImageFromUrl(\u0027/hmns-logo.png\u0027);",
+                                                                                                 "Line 54: doc.text(\"HMNS SOFTWARE SOLUTIONS (OPC) PVT LTD\", 105, 20, { align: \u0027center\u0027 });",
+                                                                                                 "Line 280: doc.text(\"www.hmnssoftware.com     hr@hmnssoftware.in\", 105, 275, { align: \u0027center\u0027 });"
+                                                                                             ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\hr\\modules\\lnd\\LearningLndView.jsx":  [
+                                                                                                                            "Line 565: \u003ctd style={{ padding: \u002716px 40px\u0027 }}\u003e\u003cstrong\u003eHMNS Corporate Inductions (L1)\u003c/strong\u003e\u003c/td\u003e"
+                                                                                                                        ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\layout\\Sidebar.jsx":  [
+                                                                                                          "Line 51: \u003cimg onError={(e) =\u003e { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || \u0027User\u0027)}\u0026background=random`; }} src=\"/hmns-logo.png\" alt=\"HMNS Software\" style={{ width: \u0027160px\u0027, height: \u0027auto\u0027, objectFit: \u0027contain\u0027, background: \u0027#fff\u0027, padding: \u00276px 10px\u0027, borderRadius: \u00278px\u0027, boxShadow: \u00270 2px 8px rgba(0,0,0,0.06)\u0027 }}  /\u003e"
+                                                                                                      ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\utils\\offerLetterGenerator.js":  [
+                                                                                                         "Line 8: \u003cimg src=\"/hmns-logo.png\" style=\"height: 65px;\" alt=\"Logo\" /\u003e",
+                                                                                                         "Line 9: \u003cdiv style=\"font-size: 26px; font-weight: bold; color: #1e3a8a; letter-spacing: 1px; text-shadow: 1px 1px 2px rgba(0,0,0,0.2);\"\u003eHMNS SOFTWARE SOLUTION PVT LTD.\u003c/div\u003e",
+                                                                                                         "Line 27: www.hmnssoftware.com \u003cspan style=\"margin-left: 5px;\"\u003eEmail: hr@hmnssoftware.in\u003c/span\u003e",
+                                                                                                         "Line 34: \u003cimg src=\"/hmns-logo.png\" style=\"width: 400px; filter: grayscale(100%);\" alt=\"watermark\" /\u003e",
+                                                                                                         "Line 69: Welcome to HMNS SOFTWARE SOLUTIONS PVT LTD.",
+                                                                                                         "Line 78: with HMNS SOFTWARE SOLUTIONS PVT LTD as \u003cstrong\u003e${data.role.toUpperCase()}\u003c/strong\u003e You are required",
+                                                                                                         "Line 79: to Report on ${data.joiningDate} at ${data.reportingTime}; at the address: HMNS SOFTWARE",
+                                                                                                         "Line 103: We very much look forward to welcoming you to HMNS SOFTWARE SOLUTIONS PVT LTD.",
+                                                                                                         "Line 112: not later than ${data.joiningDate.toUpperCase()}. In case you do not report on the agreed upon date, HMNS",
+                                                                                                         "Line 161: Your will be initially based in Hyderabad. However, HMNS SOFTWARE SOLUTIONS, at its",
+                                                                                                         "Line 220: applied on hr@hmnssoftware.in at least 3 days prior to the date of availing the leave. Any absence",
+                                                                                                         "Line 265: undertake any business or work for any company or entity or person other than HMNS",
+                                                                                                         "Line 276: 1. You need to furnish the following Documents at the time of joining HMNS SOFTWARE",
+                                                                                                         "Line 281: \u003cdiv\u003eOriginal copy of \u003cstrong\u003eHMNS SOFTWARE SOLUTIONS\u003c/strong\u003e offer letter\u003c/div\u003e",
+                                                                                                         "Line 292: \u003cdiv\u003e\u003cstrong\u003eHMNS OTO ID:\u003c/strong\u003e Aadhar OR PAN Card in the absence of both then the following will",
+                                                                                                         "Line 294: HMNS photograph hmns, Banker verification, NSR (National Skills Registry) ID card - 1copy\u003c/div\u003e",
+                                                                                                         "Line 299: Voter’s ID Nationalized Bank Passbook with HMNS photograph HMNS and address,",
+                                                                                                         "Line 301: Bill, Tele HMNS one Landline Bill – latest of Self Parents, or Current lease deed – with",
+                                                                                                         "Line 313: \u003cdiv\u003e\u003cstrong\u003ePASSPORT SIZE HMNS OTOGRAHMNS S:\u003c/strong\u003e 5 copies (with White Background ONLY)\u003c/div\u003e",
+                                                                                                         "Line 321: \u003cdiv\u003e\u003cstrong\u003ePAN NUMBER:\u003c/strong\u003e HMNS photocopy of PAN Card. If you do not possess a PAN card then",
+                                                                                                         "Line 337: \u003cdiv\u003eEmployee ID Proof: (HMNS photocopy of salary slips, appraisal letter which contains the",
+                                                                                                         "Line 342: \u003cdiv\u003eMarriage Certificate (if applicable) OR Marriage Affidavit with Couple HMNS photocopy\u003c/div\u003e",
+                                                                                                         "Line 371: Irrespective of whether you join HMNS SOFTWARE SOLUTIONS Pvt. Ltd or not, you shall keep",
+                                                                                                         "Line 377: ${data.candidateName.toUpperCase()}, \u003cspan style=\"font-weight: normal;\"\u003eI take this opportunity to welcome you to HMNS SOFTWARE"
+                                                                                                     ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\hr\\modules\\exits\\ExitFnFView.jsx":  [
+                                                                                                                          "Line 166: const exitingEmp = employees.find(e =\u003e e.id === (activeResignation.employee_id || activeResignation.user_id)) || { name: \u0027Staff\u0027, bank_name: \u0027HDFC\u0027, account_number: \u00270000\u0027, email: \u0027staff@nsg.com\u0027 };",
+                                                                                                                          "Line 288: \u003cimg src=\"/hmns-logo.png\" style=\"width: 100%; height: auto; max-height: 100px; object-fit: contain; margin-bottom: 20px;\" crossorigin=\"anonymous\" /\u003e",
+                                                                                                                          "Line 294: \u003cdiv\u003eSystem Checked: HMNS ERP Failsafe\u003c/div\u003e",
+                                                                                                                          "Line 331: \u003cimg src=\"/hmns-logo.png\" style=\"width: 100%; height: auto; max-height: 100px; object-fit: contain; margin-bottom: 20px;\" crossorigin=\"anonymous\" /\u003e",
+                                                                                                                          "Line 690: \u003cdiv\u003eSystem Checked: HMNS ERP Failsafe\u003c/div\u003e",
+                                                                                                                          "Line 749: Your full and final settlement has been processed successfully. We appreciate your contributions to HMNS Software Solution Pvt Ltd during your tenure and wish you the best for your future endeavors."
+                                                                                                                      ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\employee\\Payroll.jsx":  [
+                                                                                                            "Line 140: \u003ch2 style={{ margin: 0, color: \u0027#004A8B\u0027, fontSize: 24, fontWeight: \u0027bold\u0027 }}\u003eHMNS Software Solution Pvt Ltd\u003c/h2\u003e"
+                                                                                                        ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\tl\\Timesheets\\TeamTimesheetsHistory.jsx":  [
+                                                                                                                                "Line 82: img.src = \u0027/hmns-logo.png\u0027;",
+                                                                                                                                "Line 97: doc.text(\u0027HMNS Software Solution\u0027, 40, 50);"
+                                                                                                                            ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\hr\\modules\\dashboard\\HrDashboardView.jsx":  [
+                                                                                                                                  "Line 77: const generatedTag = \u0027NSG-\u0027 + (newAssetType || \u0027AST\u0027).substring(0, 3).toUpperCase() + \u0027-\u0027 + Math.floor(1000 + Math.random() * 9000);"
+                                                                                                                              ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\ceo\\pages\\People.jsx":  [
+                                                                                                             "Line 678: \u003cinput required type=\"email\" value={newEmp.email} onChange={e =\u003e setNewEmp({...newEmp, email: e.target.value})} className=\"ceo-form-input\" style={{ width: \u0027100%\u0027, padding: \u002712px\u0027 }} placeholder=\"email@nsg.com\" /\u003e"
+                                                                                                         ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\ceo\\pages\\Payroll\\CeoPayroll.jsx":  [
+                                                                                                                          "Line 53: const [letterheadUrl, setLetterheadUrl] = useState(\u0027/hmns-logo.png\u0027);",
+                                                                                                                          "Line 135: setLetterheadUrl(\u0027/hmns-logo.png\u0027);",
+                                                                                                                          "Line 795: \u003cdiv style={{ color: \u0027blue\u0027, marginTop: \u00274px\u0027 }}\u003ewww.hmnssoftware.com \u0026nbsp;\u0026nbsp;\u0026nbsp;\u0026nbsp; hr@hmnssoftware.in\u003c/div\u003e"
+                                                                                                                      ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\backend\\app\\routers\\ceo_portal.py":  [
+                                                                                                          "Line 414: if u.emp_id and u.emp_id.startswith(\"NSG-0\"):",
+                                                                                                          "Line 421: emp_id = f\"NSG-0{max_serial + 1}\""
+                                                                                                      ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\index.html":  [
+                                                                                "Line 5: \u003clink rel=\"icon\" type=\"image/png\" href=\"/hmns-logo.png\" /\u003e",
+                                                                                "Line 7: \u003ctitle\u003eHMNS ERP - Software Solution Pvt Ltd\u003c/title\u003e"
+                                                                            ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\hr\\modules\\attendance\\AttendanceRegisterView.jsx":  [
+                                                                                                                                          "Line 211: img.src = \u0027/hmns-logo.png\u0027;",
+                                                                                                                                          "Line 456: \u003cspan style={{ fontSize: \u002711px\u0027, color: \u0027#94a3b8\u0027 }}\u003e{emp.emp_id || \u0027NSG-EMP\u0027}\u003c/span\u003e",
+                                                                                                                                          "Line 516: \u003cspan style={{ fontSize: \u002711px\u0027, color: \u0027#94a3b8\u0027, whiteSpace: \u0027nowrap\u0027, overflow: \u0027hidden\u0027, textOverflow: \u0027ellipsis\u0027 }}\u003e{emp.emp_id || \u0027NSG-EMP\u0027}\u003c/span\u003e"
+                                                                                                                                      ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\ceo\\pages\\Settings.jsx":  [
+                                                                                                               "Line 278: img.src = \u0027/hmns-logo.png\u0027;"
+                                                                                                           ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\tl\\Approvals\\mockData.js":  [
+                                                                                                                 "Line 7: { id: 1, name: \u0027Michael Chang\u0027, project: \u0027NSG ERP Platform\u0027, hours: 40, period: \u0027May 1 - May 7\u0027, status: \u0027Pending\u0027 },"
+                                                                                                             ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\tl\\Tasks\\index.jsx":  [
+                                                                                                           "Line 267: project: t.project || \u0027NSG-ERP Core\u0027,",
+                                                                                                           "Line 405: project: t.project || \u0027NSG-ERP Core\u0027,"
+                                                                                                       ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\hr\\modules\\recruitment\\RecruitmentView.jsx":  [
+                                                                                                                                    "Line 561: \u003cspan style={{ fontSize: \u002720px\u0027 }}\u003e🧠\u003c/span\u003e HMNS AI Resume Analyzer \u0026amp; Parser",
+                                                                                                                                    "Line 614: \u003ch5 style={{ margin: \u00270 0 8px 0\u0027, fontSize: \u002712px\u0027, textTransform: \u0027uppercase\u0027, color: \u0027var(--accent-blue)\u0027, fontWeight: \u0027bold\u0027 }}\u003eHMNS AI Recommendation \u0026amp; Summary\u003c/h5\u003e",
+                                                                                                                                    "Line 634: \u003ch4 style={{ margin: 0, color: \u0027var(--text-primary)\u0027 }}\u003eHMNS Engine Parsing Resume\u003c/h4\u003e",
+                                                                                                                                    "Line 685: \u003ch5 style={{ margin: \u00270 0 8px 0\u0027, fontSize: \u002712px\u0027, textTransform: \u0027uppercase\u0027, color: \u0027var(--accent-blue)\u0027, fontWeight: \u0027bold\u0027 }}\u003eHMNS AI Recommendation \u0026amp; Summary\u003c/h5\u003e"
+                                                                                                                                ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\auth\\Login.jsx":  [
+                                                                                                      "Line 81: \u003cimg onError={(e) =\u003e { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || \u0027User\u0027)}\u0026background=random`; }} src=\"/hmns-logo.png\" alt=\"HMNS Software\" style={{ width: \u0027240px\u0027, height: \u0027auto\u0027, objectFit: \u0027contain\u0027, background: \u0027#fff\u0027, padding: \u002710px 16px\u0027, borderRadius: \u002712px\u0027, boxShadow: \u00270 4px 16px rgba(0,0,0,0.06)\u0027, border: \u00271px solid #f1f5f9\u0027 }}  /\u003e",
+                                                                                                      "Line 84: HMNS ERP Portal"
+                                                                                                  ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\hr\\modules\\leave\\LeaveManagementView.jsx":  [
+                                                                                                                                  "Line 208: img.src = \u0027/hmns-logo.png\u0027;",
+                                                                                                                                  "Line 426: \u003cspan style={{ fontSize: \u002711px\u0027, color: \u0027#94a3b8\u0027 }}\u003e{emp.emp_id || \u0027NSG-EMP\u0027}\u003c/span\u003e",
+                                                                                                                                  "Line 502: \u003cspan style={{ fontSize: \u002712px\u0027, color: \u0027#64748b\u0027, fontWeight: \u0027500\u0027 }}\u003e{emp.emp_id || \u0027NSG-EMP\u0027}\u003c/span\u003e"
+                                                                                                                              ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\employee\\HuddleModal.jsx":  [
+                                                                                                                "Line 43: const rawRoomName = peer.channelId ? `NSG-ERP-Room-${peer.channelId}` : `NSG-ERP-Room-${peer.roomName || \u0027General\u0027}`;",
+                                                                                                                "Line 147: Launching HMNS ERP Huddle...",
+                                                                                                                "Line 227: HMNS ERP Live Meeting"
+                                                                                                            ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\employee\\Profile.jsx":  [
+                                                                                                            "Line 232: const liveEmpId = liveProfile?.emp_id || currentUser?.emp_id || (currentUser?.id ? `NSG-0${currentUser.id}` : \u0027...\u0027);"
+                                                                                                        ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\tl\\Attendance\\TeamAttendance.jsx":  [
+                                                                                                                         "Line 200: const rec = { id: emp.emp_id || `NSG-${emp.id}`, dbId: emp.id, name: emp.name };",
+                                                                                                                         "Line 558: img.src = \u0027/hmns-logo.png\u0027;",
+                                                                                                                         "Line 784: \u003coption key={emp.id} value={`NSG-${emp.id}`}\u003e{emp.name}\u003c/option\u003e"
+                                                                                                                     ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\employee\\Learning.jsx":  [
+                                                                                                             "Line 5: { id: 1, question: \u0027What is the HMNS Code of Conduct primarily concerned with?\u0027, options: [\u0027Maximizing individual profits\u0027, \u0027Ethical behavior, integrity and company values\u0027, \u0027Marketing strategy\u0027, \u0027Competitor analysis\u0027], correct: 1 },",
+                                                                                                             "Line 13: { id: 1, title: \u0027HMNS Corporate Values \u0026 Ethics\u0027, duration: \u002730 min\u0027, icon: \u0027🏢\u0027, description: \u0027Company culture, code of conduct, and professional ethics.\u0027 },",
+                                                                                                             "Line 275: \u003cp\u003eWelcome to NSG. Our core values are \u003cstrong\u003eIntegrity, Innovation, and Inclusion\u003c/strong\u003e. Every employee is expected to:\u003c/p\u003e",
+                                                                                                             "Line 286: \u003cp\u003eNSG follows strict IT security and data governance policies:\u003c/p\u003e"
+                                                                                                         ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\employee\\Attendance.jsx":  [
+                                                                                                               "Line 727: const savedGeofence = localStorage.getItem(\u0027nsg_geofence_settings\u0027);"
+                                                                                                           ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\ceo\\pages\\CompanySetup.jsx":  [
+                                                                                                                   "Line 158: name: \u0027NSG Technologies Pvt Ltd\u0027,",
+                                                                                                                   "Line 192: name: configs.company_name || \u0027NSG Technologies Pvt Ltd\u0027,"
+                                                                                                               ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\hr\\modules\\employees\\EmployeeRegistryView.jsx":  [
+                                                                                                                                       "Line 210: img.src = \u0027/hmns-logo.png\u0027;",
+                                                                                                                                       "Line 225: doc.text(\u0027HMNS Software Solution\u0027, 40, 50);",
+                                                                                                                                       "Line 300: doc.save(`NSG_Employee_Registry_${new Date().toISOString().split(\u0027T\u0027)[0]}.pdf`);",
+                                                                                                                                       "Line 1154: \u003cinput type=\"email\" value={newEmail} onChange={(e) =\u003e setNewEmail(e.target.value)} required placeholder=\"jane@hmns.com\" style={{ width: \u0027100%\u0027, backgroundColor: \u0027var(--bg-primary)\u0027, border: \u00271px solid var(--border-color)\u0027, color: \u0027#fff\u0027, padding: \u002710px 12px\u0027, borderRadius: \u00278px\u0027 }} /\u003e"
+                                                                                                                                   ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\backend\\app\\main.py":  [
+                                                                                           "Line 19: title=\"NSG-ERP API\",",
+                                                                                           "Line 20: description=\"Backend API for the NSG-ERP system\",",
+                                                                                           "Line 72: \"message\": \"Welcome to the NSG-ERP Backend API\","
+                                                                                       ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\hr\\modules\\appraisals\\AppraisalsView.jsx":  [
+                                                                                                                                  "Line 351: img.src = \u0027/hmns-logo.png\u0027;",
+                                                                                                                                  "Line 366: doc.text(\u0027HMNS Software Solution\u0027, 40, 50);"
+                                                                                                                              ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\tl\\Performance\\index.jsx":  [
+                                                                                                                 "Line 138: img.src = \u0027/hmns-logo.png\u0027;",
+                                                                                                                 "Line 153: doc.text(\u0027HMNS Software Solution\u0027, 40, 50);"
+                                                                                                             ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\employee\\EmployeeDashboard.jsx":  [
+                                                                                                                      "Line 13: employeeCode: currentUser.emp_id || (currentUser.id ? `NSG-EMP-${currentUser.id}` : \u0027Unassigned\u0027)",
+                                                                                                                      "Line 292: {employee.designation} · {employee.department} · {employee.employeeCode || \u0027NSG-EMP-102\u0027}"
+                                                                                                                  ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\tl\\Projects\\projects.index.jsx":  [
+                                                                                                                       "Line 1257: \u003coption\u003eNSG-ERP Core\u003c/option\u003e",
+                                                                                                                       "Line 1420: \u003cdiv className={styles.mMetaValueBox}\u003eHMNS ERP Platform\u003c/div\u003e"
+                                                                                                                   ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\backend\\app\\routers\\hr_portal.py":  [
+                                                                                                         "Line 682: if u.emp_id and u.emp_id.startswith(\"NSG-0\"):",
+                                                                                                         "Line 689: emp_id = f\"NSG-0{max_serial + 1}\"",
+                                                                                                         "Line 869: if u.emp_id and u.emp_id.startswith(\"NSG-0\"):",
+                                                                                                         "Line 876: emp_id = f\"NSG-0{max_serial + 1}\""
+                                                                                                     ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\hr\\modules\\onboarding\\OnboardingView.jsx":  [
+                                                                                                                                  "Line 175: const generatedTag = \u0027NSG-\u0027 + newAssetType.substring(0, 3).toUpperCase() + \u0027-\u0027 + Math.floor(1000 + Math.random() * 9000);",
+                                                                                                                                  "Line 320: { id: 1, name: \u0027NSG Corporate Onboarding Template\u0027, tasks: [",
+                                                                                                                                  "Line 1021: \u003cp\u003eThis Agreement is entered into on this {new Date(activeDocPreview.sent_at).toLocaleDateString()} by and between \u003cstrong\u003eNSG Technologies India Private Limited\u003c/strong\u003e (\"Disclosing Party\") and \u003cstrong\u003e{emp.name}\u003c/strong\u003e (\"Receiving Party\").\u003c/p\u003e",
+                                                                                                                                  "Line 1023: \u003cp\u003eReceiving Party agrees to protect, safeguard, and maintain strict confidentiality regarding all proprietary source code, client schemas, ERP designs, and internal database tables disclosed during their operational lifecycle at NSG Technologies.\u003c/p\u003e",
+                                                                                                                                  "Line 1030: \u003cspan style={{ fontSize: \u00279px\u0027, color: \u0027#6b7280\u0027 }}\u003eHR Manager, NSG Corp\u003c/span\u003e"
+                                                                                                                              ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\employee\\Performance.jsx":  [
+                                                                                                                "Line 82: img.src = \u0027/hmns-logo.png\u0027;",
+                                                                                                                "Line 97: doc.text(\u0027HMNS Software Solution\u0027, 40, 50);"
+                                                                                                            ],
+    "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\common\\ThemeContext.jsx":  [
+                                                                                                               "Line 8: const savedTheme = localStorage.getItem(\u0027nsg_theme\u0027);",
+                                                                                                               "Line 27: localStorage.setItem(\u0027nsg_theme\u0027, theme);"
+                                                                                                           ]
+}
