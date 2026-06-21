@@ -176,6 +176,7 @@ class ProjectResponse(BaseModel):
     checklist: Optional[str] = None
     milestones: Optional[List[ProjectMilestoneResponse]] = []
     department: Optional[str] = None
+    attachments: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -1362,6 +1363,7 @@ class ProjectResponseCEO(BaseModel):
     status: str
     deadline: Optional[str] = None
     department: Optional[str] = None
+    attachments: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -1375,6 +1377,7 @@ class ProjectUpdateCEORequest(BaseModel):
     status: Optional[str] = None
     deadline: Optional[str] = None
     department: Optional[str] = None
+    attachments: Optional[str] = None
 
 
 router_get_projects = None  # placeholder

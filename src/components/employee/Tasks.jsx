@@ -467,7 +467,6 @@ function TaskDetailPanel({ task, onClose, onUpdate }) {
       [status]: uploaded
     };
     setStatusAttachments(updatedAttachments);
-    await saveStatusNotesAndAttachments(updatedAttachments);
     setUploadingStatusAtt(false);
   };
 
@@ -482,7 +481,6 @@ function TaskDetailPanel({ task, onClose, onUpdate }) {
       [status]: updatedList
     };
     setStatusAttachments(updatedAttachments);
-    await saveStatusNotesAndAttachments(updatedAttachments);
   };
   function toggleSubtask(id) {
     const updated = subtasks.map(s => s.id === id ? { ...s, done: !s.done } : s);
@@ -706,6 +704,16 @@ export default function Tasks() {
       ...t,
       subtasks: t.subtasks || []
     }));
+
+  useEffect(() => {
+    if (tasksData) {
+      const openTaskId = localStorage.getItem('emp_open_task');
+      if (openTaskId) {
+        setSelectedId(isNaN(Number(openTaskId)) ? openTaskId : Number(openTaskId));
+        localStorage.removeItem('emp_open_task');
+      }
+    }
+  }, [tasksData]);
 
   const selectedTask = tasks.find(t => t.id === selectedId) || null;
 

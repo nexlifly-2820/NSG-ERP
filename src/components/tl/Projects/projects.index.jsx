@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styles from './projects.module.css';
-import { Briefcase, Calendar, Users, ListTodo, KanbanSquare, GitCommit, Search, Plus, Play, MoreVertical, Flag, Clock, X, HelpCircle, Eye, CheckCircle, AlertCircle, ChevronRight, AlertTriangle, Menu, CheckSquare, Paperclip, MessageSquare, User, Tag, Info, Lock, ChevronDown, XCircle, GitPullRequest } from 'lucide-react';
+import { Briefcase, Calendar, Users, ListTodo, KanbanSquare, GitCommit, Search, Plus, Play, MoreVertical, Flag, Clock, X, HelpCircle, Eye, CheckCircle, AlertCircle, ChevronRight, AlertTriangle, Menu, CheckSquare, Paperclip, MessageSquare, User, Tag, Info, Lock, ChevronDown, XCircle, GitPullRequest, Edit, Trash2 } from 'lucide-react';
 
 
 const Projects = () => {
@@ -19,6 +19,12 @@ const Projects = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [spTarget, setSpTarget] = useState(40);
+  const [editingSprintId, setEditingSprintId] = useState(null);
+  const [sprintPage, setSprintPage] = useState(1);
+
+  useEffect(() => {
+    setSprintPage(1);
+  }, [activeProject]);
 
   // 2. Create Sprint Form Data
   const [productBacklog, setProductBacklog] = useState([]);
@@ -445,7 +451,15 @@ const Projects = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>Sprints</h3>
                 <button
-                  onClick={() => setShowSprintModal(true)}
+                  onClick={() => {
+                    setEditingSprintId(null);
+                    setSprintName('');
+                    setSprintGoal('');
+                    setStartDate('');
+                    setEndDate('');
+                    setSpTarget(40);
+                    setShowSprintModal(true);
+                  }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '6px',
                     background: '#8b5cf6', color: '#fff', border: 'none',
@@ -456,7 +470,7 @@ const Projects = () => {
                   <Plus size={14} /> Add Sprint
                 </button>
               </div>
-              {savedSprints.length === 0 ? (
+              {savedSprints.filter(s => s.project_id === activeProject?.id).length === 0 ? (
                 <div style={{
                   textAlign: 'center', padding: '60px 20px', color: '#94a3b8',
                   border: '2px dashed #e2e8f0', borderRadius: '10px', flex: 1,
@@ -466,9 +480,17 @@ const Projects = () => {
                   <p style={{ fontSize: '12px' }}>Click "+ Add Sprint" to get started</p>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, overflowY: 'auto' }}>
-                  {savedSprints.map(sprint => (
-                    <div key={sprint.id} style={{
+                (() => {
+                  const projectSprints = savedSprints.filter(s => s.project_id === activeProject?.id);
+                  const SPRINTS_PER_PAGE = 4;
+                  const totalPages = Math.ceil(projectSprints.length / SPRINTS_PER_PAGE);
+                  const currentSprints = projectSprints.slice((sprintPage - 1) * SPRINTS_PER_PAGE, sprintPage * SPRINTS_PER_PAGE);
+
+                  return (
+                    <>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, overflowY: 'auto' }}>
+                        {currentSprints.map(sprint => (
+                          <div key={sprint.id} style={{
                       background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px',
                       padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
                     }}>
@@ -490,6 +512,41 @@ const Projects = () => {
                         </div>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <button
+                          onClick={() => {
+                            setEditingSprintId(sprint.id);
+                            setSprintName(sprint.name);
+                            setSprintGoal(sprint.goal || '');
+                            setStartDate(sprint.start || '');
+                            setEndDate(sprint.end || '');
+                            setSpTarget(sprint.sp || 40);
+                            setShowSprintModal(true);
+                          }}
+                          style={{ fontSize: '12px', background: 'transparent', color: '#64748b', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <Edit size={12} />Edit
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!window.confirm('Are you sure you want to delete this sprint?')) return;
+                            try {
+                              const res = await fetch(`/api/team-lead/sprints/${sprint.id}`, {
+                                method: 'DELETE',
+                                headers: { 'Authorization': `Bearer ${token()}` }
+                              });
+                              if (res.ok) {
+                                setSavedSprints(prev => {
+                                  const updated = prev.filter(s => s.id !== sprint.id);
+                                  localStorage.setItem('nsg_saved_sprints', JSON.stringify(updated));
+                                  return updated;
+                                });
+                              }
+                            } catch(err) { console.error('Delete sprint failed', err); }
+                          }}
+                          style={{ fontSize: '12px', background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <Trash2 size={12} />Delete
+                        </button>
                         <span style={{
                           fontSize: '11px', fontWeight: 600, padding: '4px 10px', borderRadius: '20px',
                           background: sprint.status === 'Active' ? '#dcfce7' : '#eff6ff',
@@ -505,8 +562,32 @@ const Projects = () => {
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
+                {totalPages > 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
+                    <button
+                      onClick={() => setSprintPage(prev => Math.max(prev - 1, 1))}
+                      disabled={sprintPage === 1}
+                      style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: sprintPage === 1 ? '#f8fafc' : '#fff', color: sprintPage === 1 ? '#94a3b8' : '#334155', cursor: sprintPage === 1 ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}
+                    >
+                      Previous
+                    </button>
+                    <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
+                      Page {sprintPage} of {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setSprintPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={sprintPage === totalPages}
+                      style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', background: sprintPage === totalPages ? '#f8fafc' : '#fff', color: sprintPage === totalPages ? '#94a3b8' : '#334155', cursor: sprintPage === totalPages ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </>
+            );
+          })()
+        )}
+      </div>
           ) : (
             /* LEFT — Sprint Configuration Card (Inline, replaces Sprints list) */
             <div style={{
@@ -518,7 +599,7 @@ const Projects = () => {
             }}>
 
               <div style={{ marginBottom: '24px' }}>
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>Sprint Configuration</h3>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>{editingSprintId ? 'Edit Sprint' : 'Sprint Configuration'}</h3>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1, overflowY: 'auto' }}>
@@ -566,31 +647,57 @@ const Projects = () => {
                   style={{ background: '#8b5cf6', marginTop: 0, padding: '12px 24px' }}
                   onClick={async () => {
                     if (!sprintName.trim()) { alert('Please enter a sprint name.'); return; }
-                    const generatedId = `SPR-${Date.now().toString().slice(-6)}`;
-                    const tempId = Date.now();
-                    const newSprint = { id: tempId, sprintId: generatedId, name: sprintName, goal: sprintGoal, start: startDate, end: endDate, sp: spTarget, status: 'Planning' };
-                    setSavedSprints(prev => {
-                      const updated = [...prev, newSprint];
-                      localStorage.setItem('nsg_saved_sprints', JSON.stringify(updated));
-                      return updated;
-                    });
-                    try {
-                      const res = await fetch('/api/team-lead/sprints', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token()}` },
-                        body: JSON.stringify({ name: sprintName, goal: sprintGoal, start_date: startDate, end_date: endDate, sp_target: spTarget, project_id: activeProject?.id })
+                    
+                    if (editingSprintId) {
+                      const updatedSprintData = { name: sprintName, goal: sprintGoal, start_date: startDate, end_date: endDate, sp_target: spTarget };
+                      setSavedSprints(prev => {
+                        const updated = prev.map(s => s.id === editingSprintId ? { ...s, name: sprintName, goal: sprintGoal, start: startDate, end: endDate, sp: spTarget } : s);
+                        localStorage.setItem('nsg_saved_sprints', JSON.stringify(updated));
+                        return updated;
                       });
-                      if (res.ok) {
-                        const saved = await res.json();
-                        setSavedSprints(prev => {
-                          const filtered = prev.filter(s => s.id !== tempId);
-                          const updated = [...filtered, saved];
-                          localStorage.setItem('nsg_saved_sprints', JSON.stringify(updated));
-                          return updated;
+                      try {
+                        const res = await fetch(`/api/team-lead/sprints/${editingSprintId}`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token()}` },
+                          body: JSON.stringify(updatedSprintData)
                         });
-                      }
-                    } catch (_) {}
+                        if (res.ok) {
+                          const saved = await res.json();
+                          setSavedSprints(prev => {
+                            const updated = prev.map(s => s.id === editingSprintId ? saved : s);
+                            localStorage.setItem('nsg_saved_sprints', JSON.stringify(updated));
+                            return updated;
+                          });
+                        }
+                      } catch (_) {}
+                    } else {
+                      const generatedId = `SPR-${Date.now().toString().slice(-6)}`;
+                      const tempId = Date.now();
+                      const newSprint = { id: tempId, sprintId: generatedId, name: sprintName, goal: sprintGoal, start: startDate, end: endDate, sp: spTarget, status: 'Planning', project_id: activeProject?.id };
+                      setSavedSprints(prev => {
+                        const updated = [...prev, newSprint];
+                        localStorage.setItem('nsg_saved_sprints', JSON.stringify(updated));
+                        return updated;
+                      });
+                      try {
+                        const res = await fetch('/api/team-lead/sprints', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token()}` },
+                          body: JSON.stringify({ name: sprintName, goal: sprintGoal, start_date: startDate, end_date: endDate, sp_target: spTarget, project_id: activeProject?.id })
+                        });
+                        if (res.ok) {
+                          const saved = await res.json();
+                          setSavedSprints(prev => {
+                            const filtered = prev.filter(s => s.id !== tempId);
+                            const updated = [...filtered, saved];
+                            localStorage.setItem('nsg_saved_sprints', JSON.stringify(updated));
+                            return updated;
+                          });
+                        }
+                      } catch (_) {}
+                    }
                     setShowSprintModal(false);
+                    setEditingSprintId(null);
                   }}
                 >
                   <Plus size={16} /> Save Sprint
@@ -637,7 +744,7 @@ const Projects = () => {
                     <p style={{ fontSize: '14px', fontWeight: 600, color: '#334155', margin: '0 0 4px 0' }}>Project Attachments</p>
                     {atts.map((att, i) => (
                       <div key={i} style={{fontSize: '13px', background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center'}}>
-                        <a href={att.url} target="_blank" rel="noreferrer" download={att.name} style={{color: '#2563eb', textDecoration: 'none', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px'}}>
+                        <a href={att.url} target="_blank" rel="noreferrer" style={{color: '#2563eb', textDecoration: 'none', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px'}}>
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
                           {att.name}
                         </a>
@@ -711,7 +818,7 @@ const Projects = () => {
             >
               <option value="All">All Sprints</option>
               <option value="Backlog">Backlog / Unassigned</option>
-              {savedSprints.map(s => (
+              {savedSprints.filter(s => s.project_id === activeProject?.id).map(s => (
                 <option key={s.id} value={s.sprintId || s.name}>
                   {s.name} ({s.sprintId || `SPR-${s.id}`})
                 </option>
@@ -971,8 +1078,7 @@ const Projects = () => {
                   }}
                 >
                   <option value="All">All Sprints</option>
-                  <option value="Backlog">Backlog / Unassigned</option>
-                  {savedSprints.map(s => (
+                  {savedSprints.filter(s => s.project_id === activeProject?.id).map(s => (
                     <option key={s.id} value={s.sprintId || s.name}>
                       {s.name} ({s.sprintId || `SPR-${s.id}`})
                     </option>
@@ -1139,7 +1245,7 @@ const Projects = () => {
                     <div className={styles.tlColTasks}>{(milestone.tasks !== undefined ? milestone.tasks : milestone.tasks_count) || 0} tasks</div>
                     <div className={styles.tlColProgress}>
                       <div className={styles.mProgressBar}>
-                        <div className={styles.mProgressFill} style={{ width: `${milestone.progress}%`, backgroundColor: milestone.progress === 100 ? '#10b981' : 'var(--primary)' }}></div>
+                        <div className={styles.mProgressFill} style={{ width: `${milestone.progress}%`, backgroundColor: milestone.progress === 100 ? '#10b981' : '#8b5cf6' }}></div>
                       </div>
                       <span className={styles.mProgressText}>{milestone.progress}%</span>
                     </div>

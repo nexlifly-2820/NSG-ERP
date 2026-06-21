@@ -420,7 +420,10 @@ export default function EmployeeDashboard({ setActiveTab, currentUser }) {
                     </div>
                   )}
                   {openTasks.slice((taskPage - 1) * tasksPerPage, taskPage * tasksPerPage).map(task => (
-                    <div key={task.id} className="emp-task-row">
+                    <div key={task.id} className="emp-task-row" style={{ cursor: 'pointer' }} onClick={() => {
+                      localStorage.setItem('emp_open_task', task.id);
+                      setActiveTab('tasks');
+                    }}>
                       <span className={`emp-priority ${priorityClass(task.priority)}`}>{task.priority}</span>
                       <div style={{ flex: 1 }}>
                         <div className="emp-task-title">{task.title}</div>
@@ -452,18 +455,7 @@ export default function EmployeeDashboard({ setActiveTab, currentUser }) {
                     </div>
                   )}
 
-                  {doneTasks.length > 0 && taskPage === 1 && (
-                    <div style={{ marginTop: 12 }}>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8, fontWeight: 700 }}>✅ Completed (Recent)</div>
-                      {doneTasks.slice(0,2).map(task => (
-                        <div key={task.id} className="emp-task-row" style={{ opacity: 0.5 }}>
-                          <span className={`emp-priority ${priorityClass(task.priority)}`}>{task.priority}</span>
-                          <div className="emp-task-title emp-task-title--done">{task.title}</div>
-                          <span className="emp-status-chip" style={statusStyle(task.status)}>done</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+
                 </div>
               </div>
             )}

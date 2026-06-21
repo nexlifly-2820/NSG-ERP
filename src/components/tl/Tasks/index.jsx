@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import useSWR from 'swr';
 import AvatarFallback from '../../common/AvatarFallback';
 import styles from './tasks.module.css';
-import { PlusSquare, List, XCircle, GitPullRequest, Edit, UserPlus, RotateCcw, Check, X, Eye, Trash2 } from 'lucide-react';
+import { PlusSquare, List, XCircle, GitPullRequest, Edit, UserPlus, RotateCcw, Check, X, Eye, Trash2, Download } from 'lucide-react';
 
 export default function Tasks({ currentUser }) {
   const [activeView, setActiveView] = useState('create'); // 'create', 'list', 'rejected', 'pr'
@@ -40,7 +40,22 @@ export default function Tasks({ currentUser }) {
   const [taskTitle, setTaskTitle] = useState('');
   const [taskPoints, setTaskPoints] = useState('');
   const [taskPriority, setTaskPriority] = useState('Medium');
-  const [taskAssignee, setTaskAssignee] = useState('');
+  const [taskAssignees, setTaskAssignees] = useState([]);
+  const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState(false);
+  const assigneeDropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (assigneeDropdownRef.current && !assigneeDropdownRef.current.contains(event.target)) {
+        setAssigneeDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const [taskDescription, setTaskDescription] = useState('');
   const [taskProject, setTaskProject] = useState('');
   const [taskProjectId, setTaskProjectId] = useState(null);
@@ -68,7 +83,6 @@ export default function Tasks({ currentUser }) {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
 
-  const [viewModalOpen, setViewModalOpen] = useState(false);
   const [viewTaskData, setViewTaskData] = useState(null);
 
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
@@ -137,7 +151,7 @@ export default function Tasks({ currentUser }) {
     // Standardize priority casing
     const originalPriority = rawTask.priority || 'Medium';
     setTaskPriority(originalPriority.charAt(0).toUpperCase() + originalPriority.slice(1));
-    setTaskAssignee(rawTask.user_id || '');
+    setTaskAssignees(rawTask.user_id ? [rawTask.user_id.toString()] : []);
     setTaskPoints(rawTask.sp || '');
     setTaskDue(rawTask.due || '');
     setTaskAcceptance(rawTask.acceptance ? rawTask.acceptance.join('\n') : '');
@@ -221,7 +235,8 @@ export default function Tasks({ currentUser }) {
 
   const handleViewTask = (task) => {
     setViewTaskData(task);
-    setViewModalOpen(true);
+    previousViewRef.current = activeView;
+    setActiveView('view');
   };
 
   const handleAcceptRequest = async (taskId, currentCustomData, currentStatus) => {
@@ -318,8 +333,8 @@ export default function Tasks({ currentUser }) {
   
   const handleCreateTask = async (e) => {
     e.preventDefault();
-    if(!taskTitle.trim() || !taskAssignee || !taskProject || !taskSprint) {
-      alert("Please enter a task title, select an assignee, select a project, and select a sprint ID");
+    if(!taskTitle.trim() || taskAssignees.length === 0 || !taskProject || !taskSprint) {
+      alert("Please enter a task title, select at least one assignee, select a project, and select a sprint ID");
       return;
     }
     setLoading(true);
@@ -346,7 +361,7 @@ export default function Tasks({ currentUser }) {
       priority: priorityVal,
       sp: parseInt(taskPoints) || 1,
       due: taskDue || new Date().toISOString().split('T')[0],
-      assignee_id: parseInt(taskAssignee),
+      assignee_ids: taskAssignees.map(id => parseInt(id)),
       subtasks: subtasks.filter(t => t.trim() !== ''),
       acceptance: taskAcceptance.split('\n').map(a => a.trim().replace(/^- /, '')).filter(a => a !== ''),
       attachments: taskAttachments,
@@ -371,7 +386,7 @@ export default function Tasks({ currentUser }) {
       if (res.ok) {
         setTaskTitle('');
         setTaskDescription('');
-        setTaskAssignee('');
+        setTaskAssignees([]);
         setTaskPoints('');
         setTaskDue('');
         setTaskAcceptance('');
@@ -527,14 +542,35 @@ export default function Tasks({ currentUser }) {
                 <label className={styles.formLabel}>Task Title</label>
                 <input type="text" className={styles.formInput} placeholder="e.g. Build Payment Gateway UI" value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} />
               </div>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Assignee</label>
-                <select className={styles.formSelect} value={taskAssignee} onChange={(e) => setTaskAssignee(e.target.value)}>
-                  <option value="">Select Team Member...</option>
-                  {teamMembers.map(m => (
-                    <option key={m.id} value={m.id}>{m.name} ({m.designation})</option>
-                  ))}
-                </select>
+              <div className={styles.formGroup} style={{ position: 'relative', zIndex: assigneeDropdownOpen ? 100 : 1 }} ref={assigneeDropdownRef}>
+                <label className={styles.formLabel}>Assignees</label>
+                <div 
+                  className={styles.formInput} 
+                  style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', minHeight: '42px', backgroundColor: '#fff', border: '1px solid var(--border-color)', borderRadius: '6px' }}
+                  onClick={() => setAssigneeDropdownOpen(!assigneeDropdownOpen)}
+                >
+                  {taskAssignees.length === 0 
+                    ? <span style={{ color: 'var(--text-muted)' }}>Select Team Members... ▾</span> 
+                    : <span>{taskAssignees.length} member{taskAssignees.length > 1 ? 's' : ''} selected ▾</span>
+                  }
+                </div>
+                {assigneeDropdownOpen && (
+                  <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '6px', padding: '8px', maxHeight: '200px', overflowY: 'auto', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' }}>
+                    {teamMembers.map(m => (
+                      <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px', color: '#1f2937', padding: '6px 8px', borderRadius: '4px', transition: 'background-color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                        <input
+                          type="checkbox"
+                          checked={taskAssignees.includes(m.id.toString())}
+                          onChange={(e) => {
+                            if (e.target.checked) setTaskAssignees([...taskAssignees, m.id.toString()]);
+                            else setTaskAssignees(taskAssignees.filter(id => id !== m.id.toString()));
+                          }}
+                        />
+                        {m.name} ({m.designation})
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                 <label className={styles.formLabel}>Description</label>
@@ -886,7 +922,7 @@ export default function Tasks({ currentUser }) {
                       setEditingTaskId(null);
                       setTaskTitle('');
                       setTaskDescription('');
-                      setTaskAssignee('');
+                      setTaskAssignees([]);
                       setTaskPoints('');
                       setTaskDue('');
                       setTaskAcceptance('');
@@ -1151,103 +1187,110 @@ export default function Tasks({ currentUser }) {
           </div>
         )}
 
-        {viewModalOpen && viewTaskData && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-            <div style={{ backgroundColor: 'var(--bg-primary)', padding: '24px', borderRadius: '8px', width: '600px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border-color)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--text-main)' }}>Task Details</h2>
-                <button onClick={() => setViewModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}><X size={24} /></button>
+        {activeView === 'view' && viewTaskData && (
+          <div style={{ backgroundColor: 'var(--bg-primary)', padding: '24px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h2 style={{ margin: 0, fontSize: '20px', color: 'var(--text-main)' }}>Task Details</h2>
+              <button onClick={() => setActiveView(previousViewRef.current || 'list')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}><X size={24} /></button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Title</label>
+                <div style={{ fontSize: '16px', fontWeight: 500, color: 'var(--text-main)', marginTop: '4px' }}>{viewTaskData.title}</div>
               </div>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Title</label>
-                  <div style={{ fontSize: '16px', fontWeight: 500, color: 'var(--text-main)', marginTop: '4px' }}>{viewTaskData.title}</div>
+                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Project</label>
+                  <div style={{ fontSize: '14px', color: 'var(--text-main)', marginTop: '4px' }}>{viewTaskData.project}</div>
                 </div>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div>
-                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Project</label>
-                    <div style={{ fontSize: '14px', color: 'var(--text-main)', marginTop: '4px' }}>{viewTaskData.project}</div>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Status</label>
-                    <div style={{ fontSize: '14px', color: 'var(--text-main)', marginTop: '4px' }}>{viewTaskData.status}</div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div>
-                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Assignee</label>
-                    <div style={{ fontSize: '14px', color: 'var(--text-main)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <AvatarFallback name={viewTaskData.assignee} size="24px" />
-                      {viewTaskData.assignee}
-                    </div>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Priority & Points</label>
-                    <div style={{ fontSize: '14px', color: 'var(--text-main)', marginTop: '4px' }}>{viewTaskData.priority} / {viewTaskData.points} SP</div>
-                  </div>
-                </div>
-
                 <div>
-                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Due Date</label>
-                  <div style={{ fontSize: '14px', color: 'var(--text-main)', marginTop: '4px' }}>{viewTaskData.due}</div>
+                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Status</label>
+                  <div style={{ fontSize: '14px', color: 'var(--text-main)', marginTop: '4px' }}>{viewTaskData.status}</div>
                 </div>
-
-                {viewTaskData.description && (
-                  <div>
-                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Description</label>
-                    <div style={{ fontSize: '14px', color: 'var(--text-main)', marginTop: '4px', whiteSpace: 'pre-wrap', backgroundColor: 'var(--bg-secondary)', padding: '12px', borderRadius: '6px' }}>{viewTaskData.description}</div>
-                  </div>
-                )}
               </div>
 
-              {/* Status Notes and Attachments */}
-              {(() => {
-                let customData = {};
-                try {
-                  customData = viewTaskData.custom_data ? JSON.parse(viewTaskData.custom_data) : {};
-                } catch(e) {}
-                
-                const statusNotes = customData.status_notes || {};
-                const statusAtts = customData.status_attachments || {};
-                const statusesWithData = [...new Set([...Object.keys(statusNotes), ...Object.keys(statusAtts)])];
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Assignee</label>
+                  <div style={{ fontSize: '14px', color: 'var(--text-main)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AvatarFallback name={viewTaskData.assignee} size="24px" />
+                    {viewTaskData.assignee}
+                  </div>
+                </div>
+                <div>
+                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Priority & Points</label>
+                  <div style={{ fontSize: '14px', color: 'var(--text-main)', marginTop: '4px' }}>{viewTaskData.priority} / {viewTaskData.points} SP</div>
+                </div>
+              </div>
 
-                if (statusesWithData.length === 0) return null;
+              <div>
+                <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Due Date</label>
+                <div style={{ fontSize: '14px', color: 'var(--text-main)', marginTop: '4px' }}>{viewTaskData.due}</div>
+              </div>
 
-                return (
-                  <div style={{ marginTop: '24px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-                    <h3 style={{ fontSize: '14px', color: 'var(--text-main)', marginBottom: '16px', textTransform: 'uppercase' }}>Status Notes & Attachments</h3>
-                    {statusesWithData.map(status => (
-                      <div key={status} style={{ marginBottom: '16px' }}>
-                        <h4 style={{ fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '8px' }}>{status} Status</h4>
-                        {statusNotes[status] && (
-                          <div style={{ fontSize: '14px', color: 'var(--text-main)', background: 'var(--bg-secondary)', padding: '12px', borderRadius: '6px', marginBottom: '8px', whiteSpace: 'pre-wrap' }}>
-                            {statusNotes[status]}
-                          </div>
-                        )}
-                        {statusAtts[status] && statusAtts[status].length > 0 && (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                            {statusAtts[status].map((att, idx) => (
-                              <a key={idx} href={att.file_url} target="_blank" rel="noreferrer" style={{ fontSize: '13px', color: 'var(--brand-main)', background: '#f0fdf4', padding: '6px 12px', borderRadius: '4px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid #bbf7d0' }}>
+              {viewTaskData.description && (
+                <div>
+                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>Description</label>
+                  <div style={{ fontSize: '14px', color: 'var(--text-main)', marginTop: '4px', whiteSpace: 'pre-wrap', backgroundColor: 'var(--bg-secondary)', padding: '12px', borderRadius: '6px' }}>{viewTaskData.description}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Status Notes and Attachments */}
+            {(() => {
+              let customData = {};
+              try {
+                customData = viewTaskData.custom_data ? JSON.parse(viewTaskData.custom_data) : {};
+              } catch(e) {}
+              
+              const statusNotes = customData.status_notes || {};
+              const statusAtts = customData.status_attachments || {};
+              const statusAuthors = customData.status_authors || {};
+              const statusesWithData = [...new Set([...Object.keys(statusNotes), ...Object.keys(statusAtts)])];
+
+              if (statusesWithData.length === 0) return null;
+
+              return (
+                <div style={{ marginTop: '24px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                  <h3 style={{ fontSize: '14px', color: 'var(--text-main)', marginBottom: '16px', textTransform: 'uppercase' }}>Status Notes & Attachments</h3>
+                  {statusesWithData.map(status => (
+                    <div key={status} style={{ marginBottom: '16px' }}>
+                      <h4 style={{ fontSize: '12px', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '8px' }}>
+                        {status} Status
+                        {statusAuthors[status] && <span style={{ textTransform: 'none', fontWeight: 'normal', color: 'var(--text-secondary)', marginLeft: '8px' }}>by {statusAuthors[status]}</span>}
+                      </h4>
+                      {statusNotes[status] && (
+                        <div style={{ fontSize: '14px', color: 'var(--text-main)', background: 'var(--bg-secondary)', padding: '12px', borderRadius: '6px', marginBottom: '8px', whiteSpace: 'pre-wrap' }}>
+                          {statusNotes[status]}
+                        </div>
+                      )}
+                      {statusAtts[status] && statusAtts[status].length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {statusAtts[status].map((att, idx) => (
+                            <div key={idx} style={{ display: 'flex', alignItems: 'center', background: '#f0fdf4', padding: '6px 12px', borderRadius: '4px', border: '1px solid #bbf7d0', gap: '8px' }}>
+                              <a href={att.file_url} target="_blank" rel="noreferrer" style={{ fontSize: '13px', color: 'var(--brand-main)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 📄 {att.filename}
                               </a>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-              
+                              <a href={att.file_url} download={att.filename} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand-main)', padding: '4px', borderRadius: '4px', cursor: 'pointer', background: 'rgba(34, 197, 94, 0.1)', textDecoration: 'none' }} title="Download">
+                                <Download size={14} />
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+            
 
-              <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
-                <button onClick={() => setViewModalOpen(false)} style={{ backgroundColor: 'var(--primary)', color: '#fff', border: 'none', padding: '8px 24px', borderRadius: '4px', cursor: 'pointer', fontWeight: 500 }}>
-                  Close
-                </button>
-              </div>
+            <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setActiveView(previousViewRef.current || 'list')} style={{ backgroundColor: 'var(--primary)', color: '#fff', border: 'none', padding: '8px 24px', borderRadius: '4px', cursor: 'pointer', fontWeight: 500 }}>
+                Close
+              </button>
             </div>
           </div>
         )}

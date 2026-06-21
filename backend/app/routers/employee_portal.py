@@ -254,7 +254,15 @@ def update_task_status(task_id: int, req: TaskStatusUpdateRequest, db: Session =
         raise HTTPException(status_code=404, detail="Task not found or does not belong to you.")
     task.status = req.status
     if req.custom_data is not None:
-        task.custom_data = req.custom_data
+        try:
+            import json
+            cd = json.loads(req.custom_data)
+            if 'status_authors' not in cd:
+                cd['status_authors'] = {}
+            cd['status_authors'][req.status] = current_user.name
+            task.custom_data = json.dumps(cd)
+        except Exception:
+            task.custom_data = req.custom_data
     db.commit()
     db.refresh(task)
     return TaskResponse(

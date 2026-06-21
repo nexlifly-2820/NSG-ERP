@@ -65,7 +65,7 @@ class TaskCreateRequest(BaseModel):
     priority: str = "medium"
     sp: int = 1
     due: Optional[date] = None
-    assignee_id: int
+    assignee_ids: List[int]
     custom_data: Optional[str] = None
     subtasks: List[str] = []
     acceptance: Optional[List[str]] = []
@@ -308,50 +308,57 @@ def get_team_tasks(skip: int = 0, limit: int = 100, current_user: models.User = 
         tasks = db.query(models.Task).offset(skip).limit(limit).all()
     return tasks
 
-@router.post("/tasks", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
-def create_team_task(req: TaskCreateRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+@router.post("/tasks", response_model=List[TaskResponse], status_code=status.HTTP_201_CREATED)
+def create_team_tasks(req: TaskCreateRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
     verify_manager_role(current_user)
-    assignee = db.query(models.User).filter(models.User.id == req.assignee_id).first()
-    if not assignee:
-        raise HTTPException(status_code=404, detail="Assignee user not found.")
+    if not req.assignee_ids:
+        raise HTTPException(status_code=400, detail="At least one assignee must be provided.")
         
-    db_task = models.Task(
-        user_id=req.assignee_id,
-        project=req.project,
-        sprint=req.sprint,
-        title=req.title,
-        description=req.description,
-        priority=req.priority.lower(),
-        status="assignee",
-        sp=req.sp,
-        due=req.due,
-        custom_data=req.custom_data,
-        acceptance=json.dumps(req.acceptance) if req.acceptance else None
-    )
-    db.add(db_task)
-    db.flush()
-    
-    for st_title in req.subtasks:
-        if st_title.strip():
-            db_sub = models.TaskSubtask(
-                task_id=db_task.id,
-                title=st_title,
-                done=False
-            )
-            db.add(db_sub)
-            
-    if req.attachments:
-        for att in req.attachments:
-            db_att = models.TaskAttachment(
-                task_id=db_task.id,
-                filename=att.filename,
-                file_url=att.file_url
-            )
-            db.add(db_att)
+    assignees = db.query(models.User).filter(models.User.id.in_(req.assignee_ids)).all()
+    if len(assignees) != len(req.assignee_ids):
+        raise HTTPException(status_code=404, detail="One or more assignee users not found.")
+        
+    created_tasks = []
+    for assignee_id in req.assignee_ids:
+        db_task = models.Task(
+            user_id=assignee_id,
+            project=req.project,
+            sprint=req.sprint,
+            title=req.title,
+            description=req.description,
+            priority=req.priority.lower(),
+            status="assignee",
+            sp=req.sp,
+            due=req.due,
+            custom_data=req.custom_data,
+            acceptance=json.dumps(req.acceptance) if req.acceptance else None
+        )
+        db.add(db_task)
+        db.flush()
+        
+        for st_title in req.subtasks:
+            if st_title.strip():
+                db_sub = models.TaskSubtask(
+                    task_id=db_task.id,
+                    title=st_title,
+                    done=False
+                )
+                db.add(db_sub)
+                
+        if req.attachments:
+            for att in req.attachments:
+                db_att = models.TaskAttachment(
+                    task_id=db_task.id,
+                    filename=att.filename,
+                    file_url=att.file_url
+                )
+                db.add(db_att)
+        created_tasks.append(db_task)
             
     db.commit()
-    db.refresh(db_task)
-    return db_task
+    for task in created_tasks:
+        db.refresh(task)
+    return created_tasks
 
 @router.patch("/tasks/batch-update", response_model=dict)
 def update_tasks_batch(req: TaskBatchUpdateRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
@@ -406,8 +413,10 @@ def update_milestone_progress(db: Session, milestone_id: int) -> models.Mileston
                 total_progress += 90
             elif s == 'testing':
                 total_progress += 70
-            elif s in ['in-progress', 'inprogress']:
+            elif s in ['in-progress', 'inprogress', 'in progress']:
                 total_progress += 50
+            elif s in ['to do', 'todo', 'to-do']:
+                total_progress += 25
         milestone.progress = int(total_progress / milestone.tasks_count)
         if milestone.progress == 100:
             milestone.status = "completed"
@@ -542,8 +551,27 @@ def reassign_task(id: int, req: ReassignRequest, current_user: models.User = Dep
         
     task.user_id = req.new_assignee_id
     
+    old_status = task.status
     if task.status and task.status.lower() in ['blocked', 'reject']:
         task.status = 'assignee'
+        
+    import json
+    if task.custom_data:
+        try:
+            custom = json.loads(task.custom_data)
+            if 'approval_requested' in custom:
+                del custom['approval_requested']
+                
+                if 'status_notes' in custom and old_status in custom['status_notes']:
+                    del custom['status_notes'][old_status]
+                if 'status_attachments' in custom and old_status in custom['status_attachments']:
+                    del custom['status_attachments'][old_status]
+                if 'status_authors' in custom and old_status in custom['status_authors']:
+                    del custom['status_authors'][old_status]
+                    
+                task.custom_data = json.dumps(custom)
+        except Exception:
+            pass
     
     notification = models.Notification(
         user_id=task.user_id,
@@ -1289,6 +1317,15 @@ class SprintCreateRequest(BaseModel):
     project_id: Optional[int] = None
 
 
+class SprintUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    goal: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    sp_target: Optional[int] = None
+    status: Optional[str] = None
+
+
 class SprintResponse(BaseModel):
     id: int
     sprintId: str
@@ -1329,6 +1366,37 @@ def create_sprint(req: SprintCreateRequest, current_user: models.User = Depends(
     db.commit()
     db.refresh(sprint)
     return sprint
+
+
+@router.put("/sprints/{sprint_id}", response_model=SprintResponse)
+def update_sprint(sprint_id: int, req: SprintUpdateRequest, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_manager_role(current_user)
+    sprint = db.query(models.Sprint).filter(models.Sprint.id == sprint_id).first()
+    if not sprint:
+        raise HTTPException(status_code=404, detail="Sprint not found")
+    
+    if req.name is not None: sprint.name = req.name
+    if req.goal is not None: sprint.goal = req.goal
+    if req.start_date is not None: sprint.start = req.start_date
+    if req.end_date is not None: sprint.end = req.end_date
+    if req.sp_target is not None: sprint.sp = req.sp_target
+    if req.status is not None: sprint.status = req.status
+        
+    db.commit()
+    db.refresh(sprint)
+    return sprint
+
+
+@router.delete("/sprints/{sprint_id}")
+def delete_sprint(sprint_id: int, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(database.get_db)):
+    verify_manager_role(current_user)
+    sprint = db.query(models.Sprint).filter(models.Sprint.id == sprint_id).first()
+    if not sprint:
+        raise HTTPException(status_code=404, detail="Sprint not found")
+        
+    db.delete(sprint)
+    db.commit()
+    return {"detail": "Sprint deleted successfully"}
 
 
 class MilestoneCreateRequest(BaseModel):
@@ -1430,7 +1498,7 @@ def delete_task(task_id: int, current_user: models.User = Depends(security.get_c
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    db.query(models.Subtask).filter(models.Subtask.task_id == task_id).delete()
+    db.query(models.TaskSubtask).filter(models.TaskSubtask.task_id == task_id).delete()
     db.query(models.TaskAttachment).filter(models.TaskAttachment.task_id == task_id).delete()
     db.delete(task)
     db.commit()
@@ -1443,7 +1511,7 @@ def delete_all_tasks(current_user: models.User = Depends(security.get_current_us
     task_ids = [t.id for t in db.query(models.Task).all()]
     if not task_ids:
         return {"status": "success", "message": "No tasks to delete", "deleted": 0}
-    db.query(models.Subtask).filter(models.Subtask.task_id.in_(task_ids)).delete(synchronize_session=False)
+    db.query(models.TaskSubtask).filter(models.TaskSubtask.task_id.in_(task_ids)).delete(synchronize_session=False)
     db.query(models.TaskAttachment).filter(models.TaskAttachment.task_id.in_(task_ids)).delete(synchronize_session=False)
     count = db.query(models.Task).delete(synchronize_session=False)
     db.commit()

@@ -85,6 +85,16 @@ export default function Projects({ currentUser }) {
     }
   };
 
+  const removeAttachment = (setter, stateObj, indexToRemove) => {
+    try {
+      const currentAttachments = stateObj.attachments ? JSON.parse(stateObj.attachments) : [];
+      currentAttachments.splice(indexToRemove, 1);
+      setter({ ...stateObj, attachments: JSON.stringify(currentAttachments) });
+    } catch (e) {
+      console.error('Failed to remove attachment', e);
+    }
+  };
+
   const getBudgetColor = (used, total) => {
     const pct = used / total;
     if (pct > 0.9) return 'var(--ceo-danger)';
@@ -349,17 +359,24 @@ export default function Projects({ currentUser }) {
                 <div className="ceo-typography-section-title" style={{ fontSize: '14px' }}>Project Checklist</div>
                 {(() => {
                   const baseItems = signoffProject.checklist 
-                    ? signoffProject.checklist.split(',').map(s => s.trim()).filter(Boolean) 
-                    : ['Deliverables verified by QA', 'Client accepted UAT', 'Invoice generated'];
-                  const completedMilestones = (signoffProject.milestones || [])
-                    .filter(m => m.progress === 100)
-                    .map(m => `Milestone: ${m.name} (100% Completed)`);
-                  const fullChecklist = [...baseItems, ...completedMilestones];
+                    ? signoffProject.checklist.split(',').map(s => s.trim()).filter(Boolean).map(item => ({ name: item, checked: true }))
+                    : [];
+                  const milestonesItems = (signoffProject.milestones || []).map(m => ({
+                    name: `Milestone: ${m.name} (${m.progress}% Completed)`,
+                    checked: m.progress === 100,
+                    isMilestone: true
+                  }));
+                  const fullChecklist = [...baseItems, ...milestonesItems];
+                  
+                  if (fullChecklist.length === 0) {
+                    return <div style={{ fontSize: '13px', color: 'var(--ceo-text-muted)', fontStyle: 'italic' }}>No milestones or checklist items found for this project.</div>;
+                  }
+
                   return fullChecklist.map((item, idx) => (
                     <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
-                      <input type="checkbox" defaultChecked />
-                      <span style={item.startsWith('Milestone:') ? { color: 'var(--ceo-success)', fontWeight: 500 } : {}}>
-                        {item}
+                      <input type="checkbox" defaultChecked={item.checked} />
+                      <span style={item.isMilestone ? { color: item.checked ? 'var(--ceo-success)' : 'var(--ceo-text)', fontWeight: 500 } : {}}>
+                        {item.name}
                       </span>
                     </label>
                   ));
@@ -408,7 +425,7 @@ export default function Projects({ currentUser }) {
       {/* EDIT MODAL */}
       {editProject && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="ceo-command-panel" style={{ width: '500px', maxWidth: '90vw' }}>
+          <div className="ceo-command-panel" style={{ width: '500px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
             <div className="ceo-command-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div className="ceo-typography-section-title">Modify Project Details</div>
               <button onClick={() => setEditProject(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ceo-text-muted)' }}><X size={20} /></button>
@@ -454,10 +471,7 @@ export default function Projects({ currentUser }) {
                 <label className="ceo-typography-meta">Deadline</label>
                 <input required type="date" className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} value={editProject.deadline || ''} onChange={e => setEditProject({...editProject, deadline: e.target.value})} />
               </div>
-              <div>
-                <label className="ceo-typography-meta">Checklist (comma-separated, optional)</label>
-                <input className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} value={editProject.checklist || ''} onChange={e => setEditProject({...editProject, checklist: e.target.value})} placeholder="e.g. Design Approved, Backend deployed" />
-              </div>
+
               <div>
                 <label className="ceo-typography-meta">Attachments</label>
                 <input type="file" multiple className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} onChange={e => handleFileUpload(e, setEditProject, editProject)} disabled={uploading} />
@@ -468,8 +482,9 @@ export default function Projects({ currentUser }) {
                       try {
                         const atts = JSON.parse(editProject.attachments);
                         return atts.map((att, i) => (
-                          <div key={i} style={{fontSize: '13px', background: 'var(--ceo-bg)', padding: '6px 10px', borderRadius: '4px', border: '1px solid var(--ceo-border)'}}>
-                            <a href={att.url} target="_blank" rel="noreferrer" download={att.name} style={{color: 'var(--ceo-primary)', textDecoration: 'none'}}>{att.name}</a>
+                          <div key={i} style={{fontSize: '13px', background: 'var(--ceo-bg)', padding: '6px 10px', borderRadius: '4px', border: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                            <a href={att.url} target="_blank" rel="noreferrer" style={{color: 'var(--ceo-primary)', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{att.name}</a>
+                            <button type="button" onClick={() => removeAttachment(setEditProject, editProject, i)} style={{background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold', padding: '0 4px'}} title="Remove file">×</button>
                           </div>
                         ));
                       } catch(e) { return null; }
@@ -492,7 +507,7 @@ export default function Projects({ currentUser }) {
       {/* CREATE PROJECT MODAL */}
       {showCreateModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="ceo-command-panel" style={{ width: '500px', maxWidth: '90vw' }}>
+          <div className="ceo-command-panel" style={{ width: '500px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
             <div className="ceo-command-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div className="ceo-typography-section-title">Add New Project</div>
               <button onClick={() => setShowCreateModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ceo-text-muted)' }}><X size={20} /></button>
@@ -537,10 +552,7 @@ export default function Projects({ currentUser }) {
                 <label className="ceo-typography-meta">Deadline</label>
                 <input required type="date" className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} value={newProject.deadline} onChange={e => setNewProject({...newProject, deadline: e.target.value})} placeholder="Enter deadline" />
               </div>
-              <div>
-                <label className="ceo-typography-meta">Checklist (comma-separated, optional)</label>
-                <input className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} value={newProject.checklist} onChange={e => setNewProject({...newProject, checklist: e.target.value})} placeholder="e.g. Code reviewed, Tests passed" />
-              </div>
+
               <div>
                 <label className="ceo-typography-meta">Attachments</label>
                 <input type="file" multiple className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} onChange={e => handleFileUpload(e, setNewProject, newProject)} disabled={uploading} />
@@ -551,8 +563,9 @@ export default function Projects({ currentUser }) {
                       try {
                         const atts = JSON.parse(newProject.attachments);
                         return atts.map((att, i) => (
-                          <div key={i} style={{fontSize: '13px', background: 'var(--ceo-bg)', padding: '6px 10px', borderRadius: '4px', border: '1px solid var(--ceo-border)'}}>
-                            <a href={att.url} target="_blank" rel="noreferrer" download={att.name} style={{color: 'var(--ceo-primary)', textDecoration: 'none'}}>{att.name}</a>
+                          <div key={i} style={{fontSize: '13px', background: 'var(--ceo-bg)', padding: '6px 10px', borderRadius: '4px', border: '1px solid var(--ceo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                            <a href={att.url} target="_blank" rel="noreferrer" style={{color: 'var(--ceo-primary)', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{att.name}</a>
+                            <button type="button" onClick={() => removeAttachment(setNewProject, newProject, i)} style={{background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold', padding: '0 4px'}} title="Remove file">×</button>
                           </div>
                         ));
                       } catch(e) { return null; }
