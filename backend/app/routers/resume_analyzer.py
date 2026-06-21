@@ -24,6 +24,8 @@ class SkillMatch(BaseModel):
 
 class AnalysisResponse(BaseModel):
     name: str
+    email: Optional[str] = ""
+    phone: Optional[str] = ""
     role: str
     score: int
     skills: List[SkillMatch]
@@ -55,6 +57,15 @@ def extract_candidate_name(text: str) -> str:
             return line
     return "Unknown Candidate"
 
+def extract_email(text: str) -> str:
+    match = re.search(r"[\w\.-]+@[\w\.-]+\.\w+", text)
+    return match.group(0) if match else ""
+
+def extract_phone(text: str) -> str:
+    # Match standard international/local phone formats roughly
+    match = re.search(r"(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}", text)
+    return match.group(0) if match else ""
+
 def run_local_analysis(text: str, target_role: str, filename: str = "") -> dict:
     """Smart local text analyzer fallback that parses text for role-specific keywords."""
     text_lower = text.lower()
@@ -79,6 +90,7 @@ def run_local_analysis(text: str, target_role: str, filename: str = "") -> dict:
         
         return {
             "name": clean_name if len(clean_name) > 3 else "Candidate",
+            "email": "",
             "role": target_role,
             "score": score,
             "skills": matched_skills,
@@ -118,6 +130,8 @@ def run_local_analysis(text: str, target_role: str, filename: str = "") -> dict:
         score = 94
         
     name = extract_candidate_name(text)
+    email = extract_email(text)
+    phone = extract_phone(text)
     if name == "Unknown Candidate" and filename:
         # Use filename as fallback name if possible
         clean_name = filename.split('.')[0].replace('_', ' ').replace('-', ' ').title()
@@ -136,6 +150,8 @@ def run_local_analysis(text: str, target_role: str, filename: str = "") -> dict:
         
     return {
         "name": name,
+        "email": email,
+        "phone": phone,
         "role": target_role,
         "score": score,
         "skills": matched_skills,
@@ -224,6 +240,8 @@ async def analyze_resume(
         JSON Schema:
         {{
           "name": "Extract candidate's full name. If not found, intelligently infer a plausible name from the document headers.",
+          "email": "Extract candidate's email address. If not found, output an empty string.",
+          "phone": "Extract candidate's phone number. If not found, output an empty string.",
           "role": "{target_role}",
           "score": integer (0 to 100), // Provide a highly accurate, critical match score. Be strict. Only give >80 for excellent matches with proven experience. Give <60 if key role skills are missing.
           "skills": [

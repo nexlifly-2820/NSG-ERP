@@ -237,10 +237,6 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
       notify('Please upload a resume file first.', 'warning');
       return;
     }
-    if (!uploadedCandidateName.trim() || !uploadedCandidateEmail.trim()) {
-      notify('Please enter both candidate name and email.', 'warning');
-      return;
-    }
     
     const roleToAnalyze = uploadedCandidateRole === 'Other' ? customRole.trim() : uploadedCandidateRole;
     if (uploadedCandidateRole === 'Other' && !roleToAnalyze) {
@@ -279,6 +275,12 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
       if (result.name && result.name !== 'Parsed Candidate' && result.name !== 'Unknown Candidate') {
         setUploadedCandidateName(result.name);
       }
+      if (result.email) {
+        setUploadedCandidateEmail(result.email);
+      }
+      if (result.phone) {
+        setUploadedCandidatePhone(result.phone);
+      }
       
       // If we analyzed a custom role successfully, add it to custom roles list and switch select to it
       if (uploadedCandidateRole === 'Other') {
@@ -295,7 +297,10 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
   };
 
   const handleImportCandidate = async () => {
-    if (!uploadedCandidateName) return;
+    if (!uploadedCandidateName || !uploadedCandidateEmail) {
+      notify('Please ensure both candidate Name and Email are filled before importing.', 'warning');
+      return;
+    }
     
     const token = localStorage.getItem('nsg_jwt_token');
     try {
@@ -638,9 +643,13 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
                     </div>
 
                     <div style={{ backgroundColor: 'var(--bg-primary)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <h4 style={{ margin: 0, fontSize: '16px', color: 'var(--text-primary)' }}>{uploadedCandidateName}</h4>
-                        <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>Targeting: {uploadedCandidateRole}</p>
+                      <div style={{ flex: 1, marginRight: '16px' }}>
+                        <input type="text" value={uploadedCandidateName} onChange={e => setUploadedCandidateName(e.target.value)} style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '16px', fontWeight: 'bold', width: '100%', marginBottom: '6px', padding: '6px 8px', borderRadius: '6px' }} placeholder="Applicant Name" />
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input type="email" value={uploadedCandidateEmail} onChange={e => setUploadedCandidateEmail(e.target.value)} placeholder="Applicant Email (required to import)" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '13px', width: '100%', padding: '6px 8px', borderRadius: '6px' }} />
+                          <input type="text" value={uploadedCandidatePhone} onChange={e => setUploadedCandidatePhone(e.target.value)} placeholder="Phone Number (Optional)" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '13px', width: '100%', padding: '6px 8px', borderRadius: '6px' }} />
+                        </div>
+                        <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>Targeting: {uploadedCandidateRole}</p>
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block' }}>AI Match Score</span>
@@ -711,15 +720,8 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
                           if (file) {
                             setSelectedFile(file);
                             setUploadedFileName(file.name);
-                            // Pre-fill candidate name based on file name if empty
-                            const cleanName = file.name.split('.')[0]
-                              .replace(/_|-/g, ' ')
-                              .replace(/\b(resume|cv|profile|copy|document|offer|letter|noc|certificate|grade\s*sheet|ssc|payslip|whatsapp|image)\b/ig, '')
-                              .replace(/[^a-zA-Z\s]/g, ' ')
-                              .replace(/\s+/g, ' ')
-                              .trim()
-                              .replace(/\b\w/g, c => c.toUpperCase());
-                            setUploadedCandidateName(cleanName);
+                            // We don't pre-fill name anymore; let the AI extract it from the resume content!
+                            // setUploadedCandidateName(cleanName);
                           }
                         }}
                       />
@@ -738,11 +740,15 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <label style={{ fontSize: '12px' }}>Applicant Full Name</label>
-                      <input type="text" value={uploadedCandidateName} onChange={(e) => setUploadedCandidateName(e.target.value)} required placeholder="e.g. Applicant Name" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
+                      <div style={{ padding: '12px', backgroundColor: 'rgba(59, 130, 246, 0.05)', border: '1px dashed var(--accent-blue)', borderRadius: '8px', color: 'var(--text-secondary)', fontSize: '12px', textAlign: 'center' }}>
+                        🧠 You can leave fields blank—AI will automatically extract missing Name, Email, and Phone directly from the resume!
+                      </div>
                       
-                      <label style={{ fontSize: '12px' }}>Applicant Email</label>
-                      <input type="email" value={uploadedCandidateEmail} onChange={(e) => setUploadedCandidateEmail(e.target.value)} required placeholder="applicant@email.com" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
+                      <label style={{ fontSize: '12px', marginTop: '4px' }}>Applicant Full Name (Optional)</label>
+                      <input type="text" value={uploadedCandidateName} onChange={(e) => setUploadedCandidateName(e.target.value)} placeholder="Leave blank for AI to extract" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
+                      
+                      <label style={{ fontSize: '12px' }}>Applicant Email (Optional)</label>
+                      <input type="email" value={uploadedCandidateEmail} onChange={(e) => setUploadedCandidateEmail(e.target.value)} placeholder="Leave blank for AI to extract" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
 
                       <label style={{ fontSize: '12px' }}>Applicant Phone (Optional)</label>
                       <input type="text" value={uploadedCandidatePhone} onChange={(e) => setUploadedCandidatePhone(e.target.value)} placeholder="+91 XXXXXXXXXX" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
