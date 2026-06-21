@@ -72,7 +72,15 @@ export default function Profile({ currentUser }) {
           // Bank data is now read-only in Employment Details
           // Documents from DB
           if (data.documents) {
-            try { setDocs(JSON.parse(data.documents)); } catch {}
+            try { 
+              const parsed = JSON.parse(data.documents);
+              if (Array.isArray(parsed)) {
+                setDocs(parsed);
+              } else if (parsed && typeof parsed === 'object') {
+                if (parsed.docs_list) setDocs(parsed.docs_list);
+                if (parsed.ctc) setLiveProfile(prev => ({...prev, ctc: parsed.ctc}));
+              }
+            } catch {}
           }
           setProfileLoaded(true);
         }
@@ -469,6 +477,12 @@ export default function Profile({ currentUser }) {
           <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '12px' }}>Employment & Tax Details</h4>
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Current Annual CTC</span>
+              <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>
+                {liveProfile?.ctc ? `₹${liveProfile.ctc.toLocaleString('en-IN')}` : 'N/A'}
+              </span>
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Department</span>
               <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: '500' }}>{liveProfile?.department || 'N/A'}</span>

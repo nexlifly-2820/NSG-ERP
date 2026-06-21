@@ -692,8 +692,16 @@ def transition_candidate_to_employee(id: int, current_user: models.User = Depend
     today = date.today()
     probation_end = date.fromordinal(today.toordinal() + 30) # 1 month
     
-    # Initial documents list
-    initial_docs = []
+    # Initial documents list & CTC
+    offer = db.query(models.JobOffer).filter(models.JobOffer.candidate_id == cand.id).first()
+    init_ctc = offer.gross_ctc if offer else 300000.0
+    init_base = offer.basic_pay if offer else 15625.0
+    
+    initial_docs_dict = {
+        "docs_list": [],
+        "ctc": init_ctc,
+        "base_salary": init_base
+    }
     
     # Hash default password (e.g. EmployeeName@123)
     default_pwd_plain = f"{cand.name.replace(' ', '')}@123"
@@ -718,7 +726,7 @@ def transition_candidate_to_employee(id: int, current_user: models.User = Depend
         grade=3,
         manager="John Doe",
         photo="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&fit=crop&q=80",
-        documents=json.dumps(initial_docs)
+        documents=json.dumps(initial_docs_dict)
     )
     db.add(db_emp)
     db.flush()

@@ -2737,6 +2737,8 @@ def approve_increment(id: int, current_user: models.User = Depends(security.get_
                     parsed = json.loads(user.documents) if isinstance(user.documents, str) else user.documents
                     if isinstance(parsed, dict):
                         docs = parsed
+                    elif isinstance(parsed, list):
+                        docs = {"docs_list": parsed}
                 except Exception:
                     pass
             docs["ctc"] = inc.proposed_ctc

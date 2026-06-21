@@ -1,38 +1,37 @@
-import sys
-import os
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-from app.database import SessionLocal
+import json
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine
 from app import models
 
-def fix_timesheets():
-    db = SessionLocal()
-    try:
-        # Find the HR user (hemanth)
-        hr_user = db.query(models.User).filter(models.User.email.like('%hemanth%')).first()
-        if not hr_user:
-            hr_user = db.query(models.User).filter(models.User.role == 'hr').first()
-            
-        hr_id = hr_user.id
-        print(f"Found HR User ID: {hr_id}")
-        
-        timesheets = db.query(models.DailyTimesheet).filter(
-            models.DailyTimesheet.status == 'approved'
-        ).all()
-        
-        count = 0
-        for ts in timesheets:
-            if ts.manager_id is None or ts.manager_id == 0:
-                ts.manager_id = hr_id
-                count += 1
-                
-        db.commit()
-        print(f"Successfully updated {count} timesheets.")
-    except Exception as e:
-        print(f"Error: {e}")
-    finally:
-        db.close()
+from app.database import engine, SessionLocal
 
-if __name__ == "__main__":
-    fix_timesheets()
+db = SessionLocal()
+
+users = db.query(models.User).all()
+for u in users:
+    if u.documents:
+        try:
+            parsed = json.loads(u.documents)
+            if isinstance(parsed, list):
+                new_docs = {
+                    'docs_list': parsed,
+                    'ctc': 300000.0,
+                    'base_salary': 15625.0
+                }
+                u.documents = json.dumps(new_docs)
+            elif isinstance(parsed, dict) and 'ctc' not in parsed:
+                parsed['ctc'] = 300000.0
+                parsed['base_salary'] = 15625.0
+                u.documents = json.dumps(parsed)
+        except Exception:
+            pass
+    else:
+        new_docs = {
+            'docs_list': [],
+            'ctc': 300000.0,
+            'base_salary': 15625.0
+        }
+        u.documents = json.dumps(new_docs)
+
+db.commit()
+print("Database CTC fixed successfully.")
