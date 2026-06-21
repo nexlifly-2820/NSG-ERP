@@ -7,7 +7,7 @@ import { Download, Search, Filter } from 'lucide-react';
 
 export function AppraisalsView() {
   const [appraisalTab, setAppraisalTab] = useState('proposals'); // proposals | cycles | scorecards | promotions
-  const [selectedEmpId, setSelectedEmpId] = useState(104);
+  const [selectedEmpId, setSelectedEmpId] = useState('');
 
   const token = localStorage.getItem('nsg_jwt_token');
   const fetcher = async (url) => {
@@ -18,6 +18,12 @@ export function AppraisalsView() {
   };
 
   const { data: employees = [], mutate: mutateEmployees } = useSWR('/api/hr-portal/employees', fetcher);
+  
+  useEffect(() => {
+    if (employees.length > 0 && !selectedEmpId) {
+      setSelectedEmpId(employees[0].id);
+    }
+  }, [employees]);
   const { data: appraisalCycles = [], mutate: mutateCycles } = useSWR('/api/hr-portal/appraisal-cycles', fetcher);
   const { data: incrementProposals = [], mutate: mutateProposals } = useSWR('/api/hr-portal/increment-proposals', fetcher);
   const { data: scorecards = [], mutate: mutateScorecards } = useSWR('/api/hr-portal/appraisal-scorecards', fetcher);
@@ -113,13 +119,15 @@ export function AppraisalsView() {
           const saved = await response.json();
           mutateProposals();
           mutateEmployees();
+          notify(`Increment proposal of ${incrementPct}% submitted to CEO approvals queue.`);
+        } else {
+          notify(`Failed to submit increment proposal.`, 'error');
         }
       } catch (err) {
         console.error("Failed to post increment proposal", err);
+        notify(`Failed to submit increment proposal.`, 'error');
       }
     }
-
-    notify(`Increment proposal of ${incrementPct}% submitted to CEO approvals queue.`);
   };
 
   const handleStartDateChange = (val) => {
