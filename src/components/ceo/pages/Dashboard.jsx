@@ -31,7 +31,8 @@ export default function Dashboard() {
   const heatmapPerPage = 5;
   
   // Heatmap state
-  const heatmapDepts = ["Sales", "Engineering", "Marketing", "HR", "Finance"];
+  const defaultHeatmapDepts = ["Sales", "Engineering", "Marketing", "HR", "Finance"];
+  const [heatmapDeptsState, setHeatmapDeptsState] = useState(defaultHeatmapDepts);
   const [heatmapDataState, setHeatmapDataState] = useState([]);
   const [datesState, setDatesState] = useState([]);
 
@@ -145,7 +146,7 @@ export default function Dashboard() {
 
       // 5. Fetch heatmap data from optimized API
       const heatRes = await fetch('/api/ceo-portal/dashboard/heatmap', { headers });
-      const heatData = heatRes.ok ? await heatRes.json() : { dates: [], departments: heatmapDepts, data: heatmapDepts.map(() => [0,0,0,0,0,0,0,0,0,0,0,0,0,0]) };
+      const heatData = heatRes.ok ? await heatRes.json() : { dates: [], departments: defaultHeatmapDepts, data: defaultHeatmapDepts.map(() => [0,0,0,0,0,0,0,0,0,0,0,0,0,0]) };
 
       // Save to states
       if (summaryVal) {
@@ -164,6 +165,7 @@ export default function Dashboard() {
       setApprovalsList(combinedApprovals);
       setEscalationsList(mappedEscalations);
       setDatesState(heatData.dates);
+      setHeatmapDeptsState(heatData.departments);
       setHeatmapDataState(heatData.data);
 
     } catch (err) {
@@ -404,7 +406,7 @@ export default function Dashboard() {
                 style={{ padding: '4px 10px', fontSize: '12px', background: 'transparent', border: '1px solid var(--ceo-border)', borderRadius: '6px', cursor: 'pointer', color: 'var(--ceo-primary)', fontWeight: 600, transition: 'all 0.2s' }} 
                 onMouseOver={(e) => e.target.style.background = 'var(--ceo-hover)'}
                 onMouseOut={(e) => e.target.style.background = 'transparent'}
-                onClick={() => window.location.hash = '#/CEO/approvals'}
+                onClick={() => window.location.hash = '#/CEO/employmentApprovals'}
               >
                 View All
               </button>
@@ -582,7 +584,7 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {heatmapDepts.slice((heatmapPage - 1) * heatmapPerPage, heatmapPage * heatmapPerPage).map((dept, idx) => {
+                {heatmapDeptsState.slice((heatmapPage - 1) * heatmapPerPage, heatmapPage * heatmapPerPage).map((dept, idx) => {
                   const dIdx = (heatmapPage - 1) * heatmapPerPage + idx;
                   return (
                   <tr key={dept} style={{ transition: 'background 0.2s ease', borderBottom: '1px solid var(--ceo-border)' }}
@@ -633,18 +635,18 @@ export default function Dashboard() {
               </tbody>
             </table>
           </div>
-          {heatmapDepts.length > heatmapPerPage && (
+          {heatmapDeptsState.length > heatmapPerPage && (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '12px', borderTop: '1px solid var(--ceo-border)', gap: '16px' }}>
               <button 
                 disabled={heatmapPage === 1}
                 onClick={() => setHeatmapPage(p => p - 1)}
                 className="ceo-btn" style={{ padding: '4px 12px', opacity: heatmapPage === 1 ? 0.5 : 1 }}
               >Prev</button>
-              <span className="ceo-typography-meta">Page {heatmapPage} of {Math.ceil(heatmapDepts.length / heatmapPerPage)}</span>
+              <span className="ceo-typography-meta">Page {heatmapPage} of {Math.ceil(heatmapDeptsState.length / heatmapPerPage)}</span>
               <button 
-                disabled={heatmapPage === Math.ceil(heatmapDepts.length / heatmapPerPage)}
+                disabled={heatmapPage === Math.ceil(heatmapDeptsState.length / heatmapPerPage)}
                 onClick={() => setHeatmapPage(p => p + 1)}
-                className="ceo-btn" style={{ padding: '4px 12px', opacity: heatmapPage === Math.ceil(heatmapDepts.length / heatmapPerPage) ? 0.5 : 1 }}
+                className="ceo-btn" style={{ padding: '4px 12px', opacity: heatmapPage === Math.ceil(heatmapDeptsState.length / heatmapPerPage) ? 0.5 : 1 }}
               >Next</button>
             </div>
           )}

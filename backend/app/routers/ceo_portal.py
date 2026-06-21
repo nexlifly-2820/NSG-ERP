@@ -341,7 +341,12 @@ def get_dashboard_summary(current_user: models.User = Depends(security.get_curre
 def get_dashboard_heatmap(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
     
-    heatmap_depts = ["Sales", "Engineering", "Marketing", "HR", "Finance"]
+    depts_db = db.query(models.Department).all()
+    if depts_db:
+        heatmap_depts = [d.name for d in depts_db if getattr(d, 'status', 'Active') == 'Active']
+    else:
+        heatmap_depts = ["Sales", "Engineering", "Marketing", "HR", "Finance"]
+        
     calculated_dates = []
     start_date = datetime.now().date() - timedelta(days=13)
     
@@ -354,6 +359,8 @@ def get_dashboard_heatmap(current_user: models.User = Depends(security.get_curre
     users = db.query(models.User).filter(models.User.role == "employee", models.User.status == "active").offset(skip).limit(limit).all()
     dept_users = {dept: [] for dept in heatmap_depts}
     for u in users:
+        # Some users might have department names that differ in case, so let's do case-insensitive mapping if needed, 
+        # but exact match is fine if DB is consistent.
         if u.department in dept_users:
             dept_users[u.department].append(u.id)
             
