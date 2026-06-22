@@ -13,7 +13,7 @@ export default function DocCard({ docType, status, uploadedAt, onUpload, onSimul
     // Validate size (max 5MB)
     const maxSizeBytes = 5 * 1024 * 1024;
     if (file.size > maxSizeBytes) {
-      alert('File size must be under 5MB.');
+      window.toast.warning('File size must be under 5MB.');
       return;
     }
 

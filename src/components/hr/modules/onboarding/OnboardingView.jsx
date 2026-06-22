@@ -340,7 +340,7 @@ export function OnboardingView({ queryParams, setQueryParams }) {
           onUpdateDb({ ...db, onboardingTasks: newTasks });
         }
       } else {
-        alert('Failed to toggle task.');
+        window.toast.error('Failed to toggle task.');
       }
     } catch (e) {
       console.error(e);
@@ -407,7 +407,7 @@ export function OnboardingView({ queryParams, setQueryParams }) {
         onUpdateDb(updates);
         notify('Employee e-signed document via OTP secure portal. Onboarding task updated.');
       } else {
-        alert('Failed to simulate esign.');
+        window.toast.error('Failed to simulate esign.');
       }
     } catch (e) {
       console.error(e);
@@ -428,7 +428,7 @@ export function OnboardingView({ queryParams, setQueryParams }) {
         onUpdateDb({ ...db, esignRequests: [...esignRequests, newReq] });
         notify(`E-signature request for NDA Policy dispatched to ${emp.name} email queue.`, 'info');
       } else {
-        alert('Failed to send request.');
+        window.toast.error('Failed to send request.');
       }
     } catch (e) {
       console.error(e);
@@ -451,7 +451,7 @@ export function OnboardingView({ queryParams, setQueryParams }) {
         const updatedEsigns = esignRequests.filter(r => r.id !== requestId);
         onUpdateDb({ ...db, esignRequests: updatedEsigns });
       } else {
-        alert('Failed to delete request.');
+        window.toast.error('Failed to delete request.');
       }
     } catch (e) {
       console.error(e);

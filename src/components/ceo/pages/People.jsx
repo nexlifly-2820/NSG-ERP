@@ -225,12 +225,12 @@ export default function People() {
 
       if (!response.ok) {
         const err = await response.json();
-        alert(`Error: ${err.detail || 'Failed to add user'}`);
+        window.toast.error(`Error: ${err.detail || 'Failed to add user'}`);
         return;
       }
       
       const result = await response.json();
-      alert(`User ${result.name} successfully added!\n\nRole: ${result.role}\nEmail: ${result.email}\nTemporary Password: ${result.temporary_password}\n\nPlease share these credentials.`);
+      window.toast.success(`User ${result.name} successfully added!\n\nRole: ${result.role}\nEmail: ${result.email}\nTemporary Password: ${result.temporary_password}\n\nPlease share these credentials.`);
       
       setIsAddModalOpen(false);
       setNewEmp({ name: '', empIdInput: '', dept: '', role: '', email: '', phone: '', status: 'Active', sysRole: 'employee', shift: '' });
@@ -253,7 +253,7 @@ export default function People() {
       }
     } catch (err) {
       console.error(err);
-      alert('Network error while adding user.');
+      window.toast.error('Network error while adding user.');
     } finally {
       setLoading(false);
     }
@@ -290,9 +290,9 @@ export default function People() {
       await fetchEmployees();
       setIsEditProfileOpen(false);
       setIsFullProfileOpen(false); // Close full profile to force refresh on next open
-      alert('Profile updated successfully.');
+      window.toast.success('Profile updated successfully.');
     } catch (err) {
-      alert('Error updating profile: ' + err.message);
+      window.toast.error('Error updating profile: ' + err.message);
     } finally {
       setUpdating(false);
     }
@@ -323,9 +323,9 @@ export default function People() {
       
       setIsResetPasswordOpen(false);
       setNewPassword('');
-      alert('Password reset successfully.');
+      window.toast.success('Password reset successfully.');
     } catch (err) {
-      alert('Error resetting password: ' + err.message);
+      window.toast.error('Error resetting password: ' + err.message);
     } finally {
       setUpdating(false);
     }
@@ -350,9 +350,9 @@ export default function People() {
       await fetchEmployees();
       setIsFullProfileOpen(false);
       setSelectedEmp(null);
-      alert('Employee deleted successfully.');
+      window.toast.success('Employee deleted successfully.');
     } catch (err) {
-      alert('Error deleting employee: ' + err.message);
+      window.toast.error('Error deleting employee: ' + err.message);
     } finally {
       setUpdating(false);
     }
@@ -360,7 +360,7 @@ export default function People() {
 
   const handleExportPDF = () => {
     if (filteredEmployees.length === 0) {
-      alert("No data to export");
+      window.toast.info("No data to export");
       return;
     }
     const doc = new jsPDF('landscape');
@@ -919,7 +919,7 @@ export default function People() {
               <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                 <button onClick={() => setIsMessageOpen(false)} className="ceo-btn" style={{ fontWeight: 700 }}>Cancel</button>
                 <button onClick={() => {
-                  alert(`Message sent to ${selectedEmp.name}:\n\n${messageText}`);
+                  window.toast.info(`Message sent to ${selectedEmp.name}:\n\n${messageText}`);
                   setIsMessageOpen(false);
                   setMessageText('');
                 }} className="ceo-btn ceo-btn-primary" style={{ fontWeight: 700 }}>Send Message</button>

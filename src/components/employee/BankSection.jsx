@@ -81,7 +81,7 @@ export default function BankSection({ bankData, onUpdateBank, onSimulateVerify }
   const handleVerifyOtp = (e) => {
     e.preventDefault();
     if (otpCode.length !== 4) {
-      alert('Please enter a valid 4-digit code.');
+      window.toast.warning('Please enter a valid 4-digit code.');
       return;
     }
 
@@ -295,7 +295,7 @@ export default function BankSection({ bankData, onUpdateBank, onSimulateVerify }
                 <span style={{ color: 'var(--text-muted)' }}>Didn't receive code?</span>
                 <button
                   type="button"
-                  onClick={() => alert('OTP code resent!')}
+                  onClick={() => window.toast.info('OTP code resent!')}
                   style={{ background: 'none', border: 'none', color: 'var(--accent-green)', fontWeight: '600', cursor: 'pointer', textDecoration: 'underline' }}
                 >
                   Resend OTP

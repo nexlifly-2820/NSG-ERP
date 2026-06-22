@@ -170,7 +170,7 @@ function ApplyLeaveForm({ prefillType, balances, onSuccess, onRefreshData }) {
       if (onRefreshData) onRefreshData();
     } catch (error) {
       console.error(error);
-      alert(error.message || 'Error submitting leave request');
+      window.toast.error(error.message || 'Error submitting leave request');
     } finally {
       setLoading(false);
       setTimeout(() => {
@@ -413,7 +413,7 @@ export default function Leave() {
       fetchData();
     } catch (error) {
       console.error(error);
-      alert('Error cancelling leave request');
+      window.toast.error('Error cancelling leave request');
     }
     setCancelTarget(null);
   }

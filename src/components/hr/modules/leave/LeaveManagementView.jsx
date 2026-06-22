@@ -57,10 +57,10 @@ export function LeaveManagementView() {
 
   const handleApplyOnBehalf = async (e) => {
     e.preventDefault();
-    if (!behalfEmpId) return alert('Please select an employee.');
+    if (!behalfEmpId) return window.toast.warning('Please select an employee.');
     const empId = Number(behalfEmpId);
     const daysCount = parseFloat(behalfDays) || 0;
-    if (daysCount <= 0) return alert('Please specify a positive number of days.');
+    if (daysCount <= 0) return window.toast.warning('Please specify a positive number of days.');
     
     try {
       const token = localStorage.getItem('nsg_jwt_token');
@@ -80,8 +80,8 @@ export function LeaveManagementView() {
       await fetchData();
       setIsApplyOnBehalfOpen(false);
       setBehalfEmpId(''); setBehalfType('CL'); setBehalfFrom(''); setBehalfTo(''); setBehalfDays(''); setBehalfReason('');
-      alert('Successfully applied and approved leave.');
-    } catch(e) { console.error(e); alert('Error'); }
+      window.toast.success('Successfully applied and approved leave.');
+    } catch(e) { console.error(e); window.toast.error('Error'); }
   };
 
   const handleSaveBalanceAdjustment = async (e) => {
@@ -102,8 +102,8 @@ export function LeaveManagementView() {
       if(!res.ok) throw new Error("Failed");
       await fetchData();
       setEditingBalance(null);
-      alert('Leave balances successfully adjusted.');
-    } catch(e) { console.error(e); alert('Error'); }
+      window.toast.success('Leave balances successfully adjusted.');
+    } catch(e) { console.error(e); window.toast.error('Error'); }
   };
 
   const handleSaveRequestEdit = async (e) => {
@@ -125,8 +125,8 @@ export function LeaveManagementView() {
       if(!res.ok) throw new Error("Failed");
       await fetchData();
       setEditingRequest(null);
-      alert('Leave request successfully updated.');
-    } catch(e) { console.error(e); alert('Error'); }
+      window.toast.success('Leave request successfully updated.');
+    } catch(e) { console.error(e); window.toast.error('Error'); }
   };
 
   const handleDeleteLeaveRequest = async (id) => {
@@ -139,8 +139,8 @@ export function LeaveManagementView() {
       });
       if(!res.ok) throw new Error("Failed");
       await fetchData();
-      alert('Leave request deleted successfully.');
-    } catch(e) { console.error(e); alert('Error'); }
+      window.toast.success('Leave request deleted successfully.');
+    } catch(e) { console.error(e); window.toast.error('Error'); }
   };
 
   const handleApproveLeave = async (id) => {
@@ -152,12 +152,12 @@ export function LeaveManagementView() {
       });
       if(!res.ok) throw new Error("Failed");
       await fetchData();
-      alert('Leave request approved!');
-    } catch(e) { console.error(e); alert('Error'); }
+      window.toast.success('Leave request approved!');
+    } catch(e) { console.error(e); window.toast.error('Error'); }
   };
 
   const handleDenyLeave = async (id) => {
-    if (!denyComment.trim()) return alert('Please specify a reason for denying this leave request.');
+    if (!denyComment.trim()) return window.toast.warning('Please specify a reason for denying this leave request.');
     try {
       const token = localStorage.getItem('nsg_jwt_token');
       const res = await fetch(`/api/hr-portal/leaves/requests/${id}/deny`, {
@@ -167,10 +167,10 @@ export function LeaveManagementView() {
       });
       if(!res.ok) throw new Error("Failed");
       await fetchData();
-      alert('Leave request denied.');
+      window.toast.info('Leave request denied.');
       setDenyingId(null);
       setDenyComment('');
-    } catch(e) { console.error(e); alert('Error'); }
+    } catch(e) { console.error(e); window.toast.error('Error'); }
   };
 
   const pendingRequests = leaveRequests.filter(r => r.status === 'pending');
@@ -201,7 +201,7 @@ export function LeaveManagementView() {
   const currentBalances = leaveBalances.slice((balancesPage - 1) * balancesPerPage, balancesPage * balancesPerPage);
 
   const handleDownloadPDF = () => {
-    alert('Generating Leave History PDF report...');
+    window.toast.info('Generating Leave History PDF report...');
     
     const doc = new jsPDF('landscape', 'pt', 'a4');
     const monthName = new Date(selectedYear, selectedMonth).toLocaleString('default', { month: 'long' });

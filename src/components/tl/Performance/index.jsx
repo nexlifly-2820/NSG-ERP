@@ -71,7 +71,7 @@ export default function Performance({ currentUser }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formState.employeeName || !formState.comments.trim()) {
-      alert('Please select an employee and provide comments.');
+      window.toast.warning('Please select an employee and provide comments.');
       return;
     }
 
@@ -104,10 +104,10 @@ export default function Performance({ currentUser }) {
       const savedScorecard = await response.json();
       setScorecards(prev => [savedScorecard, ...prev]);
       setFormState(prev => ({ ...prev, comments: '' }));
-      alert('Performance scorecard submitted successfully!');
+      window.toast.success('Performance scorecard submitted successfully!');
     } catch (err) {
       console.error(err);
-      alert(err.message || 'Failed to submit the scorecard.');
+      window.toast.error(err.message || 'Failed to submit the scorecard.');
     } finally {
       setSubmitLoading(false);
     }

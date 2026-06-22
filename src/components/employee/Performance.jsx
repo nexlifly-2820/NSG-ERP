@@ -42,10 +42,10 @@ export default function Performance({ currentUser }) {
         throw new Error('Failed to acknowledge scorecard');
       }
       
-      alert('Scorecard acknowledged successfully. Your Team Lead has been notified.');
+      window.toast.success('Scorecard acknowledged successfully. Your Team Lead has been notified.');
       mutate();
     } catch (err) {
-      alert(err.message);
+      window.toast.info(err.message);
     } finally {
       setAcknowledging(null);
     }

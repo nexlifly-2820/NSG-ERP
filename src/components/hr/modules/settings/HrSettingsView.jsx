@@ -31,7 +31,7 @@ export function HrSettingsView() {
         })
       ));
       if (window.toast) window.toast.success('Leave policies saved successfully!');
-      else alert('Leave policies saved successfully!');
+      else window.toast.success('Leave policies saved successfully!');
     } catch (err) { console.error(err); }
   };
 
@@ -66,7 +66,7 @@ export function HrSettingsView() {
   const handleSaveHolidays = () => {
     // Holidays are saved individually via handleAddHoliday — this is now a no-op UI confirmation
     if (window.toast) window.toast.success('Holiday calendar is up to date!');
-    else alert('Holiday calendar is up to date!');
+    else window.toast.info('Holiday calendar is up to date!');
   };
 
   // --- SCHEMA BUILDER ---
@@ -139,12 +139,12 @@ export function HrSettingsView() {
   const handleAddField = () => {
     if (!newField.label) {
       if (window.toast) window.toast.error("Please enter a Display Label before adding a field.");
-      else alert("Please enter a Display Label before adding a field.");
+      else window.toast.warning("Please enter a Display Label before adding a field.");
       return;
     }
     if (!newField.name) {
       if (window.toast) window.toast.error("Please enter a DB Field Name before adding a field.");
-      else alert("Please enter a DB Field Name before adding a field.");
+      else window.toast.warning("Please enter a DB Field Name before adding a field.");
       return;
     }
     const deptSchema = schemas[selectedDept] || [];
@@ -178,11 +178,11 @@ export function HrSettingsView() {
       });
       if (res.ok) {
         if (window.toast) window.toast.success(`${selectedDept} Schema saved successfully!`);
-        else alert(`${selectedDept} Schema saved successfully!`);
+        else window.toast.success(`${selectedDept} Schema saved successfully!`);
       } else {
         const errorData = await res.json().catch(() => ({}));
         if (window.toast) window.toast.error(`Failed to save schema: ${errorData.detail || res.statusText}`);
-        else alert(`Failed to save schema: ${errorData.detail || res.statusText}`);
+        else window.toast.error(`Failed to save schema: ${errorData.detail || res.statusText}`);
       }
     } catch (err) {
       console.error(err);
@@ -255,7 +255,7 @@ export function HrSettingsView() {
       if (window.toast) {
         window.toast.error("Failed to save geofence settings.");
       } else {
-        alert("Failed to save geofence settings.");
+        window.toast.error("Failed to save geofence settings.");
       }
     }
   };
@@ -275,7 +275,7 @@ export function HrSettingsView() {
         if (window.toast) {
           window.toast.error("Failed to retrieve current location. Please ensure location permissions are enabled in your browser.");
         } else {
-          alert("Failed to retrieve current location. Please ensure location permissions are enabled in your browser.");
+          window.toast.error("Failed to retrieve current location. Please ensure location permissions are enabled in your browser.");
         }
         setGpsLoading(false);
       },

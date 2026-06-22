@@ -68,11 +68,11 @@ export default function Resignation({ currentUser }) {
         })
       });
       if (res.ok) {
-        showToast('Resignation submitted successfully.');
+        window.showToast('Resignation submitted successfully.');
         fetchResignation();
       } else {
         const err = await res.json();
-        alert(err.detail || 'Error submitting resignation');
+        window.toast.error(err.detail || 'Error submitting resignation');
       }
     } catch (e) { console.error(e); }
   };
@@ -86,7 +86,7 @@ export default function Resignation({ currentUser }) {
       });
       if (res.ok) {
          setEarlyReliefStatus('requested');
-         showToast('Early relief requested.');
+         window.showToast('Early relief requested.');
       }
     } catch(e){}
   };
@@ -104,7 +104,7 @@ export default function Resignation({ currentUser }) {
       daysServed: 25 // bump served days close to completion
     });
     setEarlyReliefStatus('approved');
-    showToast('Early relief approved! LWD rescheduled.');
+    window.showToast('Early relief approved! LWD rescheduled.');
   };
 
   const handleResetResignation = async () => {
@@ -117,16 +117,16 @@ export default function Resignation({ currentUser }) {
       if (res.ok) {
         setResignationData(null);
         setEarlyReliefStatus(null);
-        showToast('Resignation withdrawn.');
+        window.showToast('Resignation withdrawn.');
         fetchResignation();
       }
     } catch (e) { console.error(e); }
   };
 
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  };
+//   const showToast = (msg) => {
+//     setToast(msg);
+//     setTimeout(() => setToast(null), 3000);
+//   };
 
   return (
     <div className="component-container">
@@ -176,7 +176,7 @@ export default function Resignation({ currentUser }) {
       ` }} />
 
       {/* Success Toast Notification */}
-      {toast && (
+      {false && (
         <div className="toast-notify">
           <CheckCircle2 size={16} style={{ color: 'var(--accent-green)' }} />
           <span>{toast}</span>

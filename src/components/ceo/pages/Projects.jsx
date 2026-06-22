@@ -125,7 +125,7 @@ export default function Projects({ currentUser }) {
       }
       setter({ ...stateObj, attachments: JSON.stringify(currentAttachments) });
     } catch (err) {
-      alert('File upload failed: ' + err.message);
+      window.toast.error('File upload failed: ' + err.message);
     } finally {
       setUploading(false);
     }
@@ -162,7 +162,7 @@ export default function Projects({ currentUser }) {
       setSignoffProject(null);
       setSignature(false);
     } catch (err) {
-      alert('Failed to sign off project: ' + err.message);
+      window.toast.error('Failed to sign off project: ' + err.message);
     } finally {
       setSigningOff(false);
     }
@@ -192,7 +192,7 @@ export default function Projects({ currentUser }) {
       mutateProjects();
       setEditProject(null);
     } catch (err) {
-      alert('Failed to save project: ' + err.message);
+      window.toast.error('Failed to save project: ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -240,7 +240,7 @@ export default function Projects({ currentUser }) {
       setNewProject({ name: '', client: '', department: '', budget: '', used: '', status: '', deadline: '', checklist: '', attachments: '' });
       setErrors({});
     } catch (err) {
-      alert('Failed to create project: ' + err.message);
+      window.toast.error('Failed to create project: ' + err.message);
     } finally {
       setCreating(false);
     }
@@ -254,9 +254,9 @@ export default function Projects({ currentUser }) {
       });
       if (!res.ok) throw new Error('Delete failed');
       mutateProjects();
-      if (typeof alert !== "undefined") alert('Project deleted successfully.');
+      if (typeof alert !== "undefined") window.toast.success('Project deleted successfully.');
     } catch (err) {
-      if (typeof alert !== "undefined") alert('Failed to delete project: ' + err.message);
+      if (typeof alert !== "undefined") window.toast.error('Failed to delete project: ' + err.message);
     } finally {
       setProjectToDelete(null);
     }

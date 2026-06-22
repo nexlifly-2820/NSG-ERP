@@ -647,7 +647,7 @@ const Projects = () => {
                   className={styles.startSprintBtn}
                   style={{ background: '#8b5cf6', marginTop: 0, padding: '12px 24px' }}
                   onClick={async () => {
-                    if (!sprintName.trim()) { alert('Please enter a sprint name.'); return; }
+                    if (!sprintName.trim()) { window.toast.warning('Please enter a sprint name.'); return; }
                     
                     if (editingSprintId) {
                       const updatedSprintData = { name: sprintName, goal: sprintGoal, start_date: startDate, end_date: endDate, sp_target: spTarget };
@@ -1180,8 +1180,8 @@ const Projects = () => {
                 </button>
                 <button
                   onClick={async () => {
-                    if (!milestoneName.trim()) { alert('Please enter a milestone name.'); return; }
-                    if (!milestoneDueDate) { alert('Please select a due date.'); return; }
+                    if (!milestoneName.trim()) { window.toast.warning('Please enter a milestone name.'); return; }
+                    if (!milestoneDueDate) { window.toast.warning('Please select a due date.'); return; }
                     try {
                       const res = await fetch(`/api/team-lead/projects/${activeProject.id}/milestones`, {
                         method: 'POST',
@@ -1200,7 +1200,7 @@ const Projects = () => {
                         setShowMilestoneForm(false);
                         if (window.toast) window.toast.success("Milestone created successfully!");
                       } else {
-                        alert("Failed to create milestone");
+                        window.toast.error("Failed to create milestone");
                       }
                     } catch (err) {
                       console.error(err);

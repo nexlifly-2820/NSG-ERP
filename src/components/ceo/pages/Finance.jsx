@@ -529,8 +529,8 @@ export default function Finance() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) fetchFinanceData();
-      else alert(`Failed to ${action} approval.`);
-    } catch (e) { alert(`Error during ${action} action.`); }
+      else window.toast.error(`Failed to ${action} approval.`);
+    } catch (e) { window.toast.error(`Error during ${action} action.`); }
   };
 
   const handleActionBudget = async (id, action) => {
@@ -540,8 +540,8 @@ export default function Finance() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) fetchFinanceData();
-      else alert(`Failed to ${action} budget.`);
-    } catch (e) { alert(`Error during budget action.`); }
+      else window.toast.error(`Failed to ${action} budget.`);
+    } catch (e) { window.toast.error(`Error during budget action.`); }
   };
 
   const handleSaveSalaryStructure = async (components) => {
@@ -555,8 +555,8 @@ export default function Finance() {
         body: JSON.stringify({ components })
       });
       if (res.ok) fetchFinanceData();
-      else alert('Failed to save salary structure.');
-    } catch (e) { alert('Error saving salary structure.'); }
+      else window.toast.error('Failed to save salary structure.');
+    } catch (e) { window.toast.error('Error saving salary structure.'); }
   };
 
   const handleSaveKpi = async () => {
@@ -592,8 +592,8 @@ export default function Finance() {
       if (res.ok) {
         setShowKpiModal(false);
         fetchFinanceData();
-      } else alert('Failed to save KPIs.');
-    } catch (e) { alert('Error saving KPIs.'); }
+      } else window.toast.error('Failed to save KPIs.');
+    } catch (e) { window.toast.error('Error saving KPIs.'); }
   };
 
   if (loading) {

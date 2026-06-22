@@ -156,13 +156,13 @@ export default function Profile({ currentUser }) {
       if (res.ok) {
         setPersonalDetails({ dob, gender, address, emergencyContactName: emergencyContactName.trim(), emergencyContactPhone: emergencyContactPhone.trim() });
         setIsEditingDetails(false);
-        showToast('Personal details saved to database ✓');
+        window.showToast('Personal details saved to database ✓');
       } else {
-        showToast('Failed to save details — please try again');
+        window.showToast('Failed to save details — please try again');
       }
     } catch (err) {
       console.error(err);
-      showToast('Network error saving details');
+      window.showToast('Network error saving details');
     }
   };
 
@@ -183,13 +183,13 @@ export default function Profile({ currentUser }) {
         body: JSON.stringify({ documents: updatedDocs })
       });
     } catch (e) { console.error(e); }
-    showToast(fileName ? 'Document uploaded & saved to database ✓' : 'Document removed');
+    window.showToast(fileName ? 'Document uploaded & saved to database ✓' : 'Document removed');
   };
 
   const handleSimulateVerifyDoc = (id, status) => {
     const updatedDocs = docs.map(d => d.id === id ? { ...d, status } : d);
     setDocs(updatedDocs);
-    showToast(`Document status updated to ${status}`);
+    window.showToast(`Document status updated to ${status}`);
   };
 
   // Canvas-based 1:1 Avatar center cropping
@@ -224,10 +224,10 @@ export default function Profile({ currentUser }) {
     }
   };
 
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  };
+//   const showToast = (msg) => {
+//     setToast(msg);
+//     setTimeout(() => setToast(null), 3000);
+//   };
 
   const toggleSection = (sectionName) => {
     setExpandedSection(expandedSection === sectionName ? null : sectionName);
@@ -583,7 +583,7 @@ export default function Profile({ currentUser }) {
                           document.body.appendChild(element);
                           element.click();
                           document.body.removeChild(element);
-                          showToast(`Downloaded ${doc.original_filename || doc.fileName || docLabel}`);
+                          window.showToast(`Downloaded ${doc.original_filename || doc.fileName || docLabel}`);
                         } else {
                           const element = document.createElement("a");
                           const file = new Blob([`Simulated document content for: ${docLabel}`], {type: 'text/plain'});
@@ -592,7 +592,7 @@ export default function Profile({ currentUser }) {
                           document.body.appendChild(element);
                           element.click();
                           document.body.removeChild(element);
-                          showToast(`Downloaded ${docLabel}`);
+                          window.showToast(`Downloaded ${docLabel}`);
                         }
                       }}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-blue)', display: 'flex', alignItems: 'center' }}
@@ -653,22 +653,22 @@ export default function Profile({ currentUser }) {
                       if (res.ok) {
                         const data = await res.json();
                         setDocs(data.documents);
-                        showToast('Document uploaded successfully & saved to DB ✓');
+                        window.showToast('Document uploaded successfully & saved to DB ✓');
                         setNewDocName('');
                         setNewDocFile(null);
                         const fileInput = document.getElementById('newDocFileInput');
                         if (fileInput) fileInput.value = '';
                       } else {
-                        showToast('Failed to upload document to server');
+                        window.showToast('Failed to upload document to server');
                       }
                     } catch (e) {
                       console.error(e);
-                      showToast('Network error uploading document');
+                      window.showToast('Network error uploading document');
                     } finally {
                       setIsUploadingDoc(false);
                     }
                   } else {
-                    alert('Please provide a document name and file.');
+                    window.toast.warning('Please provide a document name and file.');
                   }
                 }}
                 style={{ backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}
@@ -806,7 +806,7 @@ export default function Profile({ currentUser }) {
       ` }} />
 
       {/* Success Toast */}
-      {toast && (
+      {false && (
         <div className="toast-notify">
           <Check size={16} style={{ color: 'var(--accent-green)' }} />
           <span>{toast}</span>
@@ -903,16 +903,16 @@ export default function Profile({ currentUser }) {
                       setAvatar(croppedImageSrc);
                       setShowCropModal(false);
                       setCroppedImageSrc(null);
-                      showToast('Profile photo saved to database ✓');
+                      window.showToast('Profile photo saved to database ✓');
                     } else {
-                      showToast('Failed to save photo');
+                      window.showToast('Failed to save photo');
                     }
                   } catch (e) {
                     // Fallback: save locally if network fails
                     setAvatar(croppedImageSrc);
                     setShowCropModal(false);
                     setCroppedImageSrc(null);
-                    showToast('Photo updated (offline mode)');
+                    window.showToast('Photo updated (offline mode)');
                   }
                 }}
                 style={{

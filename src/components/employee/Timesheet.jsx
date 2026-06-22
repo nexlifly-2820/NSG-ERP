@@ -155,7 +155,7 @@ export default function Timesheet() {
         fetchTimesheets();
       } else {
         const err = await res.json();
-        alert(err.detail || "Failed to delete.");
+        window.toast.error(err.detail || "Failed to delete.");
       }
     } catch(e) {}
   };

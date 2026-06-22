@@ -171,18 +171,18 @@ export default function Settings() {
     }
   };
 
-  const showToast = (msg, type = 'success') => {
-    if (window.toast) {
-      if (type === 'error') {
-        window.toast.error(msg);
-      } else {
-        window.toast.success(msg);
-      }
-    } else {
-      setToastMsg(msg);
-      setTimeout(() => setToastMsg(''), 3000);
-    }
-  };
+//   const showToast = (msg, type = 'success') => {
+//     if (window.toast) {
+//       if (type === 'error') {
+//         window.toast.error(msg);
+//       } else {
+//         window.toast.success(msg);
+//       }
+//     } else {
+//       setToastMsg(msg);
+//       setTimeout(() => setToastMsg(''), 3000);
+//     }
+//   };
 
   const handleSaveChanges = async () => {
     setIsSaving(true);
@@ -213,7 +213,7 @@ export default function Settings() {
     setIsSaving(false);
     if (success) {
       setHasUnsavedChanges(false);
-      showToast('Settings saved securely to the server.', 'success');
+      window.showToast('Settings saved securely to the server.', 'success');
       
       const token = localStorage.getItem('nsg_jwt_token');
       if (token) {
@@ -230,7 +230,7 @@ export default function Settings() {
         }
       }
     } else {
-      showToast('Failed to save settings. Please try again.', 'error');
+      window.showToast('Failed to save settings. Please try again.', 'error');
     }
   };
 
@@ -272,7 +272,7 @@ export default function Settings() {
   };
 
   const handleDownloadPDF = () => {
-    alert('Generating Audit Logs PDF report...');
+    window.toast.info('Generating Audit Logs PDF report...');
     
     const doc = new jsPDF('landscape', 'pt', 'a4');
     
@@ -356,7 +356,7 @@ export default function Settings() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', paddingBottom: '32px', position: 'relative' }}>
       
       {/* GLOBAL TOAST NOTIFICATION */}
-      {toastMsg && (
+      {false && (
         <div style={{
           position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)',
           background: 'var(--ceo-text-primary)', color: '#FFF', padding: '12px 24px',

@@ -94,7 +94,7 @@ export default function Tasks({ currentUser }) {
     if (files.length === 0) return;
 
     if (taskAttachments.length + files.length > 10) {
-      alert("You can upload a maximum of 10 files per task.");
+      window.toast.warning("You can upload a maximum of 10 files per task.");
       return;
     }
 
@@ -117,11 +117,11 @@ export default function Tasks({ currentUser }) {
           const data = await res.json();
           uploaded.push({ filename: data.filename, file_url: data.file_url });
         } else {
-          alert(`Failed to upload ${file.name}`);
+          window.toast.error(`Failed to upload ${file.name}`);
         }
       } catch (err) {
         console.error(err);
-        alert(`Error uploading ${file.name}`);
+        window.toast.error(`Error uploading ${file.name}`);
       }
     }
     setTaskAttachments(prev => [...prev, ...uploaded]);
@@ -220,12 +220,12 @@ export default function Tasks({ currentUser }) {
       });
       if (res.ok) {
         if (window.toast) window.toast.success("Task deleted successfully!");
-        else alert("Task deleted successfully!");
+        else window.toast.success("Task deleted successfully!");
         mutateTasks();
       } else {
         const data = await res.json();
         if (window.toast) window.toast.error(data.detail || "Failed to delete task");
-        else alert(data.detail || "Failed to delete task");
+        else window.toast.error(data.detail || "Failed to delete task");
       }
     } catch (err) { console.error(err); } finally {
       setDeleteModalOpen(false);
@@ -334,7 +334,7 @@ export default function Tasks({ currentUser }) {
   const handleCreateTask = async (e) => {
     e.preventDefault();
     if(!taskTitle.trim() || taskAssignees.length === 0 || !taskProject || !taskSprint) {
-      alert("Please enter a task title, select at least one assignee, select a project, and select a sprint ID");
+      window.toast.warning("Please enter a task title, select at least one assignee, select a project, and select a sprint ID");
       return;
     }
     setLoading(true);
@@ -399,7 +399,7 @@ export default function Tasks({ currentUser }) {
         setActiveView(editingTaskId ? previousViewRef.current : 'list');
         mutateTasks();
         if (window.toast) window.toast.success(editingTaskId ? "Task updated successfully!" : "Task created successfully!");
-        else alert(editingTaskId ? "Task updated successfully!" : "Task created successfully!");
+        else window.toast.success(editingTaskId ? "Task updated successfully!" : "Task created successfully!");
         setSubtasks(['']);
       } else {
         const errorData = await res.json().catch(() => ({ detail: "Unknown error occurred" }));
@@ -408,11 +408,11 @@ export default function Tasks({ currentUser }) {
           ? (typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail)) 
           : "Failed to save task";
         if (window.toast) window.toast.error(errorMsg);
-        else alert(errorMsg);
+        else window.toast.error(errorMsg);
       }
     } catch (e) { 
       console.error(e);
-      alert("An error occurred: " + e.message);
+      window.toast.error("An error occurred: " + e.message);
     } finally {
       setLoading(false);
     }
@@ -706,11 +706,11 @@ export default function Tasks({ currentUser }) {
                                   const data = await res.json();
                                   uploaded.push({ filename: data.filename, file_url: data.file_url });
                                 } else {
-                                  alert(`Failed to upload ${f.name}`);
+                                  window.toast.error(`Failed to upload ${f.name}`);
                                 }
                               } catch (err) {
                                 console.error(err);
-                                alert(`Error uploading ${f.name}`);
+                                window.toast.error(`Error uploading ${f.name}`);
                               }
                             }
                             setCustomFields(prev => ({ ...prev, [field.name]: uploaded }));
@@ -859,7 +859,7 @@ export default function Tasks({ currentUser }) {
                                 
                                 const currentList = statusAttachments[stKey] || [];
                                 if (currentList.length + files.length > 10) {
-                                  alert("You can upload a maximum of 10 files per status.");
+                                  window.toast.warning("You can upload a maximum of 10 files per status.");
                                   return;
                                 }
 
@@ -879,11 +879,11 @@ export default function Tasks({ currentUser }) {
                                       const data = await res.json();
                                       uploaded.push({ filename: data.filename, file_url: data.file_url });
                                     } else {
-                                      alert(`Failed to upload ${file.name}`);
+                                      window.toast.error(`Failed to upload ${file.name}`);
                                     }
                                   } catch (err) {
                                     console.error(err);
-                                    alert(`Error uploading ${file.name}`);
+                                    window.toast.error(`Error uploading ${file.name}`);
                                   }
                                 }
 

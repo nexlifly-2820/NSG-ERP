@@ -114,7 +114,7 @@ export default function Announcements() {
   // Delete announcement
   const handleDelete = async (id) => {
     if (!id) {
-      alert("Error: Announcement ID is missing.");
+      window.toast.error("Error: Announcement ID is missing.");
       return;
     }
     if (!window.confirm('Are you sure you want to delete this announcement?')) return;
@@ -128,10 +128,10 @@ export default function Announcements() {
         await fetchAnnouncements();
       } else {
         const errText = await res.text();
-        alert(`Failed to delete announcement. Status: ${res.status}. Error: ${errText}`);
+        window.toast.error(`Failed to delete announcement. Status: ${res.status}. Error: ${errText}`);
       }
     } catch (err) {
-      alert('Error deleting: ' + err.message);
+      window.toast.error('Error deleting: ' + err.message);
     }
   };
 

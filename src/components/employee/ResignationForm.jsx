@@ -35,7 +35,7 @@ export default function ResignationForm({ onSubmit }) {
   const handleFinalSubmit = (e) => {
     e.preventDefault();
     if (confirmInputText !== 'RESIGN') {
-      alert('Please type RESIGN exactly to confirm.');
+      window.toast.warning('Please type RESIGN exactly to confirm.');
       return;
     }
 

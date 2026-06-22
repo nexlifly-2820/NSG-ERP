@@ -144,7 +144,7 @@ export function LearningLndView() {
       });
       
       if (res.ok) {
-        alert(`Training Track "${trackName}" deployed to LMS!`);
+        window.toast.info(`Training Track "${trackName}" deployed to LMS!`);
         fetchData();
         setIsBuilderOpen(false);
         setEditingTrack(null);
@@ -152,7 +152,7 @@ export function LearningLndView() {
         setM1Title('');
         setM2Title('');
       } else {
-        alert('Failed to deploy course track.');
+        window.toast.error('Failed to deploy course track.');
       }
     } catch (e) {
       console.error(e);
@@ -225,7 +225,7 @@ export function LearningLndView() {
       auditLogs: newLogs
     });
 
-    alert(`Quiz pass simulated for ${emp.name}! Quiz Score: 92% committed. Compliance lock-gate successfully unblocked.`);
+    window.toast.success(`Quiz pass simulated for ${emp.name}! Quiz Score: 92% committed. Compliance lock-gate successfully unblocked.`);
   };
 
   return (

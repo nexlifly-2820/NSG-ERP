@@ -172,7 +172,7 @@ function ClockInOutPanel({ clockState, onClockIn, onClockOut, liveClock, elapsed
         </div>
       )}
 
-      {toast && (
+      {false && (
         <div className={`att-toast att-toast--${toast.type}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginTop: 12 }} onClick={onDismissToast}>
           <AlertTriangle size={14} />
           <span>{toast.msg}</span>
@@ -547,7 +547,7 @@ function WfhRequestForm() {
         {loading ? 'Submitting…' : 'Submit WFH Request'}
       </button>
 
-      {toast && (
+      {false && (
         <div className={`att-toast att-toast--${toast.type}`}>
           <CheckCircle2 size={14} />
           {toast.msg}

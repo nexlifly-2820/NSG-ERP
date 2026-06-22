@@ -281,7 +281,7 @@ export function ExitFnFView() {
   const handleSignNOC = async (e) => {
     e.preventDefault();
     if (!hrSign.trim()) {
-      alert('Please fill in your digital signature to sign off.');
+      window.toast.warning('Please fill in your digital signature to sign off.');
       return;
     }
 
@@ -313,18 +313,18 @@ export function ExitFnFView() {
     };
 
     html2pdf().set(opt).from(htmlContent).save().then(() => {
-      alert('NOC fully signed and downloaded. ERP login session revoked.');
+      window.toast.info('NOC fully signed and downloaded. ERP login session revoked.');
       setHrSign('');
     }).catch(err => {
       console.error(err);
-      alert('Failed to generate PDF.');
+      window.toast.error('Failed to generate PDF.');
     });
   };
 
   const handleSignRelieving = async (e) => {
     e.preventDefault();
     if (!relievingSign.trim()) {
-      alert('Please fill in your digital signature to sign off.');
+      window.toast.warning('Please fill in your digital signature to sign off.');
       return;
     }
 
@@ -352,11 +352,11 @@ export function ExitFnFView() {
     };
 
     html2pdf().set(opt).from(htmlContent).save().then(() => {
-      alert('Relieving Letter fully signed and downloaded.');
+      window.toast.info('Relieving Letter fully signed and downloaded.');
       setRelievingSign('');
     }).catch(err => {
       console.error(err);
-      alert('Failed to generate PDF.');
+      window.toast.error('Failed to generate PDF.');
     });
   };
 
