@@ -78,7 +78,7 @@ export default function Vendors() {
         setIsAddModalOpen(false);
         fetchVendors();
       } else {
-        alert("Failed to add vendor or Vendor ID already exists");
+        window.toast.error("Failed to add vendor or Vendor ID already exists");
       }
     } catch(e) {}
   };

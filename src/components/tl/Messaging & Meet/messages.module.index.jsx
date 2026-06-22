@@ -408,7 +408,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
 
     if (attachmentFile) {
       if (!isOnline) {
-         alert("Cannot upload attachments while offline.");
+         window.toast.error("Cannot upload attachments while offline.");
          return;
       }
       setIsUploading(true);
@@ -427,11 +427,11 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
           attachType = data.type;
         } else {
           const errText = await res.text();
-          alert("Upload failed with status " + res.status + ": " + errText);
+          window.toast.error("Upload failed with status " + res.status + ": " + errText);
         }
       } catch (err) { 
         console.error("Upload failed", err); 
-        alert("Upload failed: " + err.message);
+        window.toast.error("Upload failed: " + err.message);
       }
       setIsUploading(false);
       clearAttachment();
@@ -541,7 +541,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
   // Start Call WebRTC
   const handleStartCall = () => {
     if (!isOnline) {
-      alert("You are offline. Cannot start video call without an internet connection.");
+      window.toast.error("You are offline. Cannot start video call without an internet connection.");
       return;
     }
     // Only use HuddleModal, avoid the broken floating PIP
@@ -750,7 +750,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
         setSelectedChannel(selectedChannel); // keeps same id, just name changed
         setIsEditChannelOpen(false);
       } else {
-        alert("Failed to edit channel.");
+        window.toast.error("Failed to edit channel.");
       }
     } catch (err) {
       console.error(err);
@@ -759,7 +759,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
 
   const handleDeleteChannel = async () => {
     if (dbChannels.length <= 1) {
-      alert("You cannot delete the last channel.");
+      window.toast.error("You cannot delete the last channel.");
       return;
     }
     if (window.confirm(`Are you sure you want to delete #${selectedChannel}?`)) {
@@ -813,7 +813,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         console.error('Edit failed:', res.status, err);
-        alert('Failed to edit message: ' + (err.detail || res.status));
+        window.toast.error('Failed to edit message: ' + (err.detail || res.status));
         return;
       }
       setEditingMessageId(null);
@@ -832,7 +832,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        alert('Failed to delete: ' + (err.detail || res.status));
+        window.toast.error('Failed to delete: ' + (err.detail || res.status));
         return;
       }
       fetchChannelsAndMessages();

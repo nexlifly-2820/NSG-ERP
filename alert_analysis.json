@@ -1,0 +1,162 @@
+﻿[
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\ceo\\pages\\Announcements.jsx",
+        "Count":  3
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\ceo\\pages\\Approvals.jsx",
+        "Count":  1
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\ceo\\pages\\Dashboard.jsx",
+        "Count":  4
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\ceo\\pages\\DocumentVault.jsx",
+        "Count":  7
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\ceo\\pages\\Finance.jsx",
+        "Count":  8
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\ceo\\pages\\Messaging.jsx",
+        "Count":  10
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\ceo\\pages\\People.jsx",
+        "Count":  11
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\ceo\\pages\\Projects.jsx",
+        "Count":  6
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\ceo\\pages\\Settings.jsx",
+        "Count":  1
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\ceo\\pages\\Vendors.jsx",
+        "Count":  1
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\employee\\BankSection.jsx",
+        "Count":  2
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\employee\\DocCard.jsx",
+        "Count":  1
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\employee\\EmployeeDashboard.jsx",
+        "Count":  5
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\employee\\Expenses.jsx",
+        "Count":  5
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\employee\\Help.jsx",
+        "Count":  2
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\employee\\Leave.jsx",
+        "Count":  2
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\employee\\Messaging.jsx",
+        "Count":  8
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\employee\\Performance.jsx",
+        "Count":  2
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\employee\\Profile.jsx",
+        "Count":  1
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\employee\\Resignation.jsx",
+        "Count":  1
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\employee\\ResignationForm.jsx",
+        "Count":  1
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\employee\\Tasks.jsx",
+        "Count":  7
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\employee\\Timesheet.jsx",
+        "Count":  1
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\hr\\modules\\attendance\\AttendanceRegisterView.jsx",
+        "Count":  1
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\hr\\modules\\employees\\EmployeeRegistryView.jsx",
+        "Count":  2
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\hr\\modules\\exits\\ExitFnFView.jsx",
+        "Count":  6
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\hr\\modules\\leave\\LeaveManagementView.jsx",
+        "Count":  16
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\hr\\modules\\lnd\\LearningLndView.jsx",
+        "Count":  3
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\hr\\modules\\messaging\\HrMessagingView.jsx",
+        "Count":  10
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\hr\\modules\\onboarding\\OnboardingView.jsx",
+        "Count":  4
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\hr\\modules\\settings\\HrSettingsView.jsx",
+        "Count":  8
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\hr\\modules\\timesheets\\ManageApprovals.jsx",
+        "Count":  2
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\hr\\utils\\notify.js",
+        "Count":  1
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\tl\\Attendance\\TeamAttendance.jsx",
+        "Count":  2
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\tl\\Escalations\\index.jsx",
+        "Count":  3
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\tl\\Messaging \u0026 Meet\\messages.module.index.jsx",
+        "Count":  8
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\tl\\Performance\\index.jsx",
+        "Count":  3
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\tl\\Projects\\projects.index.jsx",
+        "Count":  4
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\tl\\Tasks\\index.jsx",
+        "Count":  14
+    },
+    {
+        "File":  "C:\\Users\\vivek chamanthula\\Desktop\\Nsg Erp\\NSG-ERP\\src\\components\\tl\\Timesheets\\TeamTimesheets.jsx",
+        "Count":  2
+    }
+]

@@ -222,14 +222,14 @@ export default function Dashboard() {
           const s = await summaryRes.json();
           setSummaryData(s);
         }
-        alert(`✅ ${item.type} approved successfully!`);
+        window.toast.success(`✅ ${item.type} approved successfully!`);
       } else {
         const err = res ? await res.json().catch(() => ({})) : {};
-        alert(`❌ Failed to approve: ${err.detail || 'Server error'}`);
+        window.toast.error(`❌ Failed to approve: ${err.detail || 'Server error'}`);
       }
     } catch (e) {
       console.error(e);
-      alert('❌ Connection failed.');
+      window.toast.error('❌ Connection failed.');
     }
   };
 
@@ -306,7 +306,7 @@ export default function Dashboard() {
 
     fetchData();
     setSelectedApprovals(new Set());
-    alert(`✅ Bulk action complete: ${successCount} of ${itemsToApprove.length} approvals processed successfully.`);
+    window.toast.success(`✅ Bulk action complete: ${successCount} of ${itemsToApprove.length} approvals processed successfully.`);
   };
 
   // Helper for heatmap colors based on %

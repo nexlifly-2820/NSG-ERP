@@ -668,7 +668,7 @@ export default function Profile({ currentUser }) {
                       setIsUploadingDoc(false);
                     }
                   } else {
-                    alert('Please provide a document name and file.');
+                    window.toast.warning('Please provide a document name and file.');
                   }
                 }}
                 style={{ backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}

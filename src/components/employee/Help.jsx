@@ -50,12 +50,12 @@ export default function Help({ currentUser }) {
         fetchTickets();
         return `TKT-${data.id}`;
       } else {
-        alert('Failed to log ticket');
+        window.toast.error('Failed to log ticket');
         return null;
       }
     } catch (e) {
       console.error(e);
-      alert('Network error');
+      window.toast.error('Network error');
       return null;
     }
   };

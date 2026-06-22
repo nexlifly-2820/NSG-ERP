@@ -85,7 +85,7 @@ export function AttendanceRegisterView() {
 
   const handleDenyCorrection = async (id) => {
     if (!denyComment.trim()) {
-      alert('Please specify a reason for denying the request.');
+      window.toast.warning('Please specify a reason for denying the request.');
       return;
     }
     const token = localStorage.getItem('nsg_jwt_token');

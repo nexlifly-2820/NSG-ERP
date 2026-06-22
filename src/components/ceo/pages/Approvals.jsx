@@ -491,7 +491,7 @@ export default function ApprovalsPage() {
       });
       if (res.ok) {
         setPromotions(prev => prev.map(p => p.id === id ? { ...p, status: decision } : p));
-        alert(decision === 'approved_by_ceo' ? '✅ Promotion approved! Employee notified.' : '❌ Promotion rejected. Employee notified.');
+        window.toast.success(decision === 'approved_by_ceo' ? '✅ Promotion approved! Employee notified.' : '❌ Promotion rejected. Employee notified.');
       }
     } catch (err) {
       console.error(err);

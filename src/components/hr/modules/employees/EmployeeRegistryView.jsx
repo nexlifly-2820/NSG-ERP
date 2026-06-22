@@ -665,7 +665,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
         
         notify(`Malware Scan Clean! Document ${docType} successfully uploaded & enqueued for verification.`);
       } else {
-        alert('Failed to upload document.');
+        window.toast.error('Failed to upload document.');
       }
     } catch (err) {
       console.error(err);
@@ -696,7 +696,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
         
         notify(`Document ${docType} successfully verified and stamped ✓`);
       } else {
-        alert('Failed to verify document.');
+        window.toast.error('Failed to verify document.');
       }
     } catch (err) {
       console.error(err);

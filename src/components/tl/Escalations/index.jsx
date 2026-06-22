@@ -38,7 +38,7 @@ const Escalations = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formState.title || !formState.taskId || !formState.description) {
-      alert('Please fill out the Blocker Title, Task ID and Description.');
+      window.toast.warning('Please fill out the Blocker Title, Task ID and Description.');
       return;
     }
 
@@ -61,7 +61,7 @@ const Escalations = () => {
         fetchData();
         setFormState({ title: '', taskId: '', description: '', dependencies: '', severity: 'Medium' });
       } else {
-        alert('Failed to raise escalation');
+        window.toast.error('Failed to raise escalation');
       }
     } catch (e) {
       console.error(e);
@@ -77,7 +77,7 @@ const Escalations = () => {
       if (res.ok) {
         fetchData();
       } else {
-        alert('Failed to resolve escalation');
+        window.toast.error('Failed to resolve escalation');
       }
     } catch (e) {
       console.error(e);

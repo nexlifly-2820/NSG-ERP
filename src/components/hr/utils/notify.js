@@ -5,6 +5,6 @@ export function notify(msg, type = 'success') {
     else if (type === 'info') window.toast.info(msg);
     else window.toast.success(msg);
   } else {
-    alert(msg);
+    window.toast.info(msg);
   }
 }

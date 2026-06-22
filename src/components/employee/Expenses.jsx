@@ -57,11 +57,11 @@ export default function Expenses({ currentUser }) {
         fetchClaims();
         if (isMobile) setMobileTab('history');
       } else {
-        alert('Failed to submit claim.');
+        window.toast.error('Failed to submit claim.');
       }
     } catch (e) {
       console.error(e);
-      alert('Error submitting claim.');
+      window.toast.error('Error submitting claim.');
     }
   };
 
@@ -69,7 +69,7 @@ export default function Expenses({ currentUser }) {
     const claim = claims.find(c => c.id === id);
     if (!claim) return;
     if (claim.tlStatus !== 'pending') {
-      alert('Only pending claims can be canceled.');
+      window.toast.info('Only pending claims can be canceled.');
       return;
     }
     setConfirmCancelId(id);
@@ -92,10 +92,10 @@ export default function Expenses({ currentUser }) {
         showToast('Claim cancelled successfully.');
       } else {
         const err = await res.json();
-        alert(err.detail || 'Failed to cancel claim');
+        window.toast.error(err.detail || 'Failed to cancel claim');
       }
     } catch (e) {
-      alert('Network error cancelling claim');
+      window.toast.error('Network error cancelling claim');
     }
     setConfirmCancelId(null);
   };

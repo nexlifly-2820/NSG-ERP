@@ -308,11 +308,11 @@ function DynamicCustomForm({ task, schema, onUpdate, onClose }) {
                           const data = await res.json();
                           uploaded.push({ filename: data.filename, file_url: data.file_url });
                         } else {
-                          alert(`Failed to upload ${f.name}`);
+                          window.toast.error(`Failed to upload ${f.name}`);
                         }
                       } catch (err) {
                         console.error(err);
-                        alert(`Error uploading ${f.name}`);
+                        window.toast.error(`Error uploading ${f.name}`);
                       }
                     }
                     setCustomData(prev => ({ ...prev, [field.name]: uploaded }));
@@ -416,11 +416,11 @@ function TaskDetailPanel({ task, onClose, onUpdate }) {
         if (window.toast) window.toast.success("Notes saved successfully!");
         if (onClose) onClose();
       } else {
-        alert("Failed to save notes");
+        window.toast.error("Failed to save notes");
       }
     } catch(err) {
       console.error(err);
-      alert("Error saving notes");
+      window.toast.error("Error saving notes");
     }
     setSavingNotes(false);
   };
@@ -431,7 +431,7 @@ function TaskDetailPanel({ task, onClose, onUpdate }) {
 
     const currentList = statusAttachments[status] || [];
     if (currentList.length + files.length > 10) {
-      alert("You can upload a maximum of 10 files per status.");
+      window.toast.warning("You can upload a maximum of 10 files per status.");
       return;
     }
 
@@ -454,11 +454,11 @@ function TaskDetailPanel({ task, onClose, onUpdate }) {
           const fileData = await resUpload.json();
           uploaded.push({ filename: fileData.filename, file_url: fileData.file_url });
         } else {
-          alert(`Failed to upload ${file.name}`);
+          window.toast.error(`Failed to upload ${file.name}`);
         }
       } catch (err) {
         console.error(err);
-        alert(`Error uploading ${file.name}`);
+        window.toast.error(`Error uploading ${file.name}`);
       }
     }
 

@@ -272,7 +272,7 @@ export default function Settings() {
   };
 
   const handleDownloadPDF = () => {
-    alert('Generating Audit Logs PDF report...');
+    window.toast.info('Generating Audit Logs PDF report...');
     
     const doc = new jsPDF('landscape', 'pt', 'a4');
     

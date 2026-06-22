@@ -95,11 +95,11 @@ export default function EmployeeDashboard({ setActiveTab, currentUser }) {
         setClockInTime(new Date(data.clock_in).getTime());
       } else {
         const err = await res.json().catch(() => ({}));
-        alert(err.detail || 'Failed to clock in');
+        window.toast.error(err.detail || 'Failed to clock in');
       }
     } catch (e) {
       console.error(e);
-      alert('Network error during clock-in');
+      window.toast.error('Network error during clock-in');
     }
     setClockBusy(false);
   };
@@ -115,14 +115,14 @@ export default function EmployeeDashboard({ setActiveTab, currentUser }) {
         setClockedIn(false);
         setClockInTime(null);
         setElapsed('');
-        alert('Clocked out successfully!');
+        window.toast.success('Clocked out successfully!');
       } else {
         const err = await res.json().catch(() => ({}));
-        alert(err.detail || 'Failed to clock out');
+        window.toast.error(err.detail || 'Failed to clock out');
       }
     } catch (e) {
       console.error(e);
-      alert('Network error during clock-out');
+      window.toast.error('Network error during clock-out');
     }
     setClockBusy(false);
   };

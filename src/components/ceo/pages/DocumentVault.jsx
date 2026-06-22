@@ -27,9 +27,9 @@ export default function DocumentVault() {
       });
       if (res.ok) {
         fetchVaultDocs();
-        alert("Document signed successfully!");
+        window.toast.success("Document signed successfully!");
       } else {
-        alert("Failed to sign document");
+        window.toast.error("Failed to sign document");
       }
     } catch(e) {}
   };
@@ -51,11 +51,11 @@ export default function DocumentVault() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
       } else {
-        alert("Failed to download document securely.");
+        window.toast.error("Failed to download document securely.");
       }
     } catch(e) {
       console.error(e);
-      alert("Error downloading document");
+      window.toast.error("Error downloading document");
     }
   };
 
@@ -70,7 +70,7 @@ export default function DocumentVault() {
         const url = URL.createObjectURL(blob);
         window.open(url, '_blank');
       } else {
-        alert("Failed to load document.");
+        window.toast.error("Failed to load document.");
       }
     } catch(e) {}
   };
@@ -105,7 +105,7 @@ export default function DocumentVault() {
 
   const handleUpload = async (e) => {
     e.preventDefault();
-    if(!uploadFile) { alert("Please select a file"); return; }
+    if(!uploadFile) { window.toast.warning("Please select a file"); return; }
     setIsUploading(true);
     try {
       const token = localStorage.getItem('nsg_jwt_token');
@@ -129,7 +129,7 @@ export default function DocumentVault() {
         fetchVaultDocs();
       } else {
         const error = await res.json();
-        alert(error.detail || "Upload failed");
+        window.toast.error(error.detail || "Upload failed");
       }
     } catch(e) {}
     setIsUploading(false);

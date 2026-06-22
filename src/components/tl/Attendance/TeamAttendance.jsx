@@ -533,7 +533,7 @@ const TeamAttendance = ({ onBack }) => {
       setNotifyModal({ ...notifyModal, isOpen: false });
     } catch (err) {
       console.error(err);
-      alert('Error sending notification.');
+      window.toast.error('Error sending notification.');
     } finally {
       setSendingNotification(false);
     }
@@ -672,7 +672,7 @@ const TeamAttendance = ({ onBack }) => {
     };
 
     img.onerror = () => {
-      alert("Failed to load logo, but PDF will still generate.");
+      window.toast.error("Failed to load logo, but PDF will still generate.");
       doc.save(`Team_Attendance_${monthLabel}_${selectedYear}.pdf`);
     };
   };

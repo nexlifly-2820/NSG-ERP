@@ -97,7 +97,7 @@ const TeamTimesheets = () => {
         fetchPending();
         setActiveTab('table');
       } else {
-        alert("Failed to approve timesheet.");
+        window.toast.error("Failed to approve timesheet.");
       }
     } catch (e) { console.error(e); }
   };
@@ -119,7 +119,7 @@ const TeamTimesheets = () => {
         fetchPending();
         setActiveTab('table');
       } else {
-        alert("Failed to reject timesheet.");
+        window.toast.error("Failed to reject timesheet.");
       }
     } catch (e) { console.error(e); }
   };

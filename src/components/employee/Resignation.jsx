@@ -72,7 +72,7 @@ export default function Resignation({ currentUser }) {
         fetchResignation();
       } else {
         const err = await res.json();
-        alert(err.detail || 'Error submitting resignation');
+        window.toast.error(err.detail || 'Error submitting resignation');
       }
     } catch (e) { console.error(e); }
   };
