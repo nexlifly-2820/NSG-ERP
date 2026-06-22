@@ -87,7 +87,7 @@ export default function Login({ onLoginSuccess }) {
       }}>
         {/* Brand Header */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center' }}>
-          <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&background=random`; }} src={companyLogo} alt={companyName} style={{ width: '240px', height: 'auto', maxHeight: '100px', objectFit: 'contain', background: '#fff', padding: '10px 16px', borderRadius: '12px', boxShadow: '0 4px 16px rgba(0,0,0,0.06)', border: '1px solid #f1f5f9' }} />
+          <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&background=random`; }} src={companyLogo} alt={companyName} style={{ width: '100%', maxWidth: '360px', height: '120px', objectFit: 'contain', transform: 'scale(1.4)', margin: '-10px 0' }} />
           <div>
             <h1 style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: 0, letterSpacing: '-0.4px' }}>
               {companyName} Portal
