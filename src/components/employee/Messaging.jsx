@@ -59,7 +59,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
                     sender: m.sender,
                     text: m.text,
                     timestamp: new Date(tzFixed).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    isMe: m.sender === empName || m.sender === empName + ' (TL)' || m.sender === 'John Doe (TL)' || m.sender === 'John Doe',
+                    isMe: m.sender === empName || m.sender === empName + ' (TL)',
                     is_edited: m.is_edited,
                     is_pinned: m.is_pinned,
                     parent_id: m.parent_id,
@@ -345,7 +345,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
                   avatar: employees.find(e => e.name === newMsg.sender || `dm-${e.id}` === newMsg.channel_id)?.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(newMsg.sender),
                   text: newMsg.text,
                   timestamp: newMsg.timestamp ? new Date(newMsg.timestamp.endsWith('Z') ? newMsg.timestamp : newMsg.timestamp + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
-                  isMe: newMsg.sender === empName || newMsg.sender === empName + ' (TL)' || newMsg.sender === empName || newMsg.sender === 'Employee',
+                  isMe: newMsg.sender === empName || newMsg.sender === empName + ' (TL)',
                   is_edited: newMsg.is_edited,
                   deleted_at: newMsg.deleted_at,
                   reactions: newMsg.reactions,
@@ -928,7 +928,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
 
   // Get current members for header
   const isDM = selectedChannel.startsWith('dm-');
-  const currentMembersCount = isDM ? 2 : (channelMembers[selectedChannel]?.length || 1);
+  const currentMembersCount = isDM ? 2 : (currentChannel?.members?.length || 1);
 
   const getUnreadCount = (channelId) => {
     const msgs = messages[channelId] || [];
@@ -1175,7 +1175,7 @@ export default function Messages({ initialSelectedChannel, currentUser }) {
             </div>
           ) : (
             (messages[selectedChannel] || []).filter(m => !m.parent_id).map((msg, idx) => {
-              const isMsgMe = msg.isMe || (msg.sender && (msg.sender === empName || msg.sender.includes('CEO') || msg.sender.includes('HR') || msg.sender.toLowerCase() === 'hr' || msg.sender.includes('TL') || msg.sender.toLowerCase() === 'tl' || msg.sender.includes('Employee')));
+              const isMsgMe = msg.sender === empName || msg.sender === empName + ' (TL)';
               const isDeleted = !!msg.deleted_at;
               
               let parsedReactions = {};
