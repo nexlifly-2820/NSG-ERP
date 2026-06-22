@@ -862,7 +862,7 @@ export default function CompanySetup() {
                       <button type="button" className="ceo-btn" style={{ background: '#FFF' }} onClick={() => fileInputRef.current?.click()}><Upload size={16} /> Select File</button>
                       {isEditingProfile && (
                         <div style={{ color: '#dc2626', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '10px' }}>
-                          <AlertCircle size={14} /> Implement The Company Logo Globally Entire Application.
+                          <AlertCircle size={14} /> If you upload a new logo, it will reflect in all places where the logo is displayed.
                         </div>
                       )}
                     </div>
