@@ -486,7 +486,7 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
       {/* Popups Scheduler */}
       {showScheduler && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={(e) => { if (e.target === e.currentTarget) { setShowScheduler(false) } }}>
-          <form onSubmit={handleScheduleInterview} className="card" style={{ width: '400px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
+          <form onSubmit={handleScheduleInterview} className="card" style={{ width: '100%', maxWidth: '400px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
             <h3>📅 Schedule Video Interview</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', margin: '16px 0' }}>
               <label style={{ fontSize: '12px' }}>Candidate Name</label>
@@ -516,7 +516,7 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
       {/* Popups Offer Forms */}
       {showOfferForm && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={(e) => { if (e.target === e.currentTarget) { setShowOfferForm(false) } }}>
-          <form onSubmit={handleCreateOffer} className="card" style={{ width: '420px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
+          <form onSubmit={handleCreateOffer} className="card" style={{ width: '100%', maxWidth: '420px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
             <h3>📄 Propose CTC Offer Structure</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', margin: '16px 0' }}>
               <label style={{ fontSize: '12px' }}>Basic Salary (Monthly)</label>
@@ -556,7 +556,7 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
               100% { transform: rotate(360deg); }
             }
           `}</style>
-          <div className="card" style={{ width: '520px', maxHeight: '90vh', overflowY: 'auto', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', padding: '24px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="card" style={{ width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', padding: '24px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
               <h3 style={{ margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '18px' }}>

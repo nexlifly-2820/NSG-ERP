@@ -86,13 +86,12 @@ export default function ExpenseForm({ onSubmitClaim }) {
 
   return (
     <form 
+      className="responsive-form-grid"
       onSubmit={handleSubmit}
       style={{
-        display: 'flex',
-        flexDirection: 'column',
         gap: '16px',
         width: '100%',
-        maxWidth: '420px', // Spacing & Layout Token
+        maxWidth: '800px', // Spacing & Layout Token
         backgroundColor: 'var(--bg-secondary)',
         border: '1px solid var(--border-color)',
         borderRadius: '12px',
@@ -100,12 +99,14 @@ export default function ExpenseForm({ onSubmitClaim }) {
         boxShadow: 'var(--shadow-sm)'
       }}
     >
-      <h3 style={{ fontSize: '16px', fontWeight: '700', margin: '0 0 4px 0', color: 'var(--text-primary)' }}>
-        Submit Expense Claim
-      </h3>
-      <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 8px 0' }}>
-        Fill out all details and upload your invoice to initiate reimbursement.
-      </p>
+      <div style={{ gridColumn: '1 / -1' }}>
+        <h3 style={{ fontSize: '16px', fontWeight: '700', margin: '0 0 4px 0', color: 'var(--text-primary)' }}>
+          Submit Expense Claim
+        </h3>
+        <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 8px 0' }}>
+          Fill out all details and upload your invoice to initiate reimbursement.
+        </p>
+      </div>
 
 
       {/* Category Input */}
@@ -208,7 +209,7 @@ export default function ExpenseForm({ onSubmitClaim }) {
       </div>
 
       {/* Description */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', gridColumn: '1 / -1' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
             Description <span style={{ color: '#ef4444' }}>*</span>
@@ -242,8 +243,9 @@ export default function ExpenseForm({ onSubmitClaim }) {
       </div>
 
       {/* Receipt Uploader */}
-      <ReceiptUpload 
-        key={uploadKey}
+      <div style={{ gridColumn: '1 / -1' }}>
+        <ReceiptUpload 
+          key={uploadKey}
         onFile={(file) => {
           setReceiptFile(file);
           if (file) {
@@ -252,36 +254,40 @@ export default function ExpenseForm({ onSubmitClaim }) {
         }} 
         accept="image/*,application/pdf" 
       />
-      {errors.receipt && (
-        <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: '500', marginTop: '-4px' }}>{errors.receipt}</span>
-      )}
+        {errors.receipt && (
+          <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: '500', marginTop: '-4px' }}>{errors.receipt}</span>
+        )}
+      </div>
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        style={{
-          border: 'none',
-          borderRadius: '8px',
-          padding: '12px',
-          fontSize: '13px',
-          fontWeight: '700',
-          cursor: isSubmitting ? 'not-allowed' : 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '8px',
-          backgroundColor: isSubmitting ? '#9ca3af' : 'var(--accent-green)',
-          color: 'white',
-          boxShadow: 'var(--shadow-sm)',
-          marginTop: '8px',
-          transition: 'opacity 0.2s ease'
-        }}
-        onMouseOver={(e) => { if (!isSubmitting) e.currentTarget.style.opacity = '0.9'; }}
-        onMouseOut={(e) => { if (!isSubmitting) e.currentTarget.style.opacity = '1'; }}
-      >
-        <CreditCard size={16} />
-        {isSubmitting ? 'Submitting...' : 'Submit Claim'}
-      </button>
+      <div style={{ gridColumn: '1 / -1' }}>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          style={{
+            width: '100%',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '12px',
+            fontSize: '13px',
+            fontWeight: '700',
+            cursor: isSubmitting ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            backgroundColor: isSubmitting ? '#9ca3af' : 'var(--accent-green)',
+            color: 'white',
+            boxShadow: 'var(--shadow-sm)',
+            marginTop: '8px',
+            transition: 'opacity 0.2s ease'
+          }}
+          onMouseOver={(e) => { if (!isSubmitting) e.currentTarget.style.opacity = '0.9'; }}
+          onMouseOut={(e) => { if (!isSubmitting) e.currentTarget.style.opacity = '1'; }}
+        >
+          <CreditCard size={16} />
+          {isSubmitting ? 'Submitting...' : 'Submit Claim'}
+        </button>
+      </div>
     </form>
   );
 }

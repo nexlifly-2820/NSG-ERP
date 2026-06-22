@@ -27,12 +27,14 @@ export function LeaveManagementView() {
 
   const isCEO = window.location.hash.toLowerCase().includes('/ceo/');
 
-  const [isRequestOpen, setIsRequestOpen] = useState(false);
   const [denyingId, setDenyingId] = useState(null);
   const [denyComment, setDenyComment] = useState('');
 
   // History & Tabs State
-  const [activeTab, setActiveTab] = useState('balances'); // 'balances' | 'history'
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.hash.split('?')[1]);
+    return params.get('tab') || 'balances';
+  }); // 'balances' | 'history' | 'requests'
   const today = new Date();
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
   const [selectedYear, setSelectedYear] = useState(today.getFullYear());
@@ -321,47 +323,6 @@ export function LeaveManagementView() {
               >
                 ➕ Apply Leave (On Behalf)
               </button>
-
-              <button 
-                className="print-btn" 
-                onClick={() => setIsRequestOpen(true)}
-                style={{ 
-                  position: 'relative',
-                  backgroundColor: 'var(--accent-pink)',
-                  color: '#fff',
-                  border: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  boxShadow: 'var(--shadow-sm)',
-                  fontWeight: '600',
-                  padding: '10px 20px',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  fontSize: '13px',
-                  transition: 'all 0.2s'
-                }}
-              >
-                <span>🔔 Manage Leave Requests</span>
-                {pendingRequests.length > 0 && (
-                  <span style={{ 
-                    backgroundColor: '#fff', 
-                    color: 'var(--accent-pink)', 
-                    borderRadius: '50%', 
-                    width: '20px', 
-                    height: '20px', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    fontSize: '12px', 
-                    fontWeight: 'bold',
-                    flexShrink: 0
-                  }}>
-                    {pendingRequests.length}
-                  </span>
-                )}
-              </button>
             </>
           )}
         </div>
@@ -395,12 +356,47 @@ export function LeaveManagementView() {
           >
             Leave History
           </button>
+          {!isCEO && (
+            <button 
+              onClick={() => { setActiveTab('requests'); setDenyingId(null); setDenyComment(''); }}
+              style={{
+                backgroundColor: activeTab === 'requests' ? '#ffffff' : 'transparent',
+                color: activeTab === 'requests' ? '#0f172a' : '#64748b',
+                border: 'none', padding: '8px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '13px',
+                boxShadow: activeTab === 'requests' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              Manage Leave Requests
+              {pendingRequests.length > 0 && (
+                <span style={{ 
+                  backgroundColor: 'var(--accent-pink)', 
+                  color: '#fff', 
+                  borderRadius: '50%', 
+                  width: '18px', 
+                  height: '18px', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  fontSize: '11px', 
+                  fontWeight: 'bold',
+                  flexShrink: 0
+                }}>
+                  {pendingRequests.length}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
       <div style={{ width: '100%' }}>
         {/* Balances grid */}
-        {activeTab === 'balances' ? (
+        {activeTab === 'balances' && (
           <div className="table-container" style={{ margin: 0, overflowX: 'auto', width: '100%', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '12px' }}>
             <div className="pipeline-title" style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-color)' }}>Staff Active Leave Balances</div>
             <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -437,7 +433,7 @@ export function LeaveManagementView() {
                       {!isCEO && (
                         <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9' }}>
                           <button
-                            onClick={() => { setEditingBalance({ ...b }); setIsApplyOnBehalfOpen(false); setIsRequestOpen(false); }}
+                            onClick={() => { setEditingBalance({ ...b }); setIsApplyOnBehalfOpen(false); }}
                             style={{
                               background: '#f8fafc', border: '1px solid #e2e8f0', color: 'var(--accent-pink)', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '600', transition: 'all 0.2s'
                             }}
@@ -467,7 +463,9 @@ export function LeaveManagementView() {
               </div>
             )}
           </div>
-        ) : (
+        )}
+        
+        {activeTab === 'history' && (
           <div className="table-container" style={{ margin: 0, overflowX: 'auto', width: '100%', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)' }}>
             <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ffffff', borderTopLeftRadius: '12px', borderTopRightRadius: '12px' }}>
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: '#0f172a' }}>{new Date(selectedYear, selectedMonth).toLocaleString('default', { month: 'long', year: 'numeric' })} Leave History</h3>
@@ -552,6 +550,175 @@ export function LeaveManagementView() {
                 </button>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Requests Tab */}
+        {activeTab === 'requests' && (
+          <div className="table-container" style={{ margin: 0, overflowX: 'auto', width: '100%', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <h3 style={{ margin: 0, border: 'none', padding: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '16px' }}>
+                <Calendar size={18} /> Leave Approval Requests
+              </h3>
+            </div>
+
+            {/* Filter buttons */}
+            <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              {[
+                { id: 'pending', label: '⏳ Pending' },
+                { id: 'approved', label: '✅ Approved' },
+                { id: 'denied', label: '❌ Denied' },
+                { id: 'all', label: '📂 All Logs' }
+              ].map(f => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => { setRequestFilter(f.id); setDenyingId(null); }}
+                  style={{
+                    backgroundColor: requestFilter === f.id ? 'var(--accent-pink)' : '#f1f5f9',
+                    color: requestFilter === f.id ? '#fff' : '#64748b',
+                    border: '1px solid var(--border-color)',
+                    padding: '6px 16px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {displayedRequests.map(r => {
+                const emp = employees.find(e => e.id === r.user_id) || { name: 'Unknown', designation: 'Employee' };
+                return (
+                  <div key={r.id} style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(e.target.alt || 'User')}&background=random`; }} src={emp.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=random`} alt={emp.name} style={{ width: '40px', height: '40px', borderRadius: '50%', border: '2px solid #fff', boxShadow: '0 2px 4px rgba(0,0,0,0.08)', objectFit: 'cover' }} />
+                        <div>
+                          <strong style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{emp.name}</strong>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{emp.emp_id || 'NSG-EMP'}</div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <span className="badge-pill" style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '12px', fontWeight: '600', backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}>{r.leave_type}</span>
+                        <span className="badge-pill" style={{ 
+                          fontSize: '11px', 
+                          padding: '4px 10px', 
+                          borderRadius: '12px', 
+                          fontWeight: 'bold', 
+                          backgroundColor: 
+                            r.status === 'approved' ? '#ecfdf5' : 
+                            r.status === 'rejected' ? '#fef2f2' : 
+                            '#fffbeb', 
+                          color: 
+                            r.status === 'approved' ? '#059669' : 
+                            r.status === 'rejected' ? '#dc2626' : 
+                            '#d97706',
+                          border: `1px solid ${
+                            r.status === 'approved' ? '#a7f3d0' : 
+                            r.status === 'rejected' ? '#fecaca' : 
+                            '#fde68a'}`
+                        }}>
+                          {r.status === 'approved' ? '✅ Approved' : 
+                           r.status === 'rejected' ? '❌ Rejected' : '⏳ Pending'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px', backgroundColor: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
+                      <div style={{ display: 'flex', gap: '16px' }}>
+                        <div><strong style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase' }}>Duration:</strong> <span style={{ color: '#0f172a', fontWeight: '500' }}>{r.days} days ({new Date(r.from_date).toLocaleDateString('en-GB')} to {new Date(r.to_date).toLocaleDateString('en-GB')})</span></div>
+                      </div>
+                      <div style={{ marginTop: '2px' }}><strong style={{ color: '#64748b', fontSize: '11px', textTransform: 'uppercase' }}>Reason:</strong> <span style={{ color: '#334155', fontStyle: 'italic' }}>"{r.reason}"</span></div>
+                      {r.status === 'denied' && r.denial_reason && (
+                        <div style={{ marginTop: '4px', color: '#ef4444', fontWeight: '500' }}><strong style={{ color: '#ef4444', fontSize: '11px', textTransform: 'uppercase' }}>Denial Reason:</strong> {r.denial_reason}</div>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+                      {denyingId === r.id ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                          <label style={{ fontSize: '11px', textTransform: 'uppercase', color: '#64748b', fontWeight: 'bold' }}>Denial Reason Comment</label>
+                          <textarea 
+                            value={denyComment} 
+                            onChange={(e) => setDenyComment(e.target.value)} 
+                            placeholder="Please provide the reason for denying this leave request..." 
+                            required
+                            style={{ width: '100%', minHeight: '60px', backgroundColor: '#ffffff', border: '1px solid #cbd5e1', color: '#0f172a', padding: '10px 12px', borderRadius: '8px', fontSize: '13px', outline: 'none', resize: 'vertical' }}
+                          />
+                          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                            <button 
+                              type="button" 
+                              onClick={() => setDenyingId(null)} 
+                              style={{ padding: '8px 16px', fontSize: '12px', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', color: '#475569', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
+                            >
+                              Cancel
+                            </button>
+                            <button 
+                              type="button" 
+                              onClick={() => handleDenyLeave(r.id)} 
+                              style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '8px 16px', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer' }}
+                            >
+                              Send Denial &amp; Comment
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
+                          {/* Left-side action: Edit & Delete */}
+                          <div style={{ display: 'flex', gap: '12px' }}>
+                            <button
+                              onClick={() => setEditingRequest({ ...r })}
+                              style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}
+                              title="Edit Details"
+                            >
+                              ✏️ Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteLeaveRequest(r.id)}
+                              style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}
+                              title="Void/Delete Request"
+                            >
+                              🗑️ {r.status === 'approved' ? 'Void' : 'Delete'}
+                            </button>
+                          </div>
+
+                          {/* Right-side action: Approve/Deny (only for pending) */}
+                          {(r.status === 'pending') && (
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                              <button 
+                                style={{ padding: '8px 20px', fontSize: '12px', backgroundColor: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
+                                onClick={() => { setDenyingId(r.id); setDenyComment(''); }}
+                              >
+                                Deny
+                              </button>
+                              <button 
+                                style={{ padding: '8px 20px', fontSize: '12px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: '600', cursor: 'pointer' }}
+                                onClick={() => {
+                                  handleApproveLeave(r.id);
+                                }}
+                              >
+                                Approve
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {displayedRequests.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '32px', color: '#94a3b8', fontSize: '14px' }}>
+                  No leave requests found for this filter.
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -830,175 +997,6 @@ export function LeaveManagementView() {
         </div>
       )}
 
-      {/* 🔔 LEAVE REQUESTS DETAILS POPUP MODAL */}
-      {isRequestOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }} onClick={(e) => { if (e.target === e.currentTarget) { { setIsRequestOpen(false); setDenyingId(null); setDenyComment(''); } } } }>
-          <div className="card" style={{ width: '540px', maxHeight: '80vh', overflowY: 'auto', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', padding: '24px', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px', borderLeft: '4px solid var(--accent-pink)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-              <h3 style={{ margin: 0, border: 'none', padding: 0, color: 'var(--accent-pink)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Calendar size={18} /> Leave Approval Requests
-              </h3>
-              <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px' }} onClick={() => { setIsRequestOpen(false); setDenyingId(null); setDenyComment(''); }}>✕</button>
-            </div>
-
-            {/* Filter buttons */}
-            <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-              {[
-                { id: 'pending', label: '⏳ Pending' },
-                { id: 'approved', label: '✅ Approved' },
-                { id: 'denied', label: '❌ Denied' },
-                { id: 'all', label: '📂 All Logs' }
-              ].map(f => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => { setRequestFilter(f.id); setDenyingId(null); }}
-                  style={{
-                    backgroundColor: requestFilter === f.id ? 'var(--accent-pink)' : 'var(--bg-primary)',
-                    color: '#fff',
-                    border: '1px solid var(--border-color)',
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    fontSize: '11px',
-                    fontWeight: '600',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {displayedRequests.map(r => {
-                const emp = employees.find(e => e.id === r.user_id) || { name: 'Unknown', designation: 'Employee' };
-                return (
-                  <div key={r.id} style={{ display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px', gap: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <strong style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{emp.name}</strong>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{emp.designation}</div>
-                      </div>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <span className="badge-pill" style={{ fontSize: '10.5px', padding: '3px 8px', borderRadius: '12px', fontWeight: 'bold', backgroundColor: 'rgba(236,72,153,0.1)', color: 'var(--accent-pink)' }}>Type: {r.leave_type}</span>
-                        <span className="badge-pill" style={{ 
-                          fontSize: '10.5px', 
-                          padding: '3px 8px', 
-                          borderRadius: '12px', 
-                          fontWeight: 'bold', 
-                          backgroundColor: 
-                            r.status === 'approved' ? 'rgba(16,185,129,0.1)' : 
-                            r.status === 'rejected' ? 'rgba(239,68,68,0.1)' : 
-                            'rgba(245,158,11,0.1)', 
-                          color: 
-                            r.status === 'approved' ? 'var(--accent-green)' : 
-                            r.status === 'rejected' ? '#ef4444' : 
-                            'var(--accent-gold)' 
-                        }}>
-                          {r.status === 'approved' ? '✅ Approved' : 
-                           r.status === 'rejected' ? '❌ Rejected' : '⏳ Pending'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px', backgroundColor: 'var(--bg-primary)', padding: '10px', borderRadius: '6px' }}>
-                      <div><strong>Duration:</strong> {r.days} days ({r.from_date} to {r.to_date})</div>
-                      <div style={{ marginTop: '4px' }}><strong>Reason:</strong> <span style={{ fontStyle: 'italic', color: 'var(--accent-gold)' }}>"{r.reason}"</span></div>
-                      {r.status === 'denied' && r.denial_reason && (
-                        <div style={{ marginTop: '4px', color: '#ef4444' }}><strong>Denial Reason:</strong> {r.denial_reason}</div>
-                      )}
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
-                      {denyingId === r.id ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-                          <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Denial Reason Comment</label>
-                          <textarea 
-                            value={denyComment} 
-                            onChange={(e) => setDenyComment(e.target.value)} 
-                            placeholder="Please provide the reason for denying this leave request..." 
-                            required
-                            style={{ width: '100%', minHeight: '60px', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px 10px', borderRadius: '6px', fontSize: '12px', outline: 'none', resize: 'vertical' }}
-                          />
-                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                            <button 
-                              type="button" 
-                              onClick={() => setDenyingId(null)} 
-                              className="print-btn"
-                              style={{ padding: '6px 12px', fontSize: '11px' }}
-                            >
-                              Cancel
-                            </button>
-                            <button 
-                              type="button" 
-                              onClick={() => handleDenyLeave(r.id)} 
-                              className="print-btn"
-                              style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', fontSize: '11px', fontWeight: 'bold' }}
-                            >
-                              Send Denial &amp; Comment
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', gap: '8px', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
-                          {/* Left-side action: Edit & Delete */}
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            <button
-                              onClick={() => setEditingRequest({ ...r })}
-                              style={{ background: 'none', border: 'none', color: 'var(--accent-blue)', cursor: 'pointer', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                              title="Edit Details"
-                            >
-                              ✏️ Edit
-                            </button>
-                            <button
-                              onClick={() => handleDeleteLeaveRequest(r.id)}
-                              style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                              title="Void/Delete Request"
-                            >
-                              🗑️ {r.status === 'approved' ? 'Void' : 'Delete'}
-                            </button>
-                          </div>
-
-                          {/* Right-side action: Approve/Deny (only for pending) */}
-                          {(r.status === 'pending') && (
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <button 
-                                className="print-btn"
-                                style={{ padding: '6px 12px', fontSize: '11.5px', backgroundColor: 'transparent', border: '1px solid #ef4444', color: '#ef4444' }}
-                                onClick={() => { setDenyingId(r.id); setDenyComment(''); }}
-                              >
-                                Deny
-                              </button>
-                              <button 
-                                className="print-btn"
-                                style={{ padding: '6px 12px', fontSize: '11.5px', backgroundColor: 'var(--accent-green)', color: '#fff', border: 'none' }}
-                                onClick={() => {
-                                  handleApproveLeave(r.id);
-                                }}
-                              >
-                                Approve
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-              {displayedRequests.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
-                  No leave requests found for this filter.
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '12px', marginTop: '8px' }}>
-              <button className="print-btn" onClick={() => { setIsRequestOpen(false); setDenyingId(null); setDenyComment(''); }}>Close View</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

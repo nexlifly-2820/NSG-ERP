@@ -129,7 +129,7 @@ export default function TicketForm({ onSubmitTicket }) {
         </p>
       </div>
 
-      <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <form className="responsive-form-grid" onSubmit={handleFormSubmit} style={{ gap: '16px' }}>
         {/* Issue Type */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>Issue Type</label>
@@ -187,7 +187,7 @@ export default function TicketForm({ onSubmitTicket }) {
         </div>
 
         {/* Description */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', gridColumn: '1 / -1' }}>
           <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>Description</label>
           <textarea 
             value={description}
@@ -211,7 +211,7 @@ export default function TicketForm({ onSubmitTicket }) {
         </div>
 
         {/* Screenshot / PDF Upload */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', gridColumn: '1 / -1' }}>
           <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>
             Screenshot / Document Attachment (Optional)
           </label>
@@ -358,26 +358,28 @@ export default function TicketForm({ onSubmitTicket }) {
         </div>
 
         {/* Submit button with loader animation */}
-        <button 
-          type="submit"
-          disabled={isSubmitting || isUploadingScr}
-          style={{
-            backgroundColor: 'var(--text-primary)',
-            color: 'var(--bg-secondary)',
-            border: 'none',
-            borderRadius: '6px',
-            padding: '12px',
-            fontSize: '12px',
-            fontWeight: '700',
-            cursor: (isSubmitting || isUploadingScr) ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'background-color 0.2s ease',
-            height: '40px'
-          }}
-        >
+        <div style={{ gridColumn: '1 / -1' }}>
+          <button 
+            type="submit"
+            disabled={isSubmitting || isUploadingScr}
+            style={{
+              width: '100%',
+              backgroundColor: 'var(--text-primary)',
+              color: 'var(--bg-secondary)',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '12px',
+              fontSize: '12px',
+              fontWeight: '700',
+              cursor: (isSubmitting || isUploadingScr) ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'background-color 0.2s ease',
+              height: '40px'
+            }}
+          >
           {isSubmitting ? (
             <>
               <Loader2 size={16} className="spinner-icon" style={{ animation: 'spin 1s linear infinite' }} />
@@ -386,7 +388,8 @@ export default function TicketForm({ onSubmitTicket }) {
           ) : (
             <span>Submit Ticket</span>
           )}
-        </button>
+          </button>
+        </div>
 
         {/* CSS for spinner rotate */}
         <style dangerouslySetInnerHTML={{ __html: `

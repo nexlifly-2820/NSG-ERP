@@ -162,7 +162,7 @@ const CustomModal = ({ isOpen, title, fields, onSave, onClose }) => {
   if (!isOpen) return null;
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ background: '#FFF', padding: '32px', borderRadius: '16px', width: '420px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
+      <div style={{ background: '#FFF', padding: '32px', borderRadius: '16px', width: '100%', maxWidth: '420px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--ceo-text-primary)' }}>{title}</div>
           <button type="button" onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}><X size={20} color="var(--ceo-text-muted)" /></button>
@@ -844,7 +844,7 @@ export default function CompanySetup() {
                 )}
               </div>
               <div className="ceo-command-content" style={{ padding: '32px' }}>
-                <form onSubmit={(e) => { e.preventDefault(); handleSaveProfile(e); setIsEditingProfile(false); }} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', maxWidth: '800px' }}>
+                <form className="responsive-form-grid" onSubmit={(e) => { e.preventDefault(); handleSaveProfile(e); setIsEditingProfile(false); }} style={{ gap: '24px', maxWidth: '800px' }}>
 
                   {/* Logo Upload */}
                   <div style={{ gridColumn: '1 / -1', marginBottom: '8px', display: 'flex', gap: '32px', alignItems: 'center', padding: '24px', background: 'var(--ceo-bg)', borderRadius: '12px', border: '1px dashed var(--ceo-border)' }}>
@@ -1013,7 +1013,7 @@ export default function CompanySetup() {
                         </button>
                       )}
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                    <div className="responsive-form-grid" style={{ gap: '16px' }}>
                       <div>
                         <label style={{ fontSize: '12px', color: 'var(--ceo-text-secondary)', marginBottom: '4px', display: 'block' }}>Latitude</label>
                         <input className="ceo-form-input" disabled={!isEditingProfile} placeholder="e.g. 17.6868" required value={profileData.office_latitude || ''} onChange={(e) => setProfileData({ ...profileData, office_latitude: e.target.value })} />

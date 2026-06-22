@@ -473,7 +473,7 @@ export default function BankSection({ bankData, onUpdateBank, onSimulateVerify }
           </span>
         </div>
 
-        <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <form className="responsive-form-grid" onSubmit={handleFormSubmit} style={{ gap: '16px' }}>
           {/* Bank Name */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>Bank Name</label>
@@ -594,25 +594,27 @@ export default function BankSection({ bankData, onUpdateBank, onSimulateVerify }
             )}
           </div>
 
-          <button
-            type="submit"
-            style={{
-              backgroundColor: 'var(--accent-green)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '10px',
-              fontSize: '12px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              marginTop: '4px',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center'
-            }}
-          >
-            Submit for HR Audit
-          </button>
+          <div style={{ gridColumn: '1 / -1', marginTop: '8px' }}>
+            <button
+              type="submit"
+              style={{
+                width: '100%',
+                backgroundColor: 'var(--accent-green)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '10px',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}
+            >
+              Submit for HR Audit
+            </button>
+          </div>
         </form>
       </div>
     </div>

@@ -415,7 +415,7 @@ export default function Projects({ currentUser }) {
       {/* SIGNOFF MODAL */}
       {signoffProject && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={(e) => { if(e.target === e.currentTarget) { setSignoffProject(null); setSignature(false); } }}>
-          <div className="ceo-command-panel" style={{ width: '500px', maxWidth: '90vw' }}>
+          <div className="ceo-command-panel" style={{ width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto' }}>
             <div className="ceo-command-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div className="ceo-typography-section-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle size={20} color="var(--ceo-success)"/> Executive Sign-off</div>
               <button onClick={() => { setSignoffProject(null); setSignature(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ceo-text-muted)' }}><X size={20} /></button>
@@ -496,7 +496,7 @@ export default function Projects({ currentUser }) {
       {/* EDIT MODAL */}
       {editProject && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="ceo-command-panel" style={{ width: '500px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="ceo-command-panel" style={{ width: '100%', maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto' }}>
             <div className="ceo-command-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div className="ceo-typography-section-title">Modify Project Details</div>
               <button onClick={() => setEditProject(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ceo-text-muted)' }}><X size={20} /></button>
@@ -506,7 +506,7 @@ export default function Projects({ currentUser }) {
                 <label className="ceo-typography-meta">Project Name</label>
                 <input required className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} value={editProject.name} onChange={e => setEditProject({...editProject, name: e.target.value})} />
               </div>
-              <div style={{ display: 'flex', gap: '16px' }}>
+              <div className="responsive-form-grid" style={{ gap: '16px' }}>
                 <div style={{ flex: 1 }}>
                   <label className="ceo-typography-meta">Client</label>
                   <input required className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} value={editProject.client} onChange={e => setEditProject({...editProject, client: e.target.value})} />
@@ -531,7 +531,7 @@ export default function Projects({ currentUser }) {
                   </select>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '16px' }}>
+              <div className="responsive-form-grid" style={{ gap: '16px' }}>
                 <div style={{ flex: 1 }}>
                   <label className="ceo-typography-meta">Total Budget (₹)</label>
                   <input required type="text" className="ceo-form-input" style={{ width: '100%', marginTop: '4px' }} value={editProject.budget} onChange={e => { const val = e.target.value.replace(/[^0-9]/g, ''); setEditProject({...editProject, budget: val}); }} />
@@ -581,7 +581,7 @@ export default function Projects({ currentUser }) {
       {/* CREATE PROJECT MODAL */}
       {showCreateModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="ceo-command-panel" style={{ width: '500px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="ceo-command-panel" style={{ width: '100%', maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto' }}>
             <div className="ceo-command-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div className="ceo-typography-section-title">Add New Project</div>
               <button onClick={() => { setShowCreateModal(false); setErrors({}); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ceo-text-muted)' }}><X size={20} /></button>
@@ -600,7 +600,7 @@ export default function Projects({ currentUser }) {
                 />
                 {errors.name && <div style={{ color: 'var(--ceo-danger)', fontSize: '13px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {errors.name}</div>}
               </div>
-              <div style={{ display: 'flex', gap: '16px' }}>
+              <div className="responsive-form-grid" style={{ gap: '16px' }}>
                 <div style={{ flex: 1 }}>
                   <label className="ceo-typography-meta">Client</label>
                   <input 
@@ -645,7 +645,7 @@ export default function Projects({ currentUser }) {
                   {errors.status && <div style={{ color: 'var(--ceo-danger)', fontSize: '13px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {errors.status}</div>}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '16px' }}>
+              <div className="responsive-form-grid" style={{ gap: '16px' }}>
                 <div style={{ flex: 1 }}>
                   <label className="ceo-typography-meta">Total Budget (₹)</label>
                   <input 
