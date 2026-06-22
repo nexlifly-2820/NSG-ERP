@@ -344,7 +344,12 @@ def get_dashboard_summary(current_user: models.User = Depends(security.get_curre
 def get_dashboard_heatmap(current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
     verify_ceo_role(current_user)
     
-    heatmap_depts = ["Sales", "Engineering", "Marketing", "HR", "Finance"]
+    db_depts = db.query(models.Department).all()
+    if db_depts:
+        heatmap_depts = [d.name for d in db_depts]
+    else:
+        heatmap_depts = ["Sales", "Engineering", "Marketing", "HR", "Finance"]
+        
     calculated_dates = []
     start_date = datetime.now().date() - timedelta(days=13)
     

@@ -53,7 +53,7 @@ export default function Expenses({ currentUser }) {
         })
       });
       if (res.ok) {
-        showToast(`Claim submitted for ₹${newClaimData.amount.toLocaleString('en-IN')}`);
+        window.showToast(`Claim submitted for ₹${newClaimData.amount.toLocaleString('en-IN')}`);
         fetchClaims();
         if (isMobile) setMobileTab('history');
       } else {
@@ -89,7 +89,7 @@ export default function Expenses({ currentUser }) {
         const updated = claims.filter(c => c.id !== confirmCancelId);
         mutateClaims();
         setSelectedClaim(updated.length > 0 ? updated[0] : null);
-        showToast('Claim cancelled successfully.');
+        window.showToast('Claim cancelled successfully.');
       } else {
         const err = await res.json();
         window.toast.error(err.detail || 'Failed to cancel claim');
@@ -100,10 +100,10 @@ export default function Expenses({ currentUser }) {
     setConfirmCancelId(null);
   };
 
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  };
+//   const showToast = (msg) => {
+//     setToast(msg);
+//     setTimeout(() => setToast(null), 3000);
+//   };
 
   const getCategoryLabel = (cat) => {
     const labels = { travel: 'Travel', meal: 'Meals & Entertainment', accommodation: 'Accommodation', client: 'Client Entertainment', office: 'Office Supplies', other: 'Other' };
@@ -142,7 +142,7 @@ export default function Expenses({ currentUser }) {
         .form-column-wrapper::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
       ` }} />
 
-      {toast && (
+      {false && (
         <div className="toast-notify">
           <Check size={16} style={{ color: 'var(--accent-green)' }} />
           <span>{toast}</span>

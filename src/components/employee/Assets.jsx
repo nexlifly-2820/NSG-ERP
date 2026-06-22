@@ -76,21 +76,21 @@ export default function Assets({ currentUser }) {
         body: JSON.stringify({ asset_type: newReq.assetType, reason: newReq.reason, urgency: newReq.urgency || 'Low' })
       });
       if (res.ok) {
-        showToast(`Request for ${newReq.assetType} submitted successfully.`);
+        window.showToast(`Request for ${newReq.assetType} submitted successfully.`);
         fetchData(); // Refresh from DB
       } else {
-        showToast('Failed to submit asset request');
+        window.showToast('Failed to submit asset request');
       }
     } catch (e) {
       console.error(e);
-      showToast('Network error submitting request');
+      window.showToast('Network error submitting request');
     }
   };
 
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3500);
-  };
+//   const showToast = (msg) => {
+//     setToast(msg);
+//     setTimeout(() => setToast(null), 3500);
+//   };
 
   const getAssetIcon = (type) => {
     switch (type) {
@@ -205,7 +205,7 @@ export default function Assets({ currentUser }) {
       ` }} />
 
       {/* Success Toast Notify */}
-      {toast && (
+      {false && (
         <div className="toast-notify">
           <ShieldAlert size={16} style={{ color: 'var(--accent-green)' }} />
           <span>{toast}</span>

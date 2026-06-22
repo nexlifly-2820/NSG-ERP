@@ -46,7 +46,7 @@ export default function Help({ currentUser }) {
       
       if (res.ok) {
         const data = await res.json();
-        showToast('Support ticket logged successfully.');
+        window.showToast('Support ticket logged successfully.');
         fetchTickets();
         return `TKT-${data.id}`;
       } else {
@@ -60,10 +60,10 @@ export default function Help({ currentUser }) {
     }
   };
 
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  };
+//   const showToast = (msg) => {
+//     setToast(msg);
+//     setTimeout(() => setToast(null), 3000);
+//   };
 
   const getPriorityColor = (lvl) => {
     switch (lvl) {
@@ -116,7 +116,7 @@ export default function Help({ currentUser }) {
       ` }} />
 
       {/* Success Toast Notify */}
-      {toast && (
+      {false && (
         <div className="toast-notify">
           <ShieldCheck size={16} style={{ color: 'var(--accent-green)' }} />
           <span>{toast}</span>

@@ -179,10 +179,10 @@ export default function CompanySetup() {
 
   const token = localStorage.getItem('nsg_jwt_token');
 
-  const showToast = (msg) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(''), 3000);
-  };
+//   const showToast = (msg) => {
+//     setToastMsg(msg);
+//     setTimeout(() => setToastMsg(''), 3000);
+//   };
 
   // ─── API Integration ──────────────────────────────────────────────────────────
 
@@ -272,7 +272,7 @@ export default function CompanySetup() {
 
   const handleCaptureGPS = () => {
     if (!navigator.geolocation) {
-      showToast('Geolocation is not supported by your browser');
+      window.showToast('Geolocation is not supported by your browser');
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -282,10 +282,10 @@ export default function CompanySetup() {
           office_latitude: position.coords.latitude.toFixed(6),
           office_longitude: position.coords.longitude.toFixed(6)
         });
-        showToast('Office GPS location captured!');
+        window.showToast('Office GPS location captured!');
       },
       (error) => {
-        showToast('Failed to get GPS location. Please allow location access.');
+        window.showToast('Failed to get GPS location. Please allow location access.');
       },
       { enableHighAccuracy: true }
     );
@@ -307,10 +307,10 @@ export default function CompanySetup() {
     const results = await Promise.all([p1, p2, p3, p4, p5, p6, p7, p8]);
     setIsSaving(false);
     if (results.every(r => r)) {
-      showToast('Profile configuration saved securely.');
+      window.showToast('Profile configuration saved securely.');
       refreshCompanyConfig();
     } else {
-      showToast('Error saving profile settings.');
+      window.showToast('Error saving profile settings.');
     }
   };
 
@@ -337,14 +337,14 @@ export default function CompanySetup() {
           const data = await res.json();
           setLogoFile(fileName);
           setLogoPreview("http://localhost:8000" + data.file_url);
-          showToast('Logo file securely uploaded and saved.');
+          window.showToast('Logo file securely uploaded and saved.');
           refreshCompanyConfig();
         } else {
-          showToast('Error uploading logo to server.');
+          window.showToast('Error uploading logo to server.');
         }
       } catch (err) {
         setIsSaving(false);
-        showToast('Error connecting to server for upload.');
+        window.showToast('Error connecting to server for upload.');
       }
     }
   };
@@ -361,9 +361,9 @@ export default function CompanySetup() {
           body: JSON.stringify({ name: data.name, parent_id: parentId, headcount: 0 })
         });
         if (res.ok) {
-          showToast('Department added');
+          window.showToast('Department added');
           fetchDepartments();
-        } else showToast('Failed to add department');
+        } else window.showToast('Failed to add department');
       }
     });
   };
@@ -380,9 +380,9 @@ export default function CompanySetup() {
           body: JSON.stringify({ name: data.name })
         });
         if (res.ok) {
-          showToast('Department updated');
+          window.showToast('Department updated');
           fetchDepartments();
-        } else showToast('Failed to update department');
+        } else window.showToast('Failed to update department');
       }
     });
   };
@@ -394,9 +394,9 @@ export default function CompanySetup() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        showToast('Department deleted');
+        window.showToast('Department deleted');
         fetchDepartments();
-      } else showToast('Failed to delete department');
+      } else window.showToast('Failed to delete department');
     }
   };
 
@@ -426,9 +426,9 @@ export default function CompanySetup() {
           body: JSON.stringify(payload)
         });
         if (res.ok) {
-          showToast(item ? 'Designation updated' : 'Designation created');
+          window.showToast(item ? 'Designation updated' : 'Designation created');
           fetchDesignations();
-        } else showToast('Failed to save designation');
+        } else window.showToast('Failed to save designation');
       }
     });
   };
@@ -440,9 +440,9 @@ export default function CompanySetup() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        showToast('Designation deleted');
+        window.showToast('Designation deleted');
         fetchDesignations();
-      } else showToast('Failed to delete designation');
+      } else window.showToast('Failed to delete designation');
     }
   };
 
@@ -465,9 +465,9 @@ export default function CompanySetup() {
           body: JSON.stringify(data)
         });
         if (res.ok) {
-          showToast(item ? 'Shift updated' : 'Shift added');
+          window.showToast(item ? 'Shift updated' : 'Shift added');
           fetchShifts();
-        } else showToast('Failed to save shift');
+        } else window.showToast('Failed to save shift');
       }
     });
   };
@@ -479,9 +479,9 @@ export default function CompanySetup() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        showToast('Shift deleted');
+        window.showToast('Shift deleted');
         fetchShifts();
-      } else showToast('Failed to delete shift');
+      } else window.showToast('Failed to delete shift');
     }
   };
 
@@ -503,9 +503,9 @@ export default function CompanySetup() {
           body: JSON.stringify(data)
         });
         if (res.ok) {
-          showToast(item ? 'Holiday updated' : 'Holiday added');
+          window.showToast(item ? 'Holiday updated' : 'Holiday added');
           fetchHolidays();
-        } else showToast('Failed to save holiday');
+        } else window.showToast('Failed to save holiday');
       }
     });
   };
@@ -517,9 +517,9 @@ export default function CompanySetup() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        showToast('Holiday deleted');
+        window.showToast('Holiday deleted');
         fetchHolidays();
-      } else showToast('Failed to delete holiday');
+      } else window.showToast('Failed to delete holiday');
     }
   };
 
@@ -537,19 +537,7 @@ export default function CompanySetup() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
 
-      {/* GLOBAL TOAST NOTIFICATION */}
-      {toastMsg && (
-        <div style={{
-          position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)',
-          background: 'var(--ceo-text-primary)', color: '#FFF', padding: '12px 24px',
-          borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px',
-          boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', zIndex: 100, fontWeight: 500,
-          animation: 'fadeInDown 0.3s ease forwards'
-        }}>
-          <CheckCircle size={18} color="var(--ceo-success)" />
-          {toastMsg}
-        </div>
-      )}
+      {/* GLOBAL TOAST NOTIFICATION - Handled by App.jsx Toaster */}
 
       {/* DYNAMIC MODAL */}
       {modalConfig && (

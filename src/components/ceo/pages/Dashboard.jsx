@@ -31,7 +31,7 @@ export default function Dashboard() {
   const heatmapPerPage = 5;
   
   // Heatmap state
-  const heatmapDepts = ["Sales", "Engineering", "Marketing", "HR", "Finance"];
+  const [heatmapDepts, setHeatmapDepts] = useState([]);
   const [heatmapDataState, setHeatmapDataState] = useState([]);
   const [datesState, setDatesState] = useState([]);
 
@@ -144,8 +144,9 @@ export default function Dashboard() {
       });
 
       // 5. Fetch heatmap data from optimized API
+      const fallbackDepts = ["Sales", "Engineering", "Marketing", "HR", "Finance"];
       const heatRes = await fetch('/api/ceo-portal/dashboard/heatmap', { headers });
-      const heatData = heatRes.ok ? await heatRes.json() : { dates: [], departments: heatmapDepts, data: heatmapDepts.map(() => [0,0,0,0,0,0,0,0,0,0,0,0,0,0]) };
+      const heatData = heatRes.ok ? await heatRes.json() : { dates: [], departments: fallbackDepts, data: fallbackDepts.map(() => [0,0,0,0,0,0,0,0,0,0,0,0,0,0]) };
 
       // Save to states
       if (summaryVal) {
@@ -165,6 +166,7 @@ export default function Dashboard() {
       setEscalationsList(mappedEscalations);
       setDatesState(heatData.dates);
       setHeatmapDataState(heatData.data);
+      setHeatmapDepts(heatData.departments || []);
 
     } catch (err) {
       console.error("Error loading dashboard data:", err);

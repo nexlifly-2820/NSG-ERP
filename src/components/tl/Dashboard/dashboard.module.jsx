@@ -356,7 +356,7 @@ const Dashboard = ({ setActiveTab, setSelectedChatUser }) => {
           </div>
         )}
 
-        {toast && (
+        {false && (
           <div style={{
             position: 'fixed',
             top: '24px',

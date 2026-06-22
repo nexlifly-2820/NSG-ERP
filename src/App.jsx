@@ -30,7 +30,7 @@ export default function App() {
       console.error('Unhandled promise rejection:', event.reason);
       const msg = event.reason?.detail || event.reason?.message || String(event.reason) || 'An unexpected database or API error occurred';
       if (msg && !msg.includes('ResizeObserver') && !msg.includes('ResizeObserver loop limit exceeded')) {
-        showToast(msg, 'error');
+        window.showToast(msg, 'error');
       }
     };
     window.addEventListener('unhandledrejection', handleUnhandledRejection);

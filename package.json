@@ -19,6 +19,7 @@
     "lucide-react": "^1.17.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "react-hot-toast": "^2.6.0",
     "react-is": "^19.2.7",
     "react-quill-new": "^3.8.3",
     "recharts": "^3.8.1",
