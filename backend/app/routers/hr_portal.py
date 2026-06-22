@@ -573,7 +573,7 @@ def get_dashboard_pending_approvals(current_user: models.User = Depends(security
             "title": f"{req.leave_type} Leave Request",
             "employee": emp.name if emp else "Unknown",
             "date": req.created_at.isoformat() if hasattr(req, 'created_at') and req.created_at else "2024-01-01T00:00:00Z",
-            "url": "/#/HR/leave"
+            "url": "/#/HR/leave?tab=requests"
         })
         
     # Timesheets (Only counting pending)

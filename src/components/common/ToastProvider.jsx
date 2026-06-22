@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useCallback, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
+import { CheckCircle2, AlertTriangle, Info, XCircle, X } from 'lucide-react';
+import './toast.css';
 
 const ToastContext = createContext({
   showToast: (msg, type = 'success') => {},
@@ -7,18 +9,57 @@ const ToastContext = createContext({
 
 export const useToast = () => useContext(ToastContext);
 
+const CustomToast = ({ t, type, message }) => {
+  let icon;
+  let label;
+  let className = 'toast ';
+  
+  if (type === 'success') {
+    icon = <CheckCircle2 size={18} />;
+    label = 'SUCCESS';
+    className += 'toast-success';
+  } else if (type === 'error') {
+    icon = <XCircle size={18} />;
+    label = 'ERROR';
+    className += 'toast-error';
+  } else if (type === 'warning') {
+    icon = <AlertTriangle size={18} />;
+    label = 'WARNING';
+    className += 'toast-warning';
+  } else {
+    icon = <Info size={18} />;
+    label = 'INFO';
+    className += 'toast-info';
+  }
+
+  // react-hot-toast controls the enter/exit animation of the wrapper,
+  // we just need to provide the internal UI and progress bar
+  return (
+    <div className={className}>
+      <div className="toast-icon-wrap">
+        {icon}
+      </div>
+      <div className="toast-body">
+        <span className="toast-label">{label}</span>
+        <p className="toast-message">{message}</p>
+      </div>
+      <button className="toast-close" onClick={() => toast.dismiss(t.id)}>
+        <X size={14} />
+      </button>
+      <div 
+        className="toast-progress" 
+        style={{ animationDuration: `${t.duration || 4000}ms` }}
+      ></div>
+    </div>
+  );
+};
+
 export const ToastProvider = ({ children }) => {
   const showToast = useCallback((msg, type = 'success') => {
-    if (type === 'success') {
-      toast.success(msg);
-    } else if (type === 'error') {
-      toast.error(msg);
-    } else if (type === 'warning') {
-      // Custom styling for warnings
-      toast(msg, { icon: '⚠️' });
-    } else {
-      toast(msg); // Default info
-    }
+    const duration = type === 'error' ? 5000 : 4000;
+    toast.custom((t) => <CustomToast t={t} type={type} message={msg} />, {
+      duration,
+    });
   }, []);
 
   useEffect(() => {
@@ -40,37 +81,14 @@ export const ToastProvider = ({ children }) => {
     <ToastContext.Provider value={{ showToast }}>
       {children}
       <Toaster 
-        position="bottom-right"
+        position="top-right"
         reverseOrder={false}
+        containerStyle={{
+          top: '88px', // Pushes it below the navbar (72px + 16px margin)
+        }}
         toastOptions={{
-          // Default options for all toasts
-          className: '',
+          // Only used if someone directly calls toast.success() instead of window.toast.success()
           duration: 4000,
-          style: {
-            background: '#ffffff',
-            color: '#1e293b',
-            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: '500',
-            padding: '12px 20px',
-            fontFamily: 'inherit',
-            border: '1px solid #e2e8f0',
-          },
-          success: {
-            duration: 3000,
-            iconTheme: {
-              primary: '#10b981', // emerald-500
-              secondary: '#fff',
-            },
-          },
-          error: {
-            duration: 5000, // Show errors a bit longer
-            iconTheme: {
-              primary: '#ef4444', // red-500
-              secondary: '#fff',
-            },
-          },
         }}
       />
     </ToastContext.Provider>
