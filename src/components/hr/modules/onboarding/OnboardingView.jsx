@@ -256,6 +256,28 @@ export function OnboardingView({ queryParams, setQueryParams }) {
   const [showOfferPreviewModal, setShowOfferPreviewModal] = useState(false);
   const [offerPreviewHTML, setOfferPreviewHTML] = useState('');
   const offerPreviewRef = useRef(null);
+  
+  const [globalOfferTemplateHtml, setGlobalOfferTemplateHtml] = useState(null);
+  const [isLoadingOffer, setIsLoadingOffer] = useState(false);
+
+  const fetchGlobalOfferTemplate = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/hr-portal/onboarding/global-template/offer_letter', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.html_content) setGlobalOfferTemplateHtml(data.html_content);
+      }
+    } catch (err) {
+      console.error('Failed to fetch global offer template', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchGlobalOfferTemplate();
+  }, []);
 
   const handlePreviewOfferLetter = (e) => {
     e.preventDefault();
@@ -276,34 +298,98 @@ export function OnboardingView({ queryParams, setQueryParams }) {
     setOfferPreviewHTML(html);
     setShowOfferModal(false);
     setShowOfferPreviewModal(true);
+    
+    setTimeout(() => {
+        if (globalOfferTemplateHtml && offerPreviewRef.current) {
+            offerPreviewRef.current.innerHTML = globalOfferTemplateHtml;
+        }
+    }, 100);
   };
 
-  const handleOfferTemplateUpload = (e) => {
+  const handleOfferTemplateUpload = async (e, isGlobal = false) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      
-      if (file.type === 'application/pdf') {
-        reader.onload = (event) => {
-          if (offerPreviewRef.current) {
-            offerPreviewRef.current.innerHTML = `<iframe src="${event.target.result}" width="100%" height="1000px" style="border: none;"></iframe>`;
+      setIsLoadingOffer(true);
+      let pagesHtml = '';
+      try {
+        if (file.type === 'application/pdf') {
+          const pdfjsLib = await import('pdfjs-dist');
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.mjs`;
+          
+          const arrayBuffer = await file.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          
+          for (let i = 1; i <= pdf.numPages; i++) {
+              const page = await pdf.getPage(i);
+              const viewport = page.getViewport({ scale: 2.0 });
+              
+              const canvas = document.createElement('canvas');
+              const context = canvas.getContext('2d');
+              canvas.width = viewport.width;
+              canvas.height = viewport.height;
+              
+              await page.render({ canvasContext: context, viewport }).promise;
+              const imgData = canvas.toDataURL('image/jpeg', 0.8);
+              const cssHeight = (viewport.height / viewport.width) * 100;
+              
+              pagesHtml += `
+                <div style="position: relative; width: 100%; padding-bottom: ${cssHeight}%; background-image: url('${imgData}'); background-size: cover; background-repeat: no-repeat; background-position: top center; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+                  <div contentEditable="true" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; padding: 40px; outline: none; z-index: 10; font-family: sans-serif; min-height: 100%;">
+                    <div><br/></div>
+                  </div>
+                </div>
+              `;
           }
-        };
-        reader.readAsDataURL(file);
-      } else if (file.type.startsWith('image/')) {
-        reader.onload = (event) => {
-          if (offerPreviewRef.current) {
-            offerPreviewRef.current.innerHTML = `<div style="text-align: center;"><img src="${event.target.result}" style="max-width: 100%;" /></div>`;
-          }
-        };
-        reader.readAsDataURL(file);
-      } else {
-        reader.onload = (event) => {
-          if (offerPreviewRef.current) {
-            offerPreviewRef.current.innerHTML = event.target.result;
-          }
-        };
-        reader.readAsText(file);
+        } else if (file.name.endsWith('.docx')) {
+          const token = localStorage.getItem('nsg_jwt_token');
+          const formData = new FormData();
+          formData.append('file', file);
+          const res = await fetch('/api/ceo-portal/payroll/convert-document', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+          });
+          const data = await res.json();
+          pagesHtml = data.html || "<div>Failed to convert document</div>";
+        } else if (file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          pagesHtml = await new Promise((resolve) => {
+              reader.onload = (event) => resolve(`<div style="text-align: center;"><img src="${event.target.result}" style="max-width: 100%;" /></div>`);
+              reader.readAsDataURL(file);
+          });
+        } else {
+          pagesHtml = await file.text();
+        }
+
+        if (offerPreviewRef.current) {
+            offerPreviewRef.current.innerHTML = pagesHtml;
+        }
+
+        if (isGlobal) {
+            const token = localStorage.getItem('nsg_jwt_token');
+            const res = await fetch('/api/hr-portal/onboarding/global-template/offer_letter', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    template_type: 'offer_letter',
+                    html_content: pagesHtml
+                })
+            });
+            if (res.ok) {
+                setGlobalOfferTemplateHtml(pagesHtml);
+                notify('Global offer letter template saved successfully!', 'success');
+            } else {
+                notify('Failed to save global template', 'error');
+            }
+        }
+      } catch (e) {
+          console.error(e);
+          notify('Failed to process uploaded file', 'error');
+      } finally {
+          setIsLoadingOffer(false);
       }
     }
   };
@@ -1018,23 +1104,36 @@ export function OnboardingView({ queryParams, setQueryParams }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 ✏️ Edit Offer Letter
+                {isLoadingOffer && <span style={{ fontSize: '12px', color: 'var(--accent-pink)' }}>(Processing...)</span>}
               </h3>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', backgroundColor: 'var(--bg-tertiary)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  <label style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 'bold' }}>⭐ Global Default PDF Format</label>
+                  <input type="file" accept=".pdf,.png,.jpg,.jpeg,.docx" onChange={(e) => handleOfferTemplateUpload(e, true)} style={{ fontSize: '11px', maxWidth: '180px', color: 'var(--text-primary)' }} />
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                   <label style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase' }}>Upload Custom Format (Any File)</label>
-                  <input type="file" onChange={handleOfferTemplateUpload} style={{ fontSize: '12px', maxWidth: '200px', backgroundColor: 'var(--bg-primary)', padding: '4px', borderRadius: '4px', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
+                  <input type="file" accept=".pdf,.png,.jpg,.jpeg,.docx" onChange={(e) => handleOfferTemplateUpload(e, false)} style={{ fontSize: '12px', maxWidth: '200px', backgroundColor: 'var(--bg-primary)', padding: '4px', borderRadius: '4px', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
                 </div>
                 <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px' }} onClick={() => setShowOfferPreviewModal(false)}>✕</button>
               </div>
             </div>
 
-            <div className="custom-scroll" style={{ flex: 1, overflowY: 'auto', backgroundColor: '#e5e7eb', padding: '20px', borderRadius: '8px', display: 'flex', justifyContent: 'center' }}>
+            <div className="custom-scroll" style={{ flex: 1, overflowY: 'auto', backgroundColor: '#e5e7eb', padding: '20px', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <div style={{ width: '100%', maxWidth: '210mm', display: 'flex', justifyContent: 'flex-end', marginBottom: '12px', flexShrink: 0 }}>
+                 <button 
+                   onClick={handleDownloadEditedOffer}
+                   style={{ padding: '8px 16px', backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                 >
+                   📥 Download PDF Preview
+                 </button>
+              </div>
                <div 
                   ref={offerPreviewRef} 
                   contentEditable 
                   suppressContentEditableWarning 
                   dangerouslySetInnerHTML={{ __html: offerPreviewHTML }}
-                  style={{ outline: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', minHeight: '800px', backgroundColor: '#fff', zoom: '0.85' }}
+                  style={{ width: '210mm', outline: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', minHeight: '297mm', backgroundColor: '#fff', zoom: '0.85' }}
                />
             </div>
 

@@ -3813,3 +3813,26 @@ def get_announcements(skip: int = 0, limit: int = 100, db: Session = Depends(dat
         ))
     return res
 
+class GlobalTemplateRequest(BaseModel):
+    template_type: str
+    html_content: str
+
+@router.post("/onboarding/global-template")
+def save_global_template(req: GlobalTemplateRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
+    verify_hr_role(current_user)
+    gt = db.query(models.GlobalTemplate).filter(models.GlobalTemplate.template_type == req.template_type).first()
+    if gt:
+        gt.html_content = req.html_content
+    else:
+        gt = models.GlobalTemplate(template_type=req.template_type, html_content=req.html_content)
+        db.add(gt)
+    db.commit()
+    return {"status": "success"}
+
+@router.get("/onboarding/global-template/{template_type}")
+def get_global_template(template_type: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
+    verify_hr_role(current_user)
+    gt = db.query(models.GlobalTemplate).filter(models.GlobalTemplate.template_type == template_type).first()
+    if not gt:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return {"html_content": gt.html_content}
