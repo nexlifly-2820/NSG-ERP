@@ -1292,18 +1292,6 @@ def delete_holiday(holiday_id: int, current_user: models.User = Depends(security
     db.commit()
     return {"status": "success"}
 
-# ─── 6. Finance Portal Data & Commands ────────────────────@router.post("/finance/salary-components")
-def update_salary_components(req: SalaryStructureListRequest, db: Session = Depends(database.get_db)):
-    # Clear existing
-    db.query(models.SalaryComponent).delete()
-    db.commit()
-    # Add new
-    for c in req.components:
-        comp = models.SalaryComponent(name=c.name, type=c.type, calc=c.calc, value=c.value, tax=c.tax)
-        db.add(comp)
-    db.commit()
-    return {"status": "success"}
-
 from sqlalchemy import func
 
 class SalaryComponentRequest(BaseModel):
@@ -1316,6 +1304,20 @@ class SalaryComponentRequest(BaseModel):
 
 class SalaryStructureListRequest(BaseModel):
     components: List[SalaryComponentRequest]
+
+# ─── 6. Finance Portal Data & Commands ────────────────────
+
+@router.post("/finance/salary-components")
+def update_salary_components(req: SalaryStructureListRequest, db: Session = Depends(database.get_db)):
+    # Clear existing
+    db.query(models.SalaryComponent).delete()
+    db.commit()
+    # Add new
+    for c in req.components:
+        comp = models.SalaryComponent(name=c.name, type=c.type, calc=c.calc, value=c.value, tax=c.tax)
+        db.add(comp)
+    db.commit()
+    return {"status": "success"}
 
 
 
@@ -1694,6 +1696,7 @@ class ProcessPayrollRequest(BaseModel):
     payment_method: str
     transaction_ref: str
     payment_date: Optional[str] = None
+    custom_payslip_html: Optional[str] = None
 
 @router.get("/payroll/pending")
 def get_pending_payrolls(month: int, year: int, current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
@@ -1786,6 +1789,7 @@ def process_manual_payroll(user_id: int, req: ProcessPayrollRequest, current_use
     payslip.lop_days = req.lop_days
     payslip.lop_days_reversed = req.lop_days_reversed
     payslip.processed_by_id = current_user.id
+    payslip.custom_payslip_html = req.custom_payslip_html
     
     # Log Action
     db_log = models.AuditLog(
@@ -1806,6 +1810,71 @@ def process_manual_payroll(user_id: int, req: ProcessPayrollRequest, current_use
     
     db.commit()
     return {"status": "success", "message": "Payroll processed successfully"}
+
+@router.post("/payroll/convert-document")
+async def convert_document(file: UploadFile = File(...), current_user: models.User = Depends(security.get_current_user)):
+    verify_ceo_role(current_user)
+    
+    content = await file.read()
+    filename = file.filename.lower()
+    
+    html_out = ""
+    
+    import io
+    import tempfile
+    import os
+    
+    if filename.endswith(".pdf"):
+        try:
+            import pdfplumber
+            with pdfplumber.open(io.BytesIO(content)) as pdf:
+                for page in pdf.pages:
+                    text = page.extract_text()
+                    if text:
+                        formatted = text.replace('\n', '<br/>')
+                        html_out += f"<div>{formatted}</div>"
+        except Exception as e:
+            html_out = f"<div>Error parsing PDF: {str(e)}</div>"
+            
+    elif filename.endswith(".docx"):
+        try:
+            import mammoth
+            result = mammoth.convert_to_html(io.BytesIO(content))
+            html_out = result.value
+        except Exception as e:
+            html_out = f"<div>Error parsing DOCX: {str(e)}</div>"
+            
+    elif filename.endswith(".html") or filename.endswith(".htm"):
+        html_out = content.decode('utf-8')
+        
+    else:
+        # Default text fallback
+        html_out = f"<div>{content.decode('utf-8', errors='ignore')}</div>"
+        
+    return {"html": html_out}
+
+class GlobalTemplateRequest(BaseModel):
+    template_type: str
+    html_content: str
+
+@router.post("/payroll/global-template")
+def save_global_template(req: GlobalTemplateRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
+    verify_ceo_role(current_user)
+    gt = db.query(models.GlobalTemplate).filter(models.GlobalTemplate.template_type == req.template_type).first()
+    if gt:
+        gt.html_content = req.html_content
+    else:
+        gt = models.GlobalTemplate(template_type=req.template_type, html_content=req.html_content)
+        db.add(gt)
+    db.commit()
+    return {"status": "success"}
+
+@router.get("/payroll/global-template/{template_type}")
+def get_global_template(template_type: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(security.get_current_user)):
+    gt = db.query(models.GlobalTemplate).filter(models.GlobalTemplate.template_type == template_type).first()
+    if not gt:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return {"html_content": gt.html_content}
 
 @router.get("/payroll/history")
 def get_payroll_history(month: Optional[int] = None, year: Optional[int] = None, current_user: models.User = Depends(security.get_current_user), skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):
@@ -1855,7 +1924,8 @@ def get_payroll_history(month: Optional[int] = None, year: Optional[int] = None,
             "net": p.net,
             "payment_method": p.payment_method,
             "transaction_ref": p.transaction_ref,
-            "payment_date": p.payment_date.isoformat() if p.payment_date else None
+            "payment_date": p.payment_date.isoformat() if p.payment_date else None,
+            "custom_payslip_html": p.custom_payslip_html
         })
         
     return result

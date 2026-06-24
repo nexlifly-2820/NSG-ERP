@@ -298,6 +298,7 @@ class Payslip(Base):
     arrear_days = Column(Float, nullable=True, default=0.0)
     lop_days = Column(Float, nullable=True, default=0.0)
     lop_days_reversed = Column(Float, nullable=True, default=0.0)
+    custom_payslip_html = Column(Text, nullable=True)
     
     status = Column(String, default="pending")  # pending, paid
     payment_method = Column(String, nullable=True)
@@ -917,3 +918,10 @@ class JobOffer(Base):
     status = Column(String, default="Draft")
 
 
+
+class GlobalTemplate(Base):
+    __tablename__ = 'global_templates'
+
+    id = Column(Integer, primary_key=True, index=True)
+    template_type = Column(String, unique=True, index=True, nullable=False)
+    html_content = Column(Text, nullable=False)

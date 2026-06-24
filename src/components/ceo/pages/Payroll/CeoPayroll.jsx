@@ -52,14 +52,33 @@ export default function CeoPayroll() {
   const [lopDays, setLopDays] = useState('');
   const [lopDaysReversed, setLopDaysReversed] = useState('');
   const [letterheadUrl, setLetterheadUrl] = useState('/hmns-logo.png');
+  const [hasCustomTemplate, setHasCustomTemplate] = useState(false);
+  const [templateKey, setTemplateKey] = useState(0); // Used to force re-render of the editor
+  const [globalTemplateHtml, setGlobalTemplateHtml] = useState(null);
   
   // Notification State
   const [notification, setNotification] = useState(null);
+
+  const fetchGlobalTemplate = async () => {
+    try {
+      const token = localStorage.getItem('nsg_jwt_token');
+      const res = await fetch('/api/ceo-portal/payroll/global-template/payslip', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGlobalTemplateHtml(data.html_content);
+      }
+    } catch (e) {
+      console.error("Failed to fetch global template", e);
+    }
+  };
 
   useEffect(() => {
     setSelectedDate(null);
     if (activeTab === 'pending') fetchPending();
     else fetchHistory();
+    fetchGlobalTemplate();
   }, [activeTab, month, year]);
 
   const showNotification = (msg, type = 'success') => {
@@ -134,7 +153,16 @@ export default function CeoPayroll() {
     setLopDays('');
     setLopDaysReversed('');
     setLetterheadUrl('/hmns-logo.png');
+    setHasCustomTemplate(false);
+    setTemplateKey(prev => prev + 1);
     setShowModal(true);
+
+    setTimeout(() => {
+        if (globalTemplateHtml && payslipContentRef.current) {
+            payslipContentRef.current.innerHTML = globalTemplateHtml;
+            setHasCustomTemplate(true);
+        }
+    }, 100);
   };
 
   const handleLetterheadUpload = (e) => {
@@ -146,33 +174,114 @@ export default function CeoPayroll() {
     }
   };
 
-  const handleHtmlTemplateUpload = (e) => {
+  const handleTemplateUpload = async (e, isGlobal = false) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      
-      if (file.type === 'application/pdf') {
-        reader.onload = (event) => {
-          if (payslipContentRef.current) {
-            payslipContentRef.current.innerHTML = `<iframe src="${event.target.result}" width="100%" height="1000px" style="border: none;"></iframe>`;
+      setLoading(true);
+      let pagesHtml = '';
+      try {
+        if (file.type === 'application/pdf') {
+          const pdfjsLib = await import('pdfjs-dist');
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.mjs`;
+          
+          const arrayBuffer = await file.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          
+          for (let i = 1; i <= pdf.numPages; i++) {
+              const page = await pdf.getPage(i);
+              const viewport = page.getViewport({ scale: 2.0 });
+              
+              const canvas = document.createElement('canvas');
+              const context = canvas.getContext('2d');
+              canvas.width = viewport.width;
+              canvas.height = viewport.height;
+              
+              await page.render({ canvasContext: context, viewport }).promise;
+              const imgData = canvas.toDataURL('image/jpeg', 0.8);
+              const cssHeight = (viewport.height / viewport.width) * 100;
+              
+              pagesHtml += `
+                <div style="position: relative; width: 100%; padding-bottom: ${cssHeight}%; background-image: url('${imgData}'); background-size: cover; background-repeat: no-repeat; background-position: top center; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+                  <div contentEditable="true" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; padding: 40px; outline: none; z-index: 10; font-family: sans-serif; min-height: 100%;">
+                    <div><br/></div>
+                  </div>
+                </div>
+              `;
           }
-        };
-        reader.readAsDataURL(file);
-      } else if (file.type.startsWith('image/')) {
-        reader.onload = (event) => {
-          if (payslipContentRef.current) {
-            payslipContentRef.current.innerHTML = `<div style="text-align: center;"><img src="${event.target.result}" style="max-width: 100%;" /></div>`;
-          }
-        };
-        reader.readAsDataURL(file);
-      } else {
-        reader.onload = (event) => {
-          if (payslipContentRef.current) {
-            payslipContentRef.current.innerHTML = event.target.result;
-          }
-        };
-        reader.readAsText(file);
+        } else if (file.name.endsWith('.docx')) {
+          const token = localStorage.getItem('nsg_jwt_token');
+          const formData = new FormData();
+          formData.append('file', file);
+          const res = await fetch('/api/ceo-portal/payroll/convert-document', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+          });
+          const data = await res.json();
+          pagesHtml = data.html || "<div>Failed to convert document</div>";
+        } else if (file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          pagesHtml = await new Promise((resolve) => {
+              reader.onload = (event) => resolve(`<div style="text-align: center;"><img src="${event.target.result}" style="max-width: 100%;" /></div>`);
+              reader.readAsDataURL(file);
+          });
+        } else {
+          pagesHtml = await file.text();
+        }
+
+        if (isGlobal) {
+            const token = localStorage.getItem('nsg_jwt_token');
+            await fetch('/api/ceo-portal/payroll/global-template', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ template_type: 'payslip', html_content: pagesHtml })
+            });
+            setGlobalTemplateHtml(pagesHtml);
+            showNotification('Global Default Template Updated Successfully!', 'success');
+            e.target.value = null;
+        } else {
+            if (payslipContentRef.current) {
+                payslipContentRef.current.innerHTML = pagesHtml;
+                setHasCustomTemplate(true);
+            }
+        }
+      } catch (err) {
+        console.error(err);
+        showNotification('Error parsing document', 'error');
+      } finally {
+        setLoading(false);
       }
+    }
+  };
+
+  const clearCustomTemplate = () => {
+    setHasCustomTemplate(false);
+    setTemplateKey(prev => prev + 1);
+  };
+
+  const downloadPreview = async () => {
+    if (!payslipContentRef.current) return;
+    showNotification('Generating preview PDF...', 'info');
+    try {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = payslipContentRef.current.innerHTML;
+      tempDiv.style.padding = hasCustomTemplate ? '0' : '20px';
+      tempDiv.style.fontFamily = 'Arial, sans-serif';
+      document.body.appendChild(tempDiv);
+      
+      const opt = {
+        margin: hasCustomTemplate ? 0 : 10,
+        filename: `Preview_Payslip_${selectedUser?.employee_name || 'Template'}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+      
+      await html2pdf().set(opt).from(tempDiv).save();
+      document.body.removeChild(tempDiv);
+    } catch(err) {
+      console.error("PDF ERROR:", err);
+      showNotification(`Failed to generate preview: ${err.message}`, 'error');
     }
   };
 
@@ -202,7 +311,8 @@ export default function CeoPayroll() {
           worked_days: parseFloat(workedDays) || null,
           arrear_days: parseFloat(arrearDays) || 0,
           lop_days: parseFloat(lopDays) || 0,
-          lop_days_reversed: parseFloat(lopDaysReversed) || 0
+          lop_days_reversed: parseFloat(lopDaysReversed) || 0,
+          custom_payslip_html: payslipContentRef.current ? payslipContentRef.current.innerHTML : null
         })
       });
 
@@ -274,8 +384,28 @@ export default function CeoPayroll() {
 
   const downloadPDF = async (record) => {
     try {
-      await generatePayslipPDF(record);
-      showNotification(`Downloaded PDF for ${record.employee_name}`, 'success');
+      if (record.custom_payslip_html) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = record.custom_payslip_html;
+        tempDiv.style.padding = '20px';
+        tempDiv.style.fontFamily = 'Arial, sans-serif';
+        document.body.appendChild(tempDiv);
+        
+        const opt = {
+          margin: 10,
+          filename: `Payslip_${record.employee_name}_${record.month}_${record.year}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        
+        await html2pdf().set(opt).from(tempDiv).save();
+        document.body.removeChild(tempDiv);
+        showNotification(`Downloaded custom PDF for ${record.employee_name}`, 'success');
+      } else {
+        await generatePayslipPDF(record);
+        showNotification(`Downloaded PDF for ${record.employee_name}`, 'success');
+      }
     } catch(err) {
       console.error("PDF ERROR:", err);
       showNotification(`Failed to generate PDF: ${err.message}`, 'error');
@@ -340,26 +470,26 @@ export default function CeoPayroll() {
 
   return (
     <div className="ceo-payroll-container">
-      <div className="ceo-payroll-header">
-        <div>
-          <h1>Payroll Management</h1>
-          <p>Process salaries, add bonuses or LOP, and generate payslips manually.</p>
-        </div>
-        <div className="ceo-payroll-filters">
-          <input 
-            type="month"
-            value={`${year}-${month.toString().padStart(2, '0')}`}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val) {
-                const [y, m] = val.split('-');
-                setYear(parseInt(y));
-                setMonth(parseInt(m));
-              }
-            }}
-            className="ceo-form-input"
-            style={{ width: 'auto', cursor: 'pointer', padding: '8px 16px', fontWeight: '500', color: '#334155' }}
-          />
+      <div className="ceo-payroll-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+        <h1 style={{ fontSize: '28px', color: '#1f2937', fontWeight: 'bold', margin: '0' }}>Payroll Processing</h1>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', backgroundColor: '#f3f4f6', padding: '8px 16px', borderRadius: '8px' }}>
+            <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: '600', marginBottom: '4px' }}>Global Default PDF Format</span>
+            <input 
+              type="file" 
+              onChange={(e) => handleTemplateUpload(e, true)} 
+              title="Upload PDF or DOCX format that will apply to all new payslips automatically"
+              style={{ fontSize: '12px' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <select className="select-input" value={month} onChange={(e) => setMonth(parseInt(e.target.value))}>
+              {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => <option key={i} value={i+1}>{m}</option>)}
+            </select>
+            <input type="number" className="select-input" value={year} onChange={(e) => setYear(parseInt(e.target.value))} style={{ width: '80px' }} />
+          </div>
         </div>
       </div>
 
@@ -561,7 +691,23 @@ export default function CeoPayroll() {
 
                 <div className="form-group" style={{ marginTop: '12px' }}>
                   <label>Upload Custom Payslip Format (Any File)</label>
-                  <input type="file" onChange={handleHtmlTemplateUpload} style={{ width: '100%', fontSize: '13px' }} />
+                  <input type="file" onChange={(e) => handleTemplateUpload(e, false)} style={{ width: '100%', fontSize: '13px', marginBottom: hasCustomTemplate ? '8px' : '0' }} id="custom-template-upload" />
+                  {hasCustomTemplate && (
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button 
+                        onClick={clearCustomTemplate}
+                        style={{ padding: '6px 12px', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', flex: 1, justifyContent: 'center' }}
+                      >
+                        <X size={14} /> Remove Template
+                      </button>
+                      <button 
+                        onClick={downloadPreview}
+                        style={{ padding: '6px 12px', backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', flex: 1, justifyContent: 'center' }}
+                      >
+                        <Download size={14} /> Download Preview
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ marginTop: 'auto', paddingTop: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -573,8 +719,17 @@ export default function CeoPayroll() {
               </div>
 
               {/* Right Column: Live PDF WYSIWYG Editor */}
-              <div style={{ flex: '1', backgroundColor: '#e2e8f0', padding: '24px', borderRadius: '8px', overflowY: 'auto', maxHeight: '70vh', display: 'flex', justifyContent: 'center' }}>
-                <div 
+              <div style={{ flex: '1', backgroundColor: '#e2e8f0', padding: '24px', borderRadius: '8px', overflowY: 'auto', maxHeight: '70vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ width: '100%', maxWidth: '210mm', display: 'flex', justifyContent: 'flex-end', marginBottom: '12px', flexShrink: 0, paddingRight: '4px' }}>
+                   <button 
+                     onClick={downloadPreview}
+                     style={{ padding: '8px 16px', backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+                   >
+                     <Download size={16} /> Download PDF Preview
+                   </button>
+                </div>
+                <div
+                  key={templateKey}
                   ref={payslipContentRef}
                   contentEditable
                   suppressContentEditableWarning
