@@ -3,6 +3,7 @@ import { Loader, CheckCircle, Search, AlertCircle, FileText, IndianRupee, Histor
 import html2pdf from 'html2pdf.js';
 import jsPDF from 'jspdf';
 import { generatePayslipPDF } from '../../../../utils/pdfGenerator';
+import PayrollEntryRow from './PayrollEntryRow';
 import './CeoPayroll.css';
 
 export default function CeoPayroll() {
@@ -410,76 +411,12 @@ export default function CeoPayroll() {
                   <tr><td colSpan="10" className="empty-state">No pending payrolls for this month.</td></tr>
                 ) : (
                   pendingRecords.map(r => (
-                    <tr key={r.employee_id}>
-                      <td>
-                        <div className="emp-name">{r.employee_name}</div>
-                        <div className="emp-role">{r.role.toUpperCase()}</div>
-                      </td>
-                      <td>
-                        <input 
-                          type="number" 
-                          className="edit-input basic" 
-                          value={r.basic === 0 ? '' : r.basic}
-                          onChange={(e) => handleEdit(r.employee_id, 'basic', e.target.value)}
-                        />
-                      </td>
-                      <td>
-                        <input 
-                          type="number" 
-                          className="edit-input hra" 
-                          value={r.hra === 0 ? '' : r.hra}
-                          onChange={(e) => handleEdit(r.employee_id, 'hra', e.target.value)}
-                        />
-                      </td>
-                      <td>
-                        <input 
-                          type="number" 
-                          className="edit-input bonus" 
-                          value={r.bonus === 0 ? '' : r.bonus}
-                          onChange={(e) => handleEdit(r.employee_id, 'bonus', e.target.value)}
-                        />
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <span className="text-red font-semibold">-₹</span>
-                          <input 
-                            type="number" 
-                            className="edit-input lop" 
-                            value={r.lop === 0 ? '' : r.lop}
-                            onChange={(e) => handleEdit(r.employee_id, 'lop', e.target.value)}
-                          />
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <span className="text-red font-semibold">-₹</span>
-                          <input 
-                            type="number" 
-                            className="edit-input epf" 
-                            value={r.epf === 0 ? '' : r.epf}
-                            onChange={(e) => handleEdit(r.employee_id, 'epf', e.target.value)}
-                          />
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <span className="text-red font-semibold">-₹</span>
-                          <input 
-                            type="number" 
-                            className="edit-input tds" 
-                            value={r.tds === 0 ? '' : r.tds}
-                            onChange={(e) => handleEdit(r.employee_id, 'tds', e.target.value)}
-                          />
-                        </div>
-                      </td>
-                      <td className="amount-col text-red">-₹{Math.round(r.epf + r.tds + r.lop).toLocaleString()}</td>
-                      <td className="amount-col net-pay">₹{Math.round(r.net).toLocaleString()}</td>
-                      <td>
-                        <button className="btn-process" onClick={() => openPaymentModal(r)}>
-                          Process & Pay
-                        </button>
-                      </td>
-                    </tr>
+                    <PayrollEntryRow 
+                      key={r.employee_id} 
+                      record={r} 
+                      onEdit={handleEdit} 
+                      onProcess={openPaymentModal} 
+                    />
                   ))
                 )}
               </tbody>

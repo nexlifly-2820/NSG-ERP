@@ -9,8 +9,9 @@ const Escalations = () => {
     taskId: '',
     description: '',
     dependencies: '',
-    severity: 'Medium'
+    severity: ''
   });
+  const [formErrors, setFormErrors] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
@@ -37,10 +38,19 @@ const Escalations = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formState.title || !formState.taskId || !formState.description) {
-      window.toast.warning('Please fill out the Blocker Title, Task ID and Description.');
+    const newErrors = {};
+    if (!formState.title.trim()) newErrors.title = "Blocker Title is required.";
+    if (!formState.taskId.trim()) newErrors.taskId = "Task ID is required.";
+    if (!formState.description.trim()) newErrors.description = "Blocker Description is required.";
+    if (!formState.dependencies.trim()) newErrors.dependencies = "Blocking Dependencies are required.";
+    if (!formState.severity) newErrors.severity = "Severity is required.";
+
+    if (Object.keys(newErrors).length > 0) {
+      setFormErrors(newErrors);
+      if (window.toast && window.toast.warning) window.toast.warning('Please fix the validation errors.');
       return;
     }
+    setFormErrors({});
 
     try {
       const res = await fetch('/api/team-lead/escalations', {
@@ -59,7 +69,8 @@ const Escalations = () => {
       });
       if (res.ok) {
         fetchData();
-        setFormState({ title: '', taskId: '', description: '', dependencies: '', severity: 'Medium' });
+        setFormState({ title: '', taskId: '', description: '', dependencies: '', severity: '' });
+        setFormErrors({});
       } else {
         window.toast.error('Failed to raise escalation');
       }
@@ -98,54 +109,95 @@ const Escalations = () => {
           <form onSubmit={handleSubmit} className={styles.formGrid} style={{ maxWidth: '100%' }}>
             <div className={styles.formGroup}>
               <label>Blocker Title</label>
+              {formErrors.title && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{formErrors.title}</span></div>}
               <input 
                 type="text" 
                 className={styles.formInput} 
                 placeholder="e.g., API Down"
                 value={formState.title}
-                onChange={(e) => setFormState(prev => ({ ...prev, title: e.target.value }))}
+                onChange={(e) => {
+                  setFormState(prev => ({ ...prev, title: e.target.value }));
+                  if (!e.target.value.trim()) setFormErrors(prev => ({...prev, title: "Blocker Title is required."}));
+                  else setFormErrors(prev => ({...prev, title: null}));
+                }}
+                onFocus={(e) => { if(!e.target.value.trim()) setFormErrors(prev => ({...prev, title: "Blocker Title is required."})); }}
+                onBlur={(e) => { if (!e.target.value || String(e.target.value).trim() === '') setFormErrors(prev => ({...prev, title: "Blocker Title is required."})); }}
+                style={formErrors.title ? { borderColor: '#ef4444' } : {}}
               />
             </div>
 
             <div className={styles.formGroup}>
               <label>Task ID (Link)</label>
+              {formErrors.taskId && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{formErrors.taskId}</span></div>}
               <input 
                 type="text" 
                 className={styles.formInput} 
                 placeholder="e.g., TASK-1024"
                 value={formState.taskId}
-                onChange={(e) => setFormState(prev => ({ ...prev, taskId: e.target.value }))}
+                onChange={(e) => {
+                  setFormState(prev => ({ ...prev, taskId: e.target.value }));
+                  if (!e.target.value.trim()) setFormErrors(prev => ({...prev, taskId: "Task ID is required."}));
+                  else setFormErrors(prev => ({...prev, taskId: null}));
+                }}
+                onFocus={(e) => { if(!e.target.value.trim()) setFormErrors(prev => ({...prev, taskId: "Task ID is required."})); }}
+                onBlur={(e) => { if (!e.target.value || String(e.target.value).trim() === '') setFormErrors(prev => ({...prev, taskId: "Task ID is required."})); }}
+                style={formErrors.taskId ? { borderColor: '#ef4444' } : {}}
               />
             </div>
             
             <div className={styles.formGroup}>
               <label>Blocker Description</label>
+              {formErrors.description && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{formErrors.description}</span></div>}
               <textarea 
                 className={styles.formTextarea} 
                 placeholder="Describe what is blocking the progress of this task..."
                 value={formState.description}
-                onChange={(e) => setFormState(prev => ({ ...prev, description: e.target.value }))}
+                onChange={(e) => {
+                  setFormState(prev => ({ ...prev, description: e.target.value }));
+                  if (!e.target.value.trim()) setFormErrors(prev => ({...prev, description: "Blocker Description is required."}));
+                  else setFormErrors(prev => ({...prev, description: null}));
+                }}
+                onFocus={(e) => { if(!e.target.value.trim()) setFormErrors(prev => ({...prev, description: "Blocker Description is required."})); }}
+                onBlur={(e) => { if (!e.target.value || String(e.target.value).trim() === '') setFormErrors(prev => ({...prev, description: "Blocker Description is required."})); }}
+                style={formErrors.description ? { borderColor: '#ef4444' } : {}}
               ></textarea>
             </div>
             
             <div className={styles.formGroup}>
               <label>Blocking Dependencies (Comma separated)</label>
+              {formErrors.dependencies && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{formErrors.dependencies}</span></div>}
               <input 
                 type="text" 
                 className={styles.formInput} 
                 placeholder="e.g., API Team, Design Assets, DevOps Approval"
                 value={formState.dependencies}
-                onChange={(e) => setFormState(prev => ({ ...prev, dependencies: e.target.value }))}
+                onChange={(e) => {
+                  setFormState(prev => ({ ...prev, dependencies: e.target.value }));
+                  if (!e.target.value.trim()) setFormErrors(prev => ({...prev, dependencies: "Blocking Dependencies are required."}));
+                  else setFormErrors(prev => ({...prev, dependencies: null}));
+                }}
+                onFocus={(e) => { if(!e.target.value.trim()) setFormErrors(prev => ({...prev, dependencies: "Blocking Dependencies are required."})); }}
+                onBlur={(e) => { if (!e.target.value || String(e.target.value).trim() === '') setFormErrors(prev => ({...prev, dependencies: "Blocking Dependencies are required."})); }}
+                style={formErrors.dependencies ? { borderColor: '#ef4444' } : {}}
               />
             </div>
             
             <div className={styles.formGroup}>
               <label>Severity</label>
+              {formErrors.severity && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{formErrors.severity}</span></div>}
               <select 
                 className={styles.formSelect}
                 value={formState.severity}
-                onChange={(e) => setFormState(prev => ({ ...prev, severity: e.target.value }))}
+                onChange={(e) => {
+                  setFormState(prev => ({ ...prev, severity: e.target.value }));
+                  if (!e.target.value) setFormErrors(prev => ({...prev, severity: "Severity is required."}));
+                  else setFormErrors(prev => ({...prev, severity: null}));
+                }}
+                onFocus={(e) => { if(!e.target.value) setFormErrors(prev => ({...prev, severity: "Severity is required."})); }}
+                onBlur={(e) => { if (!e.target.value) setFormErrors(prev => ({...prev, severity: "Severity is required."})); }}
+                style={formErrors.severity ? { borderColor: '#ef4444' } : {}}
               >
+                <option value="">Select Severity...</option>
                 <option value="Medium">Medium - Impacts timeline but workarounds exist</option>
                 <option value="High">High - Blocks major feature delivery</option>
                 <option value="Critical">Critical - Complete halt of critical path</option>

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import useSWR from 'swr';
 import AvatarFallback from '../../common/AvatarFallback';
 import styles from './tasks.module.css';
-import { PlusSquare, List, XCircle, GitPullRequest, Edit, UserPlus, RotateCcw, Check, X, Eye, Trash2, Download } from 'lucide-react';
+import { PlusSquare, List, XCircle, GitPullRequest, Edit, UserPlus, RotateCcw, Check, X, Eye, Trash2, Download, AlertCircle } from 'lucide-react';
 
 export default function Tasks({ currentUser }) {
   const [activeView, setActiveView] = useState('create'); // 'create', 'list', 'rejected', 'pr'
@@ -39,7 +39,7 @@ export default function Tasks({ currentUser }) {
 
   const [taskTitle, setTaskTitle] = useState('');
   const [taskPoints, setTaskPoints] = useState('');
-  const [taskPriority, setTaskPriority] = useState('Medium');
+  const [taskPriority, setTaskPriority] = useState('');
   const [taskAssignees, setTaskAssignees] = useState([]);
   const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState(false);
   const assigneeDropdownRef = useRef(null);
@@ -68,6 +68,7 @@ export default function Tasks({ currentUser }) {
   const [statusNotes, setStatusNotes] = useState({});
   const [statusAttachments, setStatusAttachments] = useState({});
   const [customFields, setCustomFields] = useState({});
+  const [taskErrors, setTaskErrors] = useState({});
 
   const selectedProj = projectsData.find(p => p.id === taskProjectId);
   const targetDept = selectedProj?.department || currentUser?.department || 'IT';
@@ -169,6 +170,7 @@ export default function Tasks({ currentUser }) {
       setCustomFields({});
     }
     setEditingTaskId(rawTask.id);
+    setTaskErrors({});
     previousViewRef.current = activeView; // remember current tab before switching to edit form
     setActiveView('create');
   };
@@ -333,10 +335,23 @@ export default function Tasks({ currentUser }) {
   
   const handleCreateTask = async (e) => {
     e.preventDefault();
-    if(!taskTitle.trim() || taskAssignees.length === 0 || !taskProject || !taskSprint) {
-      window.toast.warning("Please enter a task title, select at least one assignee, select a project, and select a sprint ID");
+    const newErrors = {};
+    if (!taskTitle.trim()) newErrors.title = "Task Title is required.";
+    if (taskAssignees.length === 0) newErrors.assignees = "Please select at least one assignee.";
+    if (!taskDescription.trim()) newErrors.description = "Description is required.";
+    if (!taskPoints) newErrors.points = "Story Points are required.";
+    if (!taskPriority) newErrors.priority = "Priority is required.";
+    if (!taskProject) newErrors.project = "Project selection is required.";
+    if (taskProject && !taskSprint) newErrors.sprint = "Sprint selection is required.";
+    if (subtasks.every(s => !s.trim())) newErrors.subtasks = "At least one subtask is required.";
+    if (!taskAcceptance.trim()) newErrors.acceptance = "Acceptance Criteria is required.";
+    
+    if (Object.keys(newErrors).length > 0) {
+      setTaskErrors(newErrors);
+      if (window.toast && window.toast.warning) window.toast.warning("Please fix the validation errors.");
       return;
     }
+    setTaskErrors({});
     setLoading(true);
     const priorityVal = taskPriority.toLowerCase();
     let currentCustom = {};
@@ -395,6 +410,7 @@ export default function Tasks({ currentUser }) {
         setStatusNotes({});
         setStatusAttachments({});
         setCustomFields({});
+        setTaskErrors({});
         // Return to the tab the user was on before editing; for new tasks go to list
         setActiveView(editingTaskId ? previousViewRef.current : 'list');
         mutateTasks();
@@ -540,14 +556,19 @@ export default function Tasks({ currentUser }) {
             <div className={styles.formGrid}>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Task Title</label>
-                <input type="text" className={styles.formInput} placeholder="e.g. Build Payment Gateway UI" value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} />
+                {taskErrors.title && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{taskErrors.title}</span></div>}
+                <input type="text" className={styles.formInput} placeholder="e.g. Build Payment Gateway UI" value={taskTitle} onChange={(e) => { setTaskTitle(e.target.value); if(!e.target.value.trim()) setTaskErrors(prev => ({...prev, title: "Task Title is required."})); else setTaskErrors(prev => ({...prev, title: null})); }} onFocus={(e) => { if(!e.target.value.trim()) setTaskErrors(prev => ({...prev, title: "Task Title is required."})); }} onBlur={(e) => { if (!e.target.value || String(e.target.value).trim() === '') setTaskErrors(prev => ({...prev, title: "Task Title is required."})); }} style={taskErrors.title ? { borderColor: '#ef4444' } : {}} />
               </div>
               <div className={styles.formGroup} style={{ position: 'relative', zIndex: assigneeDropdownOpen ? 100 : 1 }} ref={assigneeDropdownRef}>
                 <label className={styles.formLabel}>Assignees</label>
+                {taskErrors.assignees && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{taskErrors.assignees}</span></div>}
                 <div 
                   className={styles.formInput} 
-                  style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', minHeight: '42px', backgroundColor: '#fff', border: '1px solid var(--border-color)', borderRadius: '6px' }}
-                  onClick={() => setAssigneeDropdownOpen(!assigneeDropdownOpen)}
+                  style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', minHeight: '42px', backgroundColor: '#fff', border: '1px solid var(--border-color)', borderRadius: '6px', ...(taskErrors.assignees ? { borderColor: '#ef4444' } : {}) }}
+                  onClick={() => {
+                     setAssigneeDropdownOpen(!assigneeDropdownOpen);
+                     if (taskAssignees.length === 0) setTaskErrors(prev => ({...prev, assignees: "Please select at least one assignee."}));
+                  }}
                 >
                   {taskAssignees.length === 0 
                     ? <span style={{ color: 'var(--text-muted)' }}>Select Team Members... ▾</span> 
@@ -562,8 +583,16 @@ export default function Tasks({ currentUser }) {
                           type="checkbox"
                           checked={taskAssignees.includes(m.id.toString())}
                           onChange={(e) => {
-                            if (e.target.checked) setTaskAssignees([...taskAssignees, m.id.toString()]);
-                            else setTaskAssignees(taskAssignees.filter(id => id !== m.id.toString()));
+                            if (e.target.checked) {
+                              const newAssignees = [...taskAssignees, m.id.toString()];
+                              setTaskAssignees(newAssignees);
+                              setTaskErrors(prev => ({...prev, assignees: null}));
+                            }
+                            else {
+                              const newAssignees = taskAssignees.filter(id => id !== m.id.toString());
+                              setTaskAssignees(newAssignees);
+                              if (newAssignees.length === 0) setTaskErrors(prev => ({...prev, assignees: "Please select at least one assignee."}));
+                            }
                           }}
                         />
                         {m.name} ({m.designation})
@@ -574,29 +603,36 @@ export default function Tasks({ currentUser }) {
               </div>
               <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                 <label className={styles.formLabel}>Description</label>
-                <textarea className={styles.formTextarea} placeholder="Detailed description of the task..." value={taskDescription} onChange={(e) => setTaskDescription(e.target.value)}></textarea>
+                {taskErrors.description && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{taskErrors.description}</span></div>}
+                <textarea className={styles.formTextarea} placeholder="Detailed description of the task..." value={taskDescription} onChange={(e) => { setTaskDescription(e.target.value); if(!e.target.value.trim()) setTaskErrors(prev => ({...prev, description: "Description is required."})); else setTaskErrors(prev => ({...prev, description: null})); }} onFocus={(e) => { if(!e.target.value.trim()) setTaskErrors(prev => ({...prev, description: "Description is required."})); }} onBlur={(e) => { if (!e.target.value || String(e.target.value).trim() === '') setTaskErrors(prev => ({...prev, description: "Description is required."})); }} style={taskErrors.description ? { borderColor: '#ef4444' } : {}}></textarea>
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Story Points</label>
-                <input type="text" className={styles.formInput} placeholder="e.g. 3, 5, 8" value={taskPoints} onChange={(e) => setTaskPoints(e.target.value.replace(/\D/g, ''))} />
+                {taskErrors.points && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{taskErrors.points}</span></div>}
+                <input type="text" className={styles.formInput} placeholder="e.g. 3, 5, 8" value={taskPoints} onChange={(e) => { setTaskPoints(e.target.value.replace(/\D/g, '')); if(!e.target.value.trim()) setTaskErrors(prev => ({...prev, points: "Story Points are required."})); else setTaskErrors(prev => ({...prev, points: null})); }} onFocus={(e) => { if(!e.target.value.trim() && !taskPoints) setTaskErrors(prev => ({...prev, points: "Story Points are required."})); }} onBlur={(e) => { if (!e.target.value || String(e.target.value).trim() === '') setTaskErrors(prev => ({...prev, points: "Story Points are required."})); }} style={taskErrors.points ? { borderColor: '#ef4444' } : {}} />
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Priority</label>
-                <select className={styles.formSelect} value={taskPriority} onChange={(e) => setTaskPriority(e.target.value)}>
-                  <option>Low</option>
-                  <option>Medium</option>
-                  <option>High</option>
-                  <option>Critical</option>
+                {taskErrors.priority && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{taskErrors.priority}</span></div>}
+                <select className={styles.formSelect} value={taskPriority} onChange={(e) => { setTaskPriority(e.target.value); if(!e.target.value) setTaskErrors(prev => ({...prev, priority: "Priority is required."})); else setTaskErrors(prev => ({...prev, priority: null})); }} onFocus={(e) => { if(!e.target.value) setTaskErrors(prev => ({...prev, priority: "Priority is required."})); }} onBlur={(e) => { if (!e.target.value) setTaskErrors(prev => ({...prev, priority: "Priority is required."})); }} style={taskErrors.priority ? { borderColor: '#ef4444' } : {}}>
+                  <option value="">Select Priority...</option>
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Critical">Critical</option>
                 </select>
               </div>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Project</label>
+                {taskErrors.project && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{taskErrors.project}</span></div>}
                 <select className={styles.formSelect} value={taskProject} onChange={(e) => {
                   const selectedProj = projectsData.find(p => p.name === e.target.value);
                   setTaskProject(e.target.value);
                   setTaskProjectId(selectedProj ? selectedProj.id : null);
                   setTaskSprint('Backlog');
-                }}>
+                  if (!e.target.value) setTaskErrors(prev => ({...prev, project: "Project selection is required.", sprint: null}));
+                  else setTaskErrors(prev => ({...prev, project: null}));
+                }} onFocus={(e) => { if(!e.target.value) setTaskErrors(prev => ({...prev, project: "Project selection is required."})); }} onBlur={(e) => { if (!e.target.value) setTaskErrors(prev => ({...prev, project: "Project selection is required."})); }} style={taskErrors.project ? { borderColor: '#ef4444' } : {}}>
                   <option value="">Select Project...</option>
                   {projectsData.map(proj => (
                     <option key={proj.id} value={proj.name}>{proj.name}</option>
@@ -606,7 +642,8 @@ export default function Tasks({ currentUser }) {
               {taskProject && (
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Sprint ID</label>
-                  <select className={styles.formSelect} value={taskSprint} onChange={(e) => setTaskSprint(e.target.value)}>
+                  {taskErrors.sprint && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{taskErrors.sprint}</span></div>}
+                  <select className={styles.formSelect} value={taskSprint} onChange={(e) => { setTaskSprint(e.target.value); if(!e.target.value) setTaskErrors(prev => ({...prev, sprint: "Sprint selection is required."})); else setTaskErrors(prev => ({...prev, sprint: null})); }} onFocus={(e) => { if(!e.target.value) setTaskErrors(prev => ({...prev, sprint: "Sprint selection is required."})); }} onBlur={(e) => { if (!e.target.value) setTaskErrors(prev => ({...prev, sprint: "Sprint selection is required."})); }} style={taskErrors.sprint ? { borderColor: '#ef4444' } : {}}>
                     <option value="">Select Sprint ID...</option>
                     {(() => {
                       const filteredSprints = taskProjectId
@@ -626,12 +663,28 @@ export default function Tasks({ currentUser }) {
               )}
               <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                 <label className={styles.formLabel}>Subtasks</label>
+                {taskErrors.subtasks && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{taskErrors.subtasks}</span></div>}
                 <div className={styles.subtaskList}>
                   {subtasks.map((subtask, idx) => (
                     <div key={idx} className={styles.subtaskItem}>
-                      <input type="text" className={styles.subtaskInput} placeholder={`Subtask ${idx + 1}...`} value={subtask} onChange={(e) => handleSubtaskChange(idx, e.target.value)} />
+                      <input type="text" className={styles.subtaskInput} placeholder={`Subtask ${idx + 1}...`} value={subtask} onChange={(e) => {
+                        handleSubtaskChange(idx, e.target.value);
+                        const newSubtasks = [...subtasks];
+                        newSubtasks[idx] = e.target.value;
+                        if (newSubtasks.every(s => !s.trim())) setTaskErrors(prev => ({...prev, subtasks: "At least one subtask is required."}));
+                        else setTaskErrors(prev => ({...prev, subtasks: null}));
+                      }} onFocus={(e) => {
+                        if (subtasks.every(s => !s.trim())) setTaskErrors(prev => ({...prev, subtasks: "At least one subtask is required."}));
+                      }} onBlur={(e) => {
+                        if (subtasks.every(s => !s.trim())) setTaskErrors(prev => ({...prev, subtasks: "At least one subtask is required."}));
+                      }} style={taskErrors.subtasks ? { borderColor: '#ef4444' } : {}} />
                       {subtasks.length > 1 && (
-                        <button type="button" className={styles.removeSubtaskBtn} onClick={() => handleRemoveSubtask(idx)}>
+                        <button type="button" className={styles.removeSubtaskBtn} onClick={() => {
+                          handleRemoveSubtask(idx);
+                          const newSubtasks = subtasks.filter((_, i) => i !== idx);
+                          if (newSubtasks.every(s => !s.trim())) setTaskErrors(prev => ({...prev, subtasks: "At least one subtask is required."}));
+                          else setTaskErrors(prev => ({...prev, subtasks: null}));
+                        }}>
                           <X size={16} />
                         </button>
                       )}
@@ -644,7 +697,8 @@ export default function Tasks({ currentUser }) {
               </div>
               <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                 <label className={styles.formLabel}>Acceptance Criteria</label>
-                <textarea className={styles.formTextarea} placeholder="- Given... When... Then..." value={taskAcceptance} onChange={(e) => setTaskAcceptance(e.target.value)}></textarea>
+                {taskErrors.acceptance && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{taskErrors.acceptance}</span></div>}
+                <textarea className={styles.formTextarea} placeholder="- Given... When... Then..." value={taskAcceptance} onChange={(e) => { setTaskAcceptance(e.target.value); if(!e.target.value.trim()) setTaskErrors(prev => ({...prev, acceptance: "Acceptance Criteria is required."})); else setTaskErrors(prev => ({...prev, acceptance: null})); }} onFocus={(e) => { if(!e.target.value.trim()) setTaskErrors(prev => ({...prev, acceptance: "Acceptance Criteria is required."})); }} onBlur={(e) => { if (!e.target.value || String(e.target.value).trim() === '') setTaskErrors(prev => ({...prev, acceptance: "Acceptance Criteria is required."})); }} style={taskErrors.acceptance ? { borderColor: '#ef4444' } : {}}></textarea>
               </div>
 
               {/* Dynamic Schema Fields */}

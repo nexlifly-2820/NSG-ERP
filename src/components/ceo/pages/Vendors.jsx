@@ -193,11 +193,7 @@ export default function Vendors() {
           </button>
           <button className="ceo-btn ceo-btn-primary" onClick={() => {
             setNewVendor({ vendor_id: '', name: '', category: '', status: '', spend: '', renewal: '', risk: '' });
-            setAddVendorErrors({
-              category: 'Please select Category.',
-              status: 'Please select Status.',
-              risk: 'Please select Risk Level.'
-            });
+            setAddVendorErrors({});
             setIsAddModalOpen(true);
           }}>
             <Plus size={16} /> Add Vendor
@@ -353,18 +349,19 @@ export default function Vendors() {
             <form onSubmit={handleAddVendor}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div>
-                  <label className="ceo-typography-body" style={{ fontWeight: 600, display: 'block', marginBottom: '8px' }}>VENDOR ID *</label>
-                  <input type="text" className="ceo-form-input" style={{ width: '100%' }} value={newVendor.vendor_id} onChange={e => { setNewVendor({...newVendor, vendor_id: e.target.value}); if(e.target.value.trim()) setAddVendorErrors(p => ({...p, vendor_id: ''})); }} onFocus={e => { if(!e.target.value.trim()) setAddVendorErrors(p => ({...p, vendor_id: 'Please enter Vendor ID.'})); }} onBlur={e => { if(!e.target.value.trim()) setAddVendorErrors(p => ({...p, vendor_id: 'Please enter Vendor ID.'})); else setAddVendorErrors(p => ({...p, vendor_id: ''})); }} placeholder="e.g. V-105" />
-                  {addVendorErrors.vendor_id && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addVendorErrors.vendor_id}</div>}
+                  <label className="ceo-typography-body" style={{ fontWeight: 600, display: 'block', marginBottom: addVendorErrors.vendor_id ? '4px' : '8px' }}>VENDOR ID *</label>
+                  {addVendorErrors.vendor_id && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addVendorErrors.vendor_id}</div>}
+                  <input type="text" className={`ceo-form-input ${addVendorErrors.vendor_id ? 'error' : ''}`} style={{ width: '100%' }} value={newVendor.vendor_id} onChange={e => { setNewVendor({...newVendor, vendor_id: e.target.value}); if(e.target.value.trim()) setAddVendorErrors(p => ({...p, vendor_id: ''})); }} onFocus={e => { if(!e.target.value.trim()) setAddVendorErrors(p => ({...p, vendor_id: 'Please enter Vendor ID.'})); }} onBlur={e => { if(!e.target.value.trim()) setAddVendorErrors(p => ({...p, vendor_id: 'Please enter Vendor ID.'})); }} placeholder="e.g. V-105" />
                 </div>
                 <div>
-                  <label className="ceo-typography-body" style={{ fontWeight: 600, display: 'block', marginBottom: '8px' }}>PROVIDER NAME *</label>
-                  <input type="text" className="ceo-form-input" style={{ width: '100%' }} value={newVendor.name} onChange={e => { setNewVendor({...newVendor, name: e.target.value}); if(e.target.value.trim()) setAddVendorErrors(p => ({...p, name: ''})); }} onFocus={e => { if(!e.target.value.trim()) setAddVendorErrors(p => ({...p, name: 'Please enter Provider Name.'})); }} onBlur={e => { if(!e.target.value.trim()) setAddVendorErrors(p => ({...p, name: 'Please enter Provider Name.'})); else setAddVendorErrors(p => ({...p, name: ''})); }} placeholder="Company Name" />
-                  {addVendorErrors.name && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addVendorErrors.name}</div>}
+                  <label className="ceo-typography-body" style={{ fontWeight: 600, display: 'block', marginBottom: addVendorErrors.name ? '4px' : '8px' }}>PROVIDER NAME *</label>
+                  {addVendorErrors.name && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addVendorErrors.name}</div>}
+                  <input type="text" className={`ceo-form-input ${addVendorErrors.name ? 'error' : ''}`} style={{ width: '100%' }} value={newVendor.name} onChange={e => { setNewVendor({...newVendor, name: e.target.value}); if(e.target.value.trim()) setAddVendorErrors(p => ({...p, name: ''})); }} onFocus={e => { if(!e.target.value.trim()) setAddVendorErrors(p => ({...p, name: 'Please enter Provider Name.'})); }} onBlur={e => { if(!e.target.value.trim()) setAddVendorErrors(p => ({...p, name: 'Please enter Provider Name.'})); }} placeholder="Company Name" />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div>
-                    <label className="ceo-typography-body" style={{ fontWeight: 600, display: 'block', marginBottom: '8px' }}>CATEGORY *</label>
+                    <label className="ceo-typography-body" style={{ fontWeight: 600, display: 'block', marginBottom: addVendorErrors.category ? '4px' : '8px' }}>CATEGORY *</label>
+                    {addVendorErrors.category && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addVendorErrors.category}</div>}
                     <CustomSelect 
                       defaultValue={newVendor.category} 
                       placeholder="Select Category"
@@ -377,11 +374,12 @@ export default function Vendors() {
                       ]}
                       onChange={val => { setNewVendor({...newVendor, category: val}); if(val) setAddVendorErrors(p => ({...p, category: ''})); }}
                       onFocus={val => { if(!val) setAddVendorErrors(p => ({...p, category: 'Please select Category.'})); else setAddVendorErrors(p => ({...p, category: ''})); }}
+                      innerStyle={{ borderColor: addVendorErrors.category ? 'var(--ceo-danger)' : '' }}
                     />
-                    {addVendorErrors.category && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addVendorErrors.category}</div>}
                   </div>
                   <div>
-                    <label className="ceo-typography-body" style={{ fontWeight: 600, display: 'block', marginBottom: '8px' }}>STATUS *</label>
+                    <label className="ceo-typography-body" style={{ fontWeight: 600, display: 'block', marginBottom: addVendorErrors.status ? '4px' : '8px' }}>STATUS *</label>
+                    {addVendorErrors.status && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addVendorErrors.status}</div>}
                     <CustomSelect 
                       defaultValue={newVendor.status} 
                       placeholder="Select Status"
@@ -392,18 +390,19 @@ export default function Vendors() {
                       ]}
                       onChange={val => { setNewVendor({...newVendor, status: val}); if(val) setAddVendorErrors(p => ({...p, status: ''})); }}
                       onFocus={val => { if(!val) setAddVendorErrors(p => ({...p, status: 'Please select Status.'})); else setAddVendorErrors(p => ({...p, status: ''})); }}
+                      innerStyle={{ borderColor: addVendorErrors.status ? 'var(--ceo-danger)' : '' }}
                     />
-                    {addVendorErrors.status && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addVendorErrors.status}</div>}
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div>
-                    <label className="ceo-typography-body" style={{ fontWeight: 600, display: 'block', marginBottom: '8px' }}>ANNUAL SPEND *</label>
-                    <input type="text" className="ceo-form-input" style={{ width: '100%' }} value={newVendor.spend} onChange={e => { const val = e.target.value.replace(/\D/g, ''); setNewVendor({...newVendor, spend: val}); if(val) setAddVendorErrors(p => ({...p, spend: ''})); }} onFocus={e => { if(!e.target.value.trim()) setAddVendorErrors(p => ({...p, spend: 'Please enter Annual Spend.'})); }} onBlur={e => { if(!e.target.value.trim()) setAddVendorErrors(p => ({...p, spend: 'Please enter Annual Spend.'})); else setAddVendorErrors(p => ({...p, spend: ''})); }} placeholder="e.g. 500000" />
-                    {addVendorErrors.spend && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addVendorErrors.spend}</div>}
+                    <label className="ceo-typography-body" style={{ fontWeight: 600, display: 'block', marginBottom: addVendorErrors.spend ? '4px' : '8px' }}>ANNUAL SPEND *</label>
+                    {addVendorErrors.spend && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addVendorErrors.spend}</div>}
+                    <input type="text" className={`ceo-form-input ${addVendorErrors.spend ? 'error' : ''}`} style={{ width: '100%' }} value={newVendor.spend} onChange={e => { const val = e.target.value.replace(/\D/g, ''); setNewVendor({...newVendor, spend: val}); if(val) setAddVendorErrors(p => ({...p, spend: ''})); }} onFocus={e => { if(!e.target.value.trim()) setAddVendorErrors(p => ({...p, spend: 'Please enter Annual Spend.'})); }} onBlur={e => { if(!e.target.value.trim()) setAddVendorErrors(p => ({...p, spend: 'Please enter Annual Spend.'})); }} placeholder="e.g. 500000" />
                   </div>
                   <div>
-                    <label className="ceo-typography-body" style={{ fontWeight: 600, display: 'block', marginBottom: '8px' }}>RISK LEVEL *</label>
+                    <label className="ceo-typography-body" style={{ fontWeight: 600, display: 'block', marginBottom: addVendorErrors.risk ? '4px' : '8px' }}>RISK LEVEL *</label>
+                    {addVendorErrors.risk && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addVendorErrors.risk}</div>}
                     <CustomSelect 
                       defaultValue={newVendor.risk} 
                       placeholder="Select Risk Level"
@@ -414,8 +413,8 @@ export default function Vendors() {
                       ]}
                       onChange={val => { setNewVendor({...newVendor, risk: val}); if(val) setAddVendorErrors(p => ({...p, risk: ''})); }}
                       onFocus={val => { if(!val) setAddVendorErrors(p => ({...p, risk: 'Please select Risk Level.'})); else setAddVendorErrors(p => ({...p, risk: ''})); }}
+                      innerStyle={{ borderColor: addVendorErrors.risk ? 'var(--ceo-danger)' : '' }}
                     />
-                    {addVendorErrors.risk && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addVendorErrors.risk}</div>}
                   </div>
                 </div>
               </div>

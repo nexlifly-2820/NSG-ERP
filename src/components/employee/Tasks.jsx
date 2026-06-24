@@ -520,8 +520,23 @@ function TaskDetailPanel({ task, onClose, onUpdate }) {
       </div>
 
       <div className="tk-detail-body">
+        {/* Status change */}
+        <div className="tk-detail-section-label">Update Status</div>
+        <div className="tk-status-row">
+          {STATUSES.map(s => (
+            <div
+              key={s}
+              className={`tk-status-btn ${status === s ? 'tk-status-btn--active' : ''}`}
+              style={status === s ? { borderColor: STATUS_COLOR[s], color: STATUS_COLOR[s], background: `${STATUS_COLOR[s]}18` } : {}}
+              onClick={() => changeStatus(s)}
+            >
+              {STATUS_LABEL[s]}
+            </div>
+          ))}
+        </div>
+
         {/* Description */}
-        <div className="tk-detail-section-label">Description</div>
+        <div className="tk-detail-section-label" style={{ marginTop: 24 }}>Description</div>
         <p className="tk-detail-desc">{task.description}</p>
 
         {/* Dynamic Schema Fields */}
@@ -557,19 +572,11 @@ function TaskDetailPanel({ task, onClose, onUpdate }) {
           )}
         </div>
 
-        {/* Status change */}
-        <div className="tk-detail-section-label" style={{ marginTop: 24 }}>Update Status</div>
-        <div className="tk-status-row">
-          {STATUSES.map(s => (
-            <div
-              key={s}
-              className={`tk-status-btn ${status === s ? 'tk-status-btn--active' : ''}`}
-              style={status === s ? { borderColor: STATUS_COLOR[s], color: STATUS_COLOR[s], background: `${STATUS_COLOR[s]}18` } : {}}
-            >
-              {STATUS_LABEL[s]}
-            </div>
-          ))}
-        </div>
+        {/* Acceptance criteria */}
+        <AcceptanceCriteriaList criteria={task.acceptance} checkedIds={acChecked} onToggle={toggleAc} />
+
+        {/* Subtasks */}
+        <SubtaskChecklist subtasks={subtasks} onToggle={toggleSubtask} />
 
         {/* Status Notes */}
         {(status === 'pending' || status === 'todo' || status === 'in-progress' || status === 'testing' || status === 'blocked' || status === 'reject' || status === 'pr') && (
@@ -639,12 +646,6 @@ function TaskDetailPanel({ task, onClose, onUpdate }) {
 
           </div>
         )}
-
-        {/* Subtasks */}
-        <SubtaskChecklist subtasks={subtasks} onToggle={toggleSubtask} />
-
-        {/* Acceptance criteria */}
-        <AcceptanceCriteriaList criteria={task.acceptance} checkedIds={acChecked} onToggle={toggleAc} />
 
         {/* PR Form — only show when task is in 'pr' status */}
         {status === 'pr' && (

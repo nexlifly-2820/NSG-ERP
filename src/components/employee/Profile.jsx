@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 import DocCard from './DocCard';
-import { User, Mail, Home, Camera, Check, ChevronDown, Download } from 'lucide-react';
+import { User, Mail, Home, Camera, Check, ChevronDown, Download, AlertCircle } from 'lucide-react';
 import AvatarFallback from '../common/AvatarFallback';
 
 const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?name=Employee&background=6d28d9&color=fff&size=150';
@@ -42,6 +42,7 @@ export default function Profile({ currentUser }) {
   const [newDocName, setNewDocName] = useState('');
   const [newDocFile, setNewDocFile] = useState(null);
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  const [docErrors, setDocErrors] = useState({});
 
   // Fetch ALL profile data from backend on mount
   useEffect(() => {
@@ -318,11 +319,16 @@ export default function Profile({ currentUser }) {
           <div className="details-form-row">
             {/* DOB */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>Date of Birth</label>
+              <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: detailsErrors.dob ? '0px' : '0px' }}>Date of Birth</label>
+              {detailsErrors.dob && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '11px', fontWeight: '500' }}><AlertCircle size={14} /> {detailsErrors.dob}</span>
+              )}
               <input 
                 type="date"
                 value={dob}
-                onChange={(e) => setDob(e.target.value)}
+                onChange={(e) => { setDob(e.target.value); if (e.target.value) setDetailsErrors(p => ({...p, dob: ''})); }}
+                onFocus={(e) => { if (isEditingDetails && !e.target.value) setDetailsErrors(p => ({...p, dob: 'Date of Birth is required.'})); }}
+                onClick={(e) => { if (isEditingDetails && !e.target.value) setDetailsErrors(p => ({...p, dob: 'Date of Birth is required.'})); }}
                 disabled={!isEditingDetails}
                 required
                 style={{
@@ -335,9 +341,6 @@ export default function Profile({ currentUser }) {
                   outline: 'none'
                 }}
               />
-              {detailsErrors.dob && (
-                <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: '500' }}>{detailsErrors.dob}</span>
-              )}
             </div>
 
             {/* Gender radio group */}
@@ -365,11 +368,16 @@ export default function Profile({ currentUser }) {
           <div className="details-form-row">
             {/* Emergency Contact Name */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>Emergency Contact Name</label>
+              <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: detailsErrors.emergencyContactName ? '0px' : '0px' }}>Emergency Contact Name</label>
+              {detailsErrors.emergencyContactName && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '11px', fontWeight: '500' }}><AlertCircle size={14} /> {detailsErrors.emergencyContactName}</span>
+              )}
               <input 
                 type="text"
                 value={emergencyContactName}
-                onChange={(e) => setEmergencyContactName(e.target.value)}
+                onChange={(e) => { setEmergencyContactName(e.target.value); if (e.target.value.trim()) setDetailsErrors(p => ({...p, emergencyContactName: ''})); }}
+                onFocus={(e) => { if (isEditingDetails && !e.target.value.trim()) setDetailsErrors(p => ({...p, emergencyContactName: 'Emergency contact name is required.'})); }}
+                onClick={(e) => { if (isEditingDetails && !e.target.value.trim()) setDetailsErrors(p => ({...p, emergencyContactName: 'Emergency contact name is required.'})); }}
                 disabled={!isEditingDetails}
                 required
                 placeholder="Robert Jenkins"
@@ -383,18 +391,20 @@ export default function Profile({ currentUser }) {
                   outline: 'none'
                 }}
               />
-              {detailsErrors.emergencyContactName && (
-                <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: '500' }}>{detailsErrors.emergencyContactName}</span>
-              )}
             </div>
 
             {/* Emergency Contact Phone */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>Emergency Contact Phone</label>
+              <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: detailsErrors.emergencyContactPhone ? '0px' : '0px' }}>Emergency Contact Phone</label>
+              {detailsErrors.emergencyContactPhone && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '11px', fontWeight: '500' }}><AlertCircle size={14} /> {detailsErrors.emergencyContactPhone}</span>
+              )}
               <input 
                 type="text"
                 value={emergencyContactPhone}
-                onChange={(e) => setEmergencyContactPhone(e.target.value)}
+                onChange={(e) => { setEmergencyContactPhone(e.target.value); if (e.target.value.trim()) setDetailsErrors(p => ({...p, emergencyContactPhone: ''})); }}
+                onFocus={(e) => { if (isEditingDetails && !e.target.value.trim()) setDetailsErrors(p => ({...p, emergencyContactPhone: 'Emergency contact phone is required.'})); }}
+                onClick={(e) => { if (isEditingDetails && !e.target.value.trim()) setDetailsErrors(p => ({...p, emergencyContactPhone: 'Emergency contact phone is required.'})); }}
                 disabled={!isEditingDetails}
                 required
                 placeholder="+91 98765 43210"
@@ -408,9 +418,6 @@ export default function Profile({ currentUser }) {
                   outline: 'none'
                 }}
               />
-              {detailsErrors.emergencyContactPhone && (
-                <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: '500' }}>{detailsErrors.emergencyContactPhone}</span>
-              )}
             </div>
           </div>
 
@@ -424,9 +431,14 @@ export default function Profile({ currentUser }) {
                 </span>
               )}
             </div>
+            {detailsErrors.address && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '11px', fontWeight: '500' }}><AlertCircle size={14} /> {detailsErrors.address}</span>
+            )}
             <textarea 
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              onChange={(e) => { setAddress(e.target.value); if (e.target.value.trim()) setDetailsErrors(p => ({...p, address: ''})); }}
+              onFocus={(e) => { if (isEditingDetails && !e.target.value.trim()) setDetailsErrors(p => ({...p, address: 'Address is required.'})); }}
+              onClick={(e) => { if (isEditingDetails && !e.target.value.trim()) setDetailsErrors(p => ({...p, address: 'Address is required.'})); }}
               disabled={!isEditingDetails}
               required
               rows="2"
@@ -445,9 +457,6 @@ export default function Profile({ currentUser }) {
                 fontFamily: 'inherit'
               }}
             />
-            {detailsErrors.address && (
-              <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: '500' }}>{detailsErrors.address}</span>
-            )}
           </div>
 
           {isEditingDetails && (
@@ -612,23 +621,33 @@ export default function Profile({ currentUser }) {
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Document Name</label>
+              <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: docErrors.name ? '0px' : '0px' }}>Document Name</label>
+              {docErrors.name && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '11px', fontWeight: '500' }}><AlertCircle size={14} /> {docErrors.name}</span>
+              )}
               <input 
                 type="text" 
                 value={newDocName}
-                onChange={(e) => setNewDocName(e.target.value)}
+                onChange={(e) => { setNewDocName(e.target.value); if (e.target.value.trim()) setDocErrors(p => ({...p, name: ''})); }}
+                onFocus={(e) => { if (!e.target.value.trim()) setDocErrors(p => ({...p, name: 'Document name is required.'})); }}
+                onClick={(e) => { if (!e.target.value.trim()) setDocErrors(p => ({...p, name: 'Document name is required.'})); }}
                 placeholder="e.g. Aadhar Card Copy" 
-                style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: '8px', outline: 'none', fontSize: '13px' }} 
+                style={{ backgroundColor: 'var(--bg-secondary)', border: docErrors.name ? '1px solid #ef4444' : '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: '8px', outline: 'none', fontSize: '13px' }} 
               />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>File Upload</label>
+              <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: docErrors.file ? '0px' : '0px' }}>File Upload</label>
+              {docErrors.file && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '11px', fontWeight: '500' }}><AlertCircle size={14} /> {docErrors.file}</span>
+              )}
               <input 
                 type="file" 
                 id="newDocFileInput"
-                onChange={(e) => setNewDocFile(e.target.files[0])}
-                style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: '8px', outline: 'none', fontSize: '13px' }} 
+                onChange={(e) => { setNewDocFile(e.target.files[0]); if (e.target.files[0]) setDocErrors(p => ({...p, file: ''})); }}
+                onFocus={(e) => { if (!newDocFile) setDocErrors(p => ({...p, file: 'File upload is required.'})); }}
+                onClick={(e) => { if (!newDocFile) setDocErrors(p => ({...p, file: 'File upload is required.'})); }}
+                style={{ backgroundColor: 'var(--bg-secondary)', border: docErrors.file ? '1px solid #ef4444' : '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: '8px', outline: 'none', fontSize: '13px' }} 
               />
             </div>
 
@@ -636,6 +655,14 @@ export default function Profile({ currentUser }) {
               <button 
                 disabled={isUploadingDoc}
                 onClick={async () => {
+                  const errors = {};
+                  if (!newDocName.trim()) errors.name = 'Document name is required.';
+                  if (!newDocFile) errors.file = 'File upload is required.';
+                  if (Object.keys(errors).length > 0) {
+                    setDocErrors(errors);
+                    return;
+                  }
+                  
                   if (newDocName && newDocFile) {
                     setIsUploadingDoc(true);
                     const formData = new FormData();

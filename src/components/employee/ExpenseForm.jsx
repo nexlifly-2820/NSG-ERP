@@ -111,13 +111,22 @@ export default function ExpenseForm({ onSubmitClaim }) {
 
       {/* Category Input */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+        <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: errors.category ? '0px' : '0px' }}>
           Category <span style={{ color: '#ef4444' }}>*</span>
         </label>
+        {errors.category && (
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '11px', fontWeight: '500', marginBottom: '2px' }}><AlertCircle size={14} /> {errors.category}</span>
+        )}
         <input
           type="text"
           value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          onChange={(e) => {
+            setCategory(e.target.value);
+            if (e.target.value.trim()) setErrors(p => ({...p, category: ''}));
+            else setErrors(p => ({...p, category: 'Category is required.'}));
+          }}
+          onFocus={(e) => { if (!e.target.value.trim()) setErrors(p => ({...p, category: 'Category is required.'})); }}
+          onClick={(e) => { if (!e.target.value.trim()) setErrors(p => ({...p, category: 'Category is required.'})); else setErrors(p => ({...p, category: ''})); }}
           required
           placeholder="Please Enter Your Claim Type"
           style={{
@@ -132,16 +141,16 @@ export default function ExpenseForm({ onSubmitClaim }) {
             fontFamily: 'inherit'
           }}
         />
-        {errors.category && (
-          <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: '500' }}>{errors.category}</span>
-        )}
       </div>
 
       {/* Amount Input */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+        <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: errors.amount ? '0px' : '0px' }}>
           Amount (INR) <span style={{ color: '#ef4444' }}>*</span>
         </label>
+        {errors.amount && (
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '11px', fontWeight: '500', marginBottom: '2px' }}><AlertCircle size={14} /> {errors.amount}</span>
+        )}
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
           <div 
             style={{ 
@@ -160,7 +169,21 @@ export default function ExpenseForm({ onSubmitClaim }) {
             step="0.01"
             placeholder="1500" // placeholder spec
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={(e) => {
+              setAmount(e.target.value);
+              const val = parseFloat(e.target.value);
+              if (!e.target.value || isNaN(val) || val < 1) setErrors(p => ({...p, amount: 'Amount must be at least ₹1.'}));
+              else setErrors(p => ({...p, amount: ''}));
+            }}
+            onFocus={(e) => {
+              const val = parseFloat(e.target.value);
+              if (!e.target.value || isNaN(val) || val < 1) setErrors(p => ({...p, amount: 'Amount must be at least ₹1.'}));
+            }}
+            onClick={(e) => {
+              const val = parseFloat(e.target.value);
+              if (!e.target.value || isNaN(val) || val < 1) setErrors(p => ({...p, amount: 'Amount must be at least ₹1.'}));
+              else setErrors(p => ({...p, amount: ''}));
+            }}
             required
             style={{
               padding: '10px 12px 10px 28px',
@@ -175,21 +198,45 @@ export default function ExpenseForm({ onSubmitClaim }) {
             }}
           />
         </div>
-        {errors.amount && (
-          <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: '500' }}>{errors.amount}</span>
-        )}
       </div>
 
       {/* Date */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+        <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: errors.date ? '0px' : '0px' }}>
           Expense Date <span style={{ color: '#ef4444' }}>*</span>
         </label>
+        {errors.date && (
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '11px', fontWeight: '500', marginBottom: '2px' }}><AlertCircle size={14} /> {errors.date}</span>
+        )}
         <input
           type="date"
           value={date}
           max={new Date().toISOString().split('T')[0]} // restrict in HTML calendar
-          onChange={(e) => setTcDate(e.target.value)}
+          onChange={(e) => {
+            setTcDate(e.target.value);
+            if (!e.target.value) {
+              setErrors(p => ({...p, date: 'Expense date is required.'}));
+            } else {
+              const today = new Date().toISOString().split('T')[0];
+              if (e.target.value > today) setErrors(p => ({...p, date: 'Expense date cannot be in the future.'}));
+              else setErrors(p => ({...p, date: ''}));
+            }
+          }}
+          onFocus={(e) => {
+            if (!e.target.value) setErrors(p => ({...p, date: 'Expense date is required.'}));
+            else {
+              const today = new Date().toISOString().split('T')[0];
+              if (e.target.value > today) setErrors(p => ({...p, date: 'Expense date cannot be in the future.'}));
+            }
+          }}
+          onClick={(e) => {
+            if (!e.target.value) setErrors(p => ({...p, date: 'Expense date is required.'}));
+            else {
+              const today = new Date().toISOString().split('T')[0];
+              if (e.target.value > today) setErrors(p => ({...p, date: 'Expense date cannot be in the future.'}));
+              else setErrors(p => ({...p, date: ''}));
+            }
+          }}
           required
           style={{
             padding: '10px 12px',
@@ -203,25 +250,39 @@ export default function ExpenseForm({ onSubmitClaim }) {
             fontFamily: 'inherit'
           }}
         />
-        {errors.date && (
-          <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: '500' }}>{errors.date}</span>
-        )}
       </div>
 
       {/* Description */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', gridColumn: '1 / -1' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+          <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: errors.description ? '0px' : '0px' }}>
             Description <span style={{ color: '#ef4444' }}>*</span>
           </label>
           <span style={{ fontSize: '10px', color: description.length > 200 ? '#ef4444' : 'var(--text-muted)' }}>
             {description.length}/200
           </span>
         </div>
+        {errors.description && (
+          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '11px', fontWeight: '500', marginBottom: '2px' }}><AlertCircle size={14} /> {errors.description}</span>
+        )}
         <textarea
           placeholder="Client lunch at XYZ restaurant" // placeholder spec
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e) => {
+            setDescription(e.target.value);
+            if (!e.target.value.trim()) setErrors(p => ({...p, description: 'Description is required.'}));
+            else if (e.target.value.length > 200) setErrors(p => ({...p, description: 'Description must not exceed 200 characters.'}));
+            else setErrors(p => ({...p, description: ''}));
+          }}
+          onFocus={(e) => {
+            if (!e.target.value.trim()) setErrors(p => ({...p, description: 'Description is required.'}));
+            else if (e.target.value.length > 200) setErrors(p => ({...p, description: 'Description must not exceed 200 characters.'}));
+          }}
+          onClick={(e) => {
+            if (!e.target.value.trim()) setErrors(p => ({...p, description: 'Description is required.'}));
+            else if (e.target.value.length > 200) setErrors(p => ({...p, description: 'Description must not exceed 200 characters.'}));
+            else setErrors(p => ({...p, description: ''}));
+          }}
           required
           rows="3"
           style={{
@@ -237,15 +298,13 @@ export default function ExpenseForm({ onSubmitClaim }) {
             lineHeight: '1.4'
           }}
         />
-        {errors.description && (
-          <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: '500' }}>{errors.description}</span>
-        )}
       </div>
 
       {/* Receipt Uploader */}
       <div style={{ gridColumn: '1 / -1' }}>
         <ReceiptUpload 
           key={uploadKey}
+          externalError={errors.receipt}
         onFile={(file) => {
           setReceiptFile(file);
           if (file) {
@@ -254,9 +313,6 @@ export default function ExpenseForm({ onSubmitClaim }) {
         }} 
         accept="image/*,application/pdf" 
       />
-        {errors.receipt && (
-          <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: '500', marginTop: '-4px' }}>{errors.receipt}</span>
-        )}
       </div>
 
       <div style={{ gridColumn: '1 / -1' }}>

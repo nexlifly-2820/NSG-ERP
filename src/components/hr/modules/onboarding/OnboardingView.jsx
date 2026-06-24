@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, Edit, Users } from 'lucide-react';
+import { Trash2, Edit, Users, AlertCircle } from 'lucide-react';
 import { notify } from '../../utils/notify';
 import { generateOfferLetterPDF, getOfferLetterHTML } from '../../../../utils/offerLetterGenerator';
 
@@ -63,6 +63,7 @@ export function OnboardingView({ queryParams, setQueryParams }) {
   const [newAssetName, setNewAssetName] = useState('');
   const [newAssetSerial, setNewAssetSerial] = useState('');
   const [isAssigningAsset, setIsAssigningAsset] = useState(false);
+  const [assetErrors, setAssetErrors] = useState({});
 
   // Document Provisioning State
   const [selectedDocInstance, setSelectedDocInstance] = useState(null);
@@ -70,6 +71,7 @@ export function OnboardingView({ queryParams, setQueryParams }) {
   const [newDocName, setNewDocName] = useState('');
   const [newDocFile, setNewDocFile] = useState(null);
   const [isAssigningDoc, setIsAssigningDoc] = useState(false);
+  const [docErrors, setDocErrors] = useState({});
 
   useEffect(() => {
     if (selectedDocInstance) {
@@ -77,6 +79,7 @@ export function OnboardingView({ queryParams, setQueryParams }) {
       setEmployeeDocs([]);
       setNewDocName('');
       setNewDocFile(null);
+      setDocErrors({});
       
       const fetchDocs = async () => {
         try {
@@ -102,10 +105,16 @@ export function OnboardingView({ queryParams, setQueryParams }) {
   const handleAssignDoc = async (e) => {
     e.preventDefault();
     if (!selectedDocInstance) return;
-    if (!newDocFile) {
-        notify('Please select a file to upload', 'error');
-        return;
+    
+    let hasErr = false;
+    const errors = {};
+    if (!newDocName.trim()) { errors.name = 'Please enter Document Name.'; hasErr = true; }
+    if (!newDocFile) { errors.file = 'Please select a file to upload.'; hasErr = true; }
+    if (hasErr) {
+      setDocErrors(errors);
+      return;
     }
+    
     setIsAssigningDoc(true);
     
     try {
@@ -126,6 +135,7 @@ export function OnboardingView({ queryParams, setQueryParams }) {
         setEmployeeDocs([...employeeDocs, addedDoc]);
         setNewDocName('');
         setNewDocFile(null);
+        setDocErrors({});
         notify('Document saved to database successfully', 'success');
       } else {
         notify('Failed to save document', 'error');
@@ -145,6 +155,7 @@ export function OnboardingView({ queryParams, setQueryParams }) {
       setNewAssetType('');
       setNewAssetName('');
       setNewAssetSerial('');
+      setAssetErrors({});
       const fetchAssets = async () => {
         try {
           const token = localStorage.getItem('nsg_jwt_token');
@@ -169,6 +180,18 @@ export function OnboardingView({ queryParams, setQueryParams }) {
   const handleAssignAsset = async (e) => {
     e.preventDefault();
     if (!selectedInstance) return;
+    
+    // Validate required fields on submit
+    let hasErr = false;
+    const errors = {};
+    if (!newAssetType.trim()) { errors.type = 'Please enter Asset Type.'; hasErr = true; }
+    if (!newAssetName.trim()) { errors.name = 'Please enter Asset Name / Model.'; hasErr = true; }
+    if (!newAssetSerial.trim()) { errors.serial = 'Please enter Serial Number.'; hasErr = true; }
+    if (hasErr) {
+      setAssetErrors(errors);
+      return;
+    }
+    
     setIsAssigningAsset(true);
     try {
       const token = localStorage.getItem('nsg_jwt_token');
@@ -194,6 +217,7 @@ export function OnboardingView({ queryParams, setQueryParams }) {
         setNewAssetType('');
         setNewAssetName('');
         setNewAssetSerial('');
+        setAssetErrors({});
         notify('Asset assigned successfully', 'success');
       } else {
         notify('Failed to assign asset', 'error');
@@ -801,18 +825,36 @@ export function OnboardingView({ queryParams, setQueryParams }) {
                 <h4 style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px', textTransform: 'uppercase' }}>Assign New Asset</h4>
                 <form onSubmit={handleAssignAsset} style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Asset Type</label>
-                    <input type="text" value={newAssetType} onChange={(e) => setNewAssetType(e.target.value)} required placeholder="e.g. Laptop, Monitor, Headset..." style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
+                    <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Asset Type *</label>
+                    {assetErrors.type && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {assetErrors.type}</div>}
+                    <input type="text" value={newAssetType} 
+                           onFocus={(e) => { if (!e.target.value.trim()) setAssetErrors(p => ({...p, type: 'Please enter Asset Type.'})); }}
+                           onBlur={(e) => { if (!e.target.value.trim()) setAssetErrors(p => ({...p, type: 'Please enter Asset Type.'})); else setAssetErrors(p => ({...p, type: ''})); }}
+                           onChange={(e) => { setNewAssetType(e.target.value); if (!e.target.value.trim()) setAssetErrors(p => ({...p, type: 'Please enter Asset Type.'})); else setAssetErrors(p => ({...p, type: ''})); }} 
+                           required placeholder="e.g. Laptop, Monitor, Headset..." 
+                           style={{ backgroundColor: 'var(--bg-primary)', border: assetErrors.type ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
                   </div>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Asset Name / Model</label>
-                    <input type="text" value={newAssetName} onChange={(e) => setNewAssetName(e.target.value)} required placeholder="e.g. MacBook Pro M3 16-inch" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
+                    <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Asset Name / Model *</label>
+                    {assetErrors.name && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {assetErrors.name}</div>}
+                    <input type="text" value={newAssetName} 
+                           onFocus={(e) => { if (!e.target.value.trim()) setAssetErrors(p => ({...p, name: 'Please enter Asset Name / Model.'})); }}
+                           onBlur={(e) => { if (!e.target.value.trim()) setAssetErrors(p => ({...p, name: 'Please enter Asset Name / Model.'})); else setAssetErrors(p => ({...p, name: ''})); }}
+                           onChange={(e) => { setNewAssetName(e.target.value); if (!e.target.value.trim()) setAssetErrors(p => ({...p, name: 'Please enter Asset Name / Model.'})); else setAssetErrors(p => ({...p, name: ''})); }} 
+                           required placeholder="e.g. MacBook Pro M3 16-inch" 
+                           style={{ backgroundColor: 'var(--bg-primary)', border: assetErrors.name ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Serial Number (Optional)</label>
-                    <input type="text" value={newAssetSerial} onChange={(e) => setNewAssetSerial(e.target.value)} placeholder="e.g. C02X123456" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
+                    <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Serial Number *</label>
+                    {assetErrors.serial && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {assetErrors.serial}</div>}
+                    <input type="text" value={newAssetSerial} 
+                           onFocus={(e) => { if (!e.target.value.trim()) setAssetErrors(p => ({...p, serial: 'Please enter Serial Number.'})); }}
+                           onBlur={(e) => { if (!e.target.value.trim()) setAssetErrors(p => ({...p, serial: 'Please enter Serial Number.'})); else setAssetErrors(p => ({...p, serial: ''})); }}
+                           onChange={(e) => { setNewAssetSerial(e.target.value); if (!e.target.value.trim()) setAssetErrors(p => ({...p, serial: 'Please enter Serial Number.'})); else setAssetErrors(p => ({...p, serial: ''})); }} 
+                           required placeholder="e.g. C02X123456" 
+                           style={{ backgroundColor: 'var(--bg-primary)', border: assetErrors.serial ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
@@ -887,13 +929,24 @@ export function OnboardingView({ queryParams, setQueryParams }) {
                 <h4 style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px', textTransform: 'uppercase' }}>Assign New Document</h4>
                 <form onSubmit={handleAssignDoc} style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Document Name</label>
-                    <input type="text" value={newDocName} onChange={(e) => setNewDocName(e.target.value)} required placeholder="e.g. Aadhar Card Copy" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
+                    <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Document Name *</label>
+                    {docErrors.name && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {docErrors.name}</div>}
+                    <input type="text" value={newDocName} 
+                           onFocus={(e) => { if (!e.target.value.trim()) setDocErrors(p => ({...p, name: 'Please enter Document Name.'})); }}
+                           onBlur={(e) => { if (!e.target.value.trim()) setDocErrors(p => ({...p, name: 'Please enter Document Name.'})); else setDocErrors(p => ({...p, name: ''})); }}
+                           onChange={(e) => { setNewDocName(e.target.value); if (!e.target.value.trim()) setDocErrors(p => ({...p, name: 'Please enter Document Name.'})); else setDocErrors(p => ({...p, name: ''})); }} 
+                           required placeholder="e.g. Aadhar Card Copy" 
+                           style={{ backgroundColor: 'var(--bg-primary)', border: docErrors.name ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>File Upload</label>
-                    <input type="file" onChange={(e) => setNewDocFile(e.target.files[0])} required style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
+                    <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>File Upload *</label>
+                    {docErrors.file && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {docErrors.file}</div>}
+                    <input type="file" 
+                           onFocus={(e) => { if (!e.target.files || e.target.files.length === 0) setDocErrors(p => ({...p, file: 'Please select a file to upload.'})); }}
+                           onBlur={(e) => { if (!e.target.files || e.target.files.length === 0) setDocErrors(p => ({...p, file: 'Please select a file to upload.'})); else setDocErrors(p => ({...p, file: ''})); }}
+                           onChange={(e) => { setNewDocFile(e.target.files[0]); if (!e.target.files || e.target.files.length === 0) setDocErrors(p => ({...p, file: 'Please select a file to upload.'})); else setDocErrors(p => ({...p, file: ''})); }} 
+                           required style={{ backgroundColor: 'var(--bg-primary)', border: docErrors.file ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} />
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>

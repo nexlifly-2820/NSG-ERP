@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, X, AlertCircle } from 'lucide-react';
 
 export default function ResignationForm({ onSubmit }) {
   const todayStr = new Date().toISOString().split('T')[0];
@@ -8,7 +8,7 @@ export default function ResignationForm({ onSubmit }) {
   const [reason, setReason] = useState('');
   
   // Validation errors
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
 
   // Confirmation Modal states
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -22,13 +22,23 @@ export default function ResignationForm({ onSubmit }) {
     today.setHours(0, 0, 0, 0);
     resDate.setHours(0, 0, 0, 0);
 
-    // Validate resignation date: today_or_past
-    if (resDate > today) {
-      setError('Resignation Date cannot be in the future.');
+    const newErrors = {};
+    if (!resignationDate) {
+      newErrors.resignationDate = 'Resignation Date is required.';
+    } else if (resDate > today) {
+      newErrors.resignationDate = 'Resignation Date cannot be in the future.';
+    }
+    
+    if (!reason.trim() || reason.trim().length < 5) {
+      newErrors.reason = 'Reason must be at least 5 characters';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
-    setError('');
+    setErrors({});
     setShowConfirmModal(true);
   };
 
@@ -103,18 +113,53 @@ export default function ResignationForm({ onSubmit }) {
       <form onSubmit={handlePreSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {/* Resignation Date */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>
-            Resignation Date
+          <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: errors.resignationDate ? '0px' : '0px' }}>
+            Resignation Date <span style={{ color: '#ef4444' }}>*</span>
           </label>
+          {errors.resignationDate && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '11px', fontWeight: '500', marginBottom: '2px' }}><AlertCircle size={14} /> {errors.resignationDate}</span>
+          )}
           <input 
             type="date"
             value={resignationDate}
-            onChange={(e) => setResignationDate(e.target.value)}
+            onChange={(e) => { 
+              setResignationDate(e.target.value); 
+              if (e.target.value) {
+                const resDate = new Date(e.target.value);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                resDate.setHours(0, 0, 0, 0);
+                if (resDate > today) setErrors(p => ({...p, resignationDate: 'Resignation Date cannot be in the future.'}));
+                else setErrors(p => ({...p, resignationDate: ''}));
+              } else {
+                setErrors(p => ({...p, resignationDate: 'Resignation Date is required.'}));
+              }
+            }}
+            onFocus={(e) => { 
+              if (!e.target.value) setErrors(p => ({...p, resignationDate: 'Resignation Date is required.'})); 
+              else {
+                const resDate = new Date(e.target.value);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                resDate.setHours(0, 0, 0, 0);
+                if (resDate > today) setErrors(p => ({...p, resignationDate: 'Resignation Date cannot be in the future.'}));
+              }
+            }}
+            onClick={(e) => { 
+              if (!e.target.value) setErrors(p => ({...p, resignationDate: 'Resignation Date is required.'})); 
+              else {
+                const resDate = new Date(e.target.value);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                resDate.setHours(0, 0, 0, 0);
+                if (resDate > today) setErrors(p => ({...p, resignationDate: 'Resignation Date cannot be in the future.'}));
+              }
+            }}
             required
             style={{
               padding: '8px 10px',
               borderRadius: '6px',
-              border: error && error.includes('Resignation Date') ? '1px solid #ef4444' : '1px solid var(--border-color)',
+              border: errors.resignationDate ? '1px solid #ef4444' : '1px solid var(--border-color)',
               backgroundColor: 'var(--bg-primary)',
               color: 'var(--text-primary)',
               fontSize: '12px',
@@ -128,23 +173,28 @@ export default function ResignationForm({ onSubmit }) {
         {/* Reason */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>
-              Reason for Resignation (Optional)
+            <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: errors.reason ? '0px' : '0px' }}>
+              Reason for Resignation <span style={{ color: '#ef4444' }}>*</span>
             </label>
             <span style={{ fontSize: '10px', color: reason.length > 500 ? '#ef4444' : 'var(--text-muted)' }}>
               {reason.length}/500
             </span>
           </div>
+          {errors.reason && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '11px', fontWeight: '500', marginBottom: '2px' }}><AlertCircle size={14} /> {errors.reason}</span>
+          )}
           <textarea 
             value={reason}
-            onChange={(e) => setReason(e.target.value)}
+            onChange={(e) => { setReason(e.target.value); if (e.target.value.trim().length >= 5) setErrors(p => ({...p, reason: ''})); else setErrors(p => ({...p, reason: 'Reason must be at least 5 characters'})); }}
+            onFocus={(e) => { if (!e.target.value.trim() || e.target.value.trim().length < 5) setErrors(p => ({...p, reason: 'Reason must be at least 5 characters'})); }}
+            onClick={(e) => { if (!e.target.value.trim() || e.target.value.trim().length < 5) setErrors(p => ({...p, reason: 'Reason must be at least 5 characters'})); else setErrors(p => ({...p, reason: ''})); }}
             rows="3"
             maxLength={500}
-            placeholder="Sharing reason is optional but appreciated for HR records"
+            placeholder="Please provide a brief reason for your resignation"
             style={{
               padding: '8px 10px',
               borderRadius: '6px',
-              border: '1px solid var(--border-color)',
+              border: errors.reason ? '1px solid #ef4444' : '1px solid var(--border-color)',
               backgroundColor: 'var(--bg-primary)',
               color: 'var(--text-primary)',
               fontSize: '12px',

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Check, AlertCircle, X } from 'lucide-react';
 import AvatarFallback from '../common/AvatarFallback';
 
-export default function ReceiptUpload({ onFile, accept = 'image/*,application/pdf' }) {
+export default function ReceiptUpload({ onFile, accept = 'image/*,application/pdf', externalError }) {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -141,9 +141,12 @@ export default function ReceiptUpload({ onFile, accept = 'image/*,application/pd
         }
       ` }} />
 
-      <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)' }}>
+      <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: (error || externalError) ? '0px' : '0px' }}>
         Receipt Document <span style={{ color: '#ef4444' }}>*</span>
       </label>
+      {(error || externalError) && (
+        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '11px', fontWeight: '500', marginBottom: '2px' }}><AlertCircle size={14} /> {error || externalError}</span>
+      )}
       
       <input
         type="file"
@@ -191,12 +194,7 @@ export default function ReceiptUpload({ onFile, accept = 'image/*,application/pd
         </div>
       )}
 
-      {error && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ef4444', fontSize: '12px', fontWeight: '500' }}>
-          <AlertCircle size={14} />
-          <span>{error}</span>
-        </div>
-      )}
+
 
       {isUploading && (
         <div 

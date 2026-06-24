@@ -3,13 +3,14 @@ import useSWR from 'swr';
 import { notify } from '../../utils/notify';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Download, Search, Filter } from 'lucide-react';
+import { Download, Search, Filter, AlertCircle } from 'lucide-react';
 import { useCompany } from '../../../common/CompanyContext';
 
 export function AppraisalsView() {
   const { companyName, companyLogo } = useCompany();
   const [appraisalTab, setAppraisalTab] = useState('proposals'); // proposals | cycles | scorecards | promotions
   const [selectedEmpId, setSelectedEmpId] = useState('');
+  const [ctcErrors, setCtcErrors] = useState({});
 
   const token = localStorage.getItem('nsg_jwt_token');
   const fetcher = async (url) => {
@@ -21,11 +22,6 @@ export function AppraisalsView() {
 
   const { data: employees = [], mutate: mutateEmployees } = useSWR('/api/hr-portal/employees', fetcher);
   
-  useEffect(() => {
-    if (employees.length > 0 && !selectedEmpId) {
-      setSelectedEmpId(employees[0].id);
-    }
-  }, [employees]);
   const { data: appraisalCycles = [], mutate: mutateCycles } = useSWR('/api/hr-portal/appraisal-cycles', fetcher);
   const { data: incrementProposals = [], mutate: mutateProposals } = useSWR('/api/hr-portal/increment-proposals', fetcher);
   const { data: scorecards = [], mutate: mutateScorecards } = useSWR('/api/hr-portal/appraisal-scorecards', fetcher);
@@ -99,6 +95,17 @@ export function AppraisalsView() {
   const handleProposeIncrement = async (e) => {
     e.preventDefault();
 
+    let hasErr = false;
+    const errors = {};
+    if (!selectedEmpId) { errors.empId = 'Please select an employee.'; hasErr = true; }
+    if (proposedCTC === '' || proposedCTC === null || isNaN(proposedCTC)) { errors.proposedCTC = 'Please enter Proposed CTC.'; hasErr = true; }
+    if (incrementPct === '' || incrementPct === null || isNaN(incrementPct)) { errors.incrementPct = 'Please enter Increment %.'; hasErr = true; }
+
+    if (hasErr) {
+      setCtcErrors(errors);
+      return;
+    }
+
     const newProposal = {
       employee_id: selectedEmpId,
       current_ctc: currentAnnualCTC,
@@ -123,6 +130,7 @@ export function AppraisalsView() {
         const saved = await response.json();
         mutateProposals();
         mutateEmployees();
+        setCtcErrors({});
         notify(`Increment proposal of ${incrementPct}% submitted to CEO approvals queue.`);
       } else {
         notify(`Failed to submit increment proposal.`, 'error');
@@ -269,12 +277,22 @@ export function AppraisalsView() {
             <h3>CTC Projections Worksheet</h3>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', margin: '16px 0' }}>
-              <label style={{ fontSize: '11px', display: 'block', marginBottom: '8px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', letterSpacing: '0.5px' }}>Target Employee</label>
-              <select value={selectedEmpId} onChange={(e) => { setSelectedEmpId(Number(e.target.value)); }} style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}>
-                {safeEmployees.map(e => (
-                  <option key={e.id} value={e.id}>{e.name} ({e.designation})</option>
-                ))}
-              </select>
+              <div>
+                <label style={{ fontSize: '11px', display: 'block', marginBottom: '8px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', letterSpacing: '0.5px' }}>Target Employee *</label>
+                {ctcErrors.empId && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px' }}><AlertCircle size={12} /> {ctcErrors.empId}</div>}
+                <select 
+                  value={selectedEmpId} 
+                  onFocus={(e) => { if (!e.target.value) setCtcErrors(p => ({...p, empId: 'Please select an employee.'})); }}
+                  onBlur={(e) => { if (!e.target.value) setCtcErrors(p => ({...p, empId: 'Please select an employee.'})); else setCtcErrors(p => ({...p, empId: ''})); }}
+                  onChange={(e) => { setSelectedEmpId(e.target.value ? Number(e.target.value) : ''); if (!e.target.value) setCtcErrors(p => ({...p, empId: 'Please select an employee.'})); else setCtcErrors(p => ({...p, empId: ''})); }} 
+                  style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: ctcErrors.empId ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px', outline: 'none' }}
+                >
+                  <option value="">-- Select Employee --</option>
+                  {safeEmployees.map(e => (
+                    <option key={e.id} value={e.id}>{e.name} ({e.designation})</option>
+                  ))}
+                </select>
+              </div>
 
               <div style={{ display: 'flex', gap: '16px' }}>
                 <div style={{ flex: 1 }}>
@@ -289,22 +307,28 @@ export function AppraisalsView() {
 
               <div style={{ display: 'flex', gap: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '18px' }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '11px', display: 'block', marginBottom: '8px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', letterSpacing: '0.5px' }}>Proposed Annual CTC (₹)</label>
+                  <label style={{ fontSize: '11px', display: 'block', marginBottom: '8px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', letterSpacing: '0.5px' }}>Proposed Annual CTC (₹) *</label>
+                  {ctcErrors.proposedCTC && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px' }}><AlertCircle size={12} /> {ctcErrors.proposedCTC}</div>}
                   <input
                     type="number"
                     value={proposedCTC}
-                    onChange={(e) => handleCTCChange(Number(e.target.value))}
-                    style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}
+                    onFocus={(e) => { if (e.target.value === '') setCtcErrors(p => ({...p, proposedCTC: 'Please enter Proposed CTC.'})); }}
+                    onBlur={(e) => { if (e.target.value === '') setCtcErrors(p => ({...p, proposedCTC: 'Please enter Proposed CTC.'})); else setCtcErrors(p => ({...p, proposedCTC: ''})); }}
+                    onChange={(e) => { handleCTCChange(Number(e.target.value)); if (e.target.value === '') setCtcErrors(p => ({...p, proposedCTC: 'Please enter Proposed CTC.'})); else setCtcErrors(p => ({...p, proposedCTC: ''})); }}
+                    style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: ctcErrors.proposedCTC ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px', outline: 'none' }}
                   />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '11px', display: 'block', marginBottom: '8px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', letterSpacing: '0.5px' }}>Increment Percentage (%)</label>
+                  <label style={{ fontSize: '11px', display: 'block', marginBottom: '8px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold', letterSpacing: '0.5px' }}>Increment Percentage (%) *</label>
+                  {ctcErrors.incrementPct && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px' }}><AlertCircle size={12} /> {ctcErrors.incrementPct}</div>}
                   <input
                     type="number"
                     value={incrementPct}
-                    onChange={(e) => handlePctChange(Number(e.target.value))}
+                    onFocus={(e) => { if (e.target.value === '') setCtcErrors(p => ({...p, incrementPct: 'Please enter Increment %.'})); }}
+                    onBlur={(e) => { if (e.target.value === '') setCtcErrors(p => ({...p, incrementPct: 'Please enter Increment %.'})); else setCtcErrors(p => ({...p, incrementPct: ''})); }}
+                    onChange={(e) => { handlePctChange(Number(e.target.value)); if (e.target.value === '') setCtcErrors(p => ({...p, incrementPct: 'Please enter Increment %.'})); else setCtcErrors(p => ({...p, incrementPct: ''})); }}
                     step="0.1"
-                    style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }}
+                    style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: ctcErrors.incrementPct ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px', outline: 'none' }}
                   />
                 </div>
               </div>

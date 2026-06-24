@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import useSWR from 'swr';
+import { AlertCircle } from 'lucide-react';
 
 const fetcher = url => fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('nsg_jwt_token')}` } }).then(res => res.json());
 import './Leave.css';
@@ -134,6 +135,7 @@ function ApplyLeaveForm({ prefillType, balances, onSuccess, onRefreshData }) {
     else if (fromDate < today) e.fromDate = 'Cannot be in the past';
     if (!toDate) e.toDate = 'Required';
     else if (toDate < fromDate) e.toDate = 'Must be after start date';
+    if (!reason || reason.trim().length < 5) e.reason = 'Reason must be at least 5 characters';
     return e;
   }
 
@@ -197,51 +199,60 @@ function ApplyLeaveForm({ prefillType, balances, onSuccess, onRefreshData }) {
 
       {/* Leave Type */}
       <div className="lv-field-group">
-        <label className="lv-label">Leave Type <span className="lv-req">*</span></label>
+        <label className="lv-label" style={{ display: 'block', marginBottom: errors.leaveType ? '4px' : '6px' }}>Leave Type <span className="lv-req">*</span></label>
+        {errors.leaveType && <span className="lv-err-msg" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px', color: '#dc2626', fontSize: '13px' }}><AlertCircle size={14} /> {errors.leaveType}</span>}
         <select
           className={`lv-select ${errors.leaveType ? 'lv-input-err' : ''}`}
           value={leaveType}
-          onChange={e => { setLeaveType(e.target.value); setErrors(p => ({ ...p, leaveType: '' })); }}
+          onChange={e => { setLeaveType(e.target.value); if (e.target.value) setErrors(p => ({ ...p, leaveType: '' })); }}
+          onFocus={e => { if (!e.target.value) setErrors(p => ({ ...p, leaveType: 'Select a leave type' })); }}
+          onClick={e => { if (!e.target.value) setErrors(p => ({ ...p, leaveType: 'Select a leave type' })); else setErrors(p => ({ ...p, leaveType: '' })); }}
         >
           <option value="">Select type…</option>
           {LEAVE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
-        {errors.leaveType && <span className="lv-err-msg">{errors.leaveType}</span>}
       </div>
 
       {/* Date Range */}
       <div className="lv-date-row">
         <div className="lv-field-group">
-          <label className="lv-label">From <span className="lv-req">*</span></label>
+          <label className="lv-label" style={{ display: 'block', marginBottom: errors.fromDate ? '4px' : '6px' }}>From <span className="lv-req">*</span></label>
+          {errors.fromDate && <span className="lv-err-msg" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px', color: '#dc2626', fontSize: '13px' }}><AlertCircle size={14} /> {errors.fromDate}</span>}
           <input
             type="date" className={`lv-input ${errors.fromDate ? 'lv-input-err' : ''}`}
             min={today} value={fromDate}
-            onChange={e => { setFromDate(e.target.value); setErrors(p => ({ ...p, fromDate: '' })); }}
+            onChange={e => { setFromDate(e.target.value); if (e.target.value) setErrors(p => ({ ...p, fromDate: '' })); }}
+            onFocus={e => { if (!e.target.value) setErrors(p => ({ ...p, fromDate: 'Required' })); }}
+            onClick={e => { if (!e.target.value) setErrors(p => ({ ...p, fromDate: 'Required' })); else setErrors(p => ({ ...p, fromDate: '' })); }}
           />
-          {errors.fromDate && <span className="lv-err-msg">{errors.fromDate}</span>}
         </div>
         <div className="lv-field-group">
-          <label className="lv-label">To <span className="lv-req">*</span></label>
+          <label className="lv-label" style={{ display: 'block', marginBottom: errors.toDate ? '4px' : '6px' }}>To <span className="lv-req">*</span></label>
+          {errors.toDate && <span className="lv-err-msg" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px', color: '#dc2626', fontSize: '13px' }}><AlertCircle size={14} /> {errors.toDate}</span>}
           <input
             type="date" className={`lv-input ${errors.toDate ? 'lv-input-err' : ''}`}
             min={fromDate || today} value={toDate}
-            onChange={e => { setToDate(e.target.value); setErrors(p => ({ ...p, toDate: '' })); }}
+            onChange={e => { setToDate(e.target.value); if (e.target.value) setErrors(p => ({ ...p, toDate: '' })); }}
+            onFocus={e => { if (!e.target.value) setErrors(p => ({ ...p, toDate: 'Required' })); }}
+            onClick={e => { if (!e.target.value) setErrors(p => ({ ...p, toDate: 'Required' })); else setErrors(p => ({ ...p, toDate: '' })); }}
           />
-          {errors.toDate && <span className="lv-err-msg">{errors.toDate}</span>}
         </div>
       </div>
 
 
       {/* Reason */}
       <div className="lv-field-group">
-        <label className="lv-label">Reason <span className="lv-optional">(optional)</span></label>
+        <label className="lv-label" style={{ display: 'block', marginBottom: errors.reason ? '4px' : '6px' }}>Reason <span className="lv-req">*</span></label>
+        {errors.reason && <span className="lv-err-msg" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px', color: '#dc2626', fontSize: '13px' }}><AlertCircle size={14} /> {errors.reason}</span>}
         <textarea
-          className="lv-textarea"
+          className={`lv-textarea ${errors.reason ? 'lv-input-err' : ''}`}
           placeholder="Brief reason for planned leaves…"
           rows={3}
           maxLength={500}
           value={reason}
-          onChange={e => setReason(e.target.value)}
+          onChange={e => { setReason(e.target.value); if (e.target.value.trim().length >= 5) setErrors(p => ({ ...p, reason: '' })); }}
+          onFocus={e => { if (!e.target.value.trim() || e.target.value.trim().length < 5) setErrors(p => ({ ...p, reason: 'Reason must be at least 5 characters' })); }}
+          onClick={e => { if (!e.target.value.trim() || e.target.value.trim().length < 5) setErrors(p => ({ ...p, reason: 'Reason must be at least 5 characters' })); else setErrors(p => ({ ...p, reason: '' })); }}
         />
         <span className="lv-char-count">{reason.length}/500</span>
       </div>

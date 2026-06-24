@@ -28,7 +28,7 @@ const CustomSelect = ({ name, options, defaultValue, placeholder, error, onChang
     }}>
       <input type="hidden" name={name} value={value} />
       <div 
-        onClick={() => { if (!disabled) { setIsOpen(!isOpen); if (onFocus) onFocus(value); } }}
+        onClick={() => { if (!disabled) { setIsOpen(!isOpen); } if (onFocus) onFocus(value); }}
         className="ceo-form-input"
         style={{ width: '100%', padding: '10px 12px', height: '40px', background: '#FFF', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.6 : 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', ...innerStyle }}
       >
@@ -514,12 +514,7 @@ export default function People() {
             <button onClick={handleExportPDF} className="ceo-btn" style={{ height: '40px', fontSize: '13px', fontWeight: 600, background: '#FFF' }}><Download size={16} /> Export PDF</button>
             <button onClick={() => {
               setNewEmp({ name: '', empIdInput: '', dept: '', role: '', email: '', phone: '', status: 'Active', sysRole: '', shift: '' });
-              setAddEmpErrors({
-                dept: 'Please select Department.',
-                sysRole: 'Please select System Access Role.',
-                role: 'Please select Designation.',
-                shift: 'Please select Shift Timing.'
-              });
+              setAddEmpErrors({});
               setIsAddModalOpen(true);
             }} className="ceo-btn ceo-btn-primary" style={{ height: '40px', fontSize: '13px', fontWeight: 600 }}><UserPlus size={16} /> Add Employee</button>
           </div>
@@ -757,31 +752,33 @@ export default function People() {
             <form onSubmit={handleAddEmployee} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>FULL NAME *</label>
-                <input value={newEmp.name} onChange={e => { setNewEmp({...newEmp, name: e.target.value}); if(e.target.value.trim()) setAddEmpErrors(p => ({...p, name: ''})); }} onFocus={e => { if(!e.target.value.trim()) setAddEmpErrors(p => ({...p, name: 'Please enter Full Name.'})); }} onBlur={e => { if(!e.target.value.trim()) setAddEmpErrors(p => ({...p, name: 'Please enter Full Name.'})); else setAddEmpErrors(p => ({...p, name: ''})); }} className="ceo-form-input" style={{ width: '100%', padding: '12px' }} placeholder="e.g. Rahul Sharma" />
-                {addEmpErrors.name && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addEmpErrors.name}</div>}
+                {addEmpErrors.name && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addEmpErrors.name}</div>}
+                <input value={newEmp.name} onChange={e => { setNewEmp({...newEmp, name: e.target.value}); if(!e.target.value.trim()) setAddEmpErrors(p => ({...p, name: 'Please enter Full Name.'})); else setAddEmpErrors(p => ({...p, name: ''})); }} onFocus={e => { if(!e.target.value.trim()) setAddEmpErrors(p => ({...p, name: 'Please enter Full Name.'})); }} onBlur={e => { if(!e.target.value.trim()) setAddEmpErrors(p => ({...p, name: 'Please enter Full Name.'})); }} className="ceo-form-input" style={{ width: '100%', padding: '12px', borderColor: addEmpErrors.name ? 'var(--ceo-danger)' : '' }} placeholder="e.g. Rahul Sharma" />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>EMPLOYEE ID *</label>
-                <div style={{ display: 'flex', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--ceo-border)' }}>
+                {addEmpErrors.empIdInput && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addEmpErrors.empIdInput}</div>}
+                <div style={{ display: 'flex', borderRadius: '8px', overflow: 'hidden', border: addEmpErrors.empIdInput ? '1px solid var(--ceo-danger)' : '1px solid var(--ceo-border)' }}>
                   <div style={{ padding: '12px 16px', background: '#F8FAFC', borderRight: '1px solid var(--ceo-border)', color: 'var(--ceo-text-secondary)', fontWeight: 600 }}>{empIdPrefix}</div>
-                  <input value={newEmp.empIdInput} onChange={e => { setNewEmp({...newEmp, empIdInput: e.target.value}); if(e.target.value.trim()) setAddEmpErrors(p => ({...p, empIdInput: ''})); }} onFocus={e => { if(!e.target.value.trim()) setAddEmpErrors(p => ({...p, empIdInput: 'Please enter Employee ID.'})); }} onBlur={e => { if(!e.target.value.trim()) setAddEmpErrors(p => ({...p, empIdInput: 'Please enter Employee ID.'})); else setAddEmpErrors(p => ({...p, empIdInput: ''})); }} style={{ flex: 1, padding: '12px', border: 'none', outline: 'none' }} placeholder="Enter ID" />
+                  <input value={newEmp.empIdInput} onChange={e => { setNewEmp({...newEmp, empIdInput: e.target.value}); if(!e.target.value.trim()) setAddEmpErrors(p => ({...p, empIdInput: 'Please enter Employee ID.'})); else setAddEmpErrors(p => ({...p, empIdInput: ''})); }} onFocus={e => { if(!e.target.value.trim()) setAddEmpErrors(p => ({...p, empIdInput: 'Please enter Employee ID.'})); }} onBlur={e => { if(!e.target.value.trim()) setAddEmpErrors(p => ({...p, empIdInput: 'Please enter Employee ID.'})); }} style={{ flex: 1, padding: '12px', border: 'none', outline: 'none' }} placeholder="Enter ID" />
                 </div>
-                {addEmpErrors.empIdInput && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addEmpErrors.empIdInput}</div>}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>DEPARTMENT *</label>
+                  {addEmpErrors.dept && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addEmpErrors.dept}</div>}
                   <CustomSelect 
                     defaultValue={newEmp.dept} 
                     placeholder="Select Department"
                     options={departmentsList.map(d => ({ value: d.name, label: d.name }))}
                     onChange={val => { setNewEmp({...newEmp, dept: val}); if(val) setAddEmpErrors(p => ({...p, dept: ''})); }}
                     onFocus={val => { if(!val) setAddEmpErrors(p => ({...p, dept: 'Please select Department.'})); else setAddEmpErrors(p => ({...p, dept: ''})); }}
+                    innerStyle={{ borderColor: addEmpErrors.dept ? 'var(--ceo-danger)' : '' }}
                   />
-                  {addEmpErrors.dept && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addEmpErrors.dept}</div>}
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>DESIGNATION *</label>
+                  {addEmpErrors.role && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addEmpErrors.role}</div>}
                   <CustomSelect 
                     disabled={!newEmp.dept} 
                     title={!newEmp.dept ? "First choose a department" : ""} 
@@ -789,14 +786,18 @@ export default function People() {
                     placeholder="Select Designation"
                     options={designationsList.filter(d => !newEmp.dept || d.dept === newEmp.dept).map(d => ({ value: d.name, label: d.name }))}
                     onChange={val => { setNewEmp({...newEmp, role: val}); if(val) setAddEmpErrors(p => ({...p, role: ''})); }}
-                    onFocus={val => { if(!val) setAddEmpErrors(p => ({...p, role: 'Please select Designation.'})); else setAddEmpErrors(p => ({...p, role: ''})); }}
+                    onFocus={val => { 
+                      if(!val) setAddEmpErrors(p => ({...p, role: !newEmp.dept ? 'First select Department then select DESIGNATION.' : 'Please select Designation.'})); 
+                      else setAddEmpErrors(p => ({...p, role: ''})); 
+                    }}
+                    innerStyle={{ borderColor: addEmpErrors.role ? 'var(--ceo-danger)' : '' }}
                   />
-                  {addEmpErrors.role && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addEmpErrors.role}</div>}
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>SYSTEM ACCESS ROLE *</label>
+                  {addEmpErrors.sysRole && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addEmpErrors.sysRole}</div>}
                   <CustomSelect 
                     defaultValue={newEmp.sysRole} 
                     placeholder="Select Access Role"
@@ -807,31 +808,32 @@ export default function People() {
                     ]}
                     onChange={val => { setNewEmp({...newEmp, sysRole: val}); if(val) setAddEmpErrors(p => ({...p, sysRole: ''})); }}
                     onFocus={val => { if(!val) setAddEmpErrors(p => ({...p, sysRole: 'Please select System Access Role.'})); else setAddEmpErrors(p => ({...p, sysRole: ''})); }}
+                    innerStyle={{ borderColor: addEmpErrors.sysRole ? 'var(--ceo-danger)' : '' }}
                   />
-                  {addEmpErrors.sysRole && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addEmpErrors.sysRole}</div>}
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>EMAIL ADDRESS *</label>
-                  <input type="email" value={newEmp.email} onChange={e => { setNewEmp({...newEmp, email: e.target.value}); if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.target.value.trim())) setAddEmpErrors(p => ({...p, email: ''})); }} onFocus={e => { if(!e.target.value.trim()) setAddEmpErrors(p => ({...p, email: 'Please enter Email Address.'})); }} onBlur={e => { const val = e.target.value.trim(); if(!val) setAddEmpErrors(p => ({...p, email: 'Please enter Email Address.'})); else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) setAddEmpErrors(p => ({...p, email: 'Please enter a valid Corporate Email format.'})); else setAddEmpErrors(p => ({...p, email: ''})); }} className="ceo-form-input" style={{ width: '100%', padding: '12px' }} placeholder="employee@example.com" />
-                  {addEmpErrors.email && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addEmpErrors.email}</div>}
+                  {addEmpErrors.email && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addEmpErrors.email}</div>}
+                  <input type="email" value={newEmp.email} onChange={e => { const val = e.target.value.trim(); setNewEmp({...newEmp, email: e.target.value}); if(!val) setAddEmpErrors(p => ({...p, email: 'Please enter Email Address.'})); else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) setAddEmpErrors(p => ({...p, email: 'Please enter a valid Corporate Email format.'})); else setAddEmpErrors(p => ({...p, email: ''})); }} onFocus={e => { const val = e.target.value.trim(); if(!val) setAddEmpErrors(p => ({...p, email: 'Please enter Email Address.'})); else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) setAddEmpErrors(p => ({...p, email: 'Please enter a valid Corporate Email format.'})); }} onBlur={e => { const val = e.target.value.trim(); if(!val) setAddEmpErrors(p => ({...p, email: 'Please enter Email Address.'})); else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) setAddEmpErrors(p => ({...p, email: 'Please enter a valid Corporate Email format.'})); else setAddEmpErrors(p => ({...p, email: ''})); }} className="ceo-form-input" style={{ width: '100%', padding: '12px', borderColor: addEmpErrors.email ? 'var(--ceo-danger)' : '' }} placeholder="employee@example.com" />
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>PHONE NUMBER *</label>
-                  <input value={newEmp.phone} onChange={e => { setNewEmp({...newEmp, phone: e.target.value}); if(/^\+?[0-9\s\-()]{10,15}$/.test(e.target.value.trim())) setAddEmpErrors(p => ({...p, phone: ''})); }} onFocus={e => { if(!e.target.value.trim()) setAddEmpErrors(p => ({...p, phone: 'Please enter Phone Number.'})); }} onBlur={e => { const val = e.target.value.trim(); if(!val) setAddEmpErrors(p => ({...p, phone: 'Please enter Phone Number.'})); else if (!/^\+?[0-9\s\-()]{10,15}$/.test(val)) setAddEmpErrors(p => ({...p, phone: 'Please enter a valid Phone Number.'})); else setAddEmpErrors(p => ({...p, phone: ''})); }} className="ceo-form-input" style={{ width: '100%', padding: '12px' }} placeholder="+91 98765..." />
-                  {addEmpErrors.phone && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addEmpErrors.phone}</div>}
+                  {addEmpErrors.phone && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addEmpErrors.phone}</div>}
+                  <input value={newEmp.phone} onChange={e => { const val = e.target.value.trim(); setNewEmp({...newEmp, phone: e.target.value}); if(!val) setAddEmpErrors(p => ({...p, phone: 'Please enter Phone Number.'})); else if(!/^\+?[0-9\s\-()]{10,15}$/.test(val)) setAddEmpErrors(p => ({...p, phone: 'Please enter a valid Phone Number.'})); else setAddEmpErrors(p => ({...p, phone: ''})); }} onFocus={e => { const val = e.target.value.trim(); if(!val) setAddEmpErrors(p => ({...p, phone: 'Please enter Phone Number.'})); else if(!/^\+?[0-9\s\-()]{10,15}$/.test(val)) setAddEmpErrors(p => ({...p, phone: 'Please enter a valid Phone Number.'})); }} onBlur={e => { const val = e.target.value.trim(); if(!val) setAddEmpErrors(p => ({...p, phone: 'Please enter Phone Number.'})); else if (!/^\+?[0-9\s\-()]{10,15}$/.test(val)) setAddEmpErrors(p => ({...p, phone: 'Please enter a valid Phone Number.'})); else setAddEmpErrors(p => ({...p, phone: ''})); }} className="ceo-form-input" style={{ width: '100%', padding: '12px', borderColor: addEmpErrors.phone ? 'var(--ceo-danger)' : '' }} placeholder="+91 98765..." />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--ceo-text-secondary)', marginBottom: '8px' }}>SHIFT TIMING *</label>
+                  {addEmpErrors.shift && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addEmpErrors.shift}</div>}
                   <CustomSelect 
                     defaultValue={newEmp.shift} 
                     placeholder="Select Shift"
                     options={shiftsList.map(s => ({ value: s.name, label: `${s.name} (${s.start_time} - ${s.end_time})` }))}
                     onChange={val => { setNewEmp({...newEmp, shift: val}); if(val) setAddEmpErrors(p => ({...p, shift: ''})); }}
                     onFocus={val => { if(!val) setAddEmpErrors(p => ({...p, shift: 'Please select Shift Timing.'})); else setAddEmpErrors(p => ({...p, shift: ''})); }}
+                    innerStyle={{ borderColor: addEmpErrors.shift ? 'var(--ceo-danger)' : '' }}
                   />
-                  {addEmpErrors.shift && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {addEmpErrors.shift}</div>}
                 </div>
               </div>
               <div style={{ marginTop: '12px', display: 'flex', gap: '12px', justifyContent: 'flex-end', borderTop: '1px solid var(--ceo-divider)', paddingTop: '24px' }}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useCompany } from '../../../common/CompanyContext';
@@ -47,22 +47,39 @@ export function LeaveManagementView() {
   // CRUD States
   const [isApplyOnBehalfOpen, setIsApplyOnBehalfOpen] = useState(false);
   const [behalfEmpId, setBehalfEmpId] = useState('');
-  const [behalfType, setBehalfType] = useState('CL');
+  const [behalfType, setBehalfType] = useState('');
   const [behalfFrom, setBehalfFrom] = useState('');
   const [behalfTo, setBehalfTo] = useState('');
   const [behalfDays, setBehalfDays] = useState('');
   const [behalfReason, setBehalfReason] = useState('');
+  const [leaveErrors, setLeaveErrors] = useState({});
 
   const [editingBalance, setEditingBalance] = useState(null);
+  const [balanceErrors, setBalanceErrors] = useState({});
   const [editingRequest, setEditingRequest] = useState(null);
   const [requestFilter, setRequestFilter] = useState('pending'); // pending | approved | denied | all
 
   const handleApplyOnBehalf = async (e) => {
     e.preventDefault();
-    if (!behalfEmpId) return window.toast.warning('Please select an employee.');
-    const empId = Number(behalfEmpId);
     const daysCount = parseFloat(behalfDays) || 0;
-    if (daysCount <= 0) return window.toast.warning('Please specify a positive number of days.');
+    
+    let hasErr = false;
+    const errors = {};
+    if (!behalfEmpId) { errors.empId = 'Please select an employee.'; hasErr = true; }
+    if (!behalfType) { errors.type = 'Please select a Leave Type.'; hasErr = true; }
+    if (daysCount <= 0) { errors.days = 'Please specify a positive number of days.'; hasErr = true; }
+    if (!behalfFrom) { errors.from = 'Please select a From Date.'; hasErr = true; }
+    if (!behalfTo) { errors.to = 'Please select a To Date.'; hasErr = true; }
+    if (!behalfReason.trim()) { errors.reason = 'Please provide a reason.'; hasErr = true; }
+    
+    if (hasErr) {
+      setLeaveErrors(errors);
+      if (!behalfEmpId) window.toast.warning('Please select an employee.');
+      else if (daysCount <= 0) window.toast.warning('Please specify a positive number of days.');
+      return;
+    }
+
+    const empId = Number(behalfEmpId);
     
     try {
       const token = localStorage.getItem('nsg_jwt_token');
@@ -81,7 +98,7 @@ export function LeaveManagementView() {
       if(!res.ok) throw new Error("Failed");
       await fetchData();
       setIsApplyOnBehalfOpen(false);
-      setBehalfEmpId(''); setBehalfType('CL'); setBehalfFrom(''); setBehalfTo(''); setBehalfDays(''); setBehalfReason('');
+      setBehalfEmpId(''); setBehalfType(''); setBehalfFrom(''); setBehalfTo(''); setBehalfDays(''); setBehalfReason(''); setLeaveErrors({});
       window.toast.success('Successfully applied and approved leave.');
     } catch(e) { console.error(e); window.toast.error('Error'); }
   };
@@ -89,6 +106,19 @@ export function LeaveManagementView() {
   const handleSaveBalanceAdjustment = async (e) => {
     e.preventDefault();
     if (!editingBalance) return;
+
+    let hasErr = false;
+    const errors = {};
+    if (editingBalance.CL === '' || editingBalance.CL === null || isNaN(editingBalance.CL)) { errors.CL = 'Please enter CL balance.'; hasErr = true; }
+    if (editingBalance.SL === '' || editingBalance.SL === null || isNaN(editingBalance.SL)) { errors.SL = 'Please enter SL balance.'; hasErr = true; }
+    if (editingBalance.EL === '' || editingBalance.EL === null || isNaN(editingBalance.EL)) { errors.EL = 'Please enter EL balance.'; hasErr = true; }
+    if (editingBalance.Maternity === '' || editingBalance.Maternity === null || isNaN(editingBalance.Maternity)) { errors.Maternity = 'Please enter Maternity balance.'; hasErr = true; }
+
+    if (hasErr) {
+      setBalanceErrors(errors);
+      return;
+    }
+
     try {
       const token = localStorage.getItem('nsg_jwt_token');
       const res = await fetch(`/api/hr-portal/leaves/balances/${editingBalance.id}`, {
@@ -104,6 +134,7 @@ export function LeaveManagementView() {
       if(!res.ok) throw new Error("Failed");
       await fetchData();
       setEditingBalance(null);
+      setBalanceErrors({});
       window.toast.success('Leave balances successfully adjusted.');
     } catch(e) { console.error(e); window.toast.error('Error'); }
   };
@@ -740,12 +771,15 @@ export function LeaveManagementView() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Select Employee</label>
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Select Employee *</label>
+                {leaveErrors.empId && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {leaveErrors.empId}</div>}
                 <select 
                   value={behalfEmpId} 
-                  onChange={(e) => setBehalfEmpId(e.target.value)} 
+                  onFocus={(e) => { if (!e.target.value) setLeaveErrors(p => ({...p, empId: 'Please select an employee.'})); }}
+                  onBlur={(e) => { if (!e.target.value) setLeaveErrors(p => ({...p, empId: 'Please select an employee.'})); else setLeaveErrors(p => ({...p, empId: ''})); }}
+                  onChange={(e) => { setBehalfEmpId(e.target.value); if (!e.target.value) setLeaveErrors(p => ({...p, empId: 'Please select an employee.'})); else setLeaveErrors(p => ({...p, empId: ''})); }} 
                   required 
-                  style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }}
+                  style={{ backgroundColor: 'var(--bg-primary)', border: leaveErrors.empId ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }}
                 >
                   <option value="">-- Choose Staff member --</option>
                   {employees.map(emp => (
@@ -756,12 +790,17 @@ export function LeaveManagementView() {
 
               <div style={{ display: 'flex', gap: '12px' }}>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Leave Type</label>
+                  <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Leave Type *</label>
+                  {leaveErrors.type && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {leaveErrors.type}</div>}
                   <select 
                     value={behalfType} 
-                    onChange={(e) => setBehalfType(e.target.value)} 
-                    style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }}
+                    onFocus={(e) => { if (!e.target.value) setLeaveErrors(p => ({...p, type: 'Please select a Leave Type.'})); }}
+                    onBlur={(e) => { if (!e.target.value) setLeaveErrors(p => ({...p, type: 'Please select a Leave Type.'})); else setLeaveErrors(p => ({...p, type: ''})); }}
+                    onChange={(e) => { setBehalfType(e.target.value); if (!e.target.value) setLeaveErrors(p => ({...p, type: 'Please select a Leave Type.'})); else setLeaveErrors(p => ({...p, type: ''})); }} 
+                    required
+                    style={{ backgroundColor: 'var(--bg-primary)', border: leaveErrors.type ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }}
                   >
+                    <option value="">-- Choose Leave Type --</option>
                     <option value="CL">Casual Leave (CL)</option>
                     <option value="SL">Sick Leave (SL)</option>
                     <option value="EL">Earned Leave (EL)</option>
@@ -769,51 +808,63 @@ export function LeaveManagementView() {
                   </select>
                 </div>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Leave Duration (Days)</label>
+                  <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Leave Duration (Days) *</label>
+                  {leaveErrors.days && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {leaveErrors.days}</div>}
                   <input 
                     type="number" 
                     step="0.5" 
                     min="0.5" 
                     max="30" 
                     value={behalfDays} 
-                    onChange={(e) => setBehalfDays(e.target.value)} 
+                    onFocus={(e) => { if (!e.target.value || parseFloat(e.target.value) <= 0) setLeaveErrors(p => ({...p, days: 'Please specify a positive number of days.'})); }}
+                    onBlur={(e) => { if (!e.target.value || parseFloat(e.target.value) <= 0) setLeaveErrors(p => ({...p, days: 'Please specify a positive number of days.'})); else setLeaveErrors(p => ({...p, days: ''})); }}
+                    onChange={(e) => { setBehalfDays(e.target.value); if (!e.target.value || parseFloat(e.target.value) <= 0) setLeaveErrors(p => ({...p, days: 'Please specify a positive number of days.'})); else setLeaveErrors(p => ({...p, days: ''})); }} 
                     required 
-                    style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} 
+                    style={{ backgroundColor: 'var(--bg-primary)', border: leaveErrors.days ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} 
                   />
                 </div>
               </div>
 
               <div style={{ display: 'flex', gap: '12px' }}>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>From Date</label>
+                  <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>From Date *</label>
+                  {leaveErrors.from && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {leaveErrors.from}</div>}
                   <input 
                     type="date" 
                     value={behalfFrom} 
-                    onChange={(e) => setBehalfFrom(e.target.value)} 
+                    onFocus={(e) => { if (!e.target.value) setLeaveErrors(p => ({...p, from: 'Please select a From Date.'})); }}
+                    onBlur={(e) => { if (!e.target.value) setLeaveErrors(p => ({...p, from: 'Please select a From Date.'})); else setLeaveErrors(p => ({...p, from: ''})); }}
+                    onChange={(e) => { setBehalfFrom(e.target.value); if (!e.target.value) setLeaveErrors(p => ({...p, from: 'Please select a From Date.'})); else setLeaveErrors(p => ({...p, from: ''})); }} 
                     required 
-                    style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} 
+                    style={{ backgroundColor: 'var(--bg-primary)', border: leaveErrors.from ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} 
                   />
                 </div>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>To Date</label>
+                  <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>To Date *</label>
+                  {leaveErrors.to && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {leaveErrors.to}</div>}
                   <input 
                     type="date" 
                     value={behalfTo} 
-                    onChange={(e) => setBehalfTo(e.target.value)} 
+                    onFocus={(e) => { if (!e.target.value) setLeaveErrors(p => ({...p, to: 'Please select a To Date.'})); }}
+                    onBlur={(e) => { if (!e.target.value) setLeaveErrors(p => ({...p, to: 'Please select a To Date.'})); else setLeaveErrors(p => ({...p, to: ''})); }}
+                    onChange={(e) => { setBehalfTo(e.target.value); if (!e.target.value) setLeaveErrors(p => ({...p, to: 'Please select a To Date.'})); else setLeaveErrors(p => ({...p, to: ''})); }} 
                     required 
-                    style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} 
+                    style={{ backgroundColor: 'var(--bg-primary)', border: leaveErrors.to ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none' }} 
                   />
                 </div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Reason / Description</label>
+                <label style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Reason / Description *</label>
+                {leaveErrors.reason && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {leaveErrors.reason}</div>}
                 <textarea 
                   value={behalfReason} 
-                  onChange={(e) => setBehalfReason(e.target.value)} 
+                  onFocus={(e) => { if (!e.target.value.trim()) setLeaveErrors(p => ({...p, reason: 'Please provide a reason.'})); }}
+                  onBlur={(e) => { if (!e.target.value.trim()) setLeaveErrors(p => ({...p, reason: 'Please provide a reason.'})); else setLeaveErrors(p => ({...p, reason: ''})); }}
+                  onChange={(e) => { setBehalfReason(e.target.value); if (!e.target.value.trim()) setLeaveErrors(p => ({...p, reason: 'Please provide a reason.'})); else setLeaveErrors(p => ({...p, reason: ''})); }} 
                   required 
                   placeholder="Reason for leave submission..." 
-                  style={{ width: '100%', minHeight: '60px', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none', resize: 'vertical' }} 
+                  style={{ width: '100%', minHeight: '60px', backgroundColor: 'var(--bg-primary)', border: leaveErrors.reason ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '10px 12px', borderRadius: '8px', outline: 'none', resize: 'vertical' }} 
                 />
               </div>
             </div>
@@ -845,7 +896,7 @@ export function LeaveManagementView() {
                 <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '20px' }}>✏️</span> Adjust Leave Balances
                 </h3>
-                <button type="button" style={{ background: '#e2e8f0', border: 'none', color: '#64748b', cursor: 'pointer', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', transition: 'background 0.2s' }} onMouseEnter={(e) => e.target.style.background = '#cbd5e1'} onMouseLeave={(e) => e.target.style.background = '#e2e8f0'} onClick={() => setEditingBalance(null)}>✕</button>
+                <button type="button" style={{ background: '#e2e8f0', border: 'none', color: '#64748b', cursor: 'pointer', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', transition: 'background 0.2s' }} onMouseEnter={(e) => e.target.style.background = '#cbd5e1'} onMouseLeave={(e) => e.target.style.background = '#e2e8f0'} onClick={() => { setEditingBalance(null); setBalanceErrors({}); }}>✕</button>
               </div>
 
               <div style={{ padding: '24px' }}>
@@ -856,42 +907,58 @@ export function LeaveManagementView() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Casual Leave (CL)</label>
+                    <label style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Casual Leave (CL) *</label>
+                    {balanceErrors.CL && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {balanceErrors.CL}</div>}
                     <input 
                       type="number" step="0.5" min="0" value={editingBalance.CL} 
-                      onChange={(e) => setEditingBalance({ ...editingBalance, CL: e.target.value })} required 
-                      style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', padding: '10px 14px', borderRadius: '8px', outline: 'none', fontSize: '14px', transition: 'border-color 0.2s' }} 
+                      onFocus={(e) => { if (e.target.value === '') setBalanceErrors(p => ({...p, CL: 'Please enter CL balance.'})); }}
+                      onBlur={(e) => { if (e.target.value === '') setBalanceErrors(p => ({...p, CL: 'Please enter CL balance.'})); else setBalanceErrors(p => ({...p, CL: ''})); }}
+                      onChange={(e) => { setEditingBalance({ ...editingBalance, CL: e.target.value }); if (e.target.value === '') setBalanceErrors(p => ({...p, CL: 'Please enter CL balance.'})); else setBalanceErrors(p => ({...p, CL: ''})); }} 
+                      required 
+                      style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#f8fafc', border: balanceErrors.CL ? '1px solid #ef4444' : '1px solid #cbd5e1', color: '#0f172a', padding: '10px 14px', borderRadius: '8px', outline: 'none', fontSize: '14px', transition: 'border-color 0.2s' }} 
                     />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Sick Leave (SL)</label>
+                    <label style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Sick Leave (SL) *</label>
+                    {balanceErrors.SL && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {balanceErrors.SL}</div>}
                     <input 
                       type="number" step="0.5" min="0" value={editingBalance.SL} 
-                      onChange={(e) => setEditingBalance({ ...editingBalance, SL: e.target.value })} required 
-                      style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', padding: '10px 14px', borderRadius: '8px', outline: 'none', fontSize: '14px', transition: 'border-color 0.2s' }} 
+                      onFocus={(e) => { if (e.target.value === '') setBalanceErrors(p => ({...p, SL: 'Please enter SL balance.'})); }}
+                      onBlur={(e) => { if (e.target.value === '') setBalanceErrors(p => ({...p, SL: 'Please enter SL balance.'})); else setBalanceErrors(p => ({...p, SL: ''})); }}
+                      onChange={(e) => { setEditingBalance({ ...editingBalance, SL: e.target.value }); if (e.target.value === '') setBalanceErrors(p => ({...p, SL: 'Please enter SL balance.'})); else setBalanceErrors(p => ({...p, SL: ''})); }} 
+                      required 
+                      style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#f8fafc', border: balanceErrors.SL ? '1px solid #ef4444' : '1px solid #cbd5e1', color: '#0f172a', padding: '10px 14px', borderRadius: '8px', outline: 'none', fontSize: '14px', transition: 'border-color 0.2s' }} 
                     />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Earned Leave (EL)</label>
+                    <label style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Earned Leave (EL) *</label>
+                    {balanceErrors.EL && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {balanceErrors.EL}</div>}
                     <input 
                       type="number" step="0.5" min="0" value={editingBalance.EL} 
-                      onChange={(e) => setEditingBalance({ ...editingBalance, EL: e.target.value })} required 
-                      style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', padding: '10px 14px', borderRadius: '8px', outline: 'none', fontSize: '14px', transition: 'border-color 0.2s' }} 
+                      onFocus={(e) => { if (e.target.value === '') setBalanceErrors(p => ({...p, EL: 'Please enter EL balance.'})); }}
+                      onBlur={(e) => { if (e.target.value === '') setBalanceErrors(p => ({...p, EL: 'Please enter EL balance.'})); else setBalanceErrors(p => ({...p, EL: ''})); }}
+                      onChange={(e) => { setEditingBalance({ ...editingBalance, EL: e.target.value }); if (e.target.value === '') setBalanceErrors(p => ({...p, EL: 'Please enter EL balance.'})); else setBalanceErrors(p => ({...p, EL: ''})); }} 
+                      required 
+                      style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#f8fafc', border: balanceErrors.EL ? '1px solid #ef4444' : '1px solid #cbd5e1', color: '#0f172a', padding: '10px 14px', borderRadius: '8px', outline: 'none', fontSize: '14px', transition: 'border-color 0.2s' }} 
                     />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Maternity</label>
+                    <label style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Maternity *</label>
+                    {balanceErrors.Maternity && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {balanceErrors.Maternity}</div>}
                     <input 
                       type="number" step="1" min="0" value={editingBalance.Maternity} 
-                      onChange={(e) => setEditingBalance({ ...editingBalance, Maternity: e.target.value })} required 
-                      style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', padding: '10px 14px', borderRadius: '8px', outline: 'none', fontSize: '14px', transition: 'border-color 0.2s' }} 
+                      onFocus={(e) => { if (e.target.value === '') setBalanceErrors(p => ({...p, Maternity: 'Please enter Maternity balance.'})); }}
+                      onBlur={(e) => { if (e.target.value === '') setBalanceErrors(p => ({...p, Maternity: 'Please enter Maternity balance.'})); else setBalanceErrors(p => ({...p, Maternity: ''})); }}
+                      onChange={(e) => { setEditingBalance({ ...editingBalance, Maternity: e.target.value }); if (e.target.value === '') setBalanceErrors(p => ({...p, Maternity: 'Please enter Maternity balance.'})); else setBalanceErrors(p => ({...p, Maternity: ''})); }} 
+                      required 
+                      style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#f8fafc', border: balanceErrors.Maternity ? '1px solid #ef4444' : '1px solid #cbd5e1', color: '#0f172a', padding: '10px 14px', borderRadius: '8px', outline: 'none', fontSize: '14px', transition: 'border-color 0.2s' }} 
                     />
                   </div>
                 </div>
               </div>
 
               <div style={{ padding: '16px 24px', backgroundColor: '#f8fafc', borderTop: '1px solid #f1f5f9', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                <button type="button" style={{ background: '#ffffff', border: '1px solid #cbd5e1', color: '#475569', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600', transition: 'all 0.2s' }} onMouseEnter={(e) => e.target.style.backgroundColor = '#f1f5f9'} onMouseLeave={(e) => e.target.style.backgroundColor = '#ffffff'} onClick={() => setEditingBalance(null)}>Cancel</button>
+                <button type="button" style={{ background: '#ffffff', border: '1px solid #cbd5e1', color: '#475569', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600', transition: 'all 0.2s' }} onMouseEnter={(e) => e.target.style.backgroundColor = '#f1f5f9'} onMouseLeave={(e) => e.target.style.backgroundColor = '#ffffff'} onClick={() => { setEditingBalance(null); setBalanceErrors({}); }}>Cancel</button>
                 <button 
                   type="submit"
                   style={{ backgroundColor: 'var(--accent-pink)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600', boxShadow: '0 4px 6px -1px rgba(236, 72, 153, 0.2)', transition: 'all 0.2s' }}

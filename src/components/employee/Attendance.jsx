@@ -3,7 +3,7 @@ import {
   Clock, LogOut, MapPin, Loader, CheckCircle2,
   AlertTriangle, ChevronLeft, ChevronRight,
   Camera, Send, WifiOff, Building2, Home,
-  CalendarCheck, Timer, ArrowRightLeft,
+  CalendarCheck, Timer, ArrowRightLeft, AlertCircle
 } from 'lucide-react';
 import './Attendance.css';
 
@@ -494,26 +494,32 @@ function WfhRequestForm() {
       <SectionHeader icon={<Home size={15} />} title="WFH Request" accent="#60a5fa" />
 
       <div className="att-form-field">
-        <label className="att-form-label">Date</label>
+        <label className="att-form-label" style={{ display: 'block', marginBottom: errors.wfh_date ? '4px' : '6px' }}>Date</label>
+        {errors.wfh_date && <span className="att-form-error" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px', color: '#dc2626', fontSize: '13px' }}><AlertCircle size={14} /> {errors.wfh_date}</span>}
         <input
           type="date"
-          className="att-form-input"
+          className={`att-form-input ${errors.wfh_date ? 'error' : ''}`}
           min={today}
           value={form.wfh_date}
-          onChange={e => { setForm(f => ({ ...f, wfh_date: e.target.value })); setErrors(v => ({ ...v, wfh_date: '' })); }}
+          onChange={e => { setForm(f => ({ ...f, wfh_date: e.target.value })); if (e.target.value) setErrors(v => ({ ...v, wfh_date: '' })); }}
+          onFocus={e => { if (!e.target.value) setErrors(v => ({ ...v, wfh_date: 'Date is required' })); }}
+          onClick={e => { if (!e.target.value) setErrors(v => ({ ...v, wfh_date: 'Date is required' })); else setErrors(v => ({ ...v, wfh_date: '' })); }}
+          style={errors.wfh_date ? { borderColor: '#dc2626', boxShadow: '0 0 0 3px rgba(220,38,38,0.1)' } : {}}
         />
-        {errors.wfh_date && <span className="att-form-error">{errors.wfh_date}</span>}
       </div>
 
       <div className="att-form-field">
-        <label className="att-form-label">Reason</label>
+        <label className="att-form-label" style={{ display: 'block', marginBottom: errors.wfh_reason ? '4px' : '6px' }}>Reason</label>
+        {errors.wfh_reason && <span className="att-form-error" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px', color: '#dc2626', fontSize: '13px' }}><AlertCircle size={14} /> {errors.wfh_reason}</span>}
         <textarea
-          className="att-form-textarea"
+          className={`att-form-textarea ${errors.wfh_reason ? 'error' : ''}`}
           placeholder="Working from home — stable internet confirmed"
           value={form.wfh_reason}
-          onChange={e => { setForm(f => ({ ...f, wfh_reason: e.target.value })); setErrors(v => ({ ...v, wfh_reason: '' })); }}
+          onChange={e => { setForm(f => ({ ...f, wfh_reason: e.target.value })); if (e.target.value.trim().length >= 5) setErrors(v => ({ ...v, wfh_reason: '' })); }}
+          onFocus={e => { if (!e.target.value.trim() || e.target.value.trim().length < 5) setErrors(v => ({ ...v, wfh_reason: 'Reason must be at least 5 characters' })); }}
+          onClick={e => { if (!e.target.value.trim() || e.target.value.trim().length < 5) setErrors(v => ({ ...v, wfh_reason: 'Reason must be at least 5 characters' })); else setErrors(v => ({ ...v, wfh_reason: '' })); }}
+          style={errors.wfh_reason ? { borderColor: '#dc2626', boxShadow: '0 0 0 3px rgba(220,38,38,0.1)' } : {}}
         />
-        {errors.wfh_reason && <span className="att-form-error">{errors.wfh_reason}</span>}
       </div>
 
       <div className="att-form-field">

@@ -134,7 +134,7 @@ const CustomModal = ({ isOpen, title, fields, onSave, onClose }) => {
   const getErrorMsg = (f) => {
     if (f.label === 'Department Name') return 'Please enter New Department Name.';
     if (f.label === 'Designation Name') return 'Please enter New Designation Name.';
-    if (f.label === 'Department') return 'Please select Department from DropDown.';
+    if (f.label === 'Department') return 'Please select one Department.';
     if (f.label === 'Shift Name') return 'Please enter Shift Name.';
     if (f.label === 'Start Time') return 'Please select Start Time from DropDown.';
     if (f.label === 'End Time') return 'Please select End Time from DropDown.';
@@ -146,18 +146,7 @@ const CustomModal = ({ isOpen, title, fields, onSave, onClose }) => {
   };
 
   const [errors, setErrors] = useState(() => {
-    const initialErrors = {};
-    if (fields) {
-      fields.forEach(f => {
-        if (f.type === 'select' || f.type === 'date') {
-          const val = f.defaultValue || '';
-          if (!val || !val.toString().trim()) {
-            initialErrors[f.name] = getErrorMsg(f);
-          }
-        }
-      });
-    }
-    return initialErrors;
+    return {};
   });
   if (!isOpen) return null;
   return (
@@ -194,7 +183,12 @@ const CustomModal = ({ isOpen, title, fields, onSave, onClose }) => {
         }}>
           {fields.map(f => (
             <div key={f.name} style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: 'var(--ceo-text-secondary)' }}>{f.label}</label>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: errors[f.name] ? '4px' : '6px', color: 'var(--ceo-text-secondary)' }}>{f.label}</label>
+              {errors[f.name] && (
+                <div style={{ color: '#dc2626', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
+                  <AlertCircle size={14} /> {errors[f.name]}
+                </div>
+              )}
               {f.type === 'select' ? (
                 <CustomSelect name={f.name} options={f.options} defaultValue={f.defaultValue} placeholder={`Select ${f.label}`} error={errors[f.name]} 
                 onChange={(val) => {
@@ -223,12 +217,13 @@ const CustomModal = ({ isOpen, title, fields, onSave, onClose }) => {
                         setErrors(prev => ({ ...prev, [f.name]: null }));
                       }
                     }}
-                    onBlur={(e) => {
+                    
+                    onFocus={(e) => {
                       if (!e.target.value.trim()) {
                         setErrors(prev => ({ ...prev, [f.name]: getErrorMsg(f) }));
                       }
                     }}
-                    onFocus={(e) => {
+                    onBlur={(e) => {
                       if (!e.target.value.trim()) {
                         setErrors(prev => ({ ...prev, [f.name]: getErrorMsg(f) }));
                       }
@@ -244,11 +239,6 @@ const CustomModal = ({ isOpen, title, fields, onSave, onClose }) => {
                     }} 
                   />
                 </>
-              )}
-              {errors[f.name] && (
-                <div style={{ color: '#dc2626', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '6px' }}>
-                  <AlertCircle size={14} /> {errors[f.name]}
-                </div>
               )}
             </div>
           ))}
@@ -869,7 +859,12 @@ export default function CompanySetup() {
                   </div>
 
                   <div className="ceo-form-group" style={{ gridColumn: '1 / -1' }}>
-                    <label>Company Name (Legal)</label>
+                    <label style={{ display: 'block', marginBottom: nameError ? '4px' : '8px' }}>Company Name (Legal)</label>
+                    {nameError && (
+                      <span style={{ color: '#dc2626', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
+                        <AlertCircle size={14} /> {nameError}
+                      </span>
+                    )}
                     <input 
                       className="ceo-form-input" 
                       required 
@@ -888,15 +883,15 @@ export default function CompanySetup() {
                         boxShadow: '0 0 0 3px rgba(220,38,38,0.1)'
                       } : {}}
                     />
-                    {nameError && (
-                      <span style={{ color: '#dc2626', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '6px' }}>
-                        <AlertCircle size={14} /> {nameError}
-                      </span>
-                    )}
                   </div>
 
                   <div className="ceo-form-group">
-                    <label>GST Number</label>
+                    <label style={{ display: 'block', marginBottom: gstError ? '4px' : '8px' }}>GST Number</label>
+                    {gstError && (
+                      <span style={{ color: '#dc2626', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
+                        <AlertCircle size={14} /> {gstError}
+                      </span>
+                    )}
                     <input 
                       className="ceo-form-input" 
                       required 
@@ -915,15 +910,15 @@ export default function CompanySetup() {
                         boxShadow: '0 0 0 3px rgba(220,38,38,0.1)'
                       } : {}}
                     />
-                    {gstError && (
-                      <span style={{ color: '#dc2626', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '6px' }}>
-                        <AlertCircle size={14} /> {gstError}
-                      </span>
-                    )}
                   </div>
 
                   <div className="ceo-form-group">
-                    <label>CIN</label>
+                    <label style={{ display: 'block', marginBottom: cinError ? '4px' : '8px' }}>CIN</label>
+                    {cinError && (
+                      <span style={{ color: '#dc2626', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
+                        <AlertCircle size={14} /> {cinError}
+                      </span>
+                    )}
                     <input 
                       className="ceo-form-input" 
                       required 
@@ -942,15 +937,15 @@ export default function CompanySetup() {
                         boxShadow: '0 0 0 3px rgba(220,38,38,0.1)'
                       } : {}}
                     />
-                    {cinError && (
-                      <span style={{ color: '#dc2626', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '6px' }}>
-                        <AlertCircle size={14} /> {cinError}
-                      </span>
-                    )}
                   </div>
                   
                   <div className="ceo-form-group">
-                    <label>Employee ID Prefix</label>
+                    <label style={{ display: 'block', marginBottom: prefixError ? '4px' : '8px' }}>Employee ID Prefix</label>
+                    {prefixError && (
+                      <span style={{ color: '#dc2626', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
+                        <AlertCircle size={14} /> {prefixError}
+                      </span>
+                    )}
                     <input 
                       className="ceo-form-input" 
                       required 
@@ -969,15 +964,15 @@ export default function CompanySetup() {
                         boxShadow: '0 0 0 3px rgba(220,38,38,0.1)'
                       } : {}}
                     />
-                    {prefixError && (
-                      <span style={{ color: '#dc2626', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '6px' }}>
-                        <AlertCircle size={14} /> {prefixError}
-                      </span>
-                    )}
                   </div>
                   
                   <div className="ceo-form-group" style={{ gridColumn: '1 / -1' }}>
-                    <label>Registered Address</label>
+                    <label style={{ display: 'block', marginBottom: addressError ? '4px' : '8px' }}>Registered Address</label>
+                    {addressError && (
+                      <span style={{ color: '#dc2626', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '6px' }}>
+                        <AlertCircle size={14} /> {addressError}
+                      </span>
+                    )}
                     <textarea 
                       className="ceo-form-input" 
                       required 
@@ -997,11 +992,6 @@ export default function CompanySetup() {
                         boxShadow: '0 0 0 3px rgba(220,38,38,0.1)'
                       } : {}}
                     />
-                    {addressError && (
-                      <span style={{ color: '#dc2626', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '6px' }}>
-                        <AlertCircle size={14} /> {addressError}
-                      </span>
-                    )}
                   </div>
 
                   <div className="ceo-form-group" style={{ gridColumn: '1 / -1', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>

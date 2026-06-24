@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CheckCircle, Lock, Edit, X, Download } from 'lucide-react';
+import { CheckCircle, Lock, Edit, X, Download, AlertCircle } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { useCompany } from '../../../common/CompanyContext';
 
@@ -114,6 +114,7 @@ export function ExitFnFView() {
   const [tds, setTds] = useState(2500);
   const [lop, setLop] = useState(0);
   const [fnfComputed, setFnfComputed] = useState(false);
+  const [fnfErrors, setFnfErrors] = useState({});
 
   const handleTemplateUpload = (e, ref) => {
     const file = e.target.files[0];
@@ -205,8 +206,8 @@ export function ExitFnFView() {
     }
   };
 
-  const grossAdditions = basicSalary + hra + allowances;
-  const totalDeductions = epf + tds + lop;
+  const grossAdditions = (Number(basicSalary) || 0) + (Number(hra) || 0) + (Number(allowances) || 0);
+  const totalDeductions = (Number(epf) || 0) + (Number(tds) || 0) + (Number(lop) || 0);
   const totalFnFPayout = grossAdditions - totalDeductions;
 
   const handleApproveResignation = async () => {
@@ -265,6 +266,20 @@ export function ExitFnFView() {
   };
 
   const handleComputeFnF = () => {
+    const newErrors = {};
+    if (basicSalary === '' || basicSalary === undefined) newErrors.basicSalary = 'Please enter Basic Salary.';
+    if (hra === '' || hra === undefined) newErrors.hra = 'Please enter HRA.';
+    if (allowances === '' || allowances === undefined) newErrors.allowances = 'Please enter Allowances.';
+    if (epf === '' || epf === undefined) newErrors.epf = 'Please enter EPF.';
+    if (tds === '' || tds === undefined) newErrors.tds = 'Please enter TDS.';
+    if (lop === '' || lop === undefined) newErrors.lop = 'Please enter LOP.';
+
+    if (Object.keys(newErrors).length > 0) {
+      setFnfErrors(newErrors);
+      setFnfComputed(false);
+      return;
+    }
+
     setFnfComputed(true);
     window.showToast('Full & Final Settlement computed successfully based on live leave balances and active loan ledgers!', 'success');
   };
@@ -566,46 +581,40 @@ export function ExitFnFView() {
             <h3>💰 Settlement Payout computation Worksheet</h3>
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', margin: '16px 0' }}>
-              <div>
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '12px', display: 'block' }}>Basic Salary</label>
-                </div>
-                <input type="number" value={basicSalary} onChange={(e) => setBasicSalary(Number(e.target.value))} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '11px', display: 'block', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Basic Salary *</label>
+                {fnfErrors.basicSalary && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}><AlertCircle size={12} /> {fnfErrors.basicSalary}</div>}
+                <input type="number" value={basicSalary} onFocus={(e) => { if (e.target.value === '') setFnfErrors(p => ({...p, basicSalary: 'Please enter Basic Salary.'})); }} onChange={(e) => { setBasicSalary(e.target.value); if (e.target.value !== '') setFnfErrors(p => ({...p, basicSalary: ''})); else setFnfErrors(p => ({...p, basicSalary: 'Please enter Basic Salary.'})); }} onBlur={(e) => { if (e.target.value === '') setFnfErrors(p => ({...p, basicSalary: 'Please enter Basic Salary.'})); }} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: 'var(--bg-primary)', border: fnfErrors.basicSalary ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px', outline: 'none' }} />
               </div>
               
-              <div>
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '12px', display: 'block' }}>HRA</label>
-                </div>
-                <input type="number" value={hra} onChange={(e) => setHra(Number(e.target.value))} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '11px', display: 'block', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>HRA *</label>
+                {fnfErrors.hra && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}><AlertCircle size={12} /> {fnfErrors.hra}</div>}
+                <input type="number" value={hra} onFocus={(e) => { if (e.target.value === '') setFnfErrors(p => ({...p, hra: 'Please enter HRA.'})); }} onChange={(e) => { setHra(e.target.value); if (e.target.value !== '') setFnfErrors(p => ({...p, hra: ''})); else setFnfErrors(p => ({...p, hra: 'Please enter HRA.'})); }} onBlur={(e) => { if (e.target.value === '') setFnfErrors(p => ({...p, hra: 'Please enter HRA.'})); }} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: 'var(--bg-primary)', border: fnfErrors.hra ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px', outline: 'none' }} />
               </div>
 
-              <div>
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '12px', display: 'block' }}>Allowances</label>
-                </div>
-                <input type="number" value={allowances} onChange={(e) => setAllowances(Number(e.target.value))} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '11px', display: 'block', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>Allowances *</label>
+                {fnfErrors.allowances && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}><AlertCircle size={12} /> {fnfErrors.allowances}</div>}
+                <input type="number" value={allowances} onFocus={(e) => { if (e.target.value === '') setFnfErrors(p => ({...p, allowances: 'Please enter Allowances.'})); }} onChange={(e) => { setAllowances(e.target.value); if (e.target.value !== '') setFnfErrors(p => ({...p, allowances: ''})); else setFnfErrors(p => ({...p, allowances: 'Please enter Allowances.'})); }} onBlur={(e) => { if (e.target.value === '') setFnfErrors(p => ({...p, allowances: 'Please enter Allowances.'})); }} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: 'var(--bg-primary)', border: fnfErrors.allowances ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px', outline: 'none' }} />
               </div>
 
-              <div>
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '12px', display: 'block' }}>EPF</label>
-                </div>
-                <input type="number" value={epf} onChange={(e) => setEpf(Number(e.target.value))} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '11px', display: 'block', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>EPF *</label>
+                {fnfErrors.epf && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}><AlertCircle size={12} /> {fnfErrors.epf}</div>}
+                <input type="number" value={epf} onFocus={(e) => { if (e.target.value === '') setFnfErrors(p => ({...p, epf: 'Please enter EPF.'})); }} onChange={(e) => { setEpf(e.target.value); if (e.target.value !== '') setFnfErrors(p => ({...p, epf: ''})); else setFnfErrors(p => ({...p, epf: 'Please enter EPF.'})); }} onBlur={(e) => { if (e.target.value === '') setFnfErrors(p => ({...p, epf: 'Please enter EPF.'})); }} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: 'var(--bg-primary)', border: fnfErrors.epf ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px', outline: 'none' }} />
               </div>
 
-              <div>
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '12px', display: 'block' }}>TDS</label>
-                </div>
-                <input type="number" value={tds} onChange={(e) => setTds(Number(e.target.value))} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '11px', display: 'block', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>TDS *</label>
+                {fnfErrors.tds && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}><AlertCircle size={12} /> {fnfErrors.tds}</div>}
+                <input type="number" value={tds} onFocus={(e) => { if (e.target.value === '') setFnfErrors(p => ({...p, tds: 'Please enter TDS.'})); }} onChange={(e) => { setTds(e.target.value); if (e.target.value !== '') setFnfErrors(p => ({...p, tds: ''})); else setFnfErrors(p => ({...p, tds: 'Please enter TDS.'})); }} onBlur={(e) => { if (e.target.value === '') setFnfErrors(p => ({...p, tds: 'Please enter TDS.'})); }} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: 'var(--bg-primary)', border: fnfErrors.tds ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px', outline: 'none' }} />
               </div>
 
-              <div>
-                <div style={{ marginBottom: '8px' }}>
-                  <label style={{ fontSize: '12px', display: 'block' }}>LOP</label>
-                </div>
-                <input type="number" value={lop} onChange={(e) => setLop(Number(e.target.value))} style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '11px', display: 'block', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 'bold' }}>LOP *</label>
+                {fnfErrors.lop && <div style={{ color: '#ef4444', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}><AlertCircle size={12} /> {fnfErrors.lop}</div>}
+                <input type="number" value={lop} onFocus={(e) => { if (e.target.value === '') setFnfErrors(p => ({...p, lop: 'Please enter LOP.'})); }} onChange={(e) => { setLop(e.target.value); if (e.target.value !== '') setFnfErrors(p => ({...p, lop: ''})); else setFnfErrors(p => ({...p, lop: 'Please enter LOP.'})); }} onBlur={(e) => { if (e.target.value === '') setFnfErrors(p => ({...p, lop: 'Please enter LOP.'})); }} style={{ width: '100%', boxSizing: 'border-box', backgroundColor: 'var(--bg-primary)', border: fnfErrors.lop ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px', outline: 'none' }} />
               </div>
             </div>
 

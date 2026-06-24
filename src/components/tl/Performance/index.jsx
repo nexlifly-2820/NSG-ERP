@@ -21,9 +21,10 @@ export default function Performance({ currentUser }) {
 
   const [formState, setFormState] = useState({
     employeeName: '',
-    rating: 'A — Excellent',
+    rating: '',
     comments: ''
   });
+  const [formErrors, setFormErrors] = useState({});
 
   const ratings = [
     'A — Excellent',
@@ -54,9 +55,8 @@ export default function Performance({ currentUser }) {
 
         setTeamMembers(membersData);
         setScorecards(scorecardsData);
-        if (membersData.length > 0) {
-          setFormState(prev => ({ ...prev, employeeName: membersData[0].name }));
-        }
+        setTeamMembers(membersData);
+        setScorecards(scorecardsData);
       } catch (err) {
         console.error(err);
         setError(err.message || 'An error occurred while loading performance data.');
@@ -70,10 +70,17 @@ export default function Performance({ currentUser }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formState.employeeName || !formState.comments.trim()) {
-      window.toast.warning('Please select an employee and provide comments.');
+    const newErrors = {};
+    if (!formState.employeeName) newErrors.employeeName = "Target Employee is required.";
+    if (!formState.rating) newErrors.rating = "Performance Rating Band is required.";
+    if (!formState.comments.trim()) newErrors.comments = "TL Feedback Comments are required.";
+
+    if (Object.keys(newErrors).length > 0) {
+      setFormErrors(newErrors);
+      if (window.toast && window.toast.warning) window.toast.warning('Please fix the validation errors.');
       return;
     }
+    setFormErrors({});
 
     setSubmitLoading(true);
     const token = localStorage.getItem('nsg_jwt_token');
@@ -103,8 +110,9 @@ export default function Performance({ currentUser }) {
 
       const savedScorecard = await response.json();
       setScorecards(prev => [savedScorecard, ...prev]);
-      setFormState(prev => ({ ...prev, comments: '' }));
-      window.toast.success('Performance scorecard submitted successfully!');
+      setFormState({ employeeName: '', rating: '', comments: '' });
+      setFormErrors({});
+      if (window.toast) window.toast.success('Performance scorecard submitted successfully!');
     } catch (err) {
       console.error(err);
       window.toast.error(err.message || 'Failed to submit the scorecard.');
@@ -274,12 +282,21 @@ export default function Performance({ currentUser }) {
               <form onSubmit={handleSubmit} className={styles.formGrid}>
                 <div className={styles.formGroup}>
                   <label htmlFor="target-employee">Target Employee</label>
+                  {formErrors.employeeName && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{formErrors.employeeName}</span></div>}
                   <select
                     id="target-employee"
                     className={styles.formSelect}
                     value={formState.employeeName}
-                    onChange={(e) => setFormState(prev => ({ ...prev, employeeName: e.target.value }))}
+                    onChange={(e) => {
+                      setFormState(prev => ({ ...prev, employeeName: e.target.value }));
+                      if (!e.target.value) setFormErrors(prev => ({...prev, employeeName: "Target Employee is required."}));
+                      else setFormErrors(prev => ({...prev, employeeName: null}));
+                    }}
+                    onFocus={(e) => { if(!e.target.value) setFormErrors(prev => ({...prev, employeeName: "Target Employee is required."})); }}
+                    onBlur={(e) => { if (!e.target.value) setFormErrors(prev => ({...prev, employeeName: "Target Employee is required."})); }}
+                    style={formErrors.employeeName ? { borderColor: '#ef4444' } : {}}
                   >
+                    <option value="">Select an employee...</option>
                     {teamMembers.map(member => (
                       <option key={member.id} value={member.name}>
                         {member.name} ({member.department})
@@ -290,12 +307,21 @@ export default function Performance({ currentUser }) {
 
                 <div className={styles.formGroup}>
                   <label htmlFor="rating-band">Performance Rating Band</label>
+                  {formErrors.rating && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{formErrors.rating}</span></div>}
                   <select
                     id="rating-band"
                     className={styles.formSelect}
                     value={formState.rating}
-                    onChange={(e) => setFormState(prev => ({ ...prev, rating: e.target.value }))}
+                    onChange={(e) => {
+                      setFormState(prev => ({ ...prev, rating: e.target.value }));
+                      if (!e.target.value) setFormErrors(prev => ({...prev, rating: "Performance Rating Band is required."}));
+                      else setFormErrors(prev => ({...prev, rating: null}));
+                    }}
+                    onFocus={(e) => { if(!e.target.value) setFormErrors(prev => ({...prev, rating: "Performance Rating Band is required."})); }}
+                    onBlur={(e) => { if (!e.target.value) setFormErrors(prev => ({...prev, rating: "Performance Rating Band is required."})); }}
+                    style={formErrors.rating ? { borderColor: '#ef4444' } : {}}
                   >
+                    <option value="">Select a rating band...</option>
                     {ratings.map(r => (
                       <option key={r} value={r}>{r}</option>
                     ))}
@@ -304,14 +330,21 @@ export default function Performance({ currentUser }) {
 
                 <div className={styles.formGroup}>
                   <label htmlFor="tl-comments">TL Feedback Comments</label>
+                  {formErrors.comments && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{formErrors.comments}</span></div>}
                   <textarea
                     id="tl-comments"
                     className={styles.formTextarea}
                     placeholder="Provide detailed feedback on milestones achieved, software quality, velocity, and areas of growth..."
                     value={formState.comments}
-                    onChange={(e) => setFormState(prev => ({ ...prev, comments: e.target.value }))}
+                    onChange={(e) => {
+                      setFormState(prev => ({ ...prev, comments: e.target.value }));
+                      if (!e.target.value.trim()) setFormErrors(prev => ({...prev, comments: "TL Feedback Comments are required."}));
+                      else setFormErrors(prev => ({...prev, comments: null}));
+                    }}
+                    onFocus={(e) => { if(!e.target.value.trim()) setFormErrors(prev => ({...prev, comments: "TL Feedback Comments are required."})); }}
+                    onBlur={(e) => { if (!e.target.value || String(e.target.value).trim() === '') setFormErrors(prev => ({...prev, comments: "TL Feedback Comments are required."})); }}
+                    style={formErrors.comments ? { borderColor: '#ef4444' } : {}}
                     maxLength={1000}
-                    required
                   />
                 </div>
 

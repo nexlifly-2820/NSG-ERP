@@ -22,6 +22,7 @@ const Projects = () => {
   const [spTarget, setSpTarget] = useState(40);
   const [editingSprintId, setEditingSprintId] = useState(null);
   const [sprintPage, setSprintPage] = useState(1);
+  const [sprintErrors, setSprintErrors] = useState({});
 
   useEffect(() => {
     setSprintPage(1);
@@ -40,6 +41,7 @@ const Projects = () => {
   const [selectedMilestoneTasks, setSelectedMilestoneTasks] = useState([]);
   const [projectTasks, setProjectTasks] = useState([]);
   const [milestoneTaskSprintFilter, setMilestoneTaskSprintFilter] = useState('All');
+  const [milestoneErrors, setMilestoneErrors] = useState({});
 
 
   // 3. Kanban Task Board Data — from backend
@@ -459,6 +461,7 @@ const Projects = () => {
                     setStartDate('');
                     setEndDate('');
                     setSpTarget(40);
+                    setSprintErrors({});
                     setShowSprintModal(true);
                   }}
                   style={{
@@ -521,6 +524,7 @@ const Projects = () => {
                             setStartDate(sprint.start || '');
                             setEndDate(sprint.end || '');
                             setSpTarget(sprint.sp || 40);
+                            setSprintErrors({});
                             setShowSprintModal(true);
                           }}
                           style={{ fontSize: '12px', background: 'transparent', color: '#64748b', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
@@ -606,25 +610,30 @@ const Projects = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1, overflowY: 'auto' }}>
                 <div className={styles.formGroup}>
                   <label style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>Sprint Name</label>
-                  <input type="text" placeholder="e.g. Sprint 44" value={sprintName} onChange={(e) => setSprintName(e.target.value)} />
+                  {sprintErrors.sprintName && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{sprintErrors.sprintName}</span></div>}
+                  <input type="text" placeholder="e.g. Sprint 44" value={sprintName} onChange={(e) => { setSprintName(e.target.value); if(!e.target.value.trim()) setSprintErrors(prev => ({...prev, sprintName: "Sprint Name is required."})); else setSprintErrors(prev => ({...prev, sprintName: null})); }} onFocus={(e) => { if(!e.target.value.trim()) setSprintErrors(prev => ({...prev, sprintName: "Sprint Name is required."})); }} onBlur={(e) => { if (!e.target.value || String(e.target.value).trim() === '') setSprintErrors(prev => ({...prev, sprintName: "Sprint Name is required."})); }} style={sprintErrors.sprintName ? { borderColor: '#ef4444' } : {}} />
                 </div>
                 <div className={styles.formGroup}>
                   <label style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>Sprint Goal</label>
-                  <textarea placeholder="What are we trying to achieve?" rows="3" value={sprintGoal} onChange={(e) => setSprintGoal(e.target.value)}></textarea>
+                  {sprintErrors.sprintGoal && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{sprintErrors.sprintGoal}</span></div>}
+                  <textarea placeholder="What are we trying to achieve?" rows="3" value={sprintGoal} onChange={(e) => { setSprintGoal(e.target.value); if(!e.target.value.trim()) setSprintErrors(prev => ({...prev, sprintGoal: "Sprint Goal is required."})); else setSprintErrors(prev => ({...prev, sprintGoal: null})); }} onFocus={(e) => { if(!e.target.value.trim()) setSprintErrors(prev => ({...prev, sprintGoal: "Sprint Goal is required."})); }} onBlur={(e) => { if (!e.target.value || String(e.target.value).trim() === '') setSprintErrors(prev => ({...prev, sprintGoal: "Sprint Goal is required."})); }} style={sprintErrors.sprintGoal ? { borderColor: '#ef4444' } : {}}></textarea>
                 </div>
                 <div style={{ display: 'flex', gap: '16px' }}>
                   <div className={styles.formGroup} style={{ flex: 1 }}>
                     <label style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>Start Date</label>
-                    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ width: '100%', boxSizing: 'border-box' }} />
+                    {sprintErrors.startDate && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{sprintErrors.startDate}</span></div>}
+                    <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); if(!e.target.value) setSprintErrors(prev => ({...prev, startDate: "Start Date is required."})); else setSprintErrors(prev => ({...prev, startDate: null})); }} onFocus={(e) => { if(!e.target.value) setSprintErrors(prev => ({...prev, startDate: "Start Date is required."})); }} onBlur={(e) => { if (!e.target.value || String(e.target.value).trim() === '') setSprintErrors(prev => ({...prev, startDate: "Start Date is required."})); }} style={{ width: '100%', boxSizing: 'border-box', ...(sprintErrors.startDate ? { borderColor: '#ef4444' } : {}) }} />
                   </div>
                   <div className={styles.formGroup} style={{ flex: 1 }}>
                     <label style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>End Date</label>
-                    <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ width: '100%', boxSizing: 'border-box' }} />
+                    {sprintErrors.endDate && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{sprintErrors.endDate}</span></div>}
+                    <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); if(!e.target.value) setSprintErrors(prev => ({...prev, endDate: "End Date is required."})); else setSprintErrors(prev => ({...prev, endDate: null})); }} onFocus={(e) => { if(!e.target.value) setSprintErrors(prev => ({...prev, endDate: "End Date is required."})); }} onBlur={(e) => { if (!e.target.value || String(e.target.value).trim() === '') setSprintErrors(prev => ({...prev, endDate: "End Date is required."})); }} style={{ width: '100%', boxSizing: 'border-box', ...(sprintErrors.endDate ? { borderColor: '#ef4444' } : {}) }} />
                   </div>
                 </div>
                 <div className={styles.formGroup}>
                   <label style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>Story Points Target</label>
-                  <input type="text" placeholder="e.g. 40" value={spTarget} onChange={(e) => setSpTarget(e.target.value.replace(/\D/g, ''))} />
+                  {sprintErrors.spTarget && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{sprintErrors.spTarget}</span></div>}
+                  <input type="text" placeholder="e.g. 40" value={spTarget} onChange={(e) => { setSpTarget(e.target.value.replace(/\D/g, '')); if(!e.target.value.trim()) setSprintErrors(prev => ({...prev, spTarget: "Story Points Target is required."})); else setSprintErrors(prev => ({...prev, spTarget: null})); }} onFocus={(e) => { if(!e.target.value.trim() && !spTarget) setSprintErrors(prev => ({...prev, spTarget: "Story Points Target is required."})); }} onBlur={(e) => { if (!e.target.value || String(e.target.value).trim() === '') setSprintErrors(prev => ({...prev, spTarget: "Story Points Target is required."})); }} style={sprintErrors.spTarget ? { borderColor: '#ef4444' } : {}} />
                 </div>
               </div>
 
@@ -647,7 +656,18 @@ const Projects = () => {
                   className={styles.startSprintBtn}
                   style={{ background: '#8b5cf6', marginTop: 0, padding: '12px 24px' }}
                   onClick={async () => {
-                    if (!sprintName.trim()) { window.toast.warning('Please enter a sprint name.'); return; }
+                    const newErrors = {};
+                    if (!sprintName || String(sprintName).trim() === '') newErrors.sprintName = "Sprint Name is required.";
+                    if (!sprintGoal || String(sprintGoal).trim() === '') newErrors.sprintGoal = "Sprint Goal is required.";
+                    if (!startDate || String(startDate).trim() === '') newErrors.startDate = "Start Date is required.";
+                    if (!endDate || String(endDate).trim() === '') newErrors.endDate = "End Date is required.";
+                    if (!spTarget || String(spTarget).trim() === '') newErrors.spTarget = "Story Points Target is required.";
+                    
+                    if (Object.keys(newErrors).length > 0) {
+                      setSprintErrors(newErrors);
+                      return;
+                    }
+                    setSprintErrors({});
                     
                     if (editingSprintId) {
                       const updatedSprintData = { name: sprintName, goal: sprintGoal, start_date: startDate, end_date: endDate, sp_target: spTarget };
@@ -701,7 +721,7 @@ const Projects = () => {
                     setEditingSprintId(null);
                   }}
                 >
-                  <Plus size={16} /> Save Sprint
+                  <Plus size={16} /> Save Sprint Config
                 </button>
               </div>
             </div>
@@ -1040,29 +1060,43 @@ const Projects = () => {
               
               <div>
                 <label style={{ display: 'block', fontWeight: 600, fontSize: '12px', color: '#374151', marginBottom: '6px' }}>Milestone Name</label>
+                {milestoneErrors.name && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{milestoneErrors.name}</span></div>}
                 <input
                   type="text"
                   placeholder="e.g. Milestone 4: QA Signoff"
                   value={milestoneName}
-                  onChange={(e) => setMilestoneName(e.target.value)}
+                  onChange={(e) => {
+                    setMilestoneName(e.target.value);
+                    if (!e.target.value.trim()) setMilestoneErrors(prev => ({...prev, name: "Milestone Name is required."}));
+                    else setMilestoneErrors(prev => ({...prev, name: null}));
+                  }}
+                  onFocus={(e) => { if(!e.target.value.trim()) setMilestoneErrors(prev => ({...prev, name: "Milestone Name is required."})); }}
+                  onBlur={(e) => { if (!e.target.value || String(e.target.value).trim() === '') setMilestoneErrors(prev => ({...prev, name: "Milestone Name is required."})); }}
                   style={{
                     width: '100%', padding: '10px 14px', border: '1.5px solid #e2e8f0',
                     borderRadius: '8px', fontSize: '14px', color: '#0f172a', background: '#f8fafc',
-                    boxSizing: 'border-box'
+                    boxSizing: 'border-box', ...(milestoneErrors.name ? { borderColor: '#ef4444' } : {})
                   }}
                 />
               </div>
 
               <div>
                 <label style={{ display: 'block', fontWeight: 600, fontSize: '12px', color: '#374151', marginBottom: '6px' }}>Due Date</label>
+                {milestoneErrors.dueDate && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#ef4444', fontSize: '12px', marginTop: '4px', marginBottom: '4px' }}><AlertCircle size={12} /><span>{milestoneErrors.dueDate}</span></div>}
                 <input
                   type="date"
                   value={milestoneDueDate}
-                  onChange={(e) => setMilestoneDueDate(e.target.value)}
+                  onChange={(e) => {
+                    setMilestoneDueDate(e.target.value);
+                    if (!e.target.value) setMilestoneErrors(prev => ({...prev, dueDate: "Due Date is required."}));
+                    else setMilestoneErrors(prev => ({...prev, dueDate: null}));
+                  }}
+                  onFocus={(e) => { if(!e.target.value) setMilestoneErrors(prev => ({...prev, dueDate: "Due Date is required."})); }}
+                  onBlur={(e) => { if (!e.target.value) setMilestoneErrors(prev => ({...prev, dueDate: "Due Date is required."})); }}
                   style={{
                     width: '100%', padding: '10px 14px', border: '1.5px solid #e2e8f0',
                     borderRadius: '8px', fontSize: '14px', color: '#0f172a', background: '#f8fafc',
-                    boxSizing: 'border-box'
+                    boxSizing: 'border-box', ...(milestoneErrors.dueDate ? { borderColor: '#ef4444' } : {})
                   }}
                 />
               </div>
@@ -1180,8 +1214,16 @@ const Projects = () => {
                 </button>
                 <button
                   onClick={async () => {
-                    if (!milestoneName.trim()) { window.toast.warning('Please enter a milestone name.'); return; }
-                    if (!milestoneDueDate) { window.toast.warning('Please select a due date.'); return; }
+                    const newErrors = {};
+                    if (!milestoneName.trim()) newErrors.name = "Milestone Name is required.";
+                    if (!milestoneDueDate) newErrors.dueDate = "Due Date is required.";
+                    
+                    if (Object.keys(newErrors).length > 0) {
+                      setMilestoneErrors(newErrors);
+                      if (window.toast && window.toast.warning) window.toast.warning('Please fix the validation errors.');
+                      return;
+                    }
+                    setMilestoneErrors({});
                     try {
                       const res = await fetch(`/api/team-lead/projects/${activeProject.id}/milestones`, {
                         method: 'POST',
@@ -1198,6 +1240,10 @@ const Projects = () => {
                       if (res.ok) {
                         fetchMilestones(activeProject.id);
                         setShowMilestoneForm(false);
+                        setMilestoneName('');
+                        setMilestoneDueDate('');
+                        setSelectedMilestoneTasks([]);
+                        setMilestoneErrors({});
                         if (window.toast) window.toast.success("Milestone created successfully!");
                       } else {
                         window.toast.error("Failed to create milestone");

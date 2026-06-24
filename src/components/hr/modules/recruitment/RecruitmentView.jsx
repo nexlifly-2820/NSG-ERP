@@ -4,7 +4,7 @@ import { Calendar, FileText, ArrowRight } from 'lucide-react';
 import { notify } from '../../utils/notify';
 import { useCompany } from '../../../common/CompanyContext';
 
-const CustomSelect = ({ options, value, placeholder, error, onChange, onFocus }) => {
+const CustomSelect = ({ options, value, placeholder, error, onChange, onFocus, onBlur }) => {
   const [isOpen, setIsOpen] = useState(false);
   const displayLabel = value || placeholder;
 
@@ -12,17 +12,18 @@ const CustomSelect = ({ options, value, placeholder, error, onChange, onFocus })
     <div style={{ position: 'relative' }} tabIndex={-1} onBlur={(e) => {
       if (!e.currentTarget.contains(e.relatedTarget)) {
         setIsOpen(false);
-        if (onFocus) onFocus();
+        if (onBlur) onBlur();
+        else if (onFocus) onFocus();
       }
     }}>
+      {error && <div style={{ color: '#ef4444', fontSize: '11px', marginBottom: '6px', marginTop: '4px' }}>{error}</div>}
       <div 
-        onClick={() => { setIsOpen(!isOpen); if (onFocus && !value) onFocus(); }}
-        style={{ width: '100%', padding: '8px', borderRadius: '6px', border: error ? '1px solid #ef4444' : '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: value ? 'var(--text-primary)' : 'var(--text-muted)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}
+        onClick={() => { setIsOpen(!isOpen); if (onFocus && !isOpen) onFocus(); }}
+        style={{ width: '100%', padding: '8px', borderRadius: '6px', border: error ? '1px solid #ef4444' : '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: value ? 'var(--text-primary)' : 'var(--text-muted)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: error ? '0' : '4px' }}
       >
         <span>{displayLabel}</span>
         <span style={{ fontSize: '10px' }}>▼</span>
       </div>
-      {error && <div style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>{error}</div>}
       {isOpen && (
         <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', zIndex: 50, maxHeight: '150px', overflowY: 'auto' }}>
           {options.map((opt, i) => (
@@ -804,12 +805,13 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
                       
                       <div>
                         <label style={{ fontSize: '12px', marginTop: '4px' }}>Applicant Full Name *</label>
-                        <input type="text" value={uploadedCandidateName} onFocus={(e) => { if (!e.target.value.trim()) setAnalyzerErrors(p => ({...p, name: 'Please enter Applicant Name or Leave Blank for AI to Extract.'})); }} onBlur={(e) => { if (!e.target.value.trim()) setAnalyzerErrors(p => ({...p, name: 'Please enter Applicant Name or Leave Blank for AI to Extract.'})); }} onChange={(e) => { setUploadedCandidateName(e.target.value); if(e.target.value.trim()) setAnalyzerErrors(p => ({...p, name: ''})); }} placeholder="Leave Blank for AI to Extract." style={{ backgroundColor: 'var(--bg-primary)', border: analyzerErrors.name ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px', width: '100%', marginTop: '4px', outline: 'none' }} />
-                        {analyzerErrors.name && <div style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>{analyzerErrors.name}</div>}
+                        {analyzerErrors.name && <div style={{ color: '#ef4444', fontSize: '11px', marginBottom: '6px', marginTop: '4px' }}>{analyzerErrors.name}</div>}
+                        <input type="text" value={uploadedCandidateName} onFocus={(e) => { if (!e.target.value.trim()) setAnalyzerErrors(p => ({...p, name: 'Please enter Applicant Name or Leave Blank for AI to Extract.'})); }} onBlur={(e) => { if (!e.target.value.trim()) setAnalyzerErrors(p => ({...p, name: 'Please enter Applicant Name or Leave Blank for AI to Extract.'})); else setAnalyzerErrors(p => ({...p, name: ''})); }} onChange={(e) => { setUploadedCandidateName(e.target.value); if(!e.target.value.trim()) setAnalyzerErrors(p => ({...p, name: 'Please enter Applicant Name or Leave Blank for AI to Extract.'})); else setAnalyzerErrors(p => ({...p, name: ''})); }} placeholder="Leave Blank for AI to Extract." style={{ backgroundColor: 'var(--bg-primary)', border: analyzerErrors.name ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px', width: '100%', marginTop: analyzerErrors.name ? '0' : '4px', outline: 'none' }} />
                       </div>
                       
                       <div>
                         <label style={{ fontSize: '12px' }}>Applicant Email *</label>
+                        {analyzerErrors.email && <div style={{ color: '#ef4444', fontSize: '11px', marginBottom: '6px', marginTop: '4px' }}>{analyzerErrors.email}</div>}
                         <input type="email" value={uploadedCandidateEmail} onFocus={(e) => { 
                           const val = e.target.value.trim();
                           if (!val) setAnalyzerErrors(p => ({...p, email: 'Please enter Applicant Email or Leave Blank for AI to Extract.'})); 
@@ -818,16 +820,20 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
                           const val = e.target.value.trim();
                           if (!val) setAnalyzerErrors(p => ({...p, email: 'Please enter Applicant Email or Leave Blank for AI to Extract.'})); 
                           else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) setAnalyzerErrors(p => ({...p, email: 'Please enter a valid email format (e.g. name@example.com).'}));
+                          else setAnalyzerErrors(p => ({...p, email: ''}));
                         }} onChange={(e) => { 
                           const val = e.target.value;
                           setUploadedCandidateEmail(val); 
-                          if(val.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim())) setAnalyzerErrors(p => ({...p, email: ''})); 
-                        }} placeholder="Leave Blank for AI to Extract." style={{ backgroundColor: 'var(--bg-primary)', border: analyzerErrors.email ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px', width: '100%', marginTop: '4px', outline: 'none' }} />
-                        {analyzerErrors.email && <div style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>{analyzerErrors.email}</div>}
+                          const trimmed = val.trim();
+                          if (!trimmed) setAnalyzerErrors(p => ({...p, email: 'Please enter Applicant Email or Leave Blank for AI to Extract.'})); 
+                          else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) setAnalyzerErrors(p => ({...p, email: 'Please enter a valid email format (e.g. name@example.com).'}));
+                          else setAnalyzerErrors(p => ({...p, email: ''})); 
+                        }} placeholder="Leave Blank for AI to Extract." style={{ backgroundColor: 'var(--bg-primary)', border: analyzerErrors.email ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px', width: '100%', marginTop: analyzerErrors.email ? '0' : '4px', outline: 'none' }} />
                       </div>
 
                       <div>
                         <label style={{ fontSize: '12px' }}>Applicant Phone *</label>
+                        {analyzerErrors.phone && <div style={{ color: '#ef4444', fontSize: '11px', marginBottom: '6px', marginTop: '4px' }}>{analyzerErrors.phone}</div>}
                         <input type="text" value={uploadedCandidatePhone} onFocus={(e) => { 
                           const val = e.target.value.trim();
                           if (!val) setAnalyzerErrors(p => ({...p, phone: 'Please enter Applicant Phone or Leave Blank for AI to Extract.'})); 
@@ -836,12 +842,15 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
                           const val = e.target.value.trim();
                           if (!val) setAnalyzerErrors(p => ({...p, phone: 'Please enter Applicant Phone or Leave Blank for AI to Extract.'})); 
                           else if (!/^(\+?\d{1,4}[-\s]?)?\d{10}$/.test(val)) setAnalyzerErrors(p => ({...p, phone: 'Please enter a valid phone number (e.g. +91 9876543210).'}));
+                          else setAnalyzerErrors(p => ({...p, phone: ''}));
                         }} onChange={(e) => { 
                           const val = e.target.value;
                           setUploadedCandidatePhone(val); 
-                          if(val.trim() && /^(\+?\d{1,4}[-\s]?)?\d{10}$/.test(val.trim())) setAnalyzerErrors(p => ({...p, phone: ''})); 
-                        }} placeholder="+91 XXXXXXXXXX" style={{ backgroundColor: 'var(--bg-primary)', border: analyzerErrors.phone ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px', width: '100%', marginTop: '4px', outline: 'none' }} />
-                        {analyzerErrors.phone && <div style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>{analyzerErrors.phone}</div>}
+                          const trimmed = val.trim();
+                          if (!trimmed) setAnalyzerErrors(p => ({...p, phone: 'Please enter Applicant Phone or Leave Blank for AI to Extract.'})); 
+                          else if (!/^(\+?\d{1,4}[-\s]?)?\d{10}$/.test(trimmed)) setAnalyzerErrors(p => ({...p, phone: 'Please enter a valid phone number (e.g. +91 9876543210).'}));
+                          else setAnalyzerErrors(p => ({...p, phone: ''})); 
+                        }} placeholder="+91 XXXXXXXXXX" style={{ backgroundColor: 'var(--bg-primary)', border: analyzerErrors.phone ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px', width: '100%', marginTop: analyzerErrors.phone ? '0' : '4px', outline: 'none' }} />
                       </div>
                       
                       <div>
@@ -853,26 +862,31 @@ export function RecruitmentView({ queryParams, setQueryParams }) {
                           error={analyzerErrors.role}
                           onChange={(val) => {
                             setUploadedCandidateRole(val);
-                            if (val) setAnalyzerErrors(p => ({...p, role: ''}));
+                            if (!val) setAnalyzerErrors(p => ({...p, role: 'Please select Role, If Role is not in this DropDown Select Other.'}));
+                            else setAnalyzerErrors(p => ({...p, role: ''}));
                           }}
                           onFocus={() => {
                             if (!uploadedCandidateRole) setAnalyzerErrors(p => ({...p, role: 'Please select Role, If Role is not in this DropDown Select Other.'}));
+                          }}
+                          onBlur={() => {
+                            if (!uploadedCandidateRole) setAnalyzerErrors(p => ({...p, role: 'Please select Role, If Role is not in this DropDown Select Other.'}));
+                            else setAnalyzerErrors(p => ({...p, role: ''}));
                           }}
                         />
                       </div>
                       
                       {uploadedCandidateRole === 'Other' && (
                         <div>
+                          {analyzerErrors.customRole && <div style={{ color: '#ef4444', fontSize: '11px', marginBottom: '6px', marginTop: '4px' }}>{analyzerErrors.customRole}</div>}
                           <input 
                             type="text" 
                             placeholder="Enter custom role (e.g. Data Scientist)" 
                             value={customRole} 
                             onFocus={(e) => { if (!e.target.value.trim()) setAnalyzerErrors(p => ({...p, customRole: 'Please enter Custom Role'})); }} 
-                            onBlur={(e) => { if (!e.target.value.trim()) setAnalyzerErrors(p => ({...p, customRole: 'Please enter Custom Role'})); }} 
-                            onChange={(e) => { setCustomRole(e.target.value); if(e.target.value.trim()) setAnalyzerErrors(p => ({...p, customRole: ''})); }} 
-                            style={{ backgroundColor: 'var(--bg-primary)', border: analyzerErrors.customRole ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px', width: '100%', marginTop: '8px', outline: 'none' }} 
+                            onBlur={(e) => { if (!e.target.value.trim()) setAnalyzerErrors(p => ({...p, customRole: 'Please enter Custom Role'})); else setAnalyzerErrors(p => ({...p, customRole: ''})); }} 
+                            onChange={(e) => { setCustomRole(e.target.value); if(!e.target.value.trim()) setAnalyzerErrors(p => ({...p, customRole: 'Please enter Custom Role'})); else setAnalyzerErrors(p => ({...p, customRole: ''})); }} 
+                            style={{ backgroundColor: 'var(--bg-primary)', border: analyzerErrors.customRole ? '1px solid #ef4444' : '1px solid var(--border-color)', color: '#fff', padding: '8px', borderRadius: '6px', width: '100%', marginTop: analyzerErrors.customRole ? '0' : '8px', outline: 'none' }} 
                           />
-                          {analyzerErrors.customRole && <div style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>{analyzerErrors.customRole}</div>}
                         </div>
                       )}
                     </div>

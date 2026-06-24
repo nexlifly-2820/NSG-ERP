@@ -1348,14 +1348,14 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
               const renderField = (label, value, setValue, type = 'text', required = false, options = null, disabled = false, placeholder = '', extraProps = {}, formatRegex = null, formatError = '') => {
                 const fieldKey = label.replace(/[^a-zA-Z]/g, '');
                 const actionWord = options ? 'select' : 'enter';
-                const isSelectOrDate = options !== null || type === 'date';
-                const hasError = (isSelectOrDate && required && !value) 
-                  ? `Please ${actionWord} ${label.replace(' *', '').replace(' / TITLE', '').replace(' (TEAM LEAD)', '')}.` 
-                  : wizardErrors[fieldKey];
+                const hasError = wizardErrors[fieldKey];
                 
                 const validate = (val) => {
                   if (required && !val) {
-                    setWizardErrors(p => ({ ...p, [fieldKey]: `Please ${actionWord} ${label.replace(' *', '').replace(' / TITLE', '').replace(' (TEAM LEAD)', '')}.` }));
+                    let errStr = `Please ${actionWord} ${label.replace(' *', '').replace(' / TITLE', '').replace(' (TEAM LEAD)', '')}.`;
+                    if (label.includes('DESIGNATION') && !newDept) errStr = 'First select Department then select DESIGNATION.';
+                    if (label.includes('REPORTS TO') && !newSystemRole) errStr = 'First select SYSTEM ROLE then select REPORTS.';
+                    setWizardErrors(p => ({ ...p, [fieldKey]: errStr }));
                   } else if (val && formatRegex && !formatRegex.test(val)) {
                     setWizardErrors(p => ({ ...p, [fieldKey]: formatError }));
                   } else {
@@ -1366,12 +1366,13 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                 return (
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>{label}</label>
+                    {hasError && <div style={{ color: '#ef4444', fontSize: '11px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {hasError}</div>}
                     {options ? (
                       <CustomSelect 
                         value={value} 
-                        onChange={(e) => { setValue(e.target.value); if (e.target.value) setWizardErrors(p => ({ ...p, [fieldKey]: '' })); }}
-                        onFocus={(e) => validate(e.target.value)}
-                        onBlur={(e) => validate(e.target.value)}
+                        onChange={(e) => { setValue(e.target.value); validate(e.target.value); }}
+                        onFocus={() => validate(value)}
+                        onBlur={() => validate(value)}
                         disabled={disabled}
                         required={required}
                         style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: hasError ? '1px solid #ef4444' : '1px solid var(--border-color)', color: 'inherit', borderRadius: '8px', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.6 : 1, ...extraProps.style }}
@@ -1394,7 +1395,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                             e.target.value = val;
                           }
                           setValue(val); 
-                          if (val) setWizardErrors(p => ({ ...p, [fieldKey]: '' })); 
+                          validate(val); 
                         }}
                         onFocus={(e) => validate(e.target.value)}
                         onBlur={(e) => validate(e.target.value)}
@@ -1406,7 +1407,6 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                         {...extraProps}
                       />
                     )}
-                    {hasError && <div style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {hasError}</div>}
                   </div>
                 );
               };
@@ -1417,6 +1417,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                   
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>EMPLOYEE ID *</label>
+                    {wizardErrors['EMPLOYEEID'] && <div style={{ color: '#ef4444', fontSize: '11px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {wizardErrors['EMPLOYEEID']}</div>}
                     <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'var(--bg-primary)', border: wizardErrors['EMPLOYEEID'] ? '1px solid #ef4444' : '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
                       <div style={{ padding: '10px 12px', backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-color)', color: 'var(--text-muted)', fontWeight: 'bold' }}>
                         {empIdPrefix}-
@@ -1424,7 +1425,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                       <input 
                         type="text" 
                         value={newEmpId} 
-                        onChange={(e) => { setNewEmpId(e.target.value); if (e.target.value) setWizardErrors(p => ({ ...p, EMPLOYEEID: '' })); }} 
+                        onChange={(e) => { setNewEmpId(e.target.value); if (!e.target.value) setWizardErrors(p => ({ ...p, EMPLOYEEID: 'Please enter EMPLOYEE ID.' })); else setWizardErrors(p => ({ ...p, EMPLOYEEID: '' })); }} 
                         onFocus={(e) => { if (!e.target.value) setWizardErrors(p => ({ ...p, EMPLOYEEID: 'Please enter EMPLOYEE ID.' })); }}
                         onBlur={(e) => { if (!e.target.value) setWizardErrors(p => ({ ...p, EMPLOYEEID: 'Please enter EMPLOYEE ID.' })); }}
                         placeholder="Enter ID" 
@@ -1432,7 +1433,6 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                         style={{ flex: 1, backgroundColor: 'transparent', border: 'none', color: '#fff', padding: '10px 12px', outline: 'none' }} 
                       />
                     </div>
-                    {wizardErrors['EMPLOYEEID'] && <div style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {wizardErrors['EMPLOYEEID']}</div>}
                   </div>
                   
                   {renderField('EMAIL ADDRESS *', newEmail, setNewEmail, 'email', true, null, false, 'employee@example.com')}
@@ -1462,7 +1462,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                   
                   {renderField('JOINING DATE *', newJoinDate, setNewJoinDate, 'date', true)}
                   
-                  {renderField('REPORTS TO (TEAM LEAD) *', newManagerId, setNewManagerId, 'text', newSystemRole === 'employee', (
+                  {renderField('REPORTS TO (TEAM LEAD) *', newManagerId, setNewManagerId, 'text', !newSystemRole || newSystemRole === 'employee', (
                     <>
                       <option value="">Select Team Lead</option>
                       {teamLeads.map(tl => <option key={tl.id} value={tl.id}>{tl.name}</option>)}
@@ -1515,16 +1515,15 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
               const renderField = (label, value, setValue, type = 'text', required = false, options = null, disabled = false, placeholder = '', extraProps = {}, formatRegex = null, formatError = '') => {
                 const fieldKey = label.replace(/[^a-zA-Z]/g, '');
                 const actionWord = options ? 'select' : 'enter';
-                const isSelectOrDate = options !== null || type === 'date';
-                const hasError = (isSelectOrDate && required && !value) 
-                  ? `Please ${actionWord} ${label.replace(' *', '').replace(' / TITLE', '').replace(' (TEAM LEAD)', '')}.` 
-                  : editErrors[fieldKey];
+                const hasError = editErrors[fieldKey];
                 
                 const validate = (val) => {
-                  const cleanVal = String(val || '').trim();
-                  if (required && !cleanVal) {
-                    setEditErrors(p => ({ ...p, [fieldKey]: `Please ${actionWord} ${label.replace(' *', '').replace(' / TITLE', '').replace(' (TEAM LEAD)', '')}.` }));
-                  } else if (cleanVal && formatRegex && !formatRegex.test(cleanVal)) {
+                  if (required && !val) {
+                    let errStr = `Please ${actionWord} ${label.replace(' *', '').replace(' / TITLE', '').replace(' (TEAM LEAD)', '')}.`;
+                    if (label.includes('DESIGNATION') && !editDept) errStr = 'First select Department then select DESIGNATION.';
+                    if (label.includes('REPORTS TO') && !editSystemRole) errStr = 'First select SYSTEM ROLE then select REPORTS.';
+                    setEditErrors(p => ({ ...p, [fieldKey]: errStr }));
+                  } else if (val && formatRegex && !formatRegex.test(val)) {
                     setEditErrors(p => ({ ...p, [fieldKey]: formatError }));
                   } else {
                     setEditErrors(p => ({ ...p, [fieldKey]: '' }));
@@ -1534,12 +1533,13 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                 return (
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>{label}</label>
+                    {hasError && <div style={{ color: '#ef4444', fontSize: '11px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {hasError}</div>}
                     {options ? (
                       <CustomSelect 
                         value={value} 
-                        onChange={(e) => { setValue(e.target.value); if (e.target.value) setEditErrors(p => ({ ...p, [fieldKey]: '' })); }}
-                        onFocus={(e) => validate(e.target.value)}
-                        onBlur={(e) => validate(e.target.value)}
+                        onChange={(e) => { setValue(e.target.value); validate(e.target.value); }}
+                        onFocus={() => validate(value)}
+                        onBlur={() => validate(value)}
                         disabled={disabled}
                         required={required}
                         style={{ width: '100%', backgroundColor: 'var(--bg-primary)', border: hasError ? '1px solid #ef4444' : '1px solid var(--border-color)', color: 'inherit', borderRadius: '8px', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.6 : 1, ...extraProps.style }}
@@ -1562,7 +1562,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                             e.target.value = val;
                           }
                           setValue(val); 
-                          if (val) setEditErrors(p => ({ ...p, [fieldKey]: '' })); 
+                          validate(val); 
                         }}
                         onFocus={(e) => validate(e.target.value)}
                         onBlur={(e) => validate(e.target.value)}
@@ -1574,7 +1574,6 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                         {...extraProps}
                       />
                     )}
-                    {hasError && <div style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {hasError}</div>}
                   </div>
                 );
               };
@@ -1585,6 +1584,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                   
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-muted)' }}>EMPLOYEE ID *</label>
+                    {editErrors['EMPLOYEEID'] && <div style={{ color: '#ef4444', fontSize: '11px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {editErrors['EMPLOYEEID']}</div>}
                     <div style={{ display: 'flex', alignItems: 'center', backgroundColor: 'var(--bg-primary)', border: editErrors['EMPLOYEEID'] ? '1px solid #ef4444' : '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
                       <div style={{ padding: '10px 12px', backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-color)', color: 'var(--text-muted)', fontWeight: 'bold' }}>
                         {empIdPrefix}-
@@ -1592,7 +1592,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                       <input 
                         type="text" 
                         value={editEmpId} 
-                        onChange={(e) => { setEditEmpId(e.target.value); if (e.target.value) setEditErrors(p => ({ ...p, EMPLOYEEID: '' })); }} 
+                        onChange={(e) => { setEditEmpId(e.target.value); if (!e.target.value) setEditErrors(p => ({ ...p, EMPLOYEEID: 'Please enter EMPLOYEE ID.' })); else setEditErrors(p => ({ ...p, EMPLOYEEID: '' })); }} 
                         onFocus={(e) => { if (!e.target.value) setEditErrors(p => ({ ...p, EMPLOYEEID: 'Please enter EMPLOYEE ID.' })); }}
                         onBlur={(e) => { if (!e.target.value) setEditErrors(p => ({ ...p, EMPLOYEEID: 'Please enter EMPLOYEE ID.' })); }}
                         placeholder="Enter ID" 
@@ -1600,7 +1600,6 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                         style={{ flex: 1, backgroundColor: 'transparent', border: 'none', color: '#fff', padding: '10px 12px', outline: 'none' }} 
                       />
                     </div>
-                    {editErrors['EMPLOYEEID'] && <div style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {editErrors['EMPLOYEEID']}</div>}
                   </div>
                   
                   {renderField('EMAIL ADDRESS *', editEmail, setEditEmail, 'email', true, null, false, 'employee@example.com')}
@@ -1630,7 +1629,7 @@ export function EmployeeRegistryView({ queryParams, setQueryParams }) {
                     </>
                   ))}
                   
-                  {renderField('REPORTS TO (TEAM LEAD) *', editManager, setEditManager, 'text', editSystemRole === 'employee', (
+                  {renderField('REPORTS TO (TEAM LEAD) *', editManager, setEditManager, 'text', !editSystemRole || editSystemRole === 'employee', (
                     <>
                       <option value="">None / Executive</option>
                       {teamLeads.map(tl => <option key={tl.id} value={tl.id}>{tl.name}</option>)}

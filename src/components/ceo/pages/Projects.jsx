@@ -327,12 +327,7 @@ export default function Projects({ currentUser }) {
           </select>
           <button className="ceo-btn ceo-btn-primary" onClick={() => { 
             setShowCreateModal(true); 
-            setErrors({
-              department: 'Please select Department.',
-              status: 'Please select Status.',
-              deadline: 'Please select Deadline Date.',
-              attachments: 'upload required documents for this project'
-            }); 
+            setErrors({}); 
           }} style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '40px', whiteSpace: 'nowrap' }}>
             <Plus size={16} /> New Project
           </button>
@@ -588,34 +583,35 @@ export default function Projects({ currentUser }) {
             </div>
             <form onSubmit={handleCreateProject} noValidate className="ceo-command-content" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label className="ceo-typography-meta">Project Name</label>
+                <label className="ceo-typography-meta" style={{ display: 'block', marginBottom: errors.name ? '4px' : '4px' }}>Project Name</label>
+                {errors.name && <div style={{ color: 'var(--ceo-danger)', fontSize: '13px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {errors.name}</div>}
                 <input 
                   className={`ceo-form-input ${errors.name ? 'error' : ''}`} 
-                  style={{ width: '100%', marginTop: '4px' }} 
+                  style={{ width: '100%' }} 
                   value={newProject.name} 
                   onChange={e => { setNewProject({...newProject, name: e.target.value}); if (e.target.value.trim()) setErrors(prev => ({...prev, name: ''})); }} 
                   onFocus={e => { if (!e.target.value.trim()) setErrors(prev => ({...prev, name: 'Please enter Project Name.'})); }}
-                  onBlur={e => { if (!e.target.value.trim()) setErrors(prev => ({...prev, name: 'Please enter Project Name.'})); else setErrors(prev => ({...prev, name: ''})); }}
+                  onClick={e => { if (!e.target.value.trim()) setErrors(prev => ({...prev, name: 'Please enter Project Name.'})); else setErrors(prev => ({...prev, name: ''})); }}
                   placeholder="Enter project name" 
                 />
-                {errors.name && <div style={{ color: 'var(--ceo-danger)', fontSize: '13px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {errors.name}</div>}
               </div>
               <div className="responsive-form-grid" style={{ gap: '16px' }}>
                 <div style={{ flex: 1 }}>
-                  <label className="ceo-typography-meta">Client</label>
+                  <label className="ceo-typography-meta" style={{ display: 'block', marginBottom: errors.client ? '4px' : '4px' }}>Client</label>
+                  {errors.client && <div style={{ color: 'var(--ceo-danger)', fontSize: '13px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {errors.client}</div>}
                   <input 
                     className={`ceo-form-input ${errors.client ? 'error' : ''}`} 
-                    style={{ width: '100%', marginTop: '4px' }} 
+                    style={{ width: '100%' }} 
                     value={newProject.client} 
                     onChange={e => { setNewProject({...newProject, client: e.target.value}); if (e.target.value.trim()) setErrors(prev => ({...prev, client: ''})); }} 
                     onFocus={e => { if (!e.target.value.trim()) setErrors(prev => ({...prev, client: 'Please enter Client Name.'})); }}
-                    onBlur={e => { if (!e.target.value.trim()) setErrors(prev => ({...prev, client: 'Please enter Client Name.'})); else setErrors(prev => ({...prev, client: ''})); }}
+                    onClick={e => { if (!e.target.value.trim()) setErrors(prev => ({...prev, client: 'Please enter Client Name.'})); else setErrors(prev => ({...prev, client: ''})); }}
                     placeholder="Enter client name" 
                   />
-                  {errors.client && <div style={{ color: 'var(--ceo-danger)', fontSize: '13px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {errors.client}</div>}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label className="ceo-typography-meta">Department</label>
+                  <label className="ceo-typography-meta" style={{ display: 'block', marginBottom: errors.department ? '4px' : '4px' }}>Department</label>
+                  {errors.department && <div style={{ color: 'var(--ceo-danger)', fontSize: '13px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {errors.department}</div>}
                   <CustomSelect 
                     options={[{label: 'Select Department', value: ''}, ...departments.map(d => ({ label: d.name || d.department, value: d.name || d.department }))]}
                     defaultValue={newProject.department}
@@ -624,17 +620,17 @@ export default function Projects({ currentUser }) {
                     onChange={val => { setNewProject({...newProject, department: val}); if (val) setErrors(prev => ({...prev, department: ''})); }}
                     onFocus={val => { if (!val) setErrors(prev => ({...prev, department: 'Please select Department.'})); }}
                   />
-                  {errors.department && <div style={{ color: 'var(--ceo-danger)', fontSize: '13px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {errors.department}</div>}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label className="ceo-typography-meta">Status</label>
+                  <label className="ceo-typography-meta" style={{ display: 'block', marginBottom: errors.status ? '4px' : '4px' }}>Status</label>
+                  {errors.status && <div style={{ color: 'var(--ceo-danger)', fontSize: '13px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {errors.status}</div>}
                   <select 
                     className={`ceo-form-input ${errors.status ? 'error' : ''}`} 
-                    style={{ width: '100%', marginTop: '4px' }} 
+                    style={{ width: '100%' }} 
                     value={newProject.status} 
                     onChange={e => { setNewProject({...newProject, status: e.target.value}); if (e.target.value) setErrors(prev => ({...prev, status: ''})); }} 
                     onFocus={e => { if (!e.target.value) setErrors(prev => ({...prev, status: 'Please select Status.'})); }}
-                    onBlur={e => { if (!e.target.value) setErrors(prev => ({...prev, status: 'Please select Status.'})); else setErrors(prev => ({...prev, status: ''})); }}
+                    onClick={e => { if (!e.target.value) setErrors(prev => ({...prev, status: 'Please select Status.'})); else setErrors(prev => ({...prev, status: ''})); }}
                   >
                     <option value="">Select Status</option>
                     <option value="Active">Active</option>
@@ -642,65 +638,64 @@ export default function Projects({ currentUser }) {
                     <option value="On Hold">On Hold</option>
                     <option value="Completed">Completed</option>
                   </select>
-                  {errors.status && <div style={{ color: 'var(--ceo-danger)', fontSize: '13px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {errors.status}</div>}
                 </div>
               </div>
               <div className="responsive-form-grid" style={{ gap: '16px' }}>
                 <div style={{ flex: 1 }}>
-                  <label className="ceo-typography-meta">Total Budget (₹)</label>
+                  <label className="ceo-typography-meta" style={{ display: 'block', marginBottom: errors.budget ? '4px' : '4px' }}>Total Budget (₹)</label>
+                  {errors.budget && <div style={{ color: 'var(--ceo-danger)', fontSize: '13px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {errors.budget}</div>}
                   <input 
                     type="text" 
                     className={`ceo-form-input ${errors.budget ? 'error' : ''}`} 
-                    style={{ width: '100%', marginTop: '4px' }} 
+                    style={{ width: '100%' }} 
                     value={newProject.budget} 
                     onChange={e => { const val = e.target.value.replace(/[^0-9]/g, ''); setNewProject({...newProject, budget: val}); if (val.trim()) setErrors(prev => ({...prev, budget: ''})); }} 
                     onFocus={e => { if (!String(e.target.value).trim()) setErrors(prev => ({...prev, budget: 'Please enter Total Budget.'})); }}
-                    onBlur={e => { if (!String(e.target.value).trim()) setErrors(prev => ({...prev, budget: 'Please enter Total Budget.'})); else setErrors(prev => ({...prev, budget: ''})); }}
+                    onClick={e => { if (!String(e.target.value).trim()) setErrors(prev => ({...prev, budget: 'Please enter Total Budget.'})); else setErrors(prev => ({...prev, budget: ''})); }}
                     placeholder="Enter total budget" 
                   />
-                  {errors.budget && <div style={{ color: 'var(--ceo-danger)', fontSize: '13px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {errors.budget}</div>}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label className="ceo-typography-meta">Used Budget (₹)</label>
+                  <label className="ceo-typography-meta" style={{ display: 'block', marginBottom: errors.used ? '4px' : '4px' }}>Used Budget (₹)</label>
+                  {errors.used && <div style={{ color: 'var(--ceo-danger)', fontSize: '13px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {errors.used}</div>}
                   <input 
                     type="text" 
                     className={`ceo-form-input ${errors.used ? 'error' : ''}`} 
-                    style={{ width: '100%', marginTop: '4px' }} 
+                    style={{ width: '100%' }} 
                     value={newProject.used} 
                     onChange={e => { const val = e.target.value.replace(/[^0-9]/g, ''); setNewProject({...newProject, used: val}); if (val.trim()) setErrors(prev => ({...prev, used: ''})); }} 
                     onFocus={e => { if (!String(e.target.value).trim()) setErrors(prev => ({...prev, used: 'Please enter Total Spent Budget.'})); }}
-                    onBlur={e => { if (!String(e.target.value).trim()) setErrors(prev => ({...prev, used: 'Please enter Total Spent Budget.'})); else setErrors(prev => ({...prev, used: ''})); }}
+                    onClick={e => { if (!String(e.target.value).trim()) setErrors(prev => ({...prev, used: 'Please enter Total Spent Budget.'})); else setErrors(prev => ({...prev, used: ''})); }}
                     placeholder="Enter used budget" 
                   />
-                  {errors.used && <div style={{ color: 'var(--ceo-danger)', fontSize: '13px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {errors.used}</div>}
                 </div>
               </div>
               <div>
-                <label className="ceo-typography-meta">Deadline</label>
+                <label className="ceo-typography-meta" style={{ display: 'block', marginBottom: errors.deadline ? '4px' : '4px' }}>Deadline</label>
+                {errors.deadline && <div style={{ color: 'var(--ceo-danger)', fontSize: '13px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {errors.deadline}</div>}
                 <input 
                   type="date" 
                   className={`ceo-form-input ${errors.deadline ? 'error' : ''}`} 
-                  style={{ width: '100%', marginTop: '4px' }} 
+                  style={{ width: '100%' }} 
                   value={newProject.deadline} 
                   onChange={e => { setNewProject({...newProject, deadline: e.target.value}); if (e.target.value) setErrors(prev => ({...prev, deadline: ''})); }} 
                   onFocus={e => { if (!e.target.value) setErrors(prev => ({...prev, deadline: 'Please select Deadline Date.'})); }}
-                  onBlur={e => { if (!e.target.value) setErrors(prev => ({...prev, deadline: 'Please select Deadline Date.'})); else setErrors(prev => ({...prev, deadline: ''})); }}
+                  onClick={e => { if (!e.target.value) setErrors(prev => ({...prev, deadline: 'Please select Deadline Date.'})); else setErrors(prev => ({...prev, deadline: ''})); }}
                   placeholder="Enter deadline" 
                 />
-                {errors.deadline && <div style={{ color: 'var(--ceo-danger)', fontSize: '13px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {errors.deadline}</div>}
               </div>
 
               <div>
-                <label className="ceo-typography-meta">Attachments</label>
+                <label className="ceo-typography-meta" style={{ display: 'block', marginBottom: errors.attachments ? '4px' : '4px' }}>Attachments</label>
+                {errors.attachments && <div style={{ color: 'var(--ceo-danger)', fontSize: '13px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {errors.attachments}</div>}
                 <input 
                   type="file" 
                   multiple 
                   className={`ceo-form-input ${errors.attachments ? 'error' : ''}`} 
-                  style={{ width: '100%', marginTop: '4px' }} 
+                  style={{ width: '100%' }} 
                   onChange={e => { handleFileUpload(e, setNewProject, newProject); if (e.target.files.length > 0) setErrors(prev => ({...prev, attachments: ''})); }} 
                   disabled={uploading} 
                 />
-                {errors.attachments && <div style={{ color: 'var(--ceo-danger)', fontSize: '13px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {errors.attachments}</div>}
                 {uploading && <span style={{fontSize: '12px', color: 'var(--ceo-primary)'}}>Uploading...</span>}
                 {newProject.attachments && (
                   <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>

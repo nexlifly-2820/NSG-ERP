@@ -268,11 +268,7 @@ export default function StrategyOKRs() {
           </div>
           <button className="ceo-btn" onClick={() => {
             setNewOkr({ title: '', owner: '', quarter: '', year: '', krs: [{ title: '', target: '', unit: '' }] });
-            setOkrErrors({
-              quarter: 'Please select Quarter.',
-              year: 'Please select Year.',
-              krs: []
-            });
+            setOkrErrors({ krs: [] });
             setIsAdding(true);
           }}>
             <Plus size={16} style={{ marginRight: '6px' }} /> New OKR
@@ -430,27 +426,28 @@ export default function StrategyOKRs() {
             <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px' }}>Create New Objective</h2>
             
             <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--ceo-text-secondary)', marginBottom: '6px' }}>Objective Title *</label>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--ceo-text-secondary)', marginBottom: okrErrors.title ? '4px' : '6px' }}>Objective Title *</label>
+              {okrErrors.title && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {okrErrors.title}</div>}
               <input 
                 type="text" 
                 value={newOkr.title} 
                 onChange={e => { setNewOkr({...newOkr, title: e.target.value}); if(e.target.value.trim()) setOkrErrors(p => ({...p, title: ''})); }}
                 onFocus={e => { if(!e.target.value.trim()) setOkrErrors(p => ({...p, title: 'Please enter Objective Title.'})); }}
-                onBlur={e => { if(!e.target.value.trim()) setOkrErrors(p => ({...p, title: 'Please enter Objective Title.'})); else setOkrErrors(p => ({...p, title: ''})); }}
-                className="ceo-form-input" 
+                onClick={e => { if(!e.target.value.trim()) setOkrErrors(p => ({...p, title: 'Please enter Objective Title.'})); else setOkrErrors(p => ({...p, title: ''})); }}
+                className={`ceo-form-input ${okrErrors.title ? 'error' : ''}`} 
                 placeholder="e.g. Dominate Enterprise Market"
               />
-              {okrErrors.title && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {okrErrors.title}</div>}
             </div>
             
             <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
               <div style={{ flex: 1 }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--ceo-text-secondary)', marginBottom: '6px' }}>Owner *</label>
-                <input type="text" value={newOkr.owner} onChange={e => { setNewOkr({...newOkr, owner: e.target.value}); if(e.target.value.trim()) setOkrErrors(p => ({...p, owner: ''})); }} onFocus={e => { if(!e.target.value.trim()) setOkrErrors(p => ({...p, owner: 'Please enter Owner.'})); }} onBlur={e => { if(!e.target.value.trim()) setOkrErrors(p => ({...p, owner: 'Please enter Owner.'})); else setOkrErrors(p => ({...p, owner: ''})); }} className="ceo-form-input" placeholder="e.g. CEO Office" />
-                {okrErrors.owner && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {okrErrors.owner}</div>}
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--ceo-text-secondary)', marginBottom: okrErrors.owner ? '4px' : '6px' }}>Owner *</label>
+                {okrErrors.owner && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {okrErrors.owner}</div>}
+                <input type="text" value={newOkr.owner} onChange={e => { setNewOkr({...newOkr, owner: e.target.value}); if(e.target.value.trim()) setOkrErrors(p => ({...p, owner: ''})); }} onFocus={e => { if(!e.target.value.trim()) setOkrErrors(p => ({...p, owner: 'Please enter Owner.'})); }} onClick={e => { if(!e.target.value.trim()) setOkrErrors(p => ({...p, owner: 'Please enter Owner.'})); else setOkrErrors(p => ({...p, owner: ''})); }} className={`ceo-form-input ${okrErrors.owner ? 'error' : ''}`} placeholder="e.g. CEO Office" />
               </div>
               <div style={{ width: '120px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--ceo-text-secondary)', marginBottom: '6px' }}>Quarter *</label>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--ceo-text-secondary)', marginBottom: okrErrors.quarter ? '4px' : '6px' }}>Quarter *</label>
+                {okrErrors.quarter && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {okrErrors.quarter}</div>}
                 <CustomSelect 
                   defaultValue={newOkr.quarter} 
                   placeholder="Select"
@@ -462,11 +459,12 @@ export default function StrategyOKRs() {
                   ]}
                   onChange={val => { setNewOkr({...newOkr, quarter: val}); if(val) setOkrErrors(p => ({...p, quarter: ''})); }}
                   onFocus={val => { if(!val) setOkrErrors(p => ({...p, quarter: 'Please select Quarter.'})); else setOkrErrors(p => ({...p, quarter: ''})); }}
+                  innerStyle={{ borderColor: okrErrors.quarter ? 'var(--ceo-danger)' : '' }}
                 />
-                {okrErrors.quarter && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {okrErrors.quarter}</div>}
               </div>
               <div style={{ width: '120px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--ceo-text-secondary)', marginBottom: '6px' }}>Year *</label>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--ceo-text-secondary)', marginBottom: okrErrors.year ? '4px' : '6px' }}>Year *</label>
+                {okrErrors.year && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {okrErrors.year}</div>}
                 <CustomSelect 
                   defaultValue={newOkr.year} 
                   placeholder="Select"
@@ -486,8 +484,8 @@ export default function StrategyOKRs() {
                   ]}
                   onChange={val => { setNewOkr({...newOkr, year: val}); if(val) setOkrErrors(p => ({...p, year: ''})); }}
                   onFocus={val => { if(!val) setOkrErrors(p => ({...p, year: 'Please select Year.'})); else setOkrErrors(p => ({...p, year: ''})); }}
+                  innerStyle={{ borderColor: okrErrors.year ? 'var(--ceo-danger)' : '' }}
                 />
-                {okrErrors.year && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {okrErrors.year}</div>}
               </div>
             </div>
 
@@ -496,7 +494,9 @@ export default function StrategyOKRs() {
             {newOkr.krs.map((kr, idx) => (
               <div key={idx} style={{ display: 'flex', gap: '12px', marginBottom: '12px', alignItems: 'flex-start' }}>
                 <div style={{ flex: 1 }}>
-                  <input type="text" placeholder="KR Title" value={kr.title} onChange={e => {
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--ceo-text-secondary)', marginBottom: okrErrors.krs?.[idx]?.title ? '4px' : '6px' }}>KR Title *</label>
+                  {okrErrors.krs?.[idx]?.title && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {okrErrors.krs[idx].title}</div>}
+                  <input type="text" placeholder="e.g. Acquire 50 new enterprise clients" value={kr.title} onChange={e => {
                     const updated = [...newOkr.krs];
                     updated[idx].title = e.target.value;
                     setNewOkr({...newOkr, krs: updated});
@@ -506,25 +506,19 @@ export default function StrategyOKRs() {
                       newErrs[idx].title = '';
                       setOkrErrors({...okrErrors, krs: newErrs});
                     }
-                  }} onFocus={e => {
+                  }} onClick={e => {
                     if(!e.target.value.trim()) {
                       const newErrs = [...(okrErrors.krs || [])];
                       if(!newErrs[idx]) newErrs[idx] = {};
                       newErrs[idx].title = 'Enter KR Title.';
                       setOkrErrors({...okrErrors, krs: newErrs});
                     }
-                  }} onBlur={e => {
-                    if(!e.target.value.trim()) {
-                      const newErrs = [...(okrErrors.krs || [])];
-                      if(!newErrs[idx]) newErrs[idx] = {};
-                      newErrs[idx].title = 'Enter KR Title.';
-                      setOkrErrors({...okrErrors, krs: newErrs});
-                    }
-                  }} className="ceo-form-input" />
-                  {okrErrors.krs?.[idx]?.title && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginTop: '4px' }}>{okrErrors.krs[idx].title}</div>}
+                  }} className={`ceo-form-input ${okrErrors.krs?.[idx]?.title ? 'error' : ''}`} />
                 </div>
                 <div style={{ width: '80px' }}>
-                  <input type="number" placeholder="Target" value={kr.target} onChange={e => {
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--ceo-text-secondary)', marginBottom: okrErrors.krs?.[idx]?.target ? '4px' : '6px' }}>Target *</label>
+                  {okrErrors.krs?.[idx]?.target && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {okrErrors.krs[idx].target}</div>}
+                  <input type="number" placeholder="50" value={kr.target} onChange={e => {
                     const updated = [...newOkr.krs];
                     updated[idx].target = e.target.value;
                     setNewOkr({...newOkr, krs: updated});
@@ -534,25 +528,19 @@ export default function StrategyOKRs() {
                       newErrs[idx].target = '';
                       setOkrErrors({...okrErrors, krs: newErrs});
                     }
-                  }} onFocus={e => {
+                  }} onClick={e => {
                     if(!e.target.value) {
                       const newErrs = [...(okrErrors.krs || [])];
                       if(!newErrs[idx]) newErrs[idx] = {};
                       newErrs[idx].target = 'Enter Target.';
                       setOkrErrors({...okrErrors, krs: newErrs});
                     }
-                  }} onBlur={e => {
-                    if(!e.target.value) {
-                      const newErrs = [...(okrErrors.krs || [])];
-                      if(!newErrs[idx]) newErrs[idx] = {};
-                      newErrs[idx].target = 'Enter Target.';
-                      setOkrErrors({...okrErrors, krs: newErrs});
-                    }
-                  }} className="ceo-form-input" />
-                  {okrErrors.krs?.[idx]?.target && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginTop: '4px' }}>{okrErrors.krs[idx].target}</div>}
+                  }} className={`ceo-form-input ${okrErrors.krs?.[idx]?.target ? 'error' : ''}`} />
                 </div>
                 <div style={{ width: '80px' }}>
-                  <input type="text" placeholder="Unit" value={kr.unit} onChange={e => {
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--ceo-text-secondary)', marginBottom: okrErrors.krs?.[idx]?.unit ? '4px' : '6px' }}>Unit *</label>
+                  {okrErrors.krs?.[idx]?.unit && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={14} /> {okrErrors.krs[idx].unit}</div>}
+                  <input type="text" placeholder="Clients" value={kr.unit} onChange={e => {
                     const updated = [...newOkr.krs];
                     updated[idx].unit = e.target.value;
                     setNewOkr({...newOkr, krs: updated});
@@ -562,22 +550,14 @@ export default function StrategyOKRs() {
                       newErrs[idx].unit = '';
                       setOkrErrors({...okrErrors, krs: newErrs});
                     }
-                  }} onFocus={e => {
+                  }} onClick={e => {
                     if(!e.target.value.trim()) {
                       const newErrs = [...(okrErrors.krs || [])];
                       if(!newErrs[idx]) newErrs[idx] = {};
                       newErrs[idx].unit = 'Enter Unit.';
                       setOkrErrors({...okrErrors, krs: newErrs});
                     }
-                  }} onBlur={e => {
-                    if(!e.target.value.trim()) {
-                      const newErrs = [...(okrErrors.krs || [])];
-                      if(!newErrs[idx]) newErrs[idx] = {};
-                      newErrs[idx].unit = 'Enter Unit.';
-                      setOkrErrors({...okrErrors, krs: newErrs});
-                    }
-                  }} className="ceo-form-input" />
-                  {okrErrors.krs?.[idx]?.unit && <div style={{ color: 'var(--ceo-danger)', fontSize: '12px', marginTop: '4px' }}>{okrErrors.krs[idx].unit}</div>}
+                  }} className={`ceo-form-input ${okrErrors.krs?.[idx]?.unit ? 'error' : ''}`} />
                 </div>
                 <button onClick={() => {
                   const updated = newOkr.krs.filter((_, i) => i !== idx);
