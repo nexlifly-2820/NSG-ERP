@@ -322,13 +322,99 @@ const DeptTreeNode = ({ dept, level = 0, onAdd, onEdit, onDelete }) => {
   );
 };
 
+const autoCropImage = (file) => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+
+        try {
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imageData.data;
+          let top = null, bottom = null, left = null, right = null;
+
+          for (let y = 0; y < canvas.height; y++) {
+            for (let x = 0; x < canvas.width; x++) {
+              const index = (y * canvas.width + x) * 4;
+              const r = data[index];
+              const g = data[index + 1];
+              const b = data[index + 2];
+              const alpha = data[index + 3];
+              
+              // Check if pixel is effectively invisible (either transparent or pure white)
+              const isTransparent = alpha < 10;
+              const isWhite = r > 245 && g > 245 && b > 245 && alpha > 240;
+              
+              if (!isTransparent && !isWhite) { 
+                if (top === null) top = y;
+                bottom = y;
+                if (left === null || x < left) left = x;
+                if (right === null || x > right) right = x;
+              }
+            }
+          }
+
+          if (top === null) {
+            resolve(file);
+            return;
+          }
+
+          // Add a small padding (e.g. 5%) around the cropped image for better visuals
+          const paddingX = Math.floor((right - left) * 0.05);
+          const paddingY = Math.floor((bottom - top) * 0.05);
+          
+          const finalLeft = Math.max(0, left - paddingX);
+          const finalTop = Math.max(0, top - paddingY);
+          const finalRight = Math.min(canvas.width - 1, right + paddingX);
+          const finalBottom = Math.min(canvas.height - 1, bottom + paddingY);
+
+          const width = finalRight - finalLeft + 1;
+          const height = finalBottom - finalTop + 1;
+
+          const croppedCanvas = document.createElement('canvas');
+          croppedCanvas.width = width;
+          croppedCanvas.height = height;
+          const croppedCtx = croppedCanvas.getContext('2d');
+          
+          croppedCtx.drawImage(
+            canvas,
+            finalLeft, finalTop, width, height,
+            0, 0, width, height
+          );
+
+          croppedCanvas.toBlob((blob) => {
+            if (!blob) {
+              resolve(file);
+              return;
+            }
+            const croppedFile = new File([blob], file.name, { type: file.type || 'image/png' });
+            resolve(croppedFile);
+          }, file.type || 'image/png');
+        } catch (e) {
+          // Fallback if canvas is tainted (e.g. CORS issues, though unlikely with local file)
+          resolve(file);
+        }
+      };
+      img.onerror = () => resolve(file);
+      img.src = event.target.result;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+};
 
 // ==========================================
 // MAIN PAGE (LIVE DATA CONNECTED)
 // ==========================================
 export default function CompanySetup() {
   const [activeTab, setActiveTab] = useState('profile');
-  const { refreshCompanyConfig } = useCompany();
+  const { refreshCompanyConfig, logoZoom, loadingConfig } = useCompany();
   
   const [deptTree, setDeptTree] = useState(initialDeptTree);
   const [designations, setDesignations] = useState(initialDesignations);
@@ -357,6 +443,7 @@ export default function CompanySetup() {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  
   const [nameError, setNameError] = useState('');
   const [gstError, setGstError] = useState('');
   const [cinError, setCinError] = useState('');
@@ -530,12 +617,16 @@ export default function CompanySetup() {
 
   const handleLogoUpload = async (e) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const fileName = file.name;
+      const originalFile = e.target.files[0];
+      const fileName = originalFile.name;
       setIsSaving(true);
+      window.showToast('Processing and auto-cropping logo...');
+
+      // Auto-crop the image to remove transparent padding
+      const croppedFile = await autoCropImage(originalFile);
 
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', croppedFile);
 
       try {
         const res = await fetch('/api/ceo-portal/configs/upload-logo', {
@@ -551,7 +642,7 @@ export default function CompanySetup() {
           const data = await res.json();
           setLogoFile(fileName);
           setLogoPreview("http://localhost:8000" + data.file_url);
-          window.showToast('Logo file securely uploaded and saved.');
+          window.showToast('Logo perfectly cropped and securely uploaded.');
           refreshCompanyConfig();
         } else {
           window.showToast('Error uploading logo to server.');
@@ -838,7 +929,7 @@ export default function CompanySetup() {
 
                   {/* Logo Upload */}
                   <div style={{ gridColumn: '1 / -1', marginBottom: '8px', display: 'flex', gap: '32px', alignItems: 'center', padding: '24px', background: 'var(--ceo-bg)', borderRadius: '12px', border: '1px dashed var(--ceo-border)' }}>
-                    <div style={{ width: 90, height: 90, borderRadius: 12, background: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+                    <div style={{ width: 100, height: 100, borderRadius: 12, background: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', overflow: 'hidden', padding: '12px', boxSizing: 'border-box' }}>
                       {logoPreview ? (
                         <img src={logoPreview} alt="Company Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                       ) : (
@@ -850,6 +941,7 @@ export default function CompanySetup() {
                       <div className="ceo-typography-meta" style={{ marginBottom: '16px', fontSize: '13px' }}>{logoFile ? `Selected: ${logoFile}` : 'Recommended 400x400px PNG or SVG format. Max 2MB.'}</div>
                       <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleLogoUpload} accept="image/*" />
                       <button type="button" className="ceo-btn" style={{ background: '#FFF' }} onClick={() => fileInputRef.current?.click()}><Upload size={16} /> Select File</button>
+                      
                       {isEditingProfile && (
                         <div style={{ color: '#dc2626', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '10px' }}>
                           <AlertCircle size={14} /> If you upload a new logo, it will reflect in all places where the logo is displayed.

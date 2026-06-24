@@ -51,7 +51,7 @@ export default function Sidebar({ activeRole, activeTab, setActiveTab, currentUs
     <aside className={`app-sidebar ${isOpen ? 'open' : ''}`}>
       {/* Brand Header */}
       <div className="sidebar-brand" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px', marginBottom: '24px' }}>
-        <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&background=random`; }} src={companyLogo} alt={companyName} style={{ width: '100%', height: '70px', objectFit: 'contain', objectPosition: 'left center', transform: 'scale(2.4)', transformOrigin: 'left center', margin: '-10px 0 -15px -10px' }} />
+        <img onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&background=random`; }} src={companyLogo} alt={companyName} style={{ width: '100%', height: '70px', objectFit: 'contain', objectPosition: 'left center' }} />
         <span style={{ color: currentRoleColor, fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', paddingLeft: '4px', marginTop: '2px' }}>{roleLabel}</span>
       </div>
 
